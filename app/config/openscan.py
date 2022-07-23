@@ -26,7 +26,7 @@ class OpenScanConfig:
         cls.cloud = CloudSettings(
             "openscan",
             "free",
-            "72a15bfX8c8a4aabbc116cbfb7461225",
+            "******",
             "http://openscanfeedback.dnsuser.de:1334",
         )
         cls.ring_light_pins = (17, 27)
