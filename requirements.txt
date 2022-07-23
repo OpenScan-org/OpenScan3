@@ -1,0 +1,9 @@
+rpi.gpio==0.7.1
+fastapi==0.78.0
+uvicorn==0.18.2
+gphoto2==2.3.4
+v4l2py==0.6.1
+pillow==9.2.0
+numpy==1.23.1
+picamera2==0.2.3
+orjson==3.7.7
