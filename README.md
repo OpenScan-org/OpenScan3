@@ -51,12 +51,12 @@ pip install -r requirements.txt
 
 To run the api backend run:
 ```sh
-uvicorn app.main:app --reload --reload-dir app
+uvicorn app.main:app --host 0.0.0.0
 ```
 
-Now the api should be accessible from `http://127.0.0.1:8000`
+Now the api should be accessible from `http://local_ip:8000`
 
-To access an api playground go to `http://127.0.0.1:8000/docs`
+To access an api playground go to `http://local_ip:8000/docs`
 
 _For more information, please refer to the [Documentation](https://example.com)_
 
