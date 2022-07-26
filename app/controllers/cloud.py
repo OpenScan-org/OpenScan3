@@ -4,7 +4,7 @@ import os
 import pathlib
 import tempfile
 import time
-from typing import IO
+from typing import IO, Any
 from zipfile import ZIP_DEFLATED, ZipFile
 import orjson
 
@@ -27,11 +27,13 @@ def _cloud_request(method: str, path: str, params=None) -> requests.Response:
     )
 
 
-def get_token_info():
-    return _cloud_request("get", "getTokenInfo")
+def get_token_info() -> dict[str, Any]:
+    return _cloud_request("get", "getTokenInfo").json()
 
 
-def _create_project(project_name: str, photos: int, filesize: int, parts: int):
+def _create_project(
+    project_name: str, photos: int, filesize: int, parts: int
+) -> dict[str, Any]:
     return _cloud_request(
         "get",
         "createProject",
@@ -41,11 +43,11 @@ def _create_project(project_name: str, photos: int, filesize: int, parts: int):
             "parts": parts,
             "project": project_name,
         },
-    )
+    ).json()
 
 
 def _upload_file(file: IO[bytes], ulink: str):
-    return requests.post(
+    requests.post(
         ulink, data=file, headers={"Content-type": "application/octet-stream"}
     )
 
@@ -64,22 +66,14 @@ def upload_project(project_name: str):
     # create project
     response = _create_project(cloud_project_name, len(photos), zip_size, nchunks)
 
-    print(cloud_project_name, len(photos), zip_size, nchunks)
-
-    print(response)
-    print(response.text)
-
     if response.status_code == 200:
         info = response.json()
         ulinks = info["ulink"]
         # upload parts
         counter = 0
         for chunk in projects.split_file(zip):
-            print(f"Uploading to {ulinks[counter]}")
-            response2 = _upload_file(chunk, ulinks[counter])
+            _upload_file(chunk, ulinks[counter])
             chunk.close()
-            print(response2)
-            print(response2.text)
             counter += 1
         # start processing
         response3 = _start_project(cloud_project_name)
@@ -91,9 +85,13 @@ def upload_project(project_name: str):
     zip.close()
 
 
-def _start_project(project_name: str):
-    return _cloud_request("get", "startProject", params={"project": project_name})
+def _start_project(project_name: str) -> dict[str, Any]:
+    return _cloud_request(
+        "get", "startProject", params={"project": project_name}
+    ).json()
 
 
-def get_project_info(project_name: str):
-    return _cloud_request("get", "getProjectInfo", params={"project": project_name})
+def get_project_info(project_name: str) -> dict[str, Any]:
+    return _cloud_request(
+        "get", "getProjectInfo", params={"project": project_name}
+    ).json()
