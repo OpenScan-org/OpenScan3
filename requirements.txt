@@ -7,3 +7,4 @@ pillow==9.2.0
 numpy==1.23.1
 picamera2==0.2.3
 orjson==3.7.7
+python-dotenv==0.20.0
