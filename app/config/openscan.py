@@ -1,11 +1,13 @@
 import json
 import pathlib
+import os
 
 from app.config.camera import CameraSettings
 from app.config.cloud import CloudSettings
 from app.config.motor import MotorConfig
 from app.models.motor import Motor
 
+from dotenv import load_dotenv
 
 class OpenScanConfig:
     def __init__(self):
@@ -26,9 +28,10 @@ class OpenScanConfig:
         cls.cloud = CloudSettings(
             "openscan",
             "free",
-            "******",
+            os.getenv("OPENSCANCLOUD_KEY"),
             "http://openscanfeedback.dnsuser.de:1334",
         )
+        cls.ring_light_enabled = False
         cls.ring_light_pins = (17, 27)
 
         cls.external_camera_pin = 10
