@@ -6,10 +6,10 @@ from app.config.camera import CameraSettings
 
 
 class CameraType(Enum):
-    GPHOTO2 = 0
-    V4L2 = 1
-    PICAMERA2 = 2
-    EXTERNAL = 3
+    GPHOTO2 = "gphoto2"
+    V4L2 = "v4l2"
+    PICAMERA2 = "picamera2"
+    EXTERNAL = "external"
 
 
 @dataclass
