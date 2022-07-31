@@ -46,13 +46,13 @@ def get_path(method: PathMethod, num_points: int) -> list[Point3D]:
         return PathGeneratorArchimedes.get_path(num_points)
 
 
-def plot_points(points: list[Point3D]) -> bytes:
+def plot_points(points: list[Point3D]) -> io.BytesIO():
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     ax.plot([p.x for p in points], [p.y for p in points], [p.z for p in points])
-    with io.BytesIO() as f:
-        plt.savefig(f)
-        return f.getvalue()
+    f = io.BytesIO()
+    plt.savefig(f)
+    return f
 
 
 class PathGenerator(abc.ABC):

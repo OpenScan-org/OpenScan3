@@ -1,6 +1,7 @@
 import io
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 from app.services.paths import paths
 
@@ -16,6 +17,10 @@ async def get_path(method: paths.PathMethod, points: int):
     return paths.get_path(method, points)
 
 
-@router.get("/{method}/preview", response_model=bytes)
-async def get_path(method: paths.PathMethod, points: int):
-    return paths.plot_points(paths.get_path(method, points))
+@router.get("/{method}/preview")
+def get_path(method: paths.PathMethod, points: int):
+    def iterfile():
+        image = paths.plot_points(paths.get_path(method, points))
+        yield from image
+
+    return StreamingResponse(iterfile(), media_type="video/mp4")
