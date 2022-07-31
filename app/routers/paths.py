@@ -23,4 +23,4 @@ def get_path(method: paths.PathMethod, points: int):
         image = paths.plot_points(paths.get_path(method, points))
         yield from image
 
-    return StreamingResponse(iterfile(), media_type="video/mp4")
+    return StreamingResponse(iterfile(), media_type="image/png")
