@@ -16,6 +16,6 @@ async def get_path(method: paths.PathMethod, points: int):
     return paths.get_path(method, points)
 
 
-@router.get("/{method}/preview", response_model=io.BytesIO)
+@router.get("/{method}/preview", response_model=bytes)
 async def get_path(method: paths.PathMethod, points: int):
     return paths.plot_points(paths.get_path(method, points))
