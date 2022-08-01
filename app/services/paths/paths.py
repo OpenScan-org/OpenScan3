@@ -22,17 +22,21 @@ class Point3D:
 
 
 @dataclass
-class PointPolar:
+class PolarPoint3D:
     r: float
-    a: float
+    theta: float
+    fi: float
 
 
-def polar_to_cartesian(point: PointPolar) -> Point3D:
+def polar_to_cartesian(point: PolarPoint3D) -> Point3D:
     ...
 
 
-def cartesian_to_polar(point: Point3D) -> PointPolar:
-    ...
+def cartesian_to_polar(point: Point3D) -> PolarPoint3D:
+    r = 1
+    theta = np.arccos(point.z/r)
+    fi = np.arctan(point.x/point.y)
+    return PolarPoint3D(r, theta, fi)
 
 
 def get_path(method: PathMethod, num_points: int) -> list[Point3D]:
@@ -86,7 +90,15 @@ class PathGeneratorFibonacci(PathGenerator):
 
 class PathGeneratorSpiral(PathGenerator):
     def get_path(num_points: int) -> list[Point3D]:
-        return []
+        a = 0.05
+        r = 1
+        t = np.linspace(1 / num_points - 30, 30 - 1 / num_points, num_points)
+        # Determine where xy fall on the sphere, given the azimuthal and polar angles
+        x = r * np.cos(t)/np.sqrt(a**2*t**2+1)
+        y = r * np.sin(t)/np.sqrt(a**2*t**2+1)
+        z = -(a*r*t)/np.sqrt(a**2*t**2+1)
+
+        return [Point3D(x[i], y[i], z[i]) for i in range(len(z))]
 
 
 class PathGeneratorArchimedes(PathGenerator):
