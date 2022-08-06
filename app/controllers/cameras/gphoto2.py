@@ -1,4 +1,6 @@
 import io
+from tempfile import TemporaryFile
+from typing import IO
 import gphoto2 as gp
 
 from app.controllers.cameras.camera import CameraController
@@ -6,11 +8,8 @@ from app.models.camera import Camera
 
 
 class Gphoto2Camera(CameraController):
-
-    _camera = None
-
     @classmethod
-    def _get_gp_camera(cls, camera: Camera) -> gp.Camera:
+    def _get_camera(cls, camera: Camera) -> gp.Camera:
         if cls._camera is None:
             port_info_list = gp.PortInfoList()
             port_info_list.load()
@@ -25,16 +24,20 @@ class Gphoto2Camera(CameraController):
         return cls._camera
 
     @staticmethod
-    def photo(camera: Camera) -> io.BytesIO:
-        gp_camera = Gphoto2Camera._get_gp_camera(camera)
+    def photo(camera: Camera) -> IO[bytes]:
+        gp_camera = Gphoto2Camera._get_camera(camera)
         file_path = gp_camera.capture(gp.GP_CAPTURE_IMAGE)
         camera_file = gp_camera.file_get(
             file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL
         )
-        return io.BytesIO(camera_file.get_data_and_size())
+        file = TemporaryFile()
+        file.write(camera_file.get_data_and_size())
+        return file
 
     @staticmethod
-    def preview(camera: Camera) -> io.BytesIO:
-        gp_camera = Gphoto2Camera._get_gp_camera(camera)
+    def preview(camera: Camera) -> IO[bytes]:
+        gp_camera = Gphoto2Camera._get_camera(camera)
         camera_file = gp.gp_camera_capture_preview(gp_camera)[1]
-        return io.BytesIO(camera_file.get_data_and_size())
+        file = TemporaryFile()
+        file.write(camera_file.get_data_and_size())
+        return file
