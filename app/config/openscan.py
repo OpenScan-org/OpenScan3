@@ -5,7 +5,7 @@ import os
 from app.config.camera import CameraSettings
 from app.config.cloud import CloudSettings
 from app.config.motor import MotorConfig
-from app.models.motor import Motor
+from app.models.motor import Motor, MotorType
 
 from dotenv import load_dotenv
 
@@ -15,14 +15,15 @@ class OpenScanConfig:
 
     @classmethod
     def reload(cls):
+        load_dotenv()
         # cls.scanner = ScannerConfig(turntable_mode=False)
         # cls.cloud = OpenScanCloudConfig("", "", "", "")
         cls.cameras: dict[str, CameraSettings] = OpenScanConfig._get_camera_configs()
         cls.motors: dict[str, Motor] = {
             # "tt": OpenScanConfig._load_motor_config("turntable"),
             # "rotor": OpenScanConfig._load_motor_config("rotor"),
-            "tt": Motor("tt", MotorConfig(9, 22, 11, 1, 200, 0.0001, 1, 3200)),
-            "rotor": Motor("rotor", MotorConfig(5, 23, 6, 1, 2000, 0.0001, 1, 48000)),
+            MotorType.TURNTABLE: Motor("turtable", MotorConfig(9, 22, 11, 1, 200, 0.0001, 1, 3200)),
+            MotorType.ROTOR: Motor("rotor", MotorConfig(5, 23, 6, 1, 2000, 0.0001, 1, 17067)),
         }
         cls.projects_path = pathlib.PurePath("projects")
         cls.cloud = CloudSettings(
