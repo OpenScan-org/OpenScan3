@@ -22,10 +22,10 @@ async def get_camera(camera_id: int):
 async def get_preview(camera_id: int):
     camera = cameras.get_camera(camera_id)
     controller = cameras.get_camera_controller(camera)
-    return Response(controller.preview(camera).read())
+    return Response(controller.preview(camera).read(), media_type="image/png")
 
 @router.get("/{camera_id}/photo")
 async def get_photo(camera_id: int):
     camera = cameras.get_camera(camera_id)
     controller = cameras.get_camera_controller(camera)
-    return Response(controller.photo(camera).read())
+    return Response(controller.photo(camera).read(), media_type="image/png")

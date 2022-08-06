@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.get("/{method}", response_model=list[paths.Point3D])
+@router.get("/{method}", response_model=list[paths.CartesianPoint3D])
 async def get_path(method: paths.PathMethod, points: int):
     return paths.get_path(method, points)
 

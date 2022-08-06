@@ -4,6 +4,9 @@ from typing import Optional
 
 from app.config.motor import MotorConfig
 
+class MotorType(Enum):
+    TURNTABLE = "turntable"
+    ROTOR = "rotor"
 
 @dataclass
 class Motor:
@@ -11,3 +14,4 @@ class Motor:
     settings: Optional[MotorConfig]
 
     angle: float = 0
+
