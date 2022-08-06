@@ -28,10 +28,15 @@ def get_projects() -> list[Project]:
 def _get_project_path(project_name: str) -> pathlib.Path:
     return config.projects_path.joinpath(project_name)
 
+def _get_project_photos(project_path: pathlib.Path) -> list[str]:
+    photos = [file for file in os.listdir(project_path) if file.lower().endswith(ALLOWED_EXTENSIONS)]
+    return photos
+
 def get_project(project_name: str) -> Project:
     project_path = _get_project_path(project_name)
+    photos = _get_project_photos(project_path)
     with open(project_path.joinpath("openscan_project.json")) as f:
-        return Project(project_name, project_path, ProjectManifest(**orjson.loads(f.read())))
+        return Project(project_name, project_path, ProjectManifest(**orjson.loads(f.read())), photos)
 
 
 def delete_project(project: Project) -> bool:
@@ -52,31 +57,21 @@ def new_project(project_name: str) -> Project:
     return project
 
 
-def get_project_photos(project: Project) -> list[str]:
-    photos = [file for file in os.listdir(project.path) if file.lower().endswith(ALLOWED_EXTENSIONS)]
-    return photos
-
-
-def add_photo(project: Project, camera: Camera) -> bool:
-    project_photos = get_project_photos(project)
-
-    camera_controller = cameras.get_camera_controller(camera)
-    photo = camera_controller.photo(camera)
-
+def add_photo(project: Project, photo: io.BytesIO) -> bool:
     with open(
-        project.path.joinpath(f"photo_{len(project_photos):>04}.jpg"), "wb"
+        project.path.joinpath(f"photo_{len(project.photos):>04}.jpg"), "wb"
     ) as f:
         f.write(photo.read())
+        project.photos.append(f.name)
 
 
 def compress_project_photos(project: Project) -> IO[bytes]:
-    photos = get_project_photos(project)
     file = TemporaryFile()
     with ZipFile(file, "w") as zipf:
         counter = 1
-        for photo in photos:
+        for photo in project.photos:
             zipf.write(project.path.joinpath(photo), photo)
-            print(f"{photo} - {counter}/{len(photos)}")
+            print(f"{photo} - {counter}/{len(project.photos)}")
             counter += 1
     return file
 
