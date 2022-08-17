@@ -1,4 +1,5 @@
 import time
+import os
 
 from app.config import config
 from app.controllers import gpio
@@ -47,3 +48,11 @@ def trigger_external_cam():
     gpio.set_pin(config.external_camera_pin, True)
     time.sleep(config.external_camera_delay)
     gpio.set_pin(config.external_camera_pin, False)
+
+
+def reboot():
+    os.system("sudo reboot")
+
+
+def shutdown():
+    os.system("sudo shutdown now")

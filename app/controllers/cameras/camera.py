@@ -7,7 +7,6 @@ from app.models.project import Project
 
 
 class CameraController(abc.ABC):
-    _camera = None
 
     @staticmethod
     @abc.abstractmethod
