@@ -2,8 +2,9 @@ from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.models.paths import PathMethod, PolarPoint3D
+from app.controllers import scanner
 
-from .routers import cameras, motors, projects, scanner, cloud, io, paths
+from .routers import cameras, motors, projects, cloud, io, paths
 
 app = FastAPI()
 
@@ -18,7 +19,6 @@ app.add_middleware(
 app.include_router(cameras.router)
 app.include_router(motors.router)
 app.include_router(projects.router)
-# app.include_router(scanner.router)
 app.include_router(io.router)
 
 app.include_router(cloud.router)
@@ -46,3 +46,11 @@ async def scan(
     camera = cameras.get_camera(camera_id)
     path = paths.get_path(method, points)
     scanner.scan(project, camera, path)
+
+@app.post("/reboot")
+def reboot():
+    scanner.reboot()
+
+@app.post("/shutdown")
+def shutdown():
+    scanner.shutdown()
