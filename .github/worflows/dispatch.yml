@@ -1,0 +1,22 @@
+name: Dispatch release
+
+on:
+  push:
+    branches:
+      - "main"
+
+# Allow one concurrent deployment
+concurrency:
+  group: "dispatch"
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          repository: OpenScan-org/OpenScan3-Image
+          event-type: firmware-release
