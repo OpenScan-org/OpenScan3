@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import cameras, motors, projects, cloud, io, paths, scanner
+from .routers import cameras, motors, projects, cloud, io, paths, scanner, focus
 
 app = FastAPI()
 
@@ -18,7 +18,7 @@ app.include_router(motors.router)
 app.include_router(projects.router)
 app.include_router(io.router)
 app.include_router(scanner.router)
+app.include_router(focus.router)
 
 app.include_router(cloud.router)
 app.include_router(paths.router)
-
