@@ -22,8 +22,8 @@ class OpenScanConfig:
         cls.motors: dict[str, Motor] = {
             # "tt": OpenScanConfig._load_motor_config("turntable"),
             # "rotor": OpenScanConfig._load_motor_config("rotor"),
-            MotorType.TURNTABLE: Motor("turtable", MotorConfig(9, 22, 11, 1, 200, 0.0001, 1, 3200)),
-            MotorType.ROTOR: Motor("rotor", MotorConfig(5, 23, 6, 1, 2000, 0.0001, 1, 17067)),
+            MotorType.TURNTABLE: Motor("turntable", cls._load_motor_config("turntable")),
+            MotorType.ROTOR: Motor("rotor", cls._load_motor_config("rotor")),
         }
         cls.projects_path = pathlib.PurePath("projects")
         cls.cloud = CloudSettings(
@@ -38,11 +38,12 @@ class OpenScanConfig:
         cls.external_camera_pin = 10
         cls.external_camera_delay = 0.1
 
-    # @staticmethod
-    # def _load_motor_config(name: str) -> MotorConfig:
-    #     with open(f"settings/motor_{name}.json") as f:
-    #         config = json.load(f)
-    #         return MotorConfig(**config)
+
+    @staticmethod
+    def _load_motor_config(name: str) -> MotorConfig:
+        with open(f"settings/motor_{name}.json") as f:
+            config = json.load(f)
+            return MotorConfig(**config)
 
     @staticmethod
     def _load_camera_config(name: str) -> CameraSettings:
