@@ -60,6 +60,30 @@ To access an api playground go to `http://local_ip:8000/docs`
 
 _For more information, please refer to the [Documentation](https://example.com)_
 
+
+
+**Add ramdisk to improve capturing speed (if space available)**
+
+
+```ini
+#/etc/fstab
+
+proc            /proc           proc    defaults          0       0
+PARTUUID=e46ea0e2-01  /boot           vfat    defaults          0       2
+PARTUUID=e46ea0e2-02  /               ext4    defaults,noatime  0       1
+# a swapfile is not a swap partition, no line here
+#   use  dphys-swapfile swap[on|off]  for that
+
+
+tmpfs /mnt/ramdisk tmpfs nodev,nosuid,size=256M 0 0
+
+```
+Then start the server
+
+```sh
+TMPDIR=/mnt/ramdisk uvicorn app.main:app --host 0.0.0.0
+```
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- ROADMAP -->
