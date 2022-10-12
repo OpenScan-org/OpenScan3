@@ -40,3 +40,15 @@ async def get_photo(camera_id: int):
     camera = cameras.get_camera(camera_id)
     controller = cameras.get_camera_controller(camera)
     return Response(controller.photo(camera).read(), media_type="image/png")
+
+@router.get("/{camera_id}/focus")
+async def read_focus(camera_id: int):
+    camera = cameras.get_camera(camera_id)
+    controller = cameras.get_camera_controller(camera)
+    return jsonable_encoder(controller.focus(camera))
+
+@router.post("/{camera_id}/focus/{focus_value}")
+async def write_focus(camera_id: int, focus_value: int):
+    camera = cameras.get_camera(camera_id)
+    controller = cameras.get_camera_controller(camera)
+    return jsonable_encoder(controller.focus(camera, int(focus_value)))

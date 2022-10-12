@@ -17,3 +17,8 @@ class CameraController(abc.ABC):
     @abc.abstractmethod
     def preview(camera: Camera) -> IO[bytes]:
         raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def focus(camera: Camera, value=None) -> int:
+        raise NotImplementedError

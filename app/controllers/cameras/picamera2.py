@@ -3,6 +3,7 @@ import io
 from tempfile import TemporaryFile
 import time
 from typing import IO
+from .picamera2_focus import Focuser
 
 from libcamera import ColorSpace
 ColorSpace.Jpeg = ColorSpace.Sycc
@@ -34,7 +35,7 @@ class Picamera2Camera(CameraController):
         return cls.__camera[0]
 
     @staticmethod
-    def photo(camera: Camera, focus= False) -> IO[bytes]:
+    def photo(camera: Camera, focus=None) -> IO[bytes]:
         data = TemporaryFile()
         picam2 = Picamera2Camera._get_camera(camera, CameraMode.PHOTO)
 
@@ -66,3 +67,10 @@ class Picamera2Camera(CameraController):
             data.close()
             
         # return Picamera2Camera.photo(camera)
+
+    def focus(camera: Camera, value=None) -> int:
+        if value is not None:
+            Focuser('/dev/v4l-subdev1').write(value= value)
+            return value
+
+        return Focuser('/dev/v4l-subdev1').read()
