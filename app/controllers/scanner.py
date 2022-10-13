@@ -33,6 +33,9 @@ def move_to_point(point: paths.PolarPoint3D):
 
 
 def scan(project: Project, camera: Camera, path: list[CartesianPoint3D]):
+    
+    total = len(path)
+    index = 0
     for point in path:
         camera_controller = cameras.get_camera_controller(camera)
         photo = camera_controller.photo(camera)
@@ -40,6 +43,8 @@ def scan(project: Project, camera: Camera, path: list[CartesianPoint3D]):
         time.sleep(0.2)
         projects.add_photo(project, photo)
         photo.close()
+        index = index + 1
+        yield (index,total,)
 
     move_to_point(PolarPoint3D(0, 0))
 

@@ -18,6 +18,6 @@ async def get_path(method: paths.PathMethod, points: int):
 
 
 @router.get("/{method}/preview")
-def get_path(method: paths.PathMethod, points: int):
-    image = paths.plot_points(paths.get_path(method, points))
+def get_path(method: paths.PathMethod, points: int, index = None):
+    image = paths.plot_points(paths.get_path(method, points), index)
     return Response(image, media_type="image/png")
