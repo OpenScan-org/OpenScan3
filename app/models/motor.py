@@ -10,7 +10,6 @@ class MotorType(Enum):
 
 @dataclass
 class Motor:
-    name: str
     settings: Optional[MotorConfig]
 
     angle: float = 0
