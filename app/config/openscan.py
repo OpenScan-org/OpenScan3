@@ -38,11 +38,12 @@ class OpenScanConfig:
         cls.external_camera_pin = 10
         cls.external_camera_delay = 0.1
 
-    # @staticmethod
-    # def _load_motor_config(name: str) -> MotorConfig:
-    #     with open(f"settings/motor_{name}.json") as f:
-    #         config = json.load(f)
-    #         return MotorConfig(**config)
+
+    @staticmethod
+    def _load_motor_config(name: str) -> MotorConfig:
+        with open(f"settings/motor_{name}.json") as f:
+            config = json.load(f)
+            return MotorConfig(**config)
 
     @staticmethod
     def _load_camera_config(name: str) -> CameraSettings:

@@ -4,6 +4,8 @@ from tempfile import TemporaryFile
 import time
 from typing import IO
 
+from libcamera import ColorSpace
+ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
 from app.controllers.cameras.camera import CameraController

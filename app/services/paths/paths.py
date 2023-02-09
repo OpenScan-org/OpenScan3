@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
+import itertools
 
 from app.models.paths import CartesianPoint3D, PathMethod, PolarPoint3D
 
@@ -30,10 +31,16 @@ def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
         return PathGeneratorArchimedes.get_path(num_points)
 
 
-def plot_points(points: list[CartesianPoint3D]) -> bytes:
+def plot_points(points: list[CartesianPoint3D], index = None) -> bytes:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    ax.scatter([p.x for p in points], [p.y for p in points], [p.z for p in points])
+    colors = None
+    if (index is not None and (1<= int(index) <= len(points))):
+        colors = [i for i in itertools.repeat([0,0,1,0.1], len(points))]
+        colors[int(index)-1] = [1,0,0]
+        
+
+    ax.scatter([p.x for p in points], [p.y for p in points], [p.z for p in points], color = colors)
     with io.BytesIO() as f:
         plt.savefig(f)
         return f.getvalue()
