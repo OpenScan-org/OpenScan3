@@ -11,5 +11,3 @@ class CameraSettings:
     gain: int
     jpeg_quality: int
     AF: bool
-
-    light_pin: int
