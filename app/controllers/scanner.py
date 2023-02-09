@@ -1,6 +1,8 @@
 import time
 import os
 
+from fastapi.encoders import jsonable_encoder
+
 from app.config import config
 from app.controllers import gpio
 from app.controllers import motors
@@ -56,3 +58,12 @@ def reboot():
 
 def shutdown():
     os.system("sudo shutdown now")
+
+def get_status():
+    return {
+        "status": "ok",
+        "cameras": jsonable_encoder(cameras.get_cameras()),
+        "motors": motors.get_motors(),
+        "projects": projects.get_projects(),
+        "path_methods": []
+    }
