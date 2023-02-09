@@ -27,7 +27,7 @@ app.include_router(paths.router)
 
 @app.get("/")
 async def get_scanner():
-    return {"status": "ok"}
+    return scanner.get_status()
 
 
 @app.post("/move_to")
