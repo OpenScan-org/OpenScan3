@@ -35,4 +35,7 @@ async def new_project(project_name: str):
 
 @router.put("/{project_name}/photo", response_model=bool)
 async def add_photo(project_name: str, camera_id: int):
-    projects.add_photo(projects.get_project(project_name), cameras.get_camera(camera_id))
+    camera = cameras.get_camera(camera_id)
+    camera_controller = cameras.get_camera_controller(camera)
+    photo = camera_controller.photo(camera)
+    projects.add_photo(projects.get_project(project_name), photo)

@@ -1,34 +1,30 @@
 import time
 import math
 
+from enum import Enum
 from typing import Optional
 
 from app.config import config
 from app.config.motor import MotorConfig
-from app.models.motor import Motor
+from app.models.motor import Motor, MotorType
 
 from app.controllers import gpio
 
-
-def get_motors() -> dict[str, Motor]:
+def get_motors() -> dict[MotorType, Motor]:
     return config.motors
 
 
-def get_motor(motor_id: str) -> Optional[Motor]:
-    return config.motors.get(motor_id)
+def get_motor(motor_type: MotorType) -> Optional[Motor]:
+    return config.motors.get(motor_type)
 
 
-def move_motor_to(motor_id: str, degrees: float):
-    motor = get_motor(motor_id)
+def move_motor_to(motor: Motor, degrees: float):
     degrees %= 360
     move_angles = degrees - motor.angle
-    print(f"moving: {move_angles} degrees")
-    move_motor_degrees(motor_id, move_angles)
+    move_motor_degrees(motor, move_angles)
 
 
-def move_motor_degrees(motor_id: str, degrees: float):
-    motor = get_motor(motor_id)
-
+def move_motor_degrees(motor: Motor, degrees: float):
     spr = motor.settings.steps_per_rotation
     dir = motor.settings.direction
     ramp = motor.settings.acceleration_ramp

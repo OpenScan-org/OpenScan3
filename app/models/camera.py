@@ -4,6 +4,9 @@ from typing import Optional
 
 from app.config.camera import CameraSettings
 
+class CameraMode(Enum):
+    PHOTO = "photo"
+    PREVIEW = "preview"
 
 class CameraType(Enum):
     GPHOTO2 = "gphoto2"
