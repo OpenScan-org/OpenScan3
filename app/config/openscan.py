@@ -6,6 +6,8 @@ from app.config.camera import CameraSettings
 from app.config.cloud import CloudSettings
 from app.config.motor import MotorConfig
 from app.models.motor import Motor, MotorType
+from app.config.light import LightConfig
+from app.models.light import Light, LightType
 
 from dotenv import load_dotenv
 
@@ -32,8 +34,10 @@ class OpenScanConfig:
             os.getenv("OPENSCANCLOUD_KEY"),
             "http://openscanfeedback.dnsuser.de:1334",
         )
-        cls.ring_light_enabled = False
-        cls.ring_light_pins = (17, 27)
+        #cls.lights = {LightType.RINGLIGHT: OpenScanConfig._load_light_configs("ringlight")}
+        cls.lights: dict[str, Light] = {LightType.RINGLIGHT: Light(OpenScanConfig._load_light_configs("ringlight")) }
+        #cls.ring_light_enabled = False
+        #cls.ring_light_pins = (17, 27)
 
         cls.external_camera_pin = 10
         cls.external_camera_delay = 0.1
@@ -52,3 +56,16 @@ class OpenScanConfig:
     @staticmethod
     def _get_camera_configs() -> dict[str, CameraSettings]:
         return {}
+
+    @staticmethod
+    def _load_light_configs(name: str) -> LightConfig:
+        with open(f"settings/light_{name}.json") as f:
+            config = json.load(f)
+            # make sure that pins are an iterable list:
+            pins = config.get("pins")
+            pin = config.get("pin")
+            if pin is not None and pins is None:
+                config["pins"] = [pin]
+            elif pins is None:
+                config["pins"] = []
+            return LightConfig(**config)
