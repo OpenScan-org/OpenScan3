@@ -10,7 +10,7 @@ class CameraMode(Enum):
 
 class CameraType(Enum):
     GPHOTO2 = "gphoto2"
-    V4L2 = "v4l2"
+    LINUXPY = "linuxpy"
     PICAMERA2 = "picamera2"
     EXTERNAL = "external"
 
