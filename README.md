@@ -34,7 +34,7 @@ TO BE DONE
 1. Install dependencies
 
 ```sh
-sudo apt-get update && sudo apt-get install git libgphoto2-dev libcav-dev python3-dev python3-libcamera python3-kms++ -y
+sudo apt-get update && sudo apt-get install git libgphoto2-dev libcap-dev python3-dev python3-libcamera python3-kms++ -y
 
 ```
 Install libcamera-drivers according to the [Arducam Docs](https://docs.arducam.com/Raspberry-Pi-Camera/Native-camera/16MP-IMX519/#raspberry-pi-bullseye-os-6121-and-laterbookworm-os)
