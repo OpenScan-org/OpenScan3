@@ -19,13 +19,14 @@ def get_linuxpy_cameras() -> list[Camera]:
             name = cam.info.card
             path = cam.filename
             settings = get_camera_settings(cam.info.card)
+
+            return [Camera(
+                    type=CameraType.LINUXPY,
+                    name=name,
+                    path=path,
+                    settings=settings
+                )]
         cam.close()
-    return [Camera(
-            type=CameraType.LINUXPY,
-            name=name,
-            path=path,
-            settings=settings
-        )]
 
 def get_gphoto2_cameras() -> list[Camera]:
     gphoto2_cameras = gp.Camera.autodetect()
@@ -57,7 +58,8 @@ def get_picameras() -> list[Camera]:
 
 def get_cameras() -> list[Camera]:
     cameras = []
-    cameras.extend(get_linuxpy_cameras())
+    if get_linuxpy_cameras() is not None:
+        cameras.extend(get_linuxpy_cameras())
     cameras.extend(get_gphoto2_cameras())
     cameras.extend(get_picameras())
     return cameras
