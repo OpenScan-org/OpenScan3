@@ -41,7 +41,10 @@ def get_project(project_name: str) -> Project:
 
 
 def delete_project(project: Project) -> bool:
-    shutil.rmtree(project.path)
+    if os.path.exists(project.path):
+        shutil.rmtree(project.path)
+        return True
+    return False
 
 def save_project(project: Project):
     os.makedirs(project.path, exist_ok=True)
@@ -59,11 +62,16 @@ def new_project(project_name: str) -> Project:
 
 
 def add_photo(project: Project, photo: io.BytesIO) -> bool:
-    with open(
-        project.path.joinpath(f"photo_{len(project.photos):>04}.jpg"), "wb"
-    ) as f:
-        f.write(photo.read())
-        project.photos.append(f.name)
+    try:
+        with open(
+            project.path.joinpath(f"photo_{len(project.photos):>04}.jpg"), "wb"
+        ) as f:
+            f.write(photo.read())
+            project.photos.append(f.name)
+            return True
+    except Exception as e:
+        print(e)
+        return False
 
 
 def compress_project_photos(project: Project) -> IO[bytes]:
