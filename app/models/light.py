@@ -9,4 +9,5 @@ class LightType(Enum):
 
 @dataclass
 class Light:
+    turned_on: bool
     settings: Optional[LightConfig]

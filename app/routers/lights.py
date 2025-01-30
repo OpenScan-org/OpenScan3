@@ -27,3 +27,11 @@ async def turn_on_light(light_type: LightType):
 async def turn_off_light(light_type: LightType):
     light = lights.get_light(light_type)
     lights.turn_light_off(light)
+
+@router.post("/{light_type}/toggle")
+async def toggle_light(light_type: LightType):
+    light = lights.get_light(light_type)
+    if light.turned_on:
+        lights.turn_light_off(light)
+    else:
+        lights.turn_light_on(light)

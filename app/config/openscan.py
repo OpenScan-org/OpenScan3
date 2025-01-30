@@ -35,7 +35,7 @@ class OpenScanConfig:
             "http://openscanfeedback.dnsuser.de:1334",
         )
         #cls.lights = {LightType.RINGLIGHT: OpenScanConfig._load_light_configs("ringlight")}
-        cls.lights: dict[str, Light] = {LightType.RINGLIGHT: Light(OpenScanConfig._load_light_configs("ringlight")) }
+        cls.lights: dict[str, Light] = {LightType.RINGLIGHT: Light(False, OpenScanConfig._load_light_configs("ringlight")) }
         #cls.ring_light_enabled = False
         #cls.ring_light_pins = (17, 27)
 

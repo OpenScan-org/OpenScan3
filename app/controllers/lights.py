@@ -15,7 +15,9 @@ def get_light(light_type: LightType) -> Optional[Light]:
 def turn_light_on(light: Light):
     for pin in light.settings.pins:
         gpio.set_pin(pin, True)
+    light.turned_on = True
 
 def turn_light_off(light: Light):
     for pin in light.settings.pins:
         gpio.set_pin(pin, False)
+    light.turned_on = False
