@@ -2,6 +2,8 @@ import time
 import os
 
 from fastapi.encoders import jsonable_encoder
+from numpy.core.defchararray import endswith
+import asyncio
 
 from app.config import config
 from app.controllers import gpio
@@ -35,17 +37,17 @@ def move_to_point(point: paths.PolarPoint3D):
 
 
 def scan(project: Project, camera: Camera, path: list[CartesianPoint3D]):
-    
+    camera_controller = cameras.get_camera_controller(camera)
     total = len(path)
     index = 0
     for point in path:
-        camera_controller = cameras.get_camera_controller(camera)
-        photo = camera_controller.photo(camera)
+        start = time.time()
         move_to_point(paths.cartesian_to_polar(point))
-        time.sleep(0.2)
+        photo = camera_controller.photo()
         projects.add_photo(project, photo)
-        photo.close()
         index = index + 1
+        end = time.time()
+        print (end-start)
         yield (index,total,)
 
     move_to_point(PolarPoint3D(0, 0))

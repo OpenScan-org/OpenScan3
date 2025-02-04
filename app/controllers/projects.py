@@ -8,6 +8,11 @@ from zipfile import ZipFile
 import orjson
 import os
 import shutil
+from PIL import Image
+from io import BytesIO
+import asyncio
+
+
 
 from app.controllers.cameras import cameras
 from app.models.camera import Camera
@@ -62,16 +67,14 @@ def new_project(project_name: str) -> Project:
 
 
 def add_photo(project: Project, photo: io.BytesIO) -> bool:
-    try:
-        with open(
-            project.path.joinpath(f"photo_{len(project.photos):>04}.jpg"), "wb"
-        ) as f:
-            f.write(photo.read())
-            project.photos.append(f.name)
-            return True
-    except Exception as e:
-        print(e)
-        return False
+    photo = BytesIO(photo)
+    photo.seek(0)
+    with open(
+        project.path.joinpath(f"photo_{len(project.photos):>04}.jpg"), "wb"
+    ) as f:
+        f.write(photo.read())
+        project.photos.append(f.name)
+
 
 
 def compress_project_photos(project: Project) -> IO[bytes]:
