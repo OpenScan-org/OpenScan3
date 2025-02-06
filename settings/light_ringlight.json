@@ -1,0 +1,5 @@
+{
+      "name": "OpenScan Ringlight",
+      "pins": [17,27],
+      "pwm": true
+    }

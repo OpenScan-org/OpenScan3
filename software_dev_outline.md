@@ -20,10 +20,11 @@ Based on [OpenScan3](https://github.com/OpenScan-org/OpenScan3)
 ### 2.1. Camera System 
 
 - [ ] Review and update camera controllers (gphoto2, v4l2, picamera2)
+  - [x] picamera2 for arducam imx519
 - [ ] Implement unified camera interface
-- [ ] Implement camera settings management
+- [x] Implement camera settings management
 - [ ] Integrate Focus control system:
-  - [ ] Integrate software controlled focus
+  - [x] Integrate software controlled focus
   - [ ] Add mechanic focus through third motor
 
 ### 2.2. Motor Control System
@@ -36,7 +37,7 @@ Based on [OpenScan3](https://github.com/OpenScan-org/OpenScan3)
 
 ### 2.3. Light Control system
 
-- [ ] Migrate Light controller (directly through GPIO)
+- [x] Migrate Light controller (directly through GPIO)
 - [ ] Add Light controller through GRBLhal
 - [ ] Add tests for users
 
@@ -79,7 +80,7 @@ Based on [OpenScan3](https://github.com/OpenScan-org/OpenScan3)
 - [ ] Add network drive for saving
 - [ ] Add project metadata handling
 - [ ] Add download project
-- [ ] Add delete project
+- [x] Add delete project
 - [ ] Add delete all projects
 - [ ] Add merge projects
 - [ ] Add scan meta data (positions, focus, resolution, timestamps)
@@ -115,7 +116,7 @@ Based on [OpenScan3](https://github.com/OpenScan-org/OpenScan3)
 - [ ] Add SSH on/off
 
 
-## 7. Testing ??
+## 7. Testing
 - [ ] Set up unit testing infrastructure
 - [ ] Add integration tests
 - [ ] Implement hardware simulation for testing
