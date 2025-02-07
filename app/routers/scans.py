@@ -2,7 +2,7 @@ from fastapi import APIRouter, Body
 
 from app.models.paths import PathMethod, PolarPoint3D
 from app.controllers.cameras import cameras
-from app.controllers import scanner, projects
+from app.controllers import scans, projects
 from app.services.paths import paths
 from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
@@ -22,7 +22,7 @@ async def get_scanner():
 
 @router.post("/move_to")
 async def move_to_point(point: PolarPoint3D):
-    scanner.move_to_point(point)
+    scans.move_to_point(point)
 
 
 # https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
@@ -38,7 +38,7 @@ async def scan(
     camera = cameras.get_camera(camera_id)
     path = paths.get_path(method, points)
     async def generate():
-        for i,t in scanner.scan(project, camera, path):
+        for i,t in scans.scan(project, camera, path):
             yield b'event: status\ndata: {"step":"%s","total":"%s"}\n\n' % (bytes(str(i),'UTF-8'),bytes(str(t),'UTF-8'),)
             await asyncio.sleep(0.03)
     
@@ -46,8 +46,8 @@ async def scan(
 
 @router.post("/reboot")
 def reboot():
-    scanner.reboot()
+    scans.reboot()
 
 @router.post("/shutdown")
 def shutdown():
-    scanner.shutdown()
+    scans.shutdown()
