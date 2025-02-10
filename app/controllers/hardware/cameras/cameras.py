@@ -1,11 +1,9 @@
 from typing import Optional
-from linuxpy.video.device import iter_video_capture_devices
-import gphoto2 as gp
 
 from app.config.camera import CameraSettings
-from app.controllers.cameras.camera import CameraControllerFactory
+from controllers.hardware.cameras.camera import CameraControllerFactory
 
-from app.models.camera import Camera, CameraType
+from app.models.camera import Camera
 from app.config import config
 
 

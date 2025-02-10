@@ -2,16 +2,13 @@ import time
 import os
 
 from fastapi.encoders import jsonable_encoder
-from numpy.core.defchararray import endswith
-import asyncio
 
 from app.config import config
-from app.controllers import gpio
-from app.controllers import motors
-from app.controllers import projects
-from app.controllers.cameras import cameras
+from controllers.hardware import gpio, motors
+from controllers.services import projects
+from controllers.hardware.cameras import cameras
 from app.models.camera import Camera
-from app.models.paths import CartesianPoint3D, PathMethod, PolarPoint3D
+from app.models.paths import CartesianPoint3D, PolarPoint3D
 from app.models.project import Project
 from app.services.paths import paths
 

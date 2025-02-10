@@ -1,9 +1,7 @@
-from typing import Optional
 from fastapi import APIRouter, HTTPException
-from fastapi.encoders import jsonable_encoder
 
-from app.controllers import projects
-from app.controllers.cameras import cameras
+from controllers.services import projects
+from controllers.hardware.cameras import cameras
 from app.models.project import Project
 
 router = APIRouter(

@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Response
-from fastapi.encoders import jsonable_encoder
+from fastapi import APIRouter
 
-from app.controllers import gpio
+from controllers.hardware import gpio
 
 router = APIRouter(
     prefix="/io",

@@ -3,19 +3,11 @@ import io
 import pathlib
 from tempfile import TemporaryFile
 from typing import IO
-import uuid
 from zipfile import ZipFile
 import orjson
 import os
 import shutil
-from PIL import Image
 from io import BytesIO
-import asyncio
-
-
-
-from app.controllers.cameras import cameras
-from app.models.camera import Camera
 
 from app.models.project import Project
 from app.config import config

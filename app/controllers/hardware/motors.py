@@ -1,14 +1,13 @@
 import time
 import math
 
-from enum import Enum
 from typing import Optional
 
 from app.config import config
-from app.config.motor import MotorConfig
 from app.models.motor import Motor, MotorType
 
-from app.controllers import gpio
+from controllers.hardware import gpio
+
 
 def get_motors() -> dict[MotorType, Motor]:
     return config.motors

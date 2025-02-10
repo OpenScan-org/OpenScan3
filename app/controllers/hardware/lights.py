@@ -1,10 +1,10 @@
 from typing import Optional
 
 from app.config import config
-from app.config.light import LightConfig
 from app.models.light import Light, LightType
 
-from app.controllers import gpio
+from controllers.hardware import gpio
+
 
 def get_lights() -> dict[LightType, Light]:
     return config.lights

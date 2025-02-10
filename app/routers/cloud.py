@@ -1,8 +1,6 @@
-from typing import Optional
 from fastapi import APIRouter
 
-from app.controllers import projects
-from app.controllers import cloud
+from controllers.services import projects, cloud
 
 router = APIRouter(
     prefix="/cloud",

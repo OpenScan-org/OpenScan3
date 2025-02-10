@@ -1,11 +1,10 @@
 import asyncio
-from xml.dom import ValidationErr
 
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
 
-from app.controllers.cameras import cameras
+from controllers.hardware.cameras import cameras
 from app.config.camera import CameraSettings
 
 

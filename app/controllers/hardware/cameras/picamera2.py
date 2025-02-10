@@ -1,29 +1,16 @@
-from enum import Enum
-import io
-from tempfile import TemporaryFile
-import time
 from typing import IO
 
 from libcamera import ColorSpace, controls
 ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
-from app.controllers.cameras.camera import CameraController, SettingsObserver, ConfigObserver
-from app.models.camera import Camera, CameraMode, CameraSettings
+from controllers.hardware.cameras.camera import CameraController
+from app.models.camera import Camera, CameraMode
 #from app.config import config
 
 # debug
 import cv2
 import numpy as np
-
-class HardwareObserver(SettingsObserver):
-    def __init__(self, controller: 'Picamera2Controller'):
-        self.controller = controller
-
-    def update(self, setting: str, value: any):
-        if setting in ['resolution_photo', 'resolution_preview']:
-            self.controller.restart_camera()
-        self.controller.apply_settings()
 
 class Picamera2Controller(CameraController):
     _picam = None
@@ -33,8 +20,7 @@ class Picamera2Controller(CameraController):
         if Picamera2Controller._picam is None:
             Picamera2Controller._picam = Picamera2()
 
-        self.add_observer(ConfigObserver(camera))
-        self.add_observer(HardwareObserver(self))  # Add HardwareObserver here
+        self._init_hardware()
 
         self.control_mapping = {
             'shutter': 'ExposureTime',
@@ -66,6 +52,19 @@ class Picamera2Controller(CameraController):
                     pass
                 else:
                     self._picam.set_controls({self.control_mapping[setting]: value})
+
+    def _apply_settings_to_hardware(self):
+        self.restart_camera()
+        self.apply_settings()
+
+    def _apply_single_setting(self, setting: str, value: any):
+        if setting in ['resolution_photo', 'resolution_preview']:
+            self.restart_camera()
+        elif setting in self.control_mapping:
+            self._picam.set_controls({self.control_mapping[setting]: value})
+
+    def _save_settings_to_config(self):
+        self.camera.save_settings()
 
     def _configure_resolution(self):
         self.preview_resolution = self.get_setting("resolution_preview")

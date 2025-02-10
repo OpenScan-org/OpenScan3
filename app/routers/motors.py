@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body
 
-from app.controllers import motors
+from controllers.hardware import motors
 from app.models.motor import MotorType
 
 router = APIRouter(

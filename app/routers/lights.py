@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter
 
-from app.controllers import lights
+from controllers.hardware import lights
 from app.models.light import LightType
 
 router = APIRouter(

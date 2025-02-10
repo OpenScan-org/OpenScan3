@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Body
 
 from app.models.paths import PathMethod, PolarPoint3D
-from app.controllers.cameras import cameras
-from app.controllers import scans, projects
+from controllers.hardware.cameras import cameras
+from controllers.services import projects, scans
 from app.services.paths import paths
-from fastapi.responses import StreamingResponse, Response
-from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 import asyncio
 
 router = APIRouter(
