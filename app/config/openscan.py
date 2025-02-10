@@ -15,7 +15,7 @@ from app.models.motor import Motor, MotorType
 from app.config.light import LightConfig
 from app.models.light import Light, LightType
 
-from controllers.hardware.cameras import CameraControllerFactory
+from controllers.hardware.cameras.camera import CameraControllerFactory
 
 from dotenv import load_dotenv
 
