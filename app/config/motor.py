@@ -9,6 +9,6 @@ class MotorConfig:
 
     acceleration: int
     acceleration_ramp: int
-    delay: int
+    delay: float
     direction: int
     steps_per_rotation: int

@@ -11,11 +11,12 @@ from app.config.camera import CameraSettings
 from app.models.camera import Camera, CameraType
 from app.config.cloud import CloudSettings
 from app.config.motor import MotorConfig
-from app.models.motor import Motor, MotorType
+from app.models.motor import Motor
 from app.config.light import LightConfig
 from app.models.light import Light, LightType
 
 from controllers.hardware.cameras.camera import CameraControllerFactory
+from controllers.hardware.motors import MotorControllerFactory
 
 from dotenv import load_dotenv
 
@@ -31,12 +32,23 @@ class OpenScanConfig:
         cls.cameras = OpenScanConfig._get_cameras()
         for cam in cls.cameras:
             CameraControllerFactory.get_controller(cam)
-        cls.motors: dict[MotorType, Motor] = {
-            # "tt": OpenScanConfig._load_motor_config("turntable"),
-            # "rotor": OpenScanConfig._load_motor_config("rotor"),
-            MotorType.TURNTABLE: Motor(MotorConfig(9, 22, 11, 1, 200, 0.0001, 1, 3200)),
-            MotorType.ROTOR: Motor(MotorConfig(5, 23, 6, 1, 2000, 0.0001, 1, 17067)),
+        cls.motors = {
+            motor.name: motor
+            for motor in [
+                Motor("turntable", OpenScanConfig._load_motor_config("turntable")),
+                Motor("rotor", OpenScanConfig._load_motor_config("rotor"))
+            ]
         }
+        # Controller initialisieren
+        for motor in cls.motors.values():
+            MotorControllerFactory.get_controller(motor)
+
+        #cls.motors: dict[MotorType, Motor] = {
+        #    # "tt": OpenScanConfig._load_motor_config("turntable"),
+        #    # "rotor": OpenScanConfig._load_motor_config("rotor"),
+        #    MotorType.TURNTABLE: Motor(MotorConfig(9, 22, 11, 1, 200, 0.0001, 1, 3200)),
+        #    MotorType.ROTOR: Motor(MotorConfig(5, 23, 6, 1, 2000, 0.0001, 1, 17067)),
+        #}
         cls.projects_path = pathlib.PurePath("projects")
         cls.cloud = CloudSettings(
             "openscan",
