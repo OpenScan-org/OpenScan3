@@ -1,7 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from controllers.hardware import lights
-from app.models.light import LightType
+from controllers.hardware.lights import LightControllerFactory
+from app.models.light import Light
+
+from app.config import config
 
 router = APIRouter(
     prefix="/lights",
@@ -12,26 +15,47 @@ router = APIRouter(
 
 @router.get("/")
 async def get_lights():
-    return lights.get_lights()
+    """Get all motors with their current status"""
+    return {
+        name: controller.get_status()
+        for name, controller in LightControllerFactory.get_all_controllers().items()
+    }
 
-@router.get("/{light_type}")
-async def get_light(light_type: LightType):
-    return lights.get_light(light_type)
 
-@router.post("/{light_type}/turn_on")
-async def turn_on_light(light_type: LightType):
-    light = lights.get_light(light_type)
-    lights.turn_light_on(light)
+@router.post("/{light_name}/turn_on")
+async def turn_on_light(light_name: str):
+    if light_name not in config.lights:
+        raise HTTPException(status_code=404, detail=f"Light {light_name} not found")
 
-@router.post("/{light_type}/turn_off")
-async def turn_off_light(light_type: LightType):
-    light = lights.get_light(light_type)
-    lights.turn_light_off(light)
+    controller = LightControllerFactory.get_controller(
+        config.lights[light_name]
+    )
+    controller.turn_on()
 
-@router.post("/{light_type}/toggle")
-async def toggle_light(light_type: LightType):
-    light = lights.get_light(light_type)
-    if light.turned_on:
-        lights.turn_light_off(light)
+
+@router.post("/{light_name}/turn_off")
+async def turn_on_light(light_name: str):
+    if light_name not in config.lights:
+        raise HTTPException(status_code=404, detail=f"Light {light_name} not found")
+
+    controller = LightControllerFactory.get_controller(
+        config.lights[light_name]
+    )
+    controller.turn_off()
+
+@router.post("/{light_name}/toggle")
+async def toggle_light(light_name: str):
+    if light_name not in config.lights:
+        raise HTTPException(status_code=404, detail=f"Light {light_name} not found")
+
+    controller = LightControllerFactory.get_controller(
+        config.lights[light_name]
+    )
+    if controller.is_on():
+        controller.turn_off()
     else:
-        lights.turn_light_on(light)
+        controller.turn_on()
+
+
+def get_light_controller(light: Light):
+    return LightControllerFactory.get_controller(light)

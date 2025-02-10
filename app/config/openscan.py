@@ -13,11 +13,11 @@ from app.config.cloud import CloudSettings
 from app.config.motor import MotorConfig
 from app.models.motor import Motor
 from app.config.light import LightConfig
-from app.models.light import Light, LightType
+from app.models.light import Light
 
 from controllers.hardware.cameras.camera import CameraControllerFactory
 from controllers.hardware.motors import MotorControllerFactory
-
+from controllers.hardware.lights import LightControllerFactory
 from dotenv import load_dotenv
 
 class OpenScanConfig:
@@ -57,7 +57,15 @@ class OpenScanConfig:
             "http://openscanfeedback.dnsuser.de:1334",
         )
         #cls.lights = {LightType.RINGLIGHT: OpenScanConfig._load_light_configs("ringlight")}
-        cls.lights: dict[LightType, Light] = {LightType.RINGLIGHT: Light(False, OpenScanConfig._load_light_configs("ringlight")) }
+        #cls.lights: dict[LightType, Light] = {LightType.RINGLIGHT: Light(False, OpenScanConfig._load_light_configs("ringlight")) }
+        cls.lights = {
+            light.name: light
+            for light in [
+                Light("ringlight", OpenScanConfig._load_light_configs("ringlight"))
+            ]
+        }
+        for light in cls.lights.values():
+            LightControllerFactory.get_controller(light)
         #cls.ring_light_enabled = False
         #cls.ring_light_pins = (17, 27)
 
