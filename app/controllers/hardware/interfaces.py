@@ -1,8 +1,8 @@
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable, Dict, Generic
 from abc import abstractmethod
 
 T = TypeVar('T')
-
+M = TypeVar('M')
 
 @runtime_checkable
 class HardwareInterface(Protocol[T]):
@@ -54,3 +54,29 @@ class EventHardware(HardwareInterface[T], Protocol[T]):
             bool: True if there is an event
         """
         ...
+
+class ControllerFactory(Generic[T, M]):
+    """
+    Generic Controller Factory für Hardware und Software Controller
+    
+    T: Controller-Typ (z.B. CameraController, MotorController)
+    M: Model-Typ (z.B. Camera, Motor)
+    """
+    _controllers: Dict[str, T] = {}
+    
+    @classmethod
+    def get_controller(cls, model: M) -> T:
+        """Get or create a controller instance for the given model"""
+        if model.name not in cls._controllers:
+            cls._controllers[model.name] = cls._create_controller(model)
+        return cls._controllers[model.name]
+            
+    @classmethod
+    def get_all_controllers(cls) -> Dict[str, T]:
+        """Get a copy of all active controllers"""
+        return cls._controllers.copy()
+    
+    @classmethod
+    def _create_controller(cls, model: M) -> T:
+        """Create a new controller instance. Override this if special creation logic is needed."""
+        return cls._controller_class(model)

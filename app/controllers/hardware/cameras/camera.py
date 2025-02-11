@@ -3,7 +3,7 @@ from typing import Dict, IO, Optional, get_type_hints, Tuple
 
 from app.models.camera import Camera, CameraType
 from app.config.camera import CameraSettings
-
+from app.controllers.hardware.interfaces import ControllerFactory
 
 class CameraController(abc.ABC):
     def __init__(self, camera: Camera):
@@ -68,14 +68,13 @@ class CameraController(abc.ABC):
         pass
 
 
-class CameraControllerFactory:
-    _controllers: Dict[str, CameraController] = {}
-
+class CameraControllerFactory(ControllerFactory[CameraController, Camera]):
+    _controller_class = CameraController
+    
     @classmethod
-    def get_controller(cls, camera: Camera) -> CameraController:
-        if camera.name not in cls._controllers:
-            cls._controllers[camera.name] = CameraController.create(camera)
-        return cls._controllers[camera.name]
+    def _create_controller(cls, model: Camera) -> CameraController:
+        return CameraController.create(model)  # Spezielle Erstellung für Kameras
+
 
 
 def convert_value(setting: str, value: str):

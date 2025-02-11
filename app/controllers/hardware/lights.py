@@ -3,7 +3,7 @@ from typing import Optional, Dict
 from app.models.light import Light, LightConfig
 
 from controllers.hardware import gpio
-from controllers.hardware.interfaces import SwitchableHardware
+from controllers.hardware.interfaces import SwitchableHardware, ControllerFactory
 
 class LightController(SwitchableHardware):
     def __init__(self, light: Light):
@@ -34,15 +34,5 @@ class LightController(SwitchableHardware):
         self._is_on = False
 
 
-class LightControllerFactory:
-    _controllers: Dict[str, LightController] = {}
-
-    @classmethod
-    def get_controller(cls, light: Light) -> LightController:
-        if light.name not in cls._controllers:
-            cls._controllers[light.name] = LightController(light)
-        return cls._controllers[light.name]
-
-    @classmethod
-    def get_all_controllers(cls) -> Dict[str, LightController]:
-        return cls._controllers.copy()
+class LightControllerFactory(ControllerFactory[LightController, Light]):
+    _controller_class = LightController

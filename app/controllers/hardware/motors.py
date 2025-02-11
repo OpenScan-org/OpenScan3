@@ -1,5 +1,5 @@
 from typing import Optional, Dict
-from .interfaces import StatefulHardware
+from .interfaces import StatefulHardware, ControllerFactory
 from app.config.motor import MotorConfig
 from app.models.motor import Motor
 from app.controllers.hardware import gpio
@@ -97,15 +97,5 @@ class MotorController(StatefulHardware):
             do_movement
         )
 
-class MotorControllerFactory:
-    _controllers: Dict[str, MotorController] = {}
-
-    @classmethod
-    def get_controller(cls, motor: Motor) -> MotorController:
-        if motor.name not in cls._controllers:
-            cls._controllers[motor.name] = MotorController(motor)
-        return cls._controllers[motor.name]
-
-    @classmethod
-    def get_all_controllers(cls) -> Dict[str, MotorController]:
-        return cls._controllers.copy()
+class MotorControllerFactory(ControllerFactory[MotorController, Motor]):
+    _controller_class = MotorController
