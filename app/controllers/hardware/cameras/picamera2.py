@@ -1,3 +1,4 @@
+import time
 from typing import IO
 
 from libcamera import ColorSpace, controls
@@ -19,8 +20,6 @@ class Picamera2Controller(CameraController):
         super().__init__(camera)
         if Picamera2Controller._picam is None:
             Picamera2Controller._picam = Picamera2()
-
-        self._init_hardware()
 
         self.control_mapping = {
             'shutter': 'ExposureTime',
@@ -148,13 +147,9 @@ class Picamera2Controller(CameraController):
         if self.mode == CameraMode.PREVIEW:
             self._configure_mode(CameraMode.PHOTO)
         self.apply_settings()
-
         self._picam.autofocus_cycle()
-
         array = self._picam.switch_mode_and_capture_array(self.photo_config, "main")
-
         array = cv2.rotate(array, cv2.ROTATE_90_COUNTERCLOCKWISE)
-
         _, jpeg = cv2.imencode('.jpg', array,
                                [int(cv2.IMWRITE_JPEG_QUALITY), self.get_setting("jpeg_quality")])
         return jpeg.tobytes()

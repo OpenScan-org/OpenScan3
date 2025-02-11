@@ -5,9 +5,13 @@ from app.models.motor import Motor
 from app.controllers.hardware import gpio
 import time
 import math
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 
 
 class MotorController(StatefulHardware):
+    _executor = ThreadPoolExecutor(max_workers=4)
     def __init__(self, motor: Motor):
         self.model = motor
         self._current_steps = 0
@@ -51,34 +55,47 @@ class MotorController(StatefulHardware):
 
     async def _execute_movement(self, step_count: int) -> None:
         """Execute the actual movement with acceleration"""
+        self._current_steps = abs(step_count)
 
-        ramp = self.model.settings.acceleration_ramp
-        acc = self.model.settings.acceleration
-        delay_init = self.model.settings.delay
-        delay = delay_init
+        # This function will run in a thread
+        def do_movement():
+            ramp = self.model.settings.acceleration_ramp
+            acc = self.model.settings.acceleration
+            delay_init = self.model.settings.delay
 
+            # Set direction
+            if step_count > 0:
+                gpio.set_pin(self.model.settings.direction_pin, True)
+            if step_count < 0:
+                gpio.set_pin(self.model.settings.direction_pin, False)
 
+            steps = abs(step_count)
+            for x in range(steps):
+                gpio.set_pin(self.model.settings.step_pin, True)
 
-        if step_count > 0:
-            gpio.set_pin(self.model.settings.direction_pin, True)
-        if step_count < 0:
-            gpio.set_pin(self.model.settings.direction_pin, False)
-            step_count = -step_count
-        for x in range(step_count):
-            gpio.set_pin(self.model.settings.step_pin, True)
-            if x <= ramp and x <= step_count / 2:
-                delay = delay_init * (
-                        1 + -1 / acc * math.cos(1 * (ramp - x) / ramp) + 1 / acc
-                )
-            elif step_count - x <= ramp and x > step_count / 2:
-                delay = delay_init * (
-                        1 - 1 / acc * math.cos(1 * (ramp + x - step_count) / ramp) + 1 / acc
-                )
-            else:
-                delay = delay_init
-            time.sleep(delay)
-            gpio.set_pin(self.model.settings.step_pin, False)
-            time.sleep(delay)
+                # Calculate acceleration
+                if x <= ramp and x <= steps / 2:
+                    delay = delay_init * (
+                            1 + -1 / acc * math.cos(1 * (ramp - x) / ramp) + 1 / acc
+                    )
+                elif steps - x <= ramp and x > steps / 2:
+                    delay = delay_init * (
+                            1 - 1 / acc * math.cos(1 * (ramp + x - steps) / ramp) + 1 / acc
+                    )
+                else:
+                    delay = delay_init
+
+                time.sleep(delay)
+                gpio.set_pin(self.model.settings.step_pin, False)
+                time.sleep(delay)
+
+            self._current_steps = 0
+
+        # do movement in threads
+        await asyncio.get_event_loop().run_in_executor(
+            self._executor,
+            do_movement
+        )
 
 class MotorControllerFactory:
     _controllers: Dict[str, MotorController] = {}

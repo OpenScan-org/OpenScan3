@@ -1,5 +1,6 @@
 from datetime import datetime
 import io
+import aiofiles
 import pathlib
 from tempfile import TemporaryFile
 from typing import IO
@@ -67,6 +68,18 @@ def add_photo(project: Project, photo: io.BytesIO) -> bool:
         f.write(photo.read())
         project.photos.append(f.name)
 
+
+async def add_photo_async(project: Project, photo: io.BytesIO) -> None:
+    """Asynchronously save a photo to the project directory"""
+    photo = BytesIO(photo)
+    photo.seek(0)
+    photo_data = photo.read()
+
+    async with aiofiles.open(
+            project.path.joinpath(f"photo_{len(project.photos):>04}.jpg"), "wb"
+    ) as f:
+        await f.write(photo_data)
+        project.photos.append(f.name)
 
 
 def compress_project_photos(project: Project) -> IO[bytes]:

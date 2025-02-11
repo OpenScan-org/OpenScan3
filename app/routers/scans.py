@@ -21,27 +21,31 @@ async def get_scanner():
 
 @router.post("/move_to")
 async def move_to_point(point: PolarPoint3D):
-    scans.move_to_point(point)
+    await scans.move_to_point(point)
 
 
 # https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
 @router.post("/scan")
-async def scan(
+async def start_scan(
     project_name: str = Body(embed=True),
     camera_id: int = Body(embed=True),
     method: PathMethod = Body(embed=True),
     points: int = Body(embed=True),
 ):
-
     project = projects.new_project(f"{project_name}")
     camera = cameras.get_camera(camera_id)
     path = paths.get_path(method, points)
-    async def generate():
-        for i,t in scans.scan(project, camera, path):
-            yield b'event: status\ndata: {"step":"%s","total":"%s"}\n\n' % (bytes(str(i),'UTF-8'),bytes(str(t),'UTF-8'),)
+
+    async def event_generator():
+        async for step, total in scans.scan(project, camera, path):
+            #yield b'event: status\ndata: {"step":"%s","total":"%s"}\n\n' % (bytes(str(step),'UTF-8'),bytes(str(total),'UTF-8'),)
+            yield f'data: {{"step": {step}, "total": {total}}}\n\n'
             await asyncio.sleep(0.03)
-    
-    return StreamingResponse(generate(), media_type="text/event-stream")
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
 
 @router.post("/reboot")
 def reboot():
