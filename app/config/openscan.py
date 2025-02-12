@@ -76,15 +76,31 @@ class OpenScanConfig:
 
     @staticmethod
     def _load_motor_config(name: str) -> MotorConfig:
-        with open(f"settings/motor_{name}.json") as f:
-            config = json.load(f)
-            return MotorConfig(**config)
+        # Get absolute path to settings directory
+        settings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings")
+        settings_file = os.path.join(settings_dir, f"motor_{name}.json")
+        
+        try:
+            with open(settings_file) as f:
+                config = json.load(f)
+                return MotorConfig(**config)
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Return default settings if file doesn't exist or is invalid
+            return MotorConfig()
 
     @staticmethod
     def _load_camera_config(name: str):
-        with open(f"settings/camera_{name}.json") as f:
-            config = json.load(f)
-            return CameraSettings(**config)
+        # Get absolute path to settings directory
+        settings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings")
+        settings_file = os.path.join(settings_dir, f"camera_{name}.json")
+        
+        try:
+            with open(settings_file) as f:
+                config = json.load(f)
+                return CameraSettings(**config)
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Return default settings if file doesn't exist or is invalid
+            return CameraSettings()
 
     @staticmethod
     def _get_camera_configs() -> dict[str, CameraSettings]:
@@ -92,16 +108,24 @@ class OpenScanConfig:
 
     @staticmethod
     def _load_light_configs(name: str) -> LightConfig:
-        with open(f"settings/light_{name}.json") as f:
-            config = json.load(f)
-            # make sure that pins are an iterable list:
-            pins = config.get("pins")
-            pin = config.get("pin")
-            if pin is not None and pins is None:
-                config["pins"] = [pin]
-            elif pins is None:
-                config["pins"] = []
-            return LightConfig(**config)
+        # Get absolute path to settings directory
+        settings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings")
+        settings_file = os.path.join(settings_dir, f"light_{name}.json")
+        
+        try:
+            with open(settings_file) as f:
+                config = json.load(f)
+                # make sure that pins are an iterable list:
+                pins = config.get("pins")
+                pin = config.get("pin")
+                if pin is not None and pins is None:
+                    config["pins"] = [pin]
+                elif pins is None:
+                    config["pins"] = []
+                return LightConfig(**config)
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Return default settings if file doesn't exist or is invalid
+            return LightConfig()
 
     @classmethod
     def _get_cameras(cls):
@@ -136,4 +160,3 @@ class OpenScanConfig:
         picam.close()
         del picam
         return cameras
-

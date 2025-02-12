@@ -64,7 +64,7 @@ async def set_camera_settings(camera_id: int, settings = Body(...)):
         new_settings = CameraSettings(**settings)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Error in provided settings.\n{e}")
-    if controller.set_settings(new_settings):
+    if controller.replace_settings(new_settings):
         return {"message": "Settings updated"}
     else:
         raise HTTPException(status_code=422, detail="Error in provided settings.")
@@ -75,7 +75,7 @@ async def set_camera_settings(camera_id: int, settings = Body(...)):
 async def update_camera_setting(camera_id: int, setting: str, value):
     camera = get_camera_by_id(camera_id)
     controller = CameraControllerFactory.get_controller(camera)
-    if controller.update_setting(setting, value):
+    if controller.set_setting(setting, value):
         return {"message": f"Setting {setting} set to {value}"}
     else:
         raise HTTPException(status_code=422, detail="Error in provided settings.")

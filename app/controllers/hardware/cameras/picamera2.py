@@ -1,17 +1,13 @@
-import time
+import cv2
+import numpy as np
 from typing import IO
-
 from libcamera import ColorSpace, controls
 ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
-from controllers.hardware.cameras.camera import CameraController
+from app.controllers.hardware.cameras.camera import CameraController
 from app.models.camera import Camera, CameraMode
-#from app.config import config
-
-# debug
-import cv2
-import numpy as np
+from app.config.camera import CameraSettings
 
 class Picamera2Controller(CameraController):
     _picam = None
@@ -29,41 +25,34 @@ class Picamera2Controller(CameraController):
             'awbg_red': 'ColourGains',  # ColourGains is a tuple of (red gain, blue gain)
             'awbg_blue': 'ColourGains',  # ColourGains tuple of (red gain, blue gain)
         }
-        if self.get_setting("jpeg_quality") is None:
-            self.update_setting("jpeg_quality", 95)
+
+        if self.settings_manager.get_setting("jpeg_quality") is None:
+            self.settings_manager.set_setting("jpeg_quality", 95)
+
 
         # set initial settings and start in preview mode
         self._configure_resolution()
         self.mode = CameraMode.PREVIEW
         self._picam.configure(self.preview_config)
         self._picam.start()
-        self._configure_focus()
 
-        self.apply_settings()
-
-    def apply_settings(self):
+        self._apply_settings_to_hardware(self.get_all_settings())
         #self._configure_focus()
 
-        for setting, value in self._settings.__dict__.items():
-            # self.set_setting(setting, value)
+
+    def _apply_settings_to_hardware(self, settings: CameraSettings):
+        """This method is call on every change of settings"""
+        self._configure_focus()
+        
+        # apply all settings
+        for setting, value in settings.__dict__.items():
             if setting in self.control_mapping:
-                if setting == 'awbg_red' or setting == 'awbg_blue':
-                    pass
-                else:
+                if setting not in ['awbg_red', 'awbg_blue']:  # AWB gains are set separately
                     self._picam.set_controls({self.control_mapping[setting]: value})
+                else:
+                    # TODO implement settings for AWB
+                    pass
 
-    def _apply_settings_to_hardware(self):
-        self.restart_camera()
-        self.apply_settings()
-
-    def _apply_single_setting(self, setting: str, value: any):
-        if setting in ['resolution_photo', 'resolution_preview']:
-            self.restart_camera()
-        elif setting in self.control_mapping:
-            self._picam.set_controls({self.control_mapping[setting]: value})
-
-    def _save_settings_to_config(self):
-        self.camera.save_settings()
 
     def _configure_resolution(self):
         self.preview_resolution = self.get_setting("resolution_preview")
@@ -88,7 +77,7 @@ class Picamera2Controller(CameraController):
             self.photo_config = self._picam.create_still_configuration(main={"size": self.photo_resolution})
 
     def _configure_focus(self):
-        if self.get_setting("AF"):
+        if self.settings_manager.get_setting("AF"):
             width, height = self._picam.camera_properties['PixelArraySize']
 
             # Get the central 1% of the image
@@ -120,9 +109,9 @@ class Picamera2Controller(CameraController):
 
         else:
             # configure manual focus mode
-            manual_focus = self.get_setting("manual_focus")
+            manual_focus = self.settings_manager("manual_focus")
             if manual_focus is None:
-                self.update_setting("manual_focus", 1.0)
+                self.set_setting("manual_focus", 1.0)
             self._picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": self.get_setting("manual_focus")})
 
         #time.sleep(0.1) # wait for focus to be applied
@@ -146,7 +135,7 @@ class Picamera2Controller(CameraController):
     def photo(self) -> IO[bytes]:
         if self.mode == CameraMode.PREVIEW:
             self._configure_mode(CameraMode.PHOTO)
-        self.apply_settings()
+        #self.apply_settings()
         self._picam.autofocus_cycle()
         array = self._picam.switch_mode_and_capture_array(self.photo_config, "main")
         array = cv2.rotate(array, cv2.ROTATE_90_COUNTERCLOCKWISE)
@@ -157,7 +146,7 @@ class Picamera2Controller(CameraController):
     def preview(self, mode="main") -> IO[bytes]:
         if self.mode == CameraMode.PHOTO:
             self._configure_mode(CameraMode.PREVIEW)
-        self.apply_settings()
+        #self.apply_settings()
         # main is the default mode with higher latency but correct color
         # lores is a low resolution mode with lower latency
         frame = self._picam.capture_array(mode)
@@ -171,8 +160,8 @@ class Picamera2Controller(CameraController):
 
         frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-        focus_position = self._picam.capture_metadata()["LensPosition"]
-        print("Current Focus position: ", focus_position)
+        #focus_position = self._picam.capture_metadata()["LensPosition"]
+        #print("Current Focus position: ", focus_position)
 
         _, jpeg = cv2.imencode('.jpg', frame)
         return jpeg.tobytes()
