@@ -9,7 +9,7 @@ from app.config import config
 from controllers.hardware import gpio
 from controllers.hardware.motors import MotorControllerFactory
 from controllers.services import projects
-from controllers.hardware.cameras import cameras
+from controllers.hardware.cameras.camera import CameraControllerFactory
 from app.models.camera import Camera
 from app.models.paths import CartesianPoint3D, PolarPoint3D
 from app.models.project import Project
@@ -34,7 +34,7 @@ async def move_to_point(point: paths.PolarPoint3D):
 
 
 async def scan(project: Project, camera: Camera, path: list[CartesianPoint3D]) -> AsyncGenerator[Tuple[int, int], None]:
-    camera_controller = cameras.get_camera_controller(camera)
+    camera_controller = CameraControllerFactory.get_controller(camera)
     total = len(path)
     next_point = None
 
@@ -72,7 +72,7 @@ def get_status():
     """Get current system status"""
     return {
         "status": "ok",
-        "cameras": jsonable_encoder(cameras.get_cameras()),
+        "cameras": CameraControllerFactory.get_all_controllers().items(),
         "motors": {
             name: controller.get_status()
             for name, controller in MotorControllerFactory.get_all_controllers().items()

@@ -4,10 +4,8 @@ from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
 
-from controllers.hardware.cameras import cameras
 from app.config.camera import CameraSettings
-
-
+from controllers.hardware.cameras.camera import CameraControllerFactory
 
 router = APIRouter(
     prefix="/cameras",
@@ -18,18 +16,21 @@ router = APIRouter(
 
 @router.get("/")
 async def get_cameras():
-    return jsonable_encoder(cameras.get_cameras())
-
+    return {
+        name: controller.get_all_settings()
+        for name, controller in CameraControllerFactory.get_all_controllers().items()
+    }
 
 @router.get("/{camera_id}")
 async def get_camera(camera_id: int):
-    return jsonable_encoder(cameras.get_camera(camera_id))
-
+    camera = get_camera_by_id(camera_id)
+    controller = CameraControllerFactory.get_controller(camera)
+    return controller.get_all_settings()
 
 @router.get("/{camera_id}/preview")
 async def get_preview(camera_id: int):
-    camera = cameras.get_camera(camera_id)
-    controller = cameras.get_camera_controller(camera)
+    camera = get_camera_by_id(camera_id)
+    controller = CameraControllerFactory.get_controller(camera)
 
     async def generate():
         while True:
@@ -42,23 +43,23 @@ async def get_preview(camera_id: int):
 
 @router.get("/{camera_id}/photo")
 async def get_photo(camera_id: int):
-    camera = cameras.get_camera(camera_id)
-    controller = cameras.get_camera_controller(camera)
+    camera = get_camera_by_id(camera_id)
+    controller = CameraControllerFactory.get_controller(camera)
     #return Response(controller.photo().read(), media_type="image/jpeg")
     return Response(content=controller.photo(), media_type="image/jpeg")
 
 
 @router.get("/{camera_id}/settings")
 async def get_camera_settings(camera_id: int):
-    camera = cameras.get_camera(camera_id)
-    controller = cameras.get_camera_controller(camera)
+    camera = get_camera_by_id(camera_id)
+    controller = CameraControllerFactory.get_controller(camera)
     return jsonable_encoder(controller.get_all_settings())
 
 
 @router.put("/{camera_id}/settings")
 async def set_camera_settings(camera_id: int, settings = Body(...)):
-    camera = cameras.get_camera(camera_id)
-    controller = cameras.get_camera_controller(camera)
+    camera = get_camera_by_id(camera_id)
+    controller = CameraControllerFactory.get_controller(camera)
     try:
         new_settings = CameraSettings(**settings)
     except Exception as e:
@@ -72,9 +73,16 @@ async def set_camera_settings(camera_id: int, settings = Body(...)):
 
 @router.patch("/{camera_id}/settings")
 async def update_camera_setting(camera_id: int, setting: str, value):
-    camera = cameras.get_camera(camera_id)
-    controller = cameras.get_camera_controller(camera)
+    camera = get_camera_by_id(camera_id)
+    controller = CameraControllerFactory.get_controller(camera)
     if controller.update_setting(setting, value):
         return {"message": f"Setting {setting} set to {value}"}
     else:
         raise HTTPException(status_code=422, detail="Error in provided settings.")
+
+
+def get_camera_by_id(camera_id: int):
+    controllers = list(CameraControllerFactory.get_all_controllers().values())
+    if len(controllers) < camera_id + 1:
+        raise ValueError(f"Can't find camera with id {camera_id}")
+    return controllers[camera_id].camera

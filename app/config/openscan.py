@@ -32,6 +32,7 @@ class OpenScanConfig:
         cls.cameras = OpenScanConfig._get_cameras()
         for cam in cls.cameras:
             CameraControllerFactory.get_controller(cam)
+        cls.active_camera = cls.cameras[0]
         cls.motors = {
             motor.name: motor
             for motor in [

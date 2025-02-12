@@ -1,8 +1,11 @@
 from fastapi import APIRouter, HTTPException
 
+from controllers.hardware.cameras.camera import CameraControllerFactory
 from controllers.services import projects
-from controllers.hardware.cameras import cameras
+import controllers.hardware.cameras.camera
 from app.models.project import Project
+
+from app.config import config
 
 router = APIRouter(
     prefix="/projects",
@@ -41,7 +44,7 @@ async def new_project(project_name: str):
 
 @router.put("/{project_name}/photo", response_model=bool)
 async def add_photo(project_name: str, camera_id: int):
-    camera = cameras.get_camera(camera_id)
-    camera_controller = cameras.get_camera_controller(camera)
+    camera = config.active_camera
+    camera_controller = CameraControllerFactory.get_controller(camera)
     photo = camera_controller.photo(camera)
     return projects.add_photo(projects.get_project(project_name), photo)

@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Body
 
 from app.models.paths import PathMethod, PolarPoint3D
-from controllers.hardware.cameras import cameras
 from controllers.services import projects, scans
 from app.services.paths import paths
 from fastapi.responses import StreamingResponse
 import asyncio
 
+from app.config import config
 router = APIRouter(
     prefix="",
     tags=["scanner"],
@@ -33,7 +33,7 @@ async def start_scan(
     points: int = Body(embed=True),
 ):
     project = projects.new_project(f"{project_name}")
-    camera = cameras.get_camera(camera_id)
+    camera = config.active_camera
     path = paths.get_path(method, points)
 
     async def event_generator():
