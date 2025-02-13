@@ -33,10 +33,15 @@ async def move_to_point(point: paths.PolarPoint3D):
     )
 
 
-async def scan(project: Project, camera: Camera, path: list[CartesianPoint3D]) -> AsyncGenerator[Tuple[int, int], None]:
+async def scan(project: Project, camera: Camera, path: list[CartesianPoint3D], focus) -> AsyncGenerator[Tuple[int, int], None]:
     camera_controller = CameraControllerFactory.get_controller(camera)
     total = len(path)
     next_point = None
+
+    steps, auto, start, end = focus
+    focus_positions = [start + i * (end - start) / (steps - 1) for i in range(steps)] if not auto and steps > 1 else []
+    if focus_positions:
+        camera_controller.set_setting("AF", False)
 
     for index, current_point in enumerate(path):
         start = time.time()
@@ -51,17 +56,32 @@ async def scan(project: Project, camera: Camera, path: list[CartesianPoint3D]) -
         # move to current position
         await move_to_point(current_polar)
         # take photo
-        photo = camera_controller.photo()
+        if not focus_positions:
+            photo = camera_controller.photo()
+            # do concurrent: save photo and move to next point
+            if next_point:
+                await asyncio.gather(
+                    # save photo
+                    projects.add_photo_async(project, photo),
+                    move_to_point(next_point)
+                )
 
-        # do concurrent: save photo and move to next point
-        if next_point:
-            await asyncio.gather(
-                projects.add_photo_async(project, photo),
-                move_to_point(next_point)
-            )
+            else:
+                # in case of last photo just save photo
+                await projects.add_photo_async(project, photo)
+
+        # this is the case if focus stacking is enabled
         else:
-            # in case of last photo just save photo
-            await projects.add_photo_async(project, photo)
+            for focus in focus_positions:
+                camera_controller.set_setting("manual_focus", focus)
+                #print(f"Focus: {focus}")
+                photo = camera_controller.photo()
+                await projects.add_photo_async(project, str(focus), photo)
+            await move_to_point(next_point)
+
+
+
+
 
         yield index + 1, total
 

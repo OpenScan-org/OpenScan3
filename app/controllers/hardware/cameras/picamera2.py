@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import numpy as np
 from typing import IO
@@ -77,7 +79,7 @@ class Picamera2Controller(CameraController):
             self.photo_config = self._picam.create_still_configuration(main={"size": self.photo_resolution})
 
     def _configure_focus(self):
-        if self.settings_manager.get_setting("AF"):
+        if self.get_setting("AF"):
             width, height = self._picam.camera_properties['PixelArraySize']
 
             # Get the central 1% of the image
@@ -109,11 +111,15 @@ class Picamera2Controller(CameraController):
 
         else:
             # configure manual focus mode
-            manual_focus = self.settings_manager("manual_focus")
+            manual_focus = self.get_setting("manual_focus")
             if manual_focus is None:
                 self.set_setting("manual_focus", 1.0)
             self._picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": self.get_setting("manual_focus")})
-
+            start = time.time()
+            while self._picam.capture_metadata()["LensPosition"] != self.get_setting("manual_focus"):
+                #print(self._picam.capture_metadata()["LensPosition"])
+                time.sleep(0.05) # wait for focus to be applied
+            print("focus applied in: {:.2f}".format(time.time() - start), " focus: ", self.get_setting("manual_focus"))
         #time.sleep(0.1) # wait for focus to be applied
 
     def _configure_mode(self, set_mode: CameraMode = None):
@@ -136,7 +142,10 @@ class Picamera2Controller(CameraController):
         if self.mode == CameraMode.PREVIEW:
             self._configure_mode(CameraMode.PHOTO)
         #self.apply_settings()
-        self._picam.autofocus_cycle()
+        if self.get_setting("AF"):
+            self._picam.autofocus_cycle()
+        #else:
+        #    self._configure_focus()
         array = self._picam.switch_mode_and_capture_array(self.photo_config, "main")
         array = cv2.rotate(array, cv2.ROTATE_90_COUNTERCLOCKWISE)
         _, jpeg = cv2.imencode('.jpg', array,

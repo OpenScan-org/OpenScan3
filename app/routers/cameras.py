@@ -75,9 +75,13 @@ async def set_camera_settings(camera_id: int, settings = Body(...)):
 async def update_camera_setting(camera_id: int, setting: str, value):
     camera = get_camera_by_id(camera_id)
     controller = CameraControllerFactory.get_controller(camera)
-    if controller.set_setting(setting, value):
-        return {"message": f"Setting {setting} set to {value}"}
-    else:
+    try:
+        # convert str value to expected settings type
+        value = controller.settings_manager.convert_value(setting, value)
+        # update setting
+        if controller.set_setting(setting, value):
+            return {"message": f"Setting {setting} set to {value}"}
+    except:
         raise HTTPException(status_code=422, detail="Error in provided settings.")
 
 

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Body
+from typing import Tuple
 
 from app.models.paths import PathMethod, PolarPoint3D
 from controllers.services import projects, scans
@@ -31,13 +32,15 @@ async def start_scan(
     camera_id: int = Body(embed=True),
     method: PathMethod = Body(embed=True),
     points: int = Body(embed=True),
+    focus: Tuple[int, bool, float, float] = Body(embed=True),
 ):
     project = projects.new_project(f"{project_name}")
     camera = config.active_camera
     path = paths.get_path(method, points)
+    focus = focus
 
     async def event_generator():
-        async for step, total in scans.scan(project, camera, path):
+        async for step, total in scans.scan(project, camera, path, focus):
             #yield b'event: status\ndata: {"step":"%s","total":"%s"}\n\n' % (bytes(str(step),'UTF-8'),bytes(str(total),'UTF-8'),)
             yield f'data: {{"step": {step}, "total": {total}}}\n\n'
             await asyncio.sleep(0.03)

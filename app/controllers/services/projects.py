@@ -69,14 +69,14 @@ def add_photo(project: Project, photo: io.BytesIO) -> bool:
         project.photos.append(f.name)
 
 
-async def add_photo_async(project: Project, photo: io.BytesIO) -> None:
+async def add_photo_async(project: Project, fs, photo: io.BytesIO) -> None:
     """Asynchronously save a photo to the project directory"""
     photo = BytesIO(photo)
     photo.seek(0)
     photo_data = photo.read()
-
+    filename = f"photo_{len(project.photos):>04}_{fs}.jpg"
     async with aiofiles.open(
-            project.path.joinpath(f"photo_{len(project.photos):>04}.jpg"), "wb"
+            project.path.joinpath(filename), "wb"
     ) as f:
         await f.write(photo_data)
         project.photos.append(f.name)
