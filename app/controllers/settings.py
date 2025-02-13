@@ -56,8 +56,8 @@ class SettingsManager(Generic[T]):
             return int(value)
         elif target_type == Optional[float]:
             return float(value)
-        elif target_type == Optional[bool]:
-            return value.lower() in {"true", "1", "yes"}
+#        elif target_type == Optional[bool]:
+#            return value.lower() in {"true", "1", "yes"}
         elif target_type == Optional[Tuple[int, int]]:
             return tuple(map(int, value.split(",")))
 
