@@ -3,7 +3,7 @@ import time
 import cv2
 import numpy as np
 from typing import IO
-from libcamera import ColorSpace, controls
+from libcamera import ColorSpace, controls, Transform
 ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
@@ -11,13 +11,77 @@ from app.controllers.hardware.cameras.camera import CameraController
 from app.models.camera import Camera, CameraMode
 from app.config.camera import CameraSettings
 
+class CameraStrategy:
+    """Base strategy class for camera-specific configurations and processing"""
+    def create_preview_config(self, picam: Picamera2, preview_resolution=None):
+        raise NotImplementedError
+
+    def create_photo_config(self, picam: Picamera2, photo_resolution=None):
+        raise NotImplementedError
+
+    def process_preview_frame(self, frame):
+        return frame
+
+    def process_photo_frame(self, frame):
+        return frame
+
+class IMX519Strategy(CameraStrategy):
+    def create_preview_config(self, picam: Picamera2, preview_resolution=None):
+        if preview_resolution is None:
+            return picam.create_preview_configuration(
+                main={"size": (2328, 1748)},
+                lores={"size": (640, 480), "format": "YUV420"},
+                controls={"NoiseReductionMode": 0, "AwbEnable": False}
+            )
+        return picam.create_preview_configuration(
+            main={"size": preview_resolution},
+            controls={"NoiseReductionMode": 0, "AwbEnable": False}
+        )
+
+    def create_photo_config(self, picam: Picamera2, photo_resolution=None):
+        if photo_resolution is None:
+            return picam.create_still_configuration(
+                main={"size": (4656, 3496), "format": "RGB888"},
+                controls={"NoiseReductionMode": 0, "AwbEnable": False}
+            )
+        return picam.create_still_configuration(buffer_count=1, main={"size": photo_resolution})
+
+class HawkeyeStrategy(CameraStrategy):
+    def create_preview_config(self, picam: Picamera2, preview_resolution=None):
+        return picam.create_preview_configuration(
+            transform=Transform(hflip=True, vflip=True),
+            main={"size": (2328, 1748)},
+            controls={"NoiseReductionMode": 0, "AwbEnable": False}
+        )
+
+    def create_photo_config(self, picam: Picamera2, photo_resolution=None):
+        if photo_resolution is None:
+            return picam.create_still_configuration(
+                buffer_count=1,
+                transform=Transform(hflip=True, vflip=True),
+                main={"size": (8000, 6000)}
+            )
+        return picam.create_still_configuration(buffer_count=1, main={"size": photo_resolution})
+
+    def process_preview_frame(self, frame):
+        return frame[:, :, [2, 1, 0]]  # correct the color channels
+
+
+    def process_photo_frame(self, frame):
+        return frame[:, :, [2, 1, 0]]  # correct the color channels
+
 class Picamera2Controller(CameraController):
     _picam = None
+    _strategies = {
+        "imx519": IMX519Strategy(),
+        "arducam_64mp": HawkeyeStrategy()
+    }
 
     def __init__(self, camera: Camera):
         super().__init__(camera)
         if Picamera2Controller._picam is None:
             Picamera2Controller._picam = Picamera2()
+        self.strategy = self._strategies.get(self.camera.name, IMX519Strategy())
 
         self.control_mapping = {
             'shutter': 'ExposureTime',
@@ -31,7 +95,7 @@ class Picamera2Controller(CameraController):
         if self.settings_manager.get_setting("jpeg_quality") is None:
             self.settings_manager.set_setting("jpeg_quality", 95)
 
-
+        print("setting up ", self.camera.name)
         # set initial settings and start in preview mode
         self._configure_resolution()
         self.mode = CameraMode.PREVIEW
@@ -40,6 +104,8 @@ class Picamera2Controller(CameraController):
 
         self._apply_settings_to_hardware(self.get_all_settings())
         #self._configure_focus()
+
+        print("started ", self.camera.name)
 
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
@@ -58,25 +124,11 @@ class Picamera2Controller(CameraController):
 
     def _configure_resolution(self):
         self.preview_resolution = self.get_setting("resolution_preview")
-        if self.preview_resolution is None:
-            self.preview_config = self._picam.create_preview_configuration(
-                main={"size": (2328, 1748)},  # main is the default mode with higher latency but correct color
-                lores={"size": (640, 480), "format": "YUV420"},  # lores is a low resolution mode with lower latency
-                controls = {"NoiseReductionMode": 0, "AwbEnable": False}
-            )
-        else:
-            self.preview_config = self._picam.create_preview_configuration(main={"size": self.preview_resolution},
-                                                                           controls={"NoiseReductionMode": 0, "AwbEnable": False})
+        self.preview_config = self.strategy.create_preview_config(self._picam, self.preview_resolution)
 
         self.photo_resolution = self.get_setting("resolution_photo")
-        if self.photo_resolution is None:
-            self.photo_config = self._picam.create_still_configuration( main={"size": (4656, 3496), "format": "RGB888"},
-                                                                        controls={
-                                                                            "NoiseReductionMode": 0,
-                                                                            "AwbEnable": False})
-
-        else:
-            self.photo_config = self._picam.create_still_configuration(main={"size": self.photo_resolution})
+        self.photo_config = self.strategy.create_photo_config(self._picam, self.photo_resolution)
+        self.preview_resolution = self.get_setting("resolution_preview")
 
     def _configure_focus(self):
         if self.get_setting("AF"):
@@ -141,13 +193,13 @@ class Picamera2Controller(CameraController):
     def photo(self) -> IO[bytes]:
         if self.mode == CameraMode.PREVIEW:
             self._configure_mode(CameraMode.PHOTO)
-        #self.apply_settings()
         if self.get_setting("AF"):
             self._picam.autofocus_cycle()
-        #else:
-        #    self._configure_focus()
+
         array = self._picam.switch_mode_and_capture_array(self.photo_config, "main")
         array = cv2.rotate(array, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        array = self.strategy.process_photo_frame(array)
+
         _, jpeg = cv2.imencode('.jpg', array,
                                [int(cv2.IMWRITE_JPEG_QUALITY), self.get_setting("jpeg_quality")])
         return jpeg.tobytes()
@@ -155,17 +207,13 @@ class Picamera2Controller(CameraController):
     def preview(self, mode="main") -> IO[bytes]:
         if self.mode == CameraMode.PHOTO:
             self._configure_mode(CameraMode.PREVIEW)
-        #self.apply_settings()
-        # main is the default mode with higher latency but correct color
-        # lores is a low resolution mode with lower latency
         frame = self._picam.capture_array(mode)
         if mode == "lores":
-            # color and gamma correction
             frame = cv2.cvtColor(frame, cv2.COLOR_YUV420p2RGB)
             frame = apply_gamma_correction(frame, gamma=2.2)
         elif mode == "main":
             frame = cv2.resize(frame, (640,480))
-            frame = frame[:, :, [2, 1, 0]] # correct color order
+            frame = self.strategy.process_preview_frame(frame)
 
         frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
