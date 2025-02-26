@@ -1,4 +1,4 @@
-from typing import Protocol, TypeVar, runtime_checkable, Dict, Generic
+from typing import Protocol, TypeVar, runtime_checkable, Dict, Generic, Type
 from abc import abstractmethod
 
 T = TypeVar('T')
@@ -57,13 +57,22 @@ class EventHardware(HardwareInterface[T], Protocol[T]):
 
 class ControllerFactory(Generic[T, M]):
     """
-    Generic Controller Factory für Hardware und Software Controller
+    Generic Controller Factory for hardware and software controllers.
     
-    T: Controller-Typ (z.B. CameraController, MotorController)
-    M: Model-Typ (z.B. Camera, Motor)
+    T: controller type (e.g. CameraController, MotorController)
+    M: model type (e.g. Camera, Motor)
     """
-    _controllers: Dict[str, T] = {}
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._controllers: Dict[str, T] = {}
     
+    @classmethod
+    @property
+    @abstractmethod
+    def _controller_class(cls) -> Type[T]:
+        """The controller class to be instantiated. Must be implemented by subclasses."""
+        pass
+
     @classmethod
     def get_controller(cls, model: M) -> T:
         """Get or create a controller instance for the given model"""

@@ -1,5 +1,5 @@
 import abc
-from typing import Dict, IO, Optional
+from typing import Dict, IO, Optional, Type
 
 from app.models.camera import Camera, CameraType
 from app.config.camera import CameraSettings
@@ -76,7 +76,10 @@ class CameraController(abc.ABC):
 
 
 class CameraControllerFactory(ControllerFactory[CameraController, Camera]):
-    _controller_class = CameraController
+    @classmethod
+    @property
+    def _controller_class(cls) -> Type[CameraController]:
+        return CameraController
     
     @classmethod
     def _create_controller(cls, model: Camera) -> CameraController:

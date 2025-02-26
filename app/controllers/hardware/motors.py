@@ -7,7 +7,7 @@ import time
 import math
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-
+from typing import Type
 
 
 class MotorController(StatefulHardware):
@@ -98,4 +98,7 @@ class MotorController(StatefulHardware):
         )
 
 class MotorControllerFactory(ControllerFactory[MotorController, Motor]):
-    _controller_class = MotorController
+    @classmethod
+    @property
+    def _controller_class(cls) -> Type[MotorController]:
+        return MotorController

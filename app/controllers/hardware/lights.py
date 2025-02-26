@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, Type
 
 from app.models.light import Light, LightConfig
 
@@ -35,4 +35,7 @@ class LightController(SwitchableHardware):
 
 
 class LightControllerFactory(ControllerFactory[LightController, Light]):
-    _controller_class = LightController
+    @classmethod
+    @property
+    def _controller_class(cls) -> Type[LightController]:
+        return LightController
