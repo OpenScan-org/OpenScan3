@@ -155,7 +155,8 @@ class OpenScanConfig:
             type=CameraType.PICAMERA2,
             name=picam_name,
             path="/dev/video" + str(picam.camera_properties.get("Location")),
-            settings=OpenScanConfig._load_camera_config(picam_name)
+            settings=CameraSettings(), #OpenScanConfig._load_camera_config(picam_name)
+            settings_file=f"camera_{picam_name}.json"
         ))
         picam.close()
         del picam

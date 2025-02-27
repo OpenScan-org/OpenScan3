@@ -12,9 +12,12 @@ class CameraController(abc.ABC):
         # Create SettingsManager with callback for updating hardware settings
         self.settings_manager = SettingsManager(
             camera,
+            autosave=True,
             on_settings_changed=self._apply_settings_to_hardware
         )
         self._busy = False
+
+        self.settings_manager.load_from_file()
 
     @staticmethod
     def create(camera: Camera) -> 'CameraController':

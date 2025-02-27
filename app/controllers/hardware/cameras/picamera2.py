@@ -95,18 +95,12 @@ class Picamera2Controller(CameraController):
         if self.settings_manager.get_setting("jpeg_quality") is None:
             self.settings_manager.set_setting("jpeg_quality", 95)
 
-        print("setting up ", self.camera.name)
-        # set initial settings and start in preview mode
         self._configure_resolution()
         self.mode = CameraMode.PREVIEW
         self._picam.configure(self.preview_config)
         self._picam.start()
 
         self._apply_settings_to_hardware(self.get_all_settings())
-        #self._configure_focus()
-
-        print("started ", self.camera.name)
-
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """This method is call on every change of settings"""

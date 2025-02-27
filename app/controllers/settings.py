@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Dict, Tuple, Any, Optional, Callable, get_type_hints
+from typing import TypeVar, Generic, Dict, Tuple, Any, Optional, Callable, get_type_hints, Union
 from pathlib import Path
 import json
 
@@ -29,12 +29,21 @@ class SettingsManager(Generic[T]):
                  settings_dir: str = "settings",
                  autosave: bool = False):
         self.model = model
-        if not hasattr(model, 'settings') or model.settings is None:
-            raise ValueError(f"Model {model} has no settings attribute or settings are None")
         self._settings = model.settings
-        self._settings_callback = on_settings_changed
         self._settings_dir = PROJECT_ROOT / settings_dir
         self._settings_file = settings_file
+        if not hasattr(model, 'settings') or model.settings is None:
+            raise ValueError(f"Model {model} has no settings attribute or settings are None")
+
+        # Use settings_file from model if available and none provided
+        if settings_file is None and hasattr(model, 'settings_file'):
+            settings_file = model.settings_file
+            self.load_from_file()
+        self._settings_file = settings_file
+
+        self._settings_callback = on_settings_changed
+        self._autosave = autosave
+
 
     def get_setting(self, setting: str) -> Any:
         """Get value of a specific setting"""
@@ -53,10 +62,11 @@ class SettingsManager(Generic[T]):
         """Get all settings as a dictionary"""
         return self._settings
 
-    def replace_settings(self, settings: T) -> None:
+    def replace_settings(self, settings: T, execute_callback: bool = True) -> None:
         """Update all settings at once"""
         self._settings = settings
-        self._execute_settings_callback()
+        if execute_callback:
+            self._execute_settings_callback()
 
     def _execute_settings_callback(self) -> None:
         """Execute the callback function and handle autosave if enabled."""
@@ -86,6 +96,7 @@ class SettingsManager(Generic[T]):
 
     def load_from_file(self) -> bool:
         """Load settings from JSON file if settings_file is configured"""
+        print(f"Loading settings from {self._settings_file}")
         if not self._settings_file:
             return False
             
@@ -99,7 +110,9 @@ class SettingsManager(Generic[T]):
                 # Get the actual settings class from our current settings
                 settings_class = self._settings.__class__
                 new_settings = settings_class(**data)
-                self.replace_settings(new_settings)
+                # Don't execute callback during initial load
+                self.replace_settings(new_settings, execute_callback=False)
+                print("Settings loaded from file")
                 return True
         except Exception as e:
             print(f"Error loading settings: {e}")
@@ -117,6 +130,7 @@ class SettingsManager(Generic[T]):
             with open(file_path, 'w') as f:
                 # Use Pydantic's dict() method to serialize
                 json.dump(self._settings.dict(), f, indent=2)
+            print(f"Saved settings to {file_path}")
             return True
         except Exception as e:
             print(f"Error saving settings: {e}")
