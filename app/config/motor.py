@@ -1,8 +1,6 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
-
-@dataclass
-class MotorConfig:
+class MotorConfig(BaseModel):
     direction_pin: int
     enable_pin: int
     step_pin: int

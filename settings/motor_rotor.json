@@ -5,6 +5,6 @@
       "acceleration": 1,
       "acceleration_ramp": 2000,
       "delay": 0.0001,
-      "direction": 1,
+      "direction": -1,
       "steps_per_rotation": 17067
     }
