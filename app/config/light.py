@@ -1,9 +1,8 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 from typing import Optional, List
 
 
-@dataclass
-class LightConfig:
+class LightConfig(BaseModel):
     name: str
     pin: Optional[int] = None
     pins: Optional[List[int]] = None

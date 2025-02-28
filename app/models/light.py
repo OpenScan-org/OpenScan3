@@ -8,5 +8,6 @@ from app.config.light import LightConfig
 @dataclass
 class Light:
     name: str
-    #turned_on: bool
-    settings: Optional[LightConfig]
+
+    settings: LightConfig
+    settings_file: Optional[str] = None
