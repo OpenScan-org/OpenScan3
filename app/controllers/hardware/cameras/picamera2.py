@@ -161,12 +161,17 @@ class Picamera2Controller(CameraController):
             if manual_focus is None:
                 self.set_setting("manual_focus", 1.0)
             self._picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": self.get_setting("manual_focus")})
+
+            # Wait for focus with tolerance
+            target_focus = float(self.get_setting("manual_focus"))
+            tolerance = 0.001 # 0.1% tolerance
+
             start = time.time()
-            while self._picam.capture_metadata()["LensPosition"] != self.get_setting("manual_focus"):
-                #print(self._picam.capture_metadata()["LensPosition"])
+            while abs(self._picam.capture_metadata()["LensPosition"] - target_focus) > tolerance:
+                if time.time() - start > 5:
+                    print(f"Warning: Focus timeout! Target: {target_focus}, Current: {self._picam.capture_metadata()['LensPosition']}")
+                    break
                 time.sleep(0.05) # wait for focus to be applied
-            print("focus applied in: {:.2f}".format(time.time() - start), " focus: ", self.get_setting("manual_focus"))
-        #time.sleep(0.1) # wait for focus to be applied
 
     def _configure_mode(self, set_mode: CameraMode = None):
         if set_mode == CameraMode.PHOTO:
