@@ -19,9 +19,9 @@ from gpg.version import description
 from app.models.project import Project
 from app.models.scan import Scan, ScanStatus
 from app.models.camera import Camera
-from controllers.hardware.cameras.camera import CameraControllerFactory
-from app.config import config
-from config.scan import ScanSetting
+from app.controllers.hardware.cameras.camera import CameraControllerFactory
+from app.controllers.device import projects_path, cloud
+from app.config.scan import ScanSetting
 from app.models.paths import PathMethod
 
 ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png")
@@ -30,8 +30,8 @@ ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png")
 def get_projects() -> list[Project]:
     """Get all projects in the projects directory"""
     projects = []
-    for folder in os.listdir(config.projects_path):
-        project_json = os.path.join(config.projects_path, folder, "openscan_project.json")
+    for folder in os.listdir(projects_path):
+        project_json = os.path.join(projects_path, folder, "openscan_project.json")
         if os.path.exists(project_json):
             try:
                 projects.append(get_project(folder))
@@ -42,7 +42,7 @@ def get_projects() -> list[Project]:
 
 def _get_project_path(project_name: str) -> str:
     """Get the absolute path for a project"""
-    return os.path.join(str(config.projects_path), project_name)
+    return os.path.join(str(projects_path), project_name)
 
 
 def _get_project_photos(project_path: str) -> list[str]:
@@ -263,14 +263,14 @@ def split_file(file: IO[bytes]) -> list[io.BytesIO]:
     file.seek(0, 2)
     file.seek(0)
 
-    chunk = file.read(config.cloud.split_size)
+    chunk = file.read(cloud.split_size)
     while chunk:
         yield io.BytesIO(chunk)
-        chunk = file.read(config.cloud.split_size)
+        chunk = file.read(cloud.split_size)
 
 
 class ProjectManager:
-    def __init__(self, path=config.projects_path):
+    def __init__(self, path=projects_path):
         """Initialize project manager with base path"""
         self._path = str(path)  # Ensure string path
         self._projects = {}

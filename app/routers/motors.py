@@ -1,10 +1,6 @@
 from fastapi import APIRouter, Body, HTTPException
 
-from controllers.hardware import motors
-from app.config import config
-from controllers.hardware.motors import MotorControllerFactory
-
-from app.models.motor import Motor
+from app.controllers.hardware.motors import MotorControllerFactory
 
 router = APIRouter(
     prefix="/motors",
@@ -28,21 +24,12 @@ async def get_motors():
 
 @router.post("/{motor_name}/move_to")
 async def move_motor(motor_name: str, degrees: float):
-    if motor_name not in config.motors:
-        raise HTTPException(status_code=404, detail=f"Motor {motor_name} not found")
-
-    controller = MotorControllerFactory.get_controller(config.motors[motor_name])
+    controller = MotorControllerFactory.get_controller_by_name(motor_name)
     await controller.move_to(degrees)
     return controller.get_status()
 
 
 @router.post("/{motor_name}/move")
 async def move_motor(motor_name: str, degrees: float = Body(embed=True)):
-    motor = config.motors[motor_name]
-    controller = get_motor_controller(motor)
+    controller = MotorControllerFactory.get_controller_by_name(motor_name)
     await controller.move_degrees(degrees)
-
-    #motors.move_motor_degrees(motor, degrees)
-
-def get_motor_controller(motor: Motor):
-    return MotorControllerFactory.get_controller(motor)

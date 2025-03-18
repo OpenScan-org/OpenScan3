@@ -9,11 +9,9 @@ from controllers.hardware.cameras.camera import CameraControllerFactory
 from controllers.services import projects
 from controllers.services.projects import ProjectManager
 from controllers.services.scans import ScanManagerFactory
-import controllers.hardware.cameras.camera
 from app.models.project import Project
 from app.config.scan import ScanSetting
 from app.models.scan import ScanStatus
-from app.config import config
 
 router = APIRouter(
     prefix="/projects",
@@ -69,8 +67,7 @@ async def new_project(project_name: str):
 
 @router.post("/{project_name}/scan", response_model=bool)
 async def add_scan(project_name: str, camera_id: int, scan_settings: ScanSetting):
-    camera = config.active_camera
-    camera_controller = CameraControllerFactory.get_controller(camera)
+    camera = CameraControllerFactory.get_camera_by_id(camera_id)
     scan = project_manager.add_scan(project_name, camera, scan_settings)
 
     scan_manager = ScanManagerFactory.get_controller(scan, project_manager)
@@ -122,9 +119,9 @@ async def pause_scan(project_name: str, scan_index: int):
 
 
 @router.post("/{project_name}/scans/{scan_index}/resume", response_model=ScanControlResponse)
-async def resume_scan(project_name: str, scan_index: int):
+async def resume_scan(project_name: str, scan_index: int, camera_id: int):
     """Resume a paused, cancelled or failed scan"""
-    camera = config.active_camera
+    camera = CameraControllerFactory.get_camera_by_id(camera_id)
     try:
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         if not scan:

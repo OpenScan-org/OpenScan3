@@ -3,19 +3,20 @@ from typing import IO, Any
 
 import requests
 
-from app.config import config
-from controllers.services import projects
+#from app.config import config
+from app.config import cloud
+from app.controllers.services import projects
 
 
 def _cloud_request(method: str, path: str, params=None) -> requests.Response:
-    r_params = {"token": config.cloud.key}
+    r_params = {"token": cloud.key}
     if params is not None:
         r_params.update(params)
 
     return requests.request(
         method,
-        f"{config.cloud.host}/{path}",
-        auth=(config.cloud.user, config.cloud.password),
+        f"{cloud.host}/{path}",
+        auth=(cloud.user, cloud.password),
         params=r_params,
     )
 
@@ -53,7 +54,7 @@ def upload_project(project_name: str):
     zip = projects.compress_project_photos(project)
     zip_size = zip.tell()
     # split
-    nchunks = math.ceil(zip_size / config.cloud.split_size)
+    nchunks = math.ceil(zip_size / cloud.split_size)
     # create project
     response = _create_project(project.name, len(photos), zip_size, nchunks)
 

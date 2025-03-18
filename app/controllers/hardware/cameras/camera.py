@@ -87,3 +87,42 @@ class CameraControllerFactory(ControllerFactory[CameraController, Camera]):
     @classmethod
     def _create_controller(cls, model: Camera) -> CameraController:
         return CameraController.create(model)
+
+    @classmethod
+    def get_camera_by_id(cls, camera_id: int) -> Camera:
+        """
+        Get a camera by its index in the controllers list.
+
+        Args:
+            camera_id: The index of the camera
+
+        Returns:
+            Camera: The camera model
+
+        Raises:
+            ValueError: If the camera_id is out of range
+        """
+        controllers = list(cls.get_all_controllers().values())
+        if len(controllers) < camera_id + 1:
+            raise ValueError(f"Can't find camera with id {camera_id}")
+        return controllers[camera_id].camera
+
+    @classmethod
+    def get_controller_by_id(cls, camera_id: int) -> CameraController:
+        """
+        Get a camera controller by its index in the controllers list.
+
+        Args:
+            camera_id: The index of the camera
+
+        Returns:
+            CameraController: The camera controller
+
+        Raises:
+            ValueError: If the camera_id is out of range
+        """
+        controllers = list(cls.get_all_controllers().values())
+        if len(controllers) < camera_id + 1:
+            raise ValueError(f"Can't find camera controller with id {camera_id}")
+        return controllers[camera_id]
+

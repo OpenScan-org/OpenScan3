@@ -84,6 +84,24 @@ class ControllerFactory(Generic[T, M]):
     def get_all_controllers(cls) -> Dict[str, T]:
         """Get a copy of all active controllers"""
         return cls._controllers.copy()
+
+    @classmethod
+    def get_controller_by_name(cls, name: str) -> T:
+        """
+        Get a controller by its name.
+
+        Args:
+            name: The name of the controller/model
+
+        Returns:
+            T: The controller instance
+
+        Raises:
+            ValueError: If no controller with the given name exists
+        """
+        if name not in cls._controllers:
+            raise ValueError(f"Controller with name '{name}' not found")
+        return cls._controllers[name]
     
     @classmethod
     def _create_controller(cls, model: M) -> T:

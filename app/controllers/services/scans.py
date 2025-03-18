@@ -6,13 +6,12 @@ from typing import AsyncGenerator, Tuple, Optional, TYPE_CHECKING
 from datetime import datetime
 
 
-from app.config import config
 from config.scan import ScanSetting
-from controllers.hardware import gpio
-from controllers.hardware.interfaces import ControllerFactory
-from controllers.hardware.motors import MotorControllerFactory
-from controllers.services.projects import ProjectManager
-from controllers.hardware.cameras.camera import CameraControllerFactory
+from app.controllers.hardware import gpio
+from app.controllers.hardware.interfaces import ControllerFactory
+from app.controllers.hardware.motors import MotorControllerFactory
+from app.controllers.services.projects import ProjectManager
+from app.controllers.hardware.cameras.camera import CameraControllerFactory
 from app.models.camera import Camera
 from app.models.paths import CartesianPoint3D, PolarPoint3D
 from app.models.scan import Scan, ScanStatus
@@ -22,8 +21,8 @@ from app.services.paths import paths
 async def move_to_point(point: paths.PolarPoint3D):
     """Move motors to specified polar coordinates"""
     # Get motor controllers
-    turntable = MotorControllerFactory.get_controller(config.motors["turntable"])
-    rotor = MotorControllerFactory.get_controller(config.motors["rotor"])
+    turntable = MotorControllerFactory.get_controller_by_name("turntable")
+    rotor = MotorControllerFactory.get_controller_by_name("rotor")
 
     # wait until motors are ready
     while turntable.is_busy() or rotor.is_busy():

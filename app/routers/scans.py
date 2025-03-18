@@ -9,7 +9,7 @@ from controllers.services import projects, scans
 from app.services.paths import paths
 from app.config.scan import ScanSetting
 
-from app.config import config
+
 router = APIRouter(
     prefix="",
     tags=["scanner"],
