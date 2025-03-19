@@ -3,9 +3,8 @@ import time
 import math
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Type
 
-from .interfaces import StatefulHardware, ControllerFactory
+from .interfaces import StatefulHardware, create_controller_registry
 from app.config.motor import MotorConfig
 from app.models.motor import Motor
 from app.controllers.hardware import gpio
@@ -24,6 +23,8 @@ class MotorController(StatefulHardware):
         self._current_steps = 0
         self._target_angle = None
         self._apply_settings_to_hardware()
+
+
 
     def _apply_settings_to_hardware(self):
         gpio.initialize_pins([
@@ -112,8 +113,24 @@ class MotorController(StatefulHardware):
             do_movement
         )
 
-class MotorControllerFactory(ControllerFactory[MotorController, Motor]):
-    @classmethod
-    @property
-    def _controller_class(cls) -> Type[MotorController]:
-        return MotorController
+
+create_motor_controller, get_motor_controller, remove_motor_controller, _motor_registry = create_controller_registry(MotorController)
+
+
+def get_all_motor_controllers():
+    """Get all currently registered motor controllers"""
+    return _motor_registry.copy()
+
+
+async def move_motor_to(name: str, position: float) -> None:
+    """Move a motor to a position by name"""
+    controller = get_motor_controller(name)
+    await controller.move_to(position)
+
+
+def is_motor_busy(name: str) -> bool:
+    """Check if a motor is busy"""
+    try:
+        return get_motor_controller(name).is_busy()
+    except ValueError:
+        return False

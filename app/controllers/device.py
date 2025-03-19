@@ -25,9 +25,9 @@ from app.config.motor import MotorConfig
 from app.config.light import LightConfig
 from app.config.cloud import CloudSettings
 
-from app.controllers.hardware.cameras.camera import CameraControllerFactory
-from app.controllers.hardware.motors import MotorControllerFactory
-from app.controllers.hardware.lights import LightControllerFactory
+from app.controllers.hardware.cameras.camera import create_camera_controller
+from app.controllers.hardware.motors import create_motor_controller
+from app.controllers.hardware.lights import create_light_controller, get_all_light_controllers
 
 # Global variables
 _camera_controllers = {}
@@ -168,7 +168,7 @@ def get_device_info():
         "shield": current_shield or "unknown",
         "cameras": _cameras,
         "motors": _motors,
-        "lights": _lights
+        "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()}
     }
 
 
@@ -313,19 +313,19 @@ def initialize(detect_cameras = False):
     # Initialize controllers
     for name, camera in camera_objects.items():
         try:
-            _camera_controllers[name] = CameraControllerFactory.get_controller(camera)
+            _camera_controllers[name] = create_camera_controller(camera)
         except Exception as e:
             print(f"Error initializing camera controller for {name}: {e}")
 
     for name, motor in motor_objects.items():
         try:
-            _motor_controllers[name] = MotorControllerFactory.get_controller(motor)
+            _motor_controllers[name] = create_motor_controller(motor)
         except Exception as e:
             print(f"Error initializing motor controller for {name}: {e}")
 
     for name, light in light_objects.items():
         try:
-            _light_controllers[name] = LightControllerFactory.get_controller(light)
+            create_light_controller(light)
         except Exception as e:
             print(f"Error initializing light controller for {name}: {e}")
 

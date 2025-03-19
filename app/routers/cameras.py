@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
 
 from app.config.camera import CameraSettings
-from app.controllers.hardware.cameras.camera import CameraControllerFactory
+from app.controllers.hardware.cameras.camera import get_all_camera_controllers, get_camera_controller_by_id
 
 router = APIRouter(
     prefix="/cameras",
@@ -18,17 +18,17 @@ router = APIRouter(
 async def get_cameras():
     return {
         name: controller.get_all_settings()
-        for name, controller in CameraControllerFactory.get_all_controllers().items()
+        for name, controller in  get_all_camera_controllers().items()
     }
 
 @router.get("/{camera_id}")
 async def get_camera(camera_id: int):
-    controller = CameraControllerFactory.get_controller_by_id(camera_id)
+    controller = get_camera_controller_by_id(camera_id)
     return controller.get_all_settings()
 
 @router.get("/{camera_id}/preview")
 async def get_preview(camera_id: int):
-    controller = CameraControllerFactory.get_controller_by_id(camera_id)
+    controller = get_camera_controller_by_id(camera_id)
 
 
     async def generate():
@@ -42,19 +42,19 @@ async def get_preview(camera_id: int):
 
 @router.get("/{camera_id}/photo")
 async def get_photo(camera_id: int):
-    controller = CameraControllerFactory.get_controller_by_id(camera_id)
+    controller = get_camera_controller_by_id(camera_id)
     return Response(content=controller.photo(), media_type="image/jpeg")
 
 
 @router.get("/{camera_id}/settings")
 async def get_camera_settings(camera_id: int):
-    controller = CameraControllerFactory.get_controller_by_id(camera_id)
+    controller = get_camera_controller_by_id(camera_id)
     return jsonable_encoder(controller.get_all_settings())
 
 
 @router.put("/{camera_id}/settings")
 async def set_camera_settings(camera_id: int, settings = Body(...)):
-    controller = CameraControllerFactory.get_controller_by_id(camera_id)
+    controller = get_camera_controller_by_id(camera_id)
     try:
         new_settings = CameraSettings(**settings)
     except Exception as e:
@@ -68,7 +68,7 @@ async def set_camera_settings(camera_id: int, settings = Body(...)):
 
 @router.patch("/{camera_id}/settings")
 async def update_camera_setting(camera_id: int, setting: str, value):
-    controller = CameraControllerFactory.get_controller_by_id(camera_id)
+    controller = get_camera_controller_by_id(camera_id)
     try:
         # convert str value to expected settings type
         value = controller.settings_manager.convert_value(setting, value)

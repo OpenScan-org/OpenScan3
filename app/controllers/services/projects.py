@@ -18,8 +18,7 @@ from gpg.version import description
 
 from app.models.project import Project
 from app.models.scan import Scan, ScanStatus
-from app.models.camera import Camera
-from app.controllers.hardware.cameras.camera import CameraControllerFactory
+from app.controllers.hardware.cameras.camera import CameraController
 from app.controllers.device import projects_path, cloud
 from app.config.scan import ScanSetting
 from app.models.paths import PathMethod
@@ -358,7 +357,7 @@ class ProjectManager:
             return True
         return False
 
-    def add_scan(self, project_name: str, camera: Camera, scan_settings: ScanSetting) -> Optional[Scan]:
+    def add_scan(self, project_name: str, camera_controller: CameraController, scan_settings: ScanSetting) -> Optional[Scan]:
         """Add a new scan to a project"""
         if not self.set_current_project(self._projects[project_name]):
             return None
@@ -370,8 +369,6 @@ class ProjectManager:
             new_index = 1
 
         os.makedirs(os.path.join(self._current_project.path, f"scan{new_index:02d}"), exist_ok=True)
-
-        camera_controller = CameraControllerFactory.get_controller(camera)
 
         scan = Scan(
             project_name=self._current_project.name,

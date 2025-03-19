@@ -9,9 +9,9 @@ from datetime import datetime
 from config.scan import ScanSetting
 from app.controllers.hardware import gpio
 from app.controllers.hardware.interfaces import ControllerFactory
-from app.controllers.hardware.motors import MotorControllerFactory
+from app.controllers.hardware.motors import get_motor_controller
 from app.controllers.services.projects import ProjectManager
-from app.controllers.hardware.cameras.camera import CameraControllerFactory
+from app.controllers.hardware.cameras.camera import CameraController, get_camera_controller
 from app.models.camera import Camera
 from app.models.paths import CartesianPoint3D, PolarPoint3D
 from app.models.scan import Scan, ScanStatus
@@ -21,8 +21,8 @@ from app.services.paths import paths
 async def move_to_point(point: paths.PolarPoint3D):
     """Move motors to specified polar coordinates"""
     # Get motor controllers
-    turntable = MotorControllerFactory.get_controller_by_name("turntable")
-    rotor = MotorControllerFactory.get_controller_by_name("rotor")
+    turntable = get_motor_controller("turntable")
+    rotor = get_motor_controller("rotor")
 
     # wait until motors are ready
     while turntable.is_busy() or rotor.is_busy():
@@ -198,7 +198,7 @@ class ScanManager:
             print(f"Error during scan: {e}")
 
 
-    async def scan_async(self, camera: Camera, start_from_step: int = 0) -> AsyncGenerator[Tuple[int, int], None]:
+    async def scan_async(self, camera_controller: CameraController, start_from_step: int = 0) -> AsyncGenerator[Tuple[int, int], None]:
         """Run a scan asynchronously with pause/resume/cancel support
 
         This method is designed to be used as an async generator. The generator
@@ -219,7 +219,6 @@ class ScanManager:
         scan = self._scan
         project_manager = self._project_manager
 
-        camera_controller = CameraControllerFactory.get_controller(camera)
         path = paths.get_path(scan.settings.path_method, scan.settings.points)
         total = len(path)
 

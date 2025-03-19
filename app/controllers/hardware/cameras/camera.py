@@ -3,7 +3,7 @@ from typing import Dict, IO, Optional, Type
 
 from app.models.camera import Camera, CameraType
 from app.config.camera import CameraSettings
-from app.controllers.hardware.interfaces import ControllerFactory
+from app.controllers.hardware.interfaces import create_controller_registry
 from app.controllers.settings import SettingsManager
 
 class CameraController(abc.ABC):
@@ -18,20 +18,6 @@ class CameraController(abc.ABC):
         self._busy = False
 
         self.settings_manager.load_from_file()
-
-    @staticmethod
-    def create(camera: Camera) -> 'CameraController':
-        if camera.type == CameraType.GPHOTO2:
-            from .gphoto2 import Gphoto2Camera
-            return Gphoto2Camera(camera)
-        elif camera.type == CameraType.PICAMERA2:
-            from .picamera2 import Picamera2Controller
-            return Picamera2Controller(camera)
-        elif camera.type == CameraType.LINUXPY:
-            from .linuxpy import LINUXPYCamera
-            return LINUXPYCamera(camera)
-        else:
-            raise ValueError(f"Couldn't find controller for {camera.type}")
 
     def get_setting(self, setting: str) -> any:
         """Get a camera setting"""
@@ -77,52 +63,28 @@ class CameraController(abc.ABC):
     def preview(camera: Camera) -> IO[bytes]:
         raise NotImplementedError
 
+def _create_camera_controller_instance(camera: Camera) -> 'CameraController':
+    if camera.type == CameraType.GPHOTO2:
+        from .gphoto2 import Gphoto2Camera
+        return Gphoto2Camera(camera)
+    elif camera.type == CameraType.PICAMERA2:
+        from .picamera2 import Picamera2Controller
+        return Picamera2Controller(camera)
+    elif camera.type == CameraType.LINUXPY:
+        from .linuxpy import LINUXPYCamera
+        return LINUXPYCamera(camera)
+    else:
+        raise ValueError(f"Couldn't find controller for {camera.type}")
 
-class CameraControllerFactory(ControllerFactory[CameraController, Camera]):
-    @classmethod
-    @property
-    def _controller_class(cls) -> Type[CameraController]:
-        return CameraController
-    
-    @classmethod
-    def _create_controller(cls, model: Camera) -> CameraController:
-        return CameraController.create(model)
+create_camera_controller, get_camera_controller, remove_camera_controller, _camera_registry = create_controller_registry(_create_camera_controller_instance)
 
-    @classmethod
-    def get_camera_by_id(cls, camera_id: int) -> Camera:
-        """
-        Get a camera by its index in the controllers list.
 
-        Args:
-            camera_id: The index of the camera
+def get_all_camera_controllers():
+    """Get all currently registered light controllers"""
+    return _camera_registry.copy()
 
-        Returns:
-            Camera: The camera model
-
-        Raises:
-            ValueError: If the camera_id is out of range
-        """
-        controllers = list(cls.get_all_controllers().values())
-        if len(controllers) < camera_id + 1:
-            raise ValueError(f"Can't find camera with id {camera_id}")
-        return controllers[camera_id].camera
-
-    @classmethod
-    def get_controller_by_id(cls, camera_id: int) -> CameraController:
-        """
-        Get a camera controller by its index in the controllers list.
-
-        Args:
-            camera_id: The index of the camera
-
-        Returns:
-            CameraController: The camera controller
-
-        Raises:
-            ValueError: If the camera_id is out of range
-        """
-        controllers = list(cls.get_all_controllers().values())
-        if len(controllers) < camera_id + 1:
-            raise ValueError(f"Can't find camera controller with id {camera_id}")
-        return controllers[camera_id]
-
+def get_camera_controller_by_id(camera_id: int):
+    controllers = list(get_all_camera_controllers().values())
+    if len(controllers) < camera_id + 1:
+        raise ValueError(f"Can't find camera controller with id {camera_id}")
+    return controllers[camera_id]

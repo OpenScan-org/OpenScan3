@@ -5,7 +5,7 @@ import pathlib
 from typing import Optional
 import asyncio
 
-from controllers.hardware.cameras.camera import CameraControllerFactory
+from controllers.hardware.cameras.camera import get_camera_controller_by_id
 from controllers.services import projects
 from controllers.services.projects import ProjectManager
 from controllers.services.scans import ScanManagerFactory
@@ -67,7 +67,7 @@ async def new_project(project_name: str):
 
 @router.post("/{project_name}/scan", response_model=bool)
 async def add_scan(project_name: str, camera_id: int, scan_settings: ScanSetting):
-    camera = CameraControllerFactory.get_camera_by_id(camera_id)
+    camera = get_camera_controller_by_id(camera_id)
     scan = project_manager.add_scan(project_name, camera, scan_settings)
 
     scan_manager = ScanManagerFactory.get_controller(scan, project_manager)

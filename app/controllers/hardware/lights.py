@@ -1,10 +1,8 @@
-from typing import Optional, Dict, Type
-
 from app.controllers.settings import SettingsManager
 from app.models.light import Light, LightConfig
 
-from controllers.hardware import gpio
-from controllers.hardware.interfaces import SwitchableHardware, ControllerFactory
+from . import gpio
+from .interfaces import SwitchableHardware, create_controller_registry
 
 class LightController(SwitchableHardware):
     def __init__(self, light: Light):
@@ -45,8 +43,9 @@ class LightController(SwitchableHardware):
         self._is_on = False
 
 
-class LightControllerFactory(ControllerFactory[LightController, Light]):
-    @classmethod
-    @property
-    def _controller_class(cls) -> Type[LightController]:
-        return LightController
+create_light_controller, get_light_controller, remove_light_controller, _light_registry = create_controller_registry(LightController)
+
+
+def get_all_light_controllers():
+    """Get all currently registered light controllers"""
+    return _light_registry.copy()

@@ -58,14 +58,14 @@ class EventHardware(HardwareInterface[T], Protocol[T]):
 class ControllerFactory(Generic[T, M]):
     """
     Generic Controller Factory for hardware and software controllers.
-    
+
     T: controller type (e.g. CameraController, MotorController)
     M: model type (e.g. Camera, Motor)
     """
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         cls._controllers: Dict[str, T] = {}
-    
+
     @classmethod
     @property
     @abstractmethod
@@ -79,7 +79,7 @@ class ControllerFactory(Generic[T, M]):
         if model.name not in cls._controllers:
             cls._controllers[model.name] = cls._create_controller(model)
         return cls._controllers[model.name]
-            
+
     @classmethod
     def get_all_controllers(cls) -> Dict[str, T]:
         """Get a copy of all active controllers"""
@@ -102,8 +102,65 @@ class ControllerFactory(Generic[T, M]):
         if name not in cls._controllers:
             raise ValueError(f"Controller with name '{name}' not found")
         return cls._controllers[name]
-    
+
     @classmethod
     def _create_controller(cls, model: M) -> T:
         """Create a new controller instance. Override this if special creation logic is needed."""
         return cls._controller_class(model)
+
+
+"""
+Utility functions for creating hardware controller registries.
+Will eventually replace code above.
+"""
+from typing import Dict, Callable, Tuple, TypeVar, Any
+
+# TypeVar definiert einen "Platzhalter"-Typ
+C = TypeVar('C')  # C for controller type
+M = TypeVar('M')  # M for model, like motor, camera, etc.
+
+
+def create_controller_registry(controller_class: Callable[[M], C]) -> Tuple[
+    Callable[[M], C],  # create_controller
+    Callable[[str], C],  # get_controller
+    Callable[[str], bool],  # remove_controller
+    Dict[str, C]  # registry
+]:
+    """
+    Create a generic registry for any type of hardware controller.
+    Works with any controller class that accepts a model in its constructor.
+
+    Args:
+        controller_class: The controller class to create instances of
+
+    Returns:
+        Tuple of functions and registry for managing controllers
+    """
+    registry: Dict[str, C] = {}
+
+    def create_controller(model: M) -> C:
+        """Create or get a controller for the given hardware model"""
+        if model.name not in registry:
+            registry[model.name] = controller_class(model)
+        return registry[model.name]
+
+    def get_controller(name: str):
+        """Get a controller by its name"""
+        if name not in registry:
+            raise ValueError(f"Controller not found: {name}")
+        return registry[name]
+
+    def remove_controller(name: str):
+        """Remove a controller from the registry"""
+        if name in registry:
+            # call cleanup function (if it exists)
+            controller = registry[name]
+            if hasattr(controller, "cleanup") and callable(controller.cleanup):
+                controller.cleanup()
+
+            # remove from registry
+            del registry[name]
+            return True
+        return False
+
+    return create_controller, get_controller, remove_controller, registry
