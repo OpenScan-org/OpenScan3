@@ -375,7 +375,7 @@ class ProjectManager:
             index=new_index,
             created=datetime.now(),
             settings=scan_settings,
-            camera_settings=camera_controller.get_all_settings()
+            camera_settings=camera_controller.settings.model
         )
 
 

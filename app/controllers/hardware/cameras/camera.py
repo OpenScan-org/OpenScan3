@@ -4,52 +4,22 @@ from typing import Dict, IO, Optional, Type
 from app.models.camera import Camera, CameraType
 from app.config.camera import CameraSettings
 from app.controllers.hardware.interfaces import create_controller_registry
-from app.controllers.settings import SettingsManager
+from app.controllers.settings import Settings
 
 class CameraController(abc.ABC):
     def __init__(self, camera: Camera):
         self.camera = camera
-        # Create SettingsManager with callback for updating hardware settings
-        self.settings_manager = SettingsManager(
-            camera,
-            autosave=True,
-            on_settings_changed=self._apply_settings_to_hardware
-        )
+        # Create settings with callback for hardware updates
+        self.settings = Settings(camera.settings, on_change=self._apply_settings_to_hardware)
         self._busy = False
-
-        self.settings_manager.load_from_file()
-
-    def get_setting(self, setting: str) -> any:
-        """Get a camera setting"""
-        return self.settings_manager.get_setting(setting)
 
     def get_status(self):
         """Get camera status"""
-        return {"state": "Not implemented!",
-                "model": self.camera,
-                "settings": self.get_all_settings()}
+        return {"name": self.camera.name,
+                "type": self.camera.type,
+                "busy": self._busy,
+                "settings": self.settings.model}
 
-    def set_setting(self, setting: str, value: any) -> bool:
-        """Update a single camera setting"""
-        try:
-            if value is not None:
-                self.settings_manager.set_setting(setting, value)
-            return True
-        except ValueError as e:
-            print(f"Error updating setting {setting}: {e}")
-            return False
-
-    def get_all_settings(self) -> CameraSettings:
-        """Get all camera settings"""
-        return self.settings_manager.get_all_settings()
-
-    def replace_settings(self, settings: CameraSettings) -> bool:
-        """Replace all camera settings at once"""
-        try:
-            self.settings_manager.replace_settings(settings)
-            return True
-        except ValueError as e:
-            print(f"Error replacing settings: {e}")
 
     @abc.abstractmethod
     def _apply_settings_to_hardware(self, settings: CameraSettings):

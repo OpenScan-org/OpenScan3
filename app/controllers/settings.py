@@ -1,184 +1,109 @@
-from typing import TypeVar, Generic, Dict, Tuple, Any, Optional, Callable, get_type_hints, Union
+"""
+Settings module with callback-enabled attribute access for hardware components.
+
+Provides direct attribute access to settings while allowing callbacks when settings change.
+"""
+
+from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, get_type_hints
 from pathlib import Path
 import json
 
-# Get the project root directory (where settings/ is located)
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+from pydantic import BaseModel
 
-T = TypeVar('T')
+T = TypeVar('T', bound=BaseModel)
 
-
-class SettingsManager(Generic[T]):
+class Settings(Generic[T]):
     """
-    Generic settings manager for both hardware and service components.
-
-    Handles loading, saving, and managing settings for components. Can optionally
-    persist settings to JSON files and automatically save on changes.
-
-    Args:
-        model: The model instance that contains the settings attribute
-        on_settings_changed: Optional callback when settings are changed
-        settings_file: Optional JSON file to load/save settings
-        settings_dir: Directory for settings files, default is "settings"
-        autosave: If True, automatically save to file on every change of settings
+    A settings wrapper that provides direct attribute access with callback functionality.
+    
+    This class wraps a Pydantic BaseModel instance and provides attribute access to it.
+    When settings are changed, a callback function is called.
+    
+    Example usage:
+        # Create settings with a callback
+        settings = Settings(CameraSettings(), on_change=apply_to_hardware)
+        
+        # Direct attribute access
+        settings.shutter = 20000  # Automatically calls the callback
+        
+        # Batch update
+        settings.update(shutter=20000, contrast=1.2)
     """
-
-    def __init__(self, model: T, 
-                 on_settings_changed: Optional[Callable[[T], None]] = None,
-                 settings_file: Optional[str] = None,
-                 settings_dir: str = "settings",
-                 autosave: bool = False):
-        self.model = model
-        self._settings = model.settings
-        self._settings_dir = PROJECT_ROOT / settings_dir
-        self._settings_file = settings_file
-        if not hasattr(model, 'settings') or model.settings is None:
-            raise ValueError(f"Model {model} has no settings attribute or settings are None")
-
-        # Use settings_file from model if available and none provided
-        if settings_file is None and hasattr(model, 'settings_file'):
-            settings_file = model.settings_file
-            self.load_from_file()
-        self._settings_file = settings_file
-
-        self._settings_callback = on_settings_changed
-        self._autosave = autosave
-
-
-    def get_setting(self, setting: str) -> Any:
-        """Get value of a specific setting"""
-        if not hasattr(self._settings, setting):
-            raise ValueError(f"Unknown setting: {setting}")
-        return getattr(self._settings, setting)
-
-    def set_setting(self, setting: str, value: Any) -> None:
-        """Set value of a specific setting"""
-        if not hasattr(self._settings, setting):
-            raise ValueError(f"Unknown setting: {setting}")
-        setattr(self._settings, setting, self.convert_value(setting, value))
-        self._execute_settings_callback()
-
-    def get_all_settings(self) ->  T:
-        """Get all settings as a dictionary"""
-        return self._settings
-
-    def replace_settings(self, settings: T, execute_callback: bool = True) -> None:
-        """Update all settings at once"""
+    
+    def __init__(self, settings: T, on_change: Optional[Callable[[T], None]] = None):
+        """
+        Initialize settings with a callback.
+        
+        Args:
+            settings: The initial settings object (must be a Pydantic BaseModel)
+            on_change: Function to call when settings change
+            settings_file: Optional JSON file to load/save settings
+            settings_dir: Directory for settings files, default is "settings"
+            autosave: If True, automatically save to file on every change of settings
+        """
         self._settings = settings
-        if execute_callback:
-            self._execute_settings_callback()
+        self._on_change = on_change
 
-    def _execute_settings_callback(self) -> None:
-        """Execute the callback function and handle autosave if enabled."""
-        if self._settings_callback:
-            self._settings_callback(self._settings)
-        if self._autosave and self._settings_file:  # autosave, if activated
-            self.save_to_file()
-
-    def convert_value(self, setting: str, value: str):
-        """Convert a string value to the correct type for the given setting"""
-        type_hints = get_type_hints(self._settings)
-        if setting not in type_hints:
-            raise ValueError(f"Unknown setting: {setting}")
-
-        target_type = type_hints[setting]
-
-        if target_type == Optional[int]:
-            return int(value)
-        elif target_type == Optional[float]:
-            return float(value)
-#        elif target_type == Optional[bool]:
-#            return value.lower() in {"true", "1", "yes"}
-        elif target_type == Optional[Tuple[int, int]]:
-            return tuple(map(int, value.split(",")))
-
-        return value  # in case of str value
-
-    def load_from_file(self) -> bool:
-        """Load settings from JSON file if settings_file is configured"""
-        print(f"Loading settings from {self._settings_file}")
-        if not self._settings_file:
-            return False
+    def __getattr__(self, name: str) -> Any:
+        """Allow direct attribute access to the wrapped settings."""
+        if name.startswith('_'):
+            return super().__getattribute__(name)
+        return getattr(self._settings, name)
+        
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Intercept attribute setting to trigger callback."""
+        if name.startswith('_'):
+            super().__setattr__(name, value)
+            return
             
-        file_path = self._settings_dir / self._settings_file
-        if not file_path.exists():
-            return False
-            
-        try:
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-                # Get the actual settings class from our current settings
-                settings_class = self._settings.__class__
-                new_settings = settings_class(**data)
-                # Don't execute callback during initial load
-                self.replace_settings(new_settings, execute_callback=False)
-                print("Settings loaded from file")
-                return True
-        except Exception as e:
-            print(f"Error loading settings: {e}")
-            return False
-
-    def save_to_file(self) -> bool:
-        """Save current settings to JSON file if settings_file is configured"""
-        if not self._settings_file:
-            return False
-            
-        try:
-            file_path = self._settings_dir / self._settings_file
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(file_path, 'w') as f:
-                # Use Pydantic's dict() method to serialize
-                json.dump(self._settings.dict(), f, indent=2)
-            print(f"Saved settings to {file_path}")
-            return True
-        except Exception as e:
-            print(f"Error saving settings: {e}")
-            return False
-
-    @property
-    def settings_file(self) -> Optional[str]:
-        """Get current settings file name"""
-        return self._settings_file
-
-    @settings_file.setter
-    def settings_file(self, filename: Optional[str]) -> None:
+        # Update the setting
+        settings_dict = self._settings.dict()
+        settings_dict[name] = value
+        new_settings = self._settings.__class__(**settings_dict)
+        
+        # Set the new settings and trigger callback
+        self._settings = new_settings
+        if self._on_change:
+            self._on_change(self._settings)
+    
+    def update(self, **kwargs) -> bool:
         """
-        Set settings file name.
+        Update multiple settings at once.
         
         Args:
-            filename: New settings file name or None to disable file operations
+            **kwargs: Settings to update as keyword arguments
         """
-        self._settings_file = filename
-
-    @property
-    def autosave(self) -> bool:
-        """Get current autosave setting"""
-        return self._autosave
-
-    @autosave.setter
-    def autosave(self, value: bool) -> None:
-        """Enable or disable automatic saving of settings to file on changes"""
-        self._autosave = value
-
-    def attach_file(self, filename: str, load_immediately: bool = True, save_current: bool = False) -> bool:
-        """
-        Attach a settings file and optionally handle existing settings
+        # Only update if we have valid arguments
+        if not kwargs:
+            return False
+            
+        # Create updated settings object
+        settings_dict = self._settings.dict()
+        settings_dict.update({k: v for k, v in kwargs.items() if v is not None})
+        new_settings = self._settings.__class__(**settings_dict)
         
-        Args:
-            filename: Settings file to attach
-            load_immediately: If True, load settings from file immediately
-            save_current: If True and there's a current settings file, save current settings before switching
-        
-        Returns:
-            bool: True if all operations were successful
-        """
-        if save_current and self._settings_file:
-            if not self.save_to_file():
-                return False
-                
-        self.settings_file = filename
-        
-        if load_immediately:
-            return self.load_from_file()
+        # Set the new settings and trigger callback
+        self._settings = new_settings
+        if self._on_change:
+            self._on_change(self._settings)
+
         return True
+    
+    def replace(self, new_settings: T) -> None:
+        """
+        Replace all settings at once.
+        
+        Args:
+            new_settings: New settings object (must be the same type as initial settings)
+        """
+        if not isinstance(new_settings, self._settings.__class__):
+            raise TypeError(f"Expected {self._settings.__class__.__name__}, got {type(new_settings).__name__}")
+            
+        self._settings = new_settings
+        if self._on_change:
+            self._on_change(self._settings)
+
+    @property
+    def model(self) -> T:
+        """Get the underlying settings model."""
+        return self._settings

@@ -24,6 +24,13 @@ async def get_device_info():
     """Get information about the device"""
     return device.get_device_info()
 
+@router.post("/save-current-config")
+async def save_device_config():
+    if device.update_and_save_device_config():
+        return {"status": "success",
+                "message": "Configuration saved successfully",
+                "info": device.get_device_info()}
+    return device.save_device_config()
 
 @router.get("/config-files")
 async def list_config_files():
@@ -39,11 +46,25 @@ async def list_config_files():
 async def set_config_file(config_data: DeviceConfigRequest):
     """Set the device configuration from a file"""
     try:
-        # Validate file exists
-        if not os.path.exists(config_data.config_file):
-            # Get available configs
-            available_configs = device.get_available_configs()
+        # Get available configs
+        available_configs = device.get_available_configs()
 
+        # Check if the config file exists in available configs
+        config_file = config_data.config_file
+        config_found = False
+
+        # If it's just a filename (no path), try to find it in available configs
+        if not os.path.dirname(config_file):
+            for config in available_configs:
+                if config["filename"] == config_file:
+                    config_file = config["path"]
+                    config_found = True
+                    break
+        else:
+            # Check if the full path exists
+            config_found = os.path.exists(config_file)
+
+        if not config_found:
             raise HTTPException(
                 status_code=404,
                 detail={
@@ -53,7 +74,7 @@ async def set_config_file(config_data: DeviceConfigRequest):
             )
 
         # Set device config
-        if device.set_device_config(config_data.config_file):
+        if device.set_device_config(config_file):
             return {"status": "success", "info": device.get_device_info()}
         else:
             raise HTTPException(status_code=500, detail="Failed to load device configuration")

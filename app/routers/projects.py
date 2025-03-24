@@ -5,10 +5,10 @@ import pathlib
 from typing import Optional
 import asyncio
 
-from controllers.hardware.cameras.camera import get_camera_controller_by_id
+from app.controllers.hardware.cameras.camera import get_all_camera_controllers, get_camera_controller
 from controllers.services import projects
 from controllers.services.projects import ProjectManager
-from controllers.services.scans import ScanManagerFactory
+from controllers.services.scans import get_scan_manager, get_active_scan_manager
 from app.models.project import Project
 from app.config.scan import ScanSetting
 from app.models.scan import ScanStatus
@@ -66,13 +66,13 @@ async def new_project(project_name: str):
 
 
 @router.post("/{project_name}/scan", response_model=bool)
-async def add_scan(project_name: str, camera_id: int, scan_settings: ScanSetting):
-    camera = get_camera_controller_by_id(camera_id)
-    scan = project_manager.add_scan(project_name, camera, scan_settings)
+async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetting):
+    controller = get_camera_controller(camera_name)
+    scan = project_manager.add_scan(project_name, controller, scan_settings)
 
-    scan_manager = ScanManagerFactory.get_controller(scan, project_manager)
+    scan_manager = get_scan_manager(scan, project_manager)
 
-    asyncio.create_task(scan_manager.start_scan(camera))
+    asyncio.create_task(scan_manager.start_scan(controller))
 
     return True
 
@@ -105,7 +105,7 @@ async def pause_scan(project_name: str, scan_index: int):
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
 
-        scan_manager = ScanManagerFactory.get_active_manager()
+        scan_manager = get_active_scan_manager()
         if scan_manager is None or scan_manager._scan != scan:
             raise HTTPException(status_code=409, detail="No active scan found")
 
@@ -119,19 +119,19 @@ async def pause_scan(project_name: str, scan_index: int):
 
 
 @router.post("/{project_name}/scans/{scan_index}/resume", response_model=ScanControlResponse)
-async def resume_scan(project_name: str, scan_index: int, camera_id: int):
+async def resume_scan(project_name: str, scan_index: int, camera_name: str):
     """Resume a paused, cancelled or failed scan"""
-    camera = CameraControllerFactory.get_camera_by_id(camera_id)
+    camera_controller = get_camera_controller(camera_name)
     try:
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
 
         # If no active manager exists, create a new one for this scan
-        scan_manager = ScanManagerFactory.get_active_manager()
+        scan_manager = get_active_scan_manager()
         if scan_manager is None:
             try:
-                scan_manager = ScanManagerFactory.get_controller(scan, project_manager)
+                scan_manager = get_scan_manager(scan, project_manager)
             except RuntimeError as e:
                 raise HTTPException(status_code=409, detail=str(e))
 
@@ -146,7 +146,7 @@ async def resume_scan(project_name: str, scan_index: int, camera_id: int):
                 detail=f"Scan cannot be resumed (current status: {scan.status.value})"
             )
 
-        success = await scan_manager.resume(camera)
+        success = await scan_manager.resume(camera_controller)
         return ScanControlResponse(
             success=success,
             message="Scan resumed" if success else "Failed to resume scan"
@@ -163,7 +163,7 @@ async def cancel_scan(project_name: str, scan_index: int):
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
 
-        scan_manager = ScanManagerFactory.get_active_manager()
+        scan_manager = get_active_scan_manager()
         if scan_manager is None or scan_manager._scan != scan:
             raise HTTPException(status_code=409, detail="No active scan found")
 
@@ -174,4 +174,3 @@ async def cancel_scan(project_name: str, scan_index: int):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

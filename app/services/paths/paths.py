@@ -21,14 +21,16 @@ def cartesian_to_polar(point: CartesianPoint3D) -> PolarPoint3D:
 
 
 def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
-    if method == PathMethod.GRID:
-        return PathGeneratorGrid.get_path(num_points)
-    elif method == PathMethod.FIBONACCI:
+    # GRID and ARCHIMEDES path methods are not implemented yet!
+
+    #if method == PathMethod.GRID:
+    #    return PathGeneratorGrid.get_path(num_points)
+    if method == PathMethod.FIBONACCI:
         return PathGeneratorFibonacci.get_path(num_points)
     elif method == PathMethod.SPIRAL:
         return PathGeneratorSpiral.get_path(num_points)
-    elif method == PathMethod.ARCHIMEDES:
-        return PathGeneratorArchimedes.get_path(num_points)
+    #elif method == PathMethod.ARCHIMEDES:
+    #    return PathGeneratorArchimedes.get_path(num_points)
 
 
 def plot_points(points: list[CartesianPoint3D], index = None) -> bytes:

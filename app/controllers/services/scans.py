@@ -8,7 +8,6 @@ from datetime import datetime
 
 from config.scan import ScanSetting
 from app.controllers.hardware import gpio
-from app.controllers.hardware.interfaces import ControllerFactory
 from app.controllers.hardware.motors import get_motor_controller
 from app.controllers.services.projects import ProjectManager
 from app.controllers.hardware.cameras.camera import CameraController, get_camera_controller
@@ -110,7 +109,7 @@ class ScanManager:
             print(f"Error pausing scan: {e}")
             return False
 
-    async def resume(self, camera: Camera) -> bool:
+    async def resume(self, camera_controller: CameraController) -> bool:
         """Resume a paused, cancelled or failed scan
 
         Returns:
@@ -126,7 +125,7 @@ class ScanManager:
                 current_step = self._scan.current_step
 
                 # Restart scan task
-                asyncio.create_task(self._run_scan_task(camera, start_from_step=current_step))
+                asyncio.create_task(self._run_scan_task(camera_controller, start_from_step=current_step))
                 self._update_status(ScanStatus.RUNNING)
                 return True
 
@@ -164,33 +163,33 @@ class ScanManager:
         """
         return self._cancelled.is_set()
 
-    async def start_scan(self, camera: Camera) -> bool:
+    async def start_scan(self, camera_controller: CameraController) -> bool:
         """Start the scan process
 
         Args:
-            camera: Camera to use for the scan
+            camera_controller: Camera Controller to use for the scan
 
         Returns:
             bool: True if scan was started successfully
         """
         try:
             self._update_status(ScanStatus.RUNNING)
-            await self._run_scan_task(camera)
+            await self._run_scan_task(camera_controller)
             return True
         except Exception as e:
             self._update_status(ScanStatus.ERROR, str(e))
             print(f"Error starting scan: {e}")
             return False
 
-    async def _run_scan_task(self, camera: Camera, start_from_step: int = 0):
+    async def _run_scan_task(self, camera_controller: CameraController, start_from_step: int = 0):
         """Internal method to run the scan as a background task
 
         Args:
-            camera: Camera to use for scanning
+            camera_controller: Camera Controller to use for scanning
             start_from_step: Optional step to start from (for resuming cancelled/failed scans)
         """
         try:
-            scan_generator = self.scan_async(camera, start_from_step)
+            scan_generator = self.scan_async(camera_controller, start_from_step)
             async for step, total in scan_generator:
                 self.update_progress(step, total)
         except Exception as e:
@@ -209,7 +208,7 @@ class ScanManager:
         on the scan manager.
 
         Args:
-            camera: Camera to use for scanning
+            camera_controller: Camera Controller to use for scanning
             start_from_step: Optional step to start from (for resuming cancelled/failed scans)
 
         Yields:
@@ -248,9 +247,9 @@ class ScanManager:
         if scan.settings.focus_stacks > 1:
             focus_stacking = True
             # save focus settings to restore after scanning and turn off autofocus
-            previous_focus_settings = (camera_controller.get_setting("AF"),
-                                       camera_controller.get_setting("manual_focus"))
-            camera_controller.set_setting("AF", False)
+            previous_focus_settings = (camera_controller.settings.AF,
+                                       camera_controller.settings.manual_focus)
+            camera_controller.settings.AF = False
 
             # Calculate focus positions
             min_focus, max_focus = scan.settings.focus_range
@@ -294,7 +293,7 @@ class ScanManager:
                         await photo_queue.put((photo, photo_info))
                     else:
                         for stack_index, focus in enumerate(focus_positions):
-                            camera_controller.set_setting("manual_focus", focus)
+                            camera_controller.settings.manual_focus = focus
                             photo = camera_controller.photo()
                             stack_photo_info = photo_info.copy()
                             stack_photo_info["stack_index"] = stack_index
@@ -333,62 +332,50 @@ class ScanManager:
                 await move_to_point(PolarPoint3D(0, 0))
                 # restore previous focus settings if focus stacking was enabled
                 if focus_stacking and previous_focus_settings:
-                    camera_controller.set_setting("AF", previous_focus_settings[0])
-                    camera_controller.set_setting("manual_focus", previous_focus_settings[1])
+                    camera_controller.settings.AF = previous_focus_settings[0]
+                    camera_controller.settings.manual_focus = previous_focus_settings[1]
             except Exception as e:
                 print(f"Error during cleanup: {e}")
+
+
+# Create a global scan manager instance that can be accessed by different parts of the application
+_active_manager: Optional[ScanManager] = None
+
+
+def get_scan_manager(scan: Scan, project_manager: ProjectManager) -> ScanManager:
+    """Get or create a ScanManager instance for the given scan"""
+    global _active_manager
+
+    # If no active manager exists, create a new one
+    if _active_manager is None:
+        _active_manager = ScanManager(project_manager, scan)
+        return _active_manager
+
+    # If the active manager is managing the same scan, return it
+    if _active_manager._scan == scan:
+        return _active_manager
+
+    # Check the status of the current scan
+    current_status = _active_manager._scan.status
+    if current_status in [ScanStatus.RUNNING, ScanStatus.PAUSED]:
+        raise RuntimeError(f"Cannot start new scan: Another scan is {current_status.value}")
+
+    # If the current scan is completed, cancelled or failed,
+    # we can start a new scan
+    if current_status in [ScanStatus.COMPLETED, ScanStatus.CANCELLED, ScanStatus.ERROR]:
+        _active_manager = ScanManager(project_manager, scan)
+        return _active_manager
+
+    # For all other statuses (e.g. PENDING) we refuse to start a new scan
+    raise RuntimeError(f"Cannot start new scan: Current scan status is {current_status.value}")
+
+
+def get_active_scan_manager() -> Optional[ScanManager]:
+    """Get the currently active scan manager, if any"""
+    return _active_manager
+
 
 def trigger_external_cam(camera: Camera):
     gpio.set_pin(camera.external_camera_pin, True)
     time.sleep(camera.external_camera_delay)
     gpio.set_pin(camera.external_camera_pin, False)
-
-
-def reboot():
-    os.system("sudo reboot")
-
-
-def shutdown():
-    os.system("sudo shutdown now")
-
-
-class ScanManagerFactory(ControllerFactory[ScanManager, Scan]):
-    """Factory for ScanManager instances that ensures only one active scan manager exists"""
-    _controller_class = ScanManager
-    _active_manager: Optional[ScanManager] = None
-
-    @classmethod
-    def get_controller(cls, scan: Scan, project_manager: ProjectManager) -> ScanManager:
-        """Get or create a ScanManager instance for the given scan"""
-        # If no active manager exists, create a new one
-        if cls._active_manager is None:
-            cls._active_manager = cls._create_controller(scan, project_manager)
-            return cls._active_manager
-
-        # If the active manager is managing the same scan, return it
-        if cls._active_manager._scan == scan:
-            return cls._active_manager
-
-        # Check the status of the current scan
-        current_status = cls._active_manager._scan.status
-        if current_status in [ScanStatus.RUNNING, ScanStatus.PAUSED]:
-            raise RuntimeError(f"Cannot start new scan: Another scan is {current_status.value}")
-
-        # If the current scan is completed, cancelled or failed,
-        # we can start a new scan
-        if current_status in [ScanStatus.COMPLETED, ScanStatus.CANCELLED, ScanStatus.ERROR]:
-            cls._active_manager = cls._create_controller(scan, project_manager)
-            return cls._active_manager
-
-        # For all other statuses (e.g. PENDING) we refuse to start a new scan
-        raise RuntimeError(f"Cannot start new scan: Current scan status is {current_status.value}")
-
-    @classmethod
-    def _create_controller(cls, scan: Scan, project_manager: ProjectManager) -> ScanManager:
-        """Create a new ScanManager instance"""
-        return cls._controller_class(project_manager, scan)
-
-    @classmethod
-    def get_active_manager(cls) -> Optional[ScanManager]:
-        """Get the currently active scan manager, if any"""
-        return cls._active_manager

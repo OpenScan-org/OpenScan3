@@ -13,5 +13,5 @@ class CameraSettings(BaseModel):
     jpeg_quality: Optional[int] = None
     AF: Optional[bool] = None
     manual_focus: Optional[float] = None
-    resolution_preview: Optional[Tuple[int, int]] = None
-    resolution_photo: Optional[Tuple[int, int]] = None
+    preview_resolution: Optional[Tuple[int, int]] = None
+    photo_resolution: Optional[Tuple[int, int]] = None

@@ -22,7 +22,6 @@ class Camera:
     path: str
 
     settings: CameraSettings
-    settings_file: Optional[str] = None
 
     mode: Optional[CameraMode] = None
 
