@@ -5,7 +5,7 @@ import json
 import tempfile
 import shutil
 
-from app.models.scanner import ScannerModel
+from app.models.scanner import ScannerDevice
 from app.controllers import device
 
 router = APIRouter(
@@ -18,14 +18,6 @@ router = APIRouter(
 class DeviceConfigRequest(BaseModel):
     config_file: str
 
-class DeviceConfigData(BaseModel):
-    """Model for device configuration data"""
-    name: str
-    model: str
-    shield: str = "default"
-    cameras: dict
-    motors: dict
-    lights: dict
 
 @router.get("/info")
 async def get_device_info():
@@ -33,7 +25,7 @@ async def get_device_info():
     return device.get_device_info()
 
 
-@router.get("/configs")
+@router.get("/config-files")
 async def list_config_files():
     """List all available device configuration files"""
     try:
@@ -73,8 +65,9 @@ async def set_config_file(config_data: DeviceConfigRequest):
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
 
 
+
 @router.put("/config")
-async def set_config_json(config_data: DeviceConfigData):
+async def set_config_json(config_data: ScannerDevice):
     """Set the device configuration from a JSON object
 
     This endpoint accepts a JSON object with the device configuration,
@@ -93,14 +86,14 @@ async def set_config_json(config_data: DeviceConfigData):
         os.makedirs(settings_dir, exist_ok=True)
 
         # Create filename based on model and shield
-        filename = f"{config_data.model}_{config_data.shield}.json"
+        filename = f"{config_data.model.value}_{config_data.shield.value}.json"
         target_path = os.path.join(settings_dir, filename)
 
         # Move the temporary file to the target path
         shutil.move(temp_path, target_path)
 
         # Set device config
-        if device.set_device_config(target_path):
+        if device.set_config_from_dict(config_data.dict(), target_path):
             return {
                 "status": "success",
                 "path": target_path,
@@ -111,6 +104,7 @@ async def set_config_json(config_data: DeviceConfigData):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
+
 
 
 @router.post("/reload")

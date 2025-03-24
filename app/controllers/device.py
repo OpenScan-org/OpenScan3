@@ -18,21 +18,18 @@ from picamera2 import Picamera2
 from app.models.camera import Camera, CameraType
 from app.models.motor import Motor
 from app.models.light import Light
-from app.models.scanner import ScannerModel
+from app.models.scanner import ScannerModel, ScannerShield
 
 from app.config.camera import CameraSettings
 from app.config.motor import MotorConfig
 from app.config.light import LightConfig
 from app.config.cloud import CloudSettings
 
-from app.controllers.hardware.cameras.camera import create_camera_controller
-from app.controllers.hardware.motors import create_motor_controller
+from app.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers
+from app.controllers.hardware.motors import create_motor_controller, get_all_motor_controllers
 from app.controllers.hardware.lights import create_light_controller, get_all_light_controllers
 
-# Global variables
-_camera_controllers = {}
-_motor_controllers = {}
-_light_controllers = {}
+
 _initialized = False
 
 # Hardware components
@@ -51,16 +48,19 @@ current_shield = None
 
 # Path to device configuration file
 DEFAULT_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings",
-                                   "mini_greenshield.json")
+                                   "default.json")
 DEVICE_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings",
                                   "device_config.json")
 
 
-def load_device_config(config_file=None):
-    """Load the device configuration from a JSON file
+def load_device_config(config_file=None) -> bool:
+    """Load device configuration from a file
 
     Args:
-        config_file: Path to the configuration file. If None, uses the default path.
+        config_file: Path to configuration file, if None uses default or saved path
+
+    Returns:
+        bool: True if configuration was loaded successfully
     """
     global current_model, current_shield, _device_config, _cameras, _motors, _lights
 
@@ -83,8 +83,8 @@ def load_device_config(config_file=None):
                 _device_config = json.load(f)
 
                 # Extract basic device info
-                current_model = ScannerModel(_device_config.get("model", "classic"))
-                current_shield = _device_config.get("shield", "default")
+                current_model = ScannerModel(_device_config.get("model", "unknown"))
+                current_shield = _device_config.get("shield", "unknown")
 
                 # Save the current config file path
                 with open(DEVICE_CONFIG_FILE, "w") as f:
@@ -110,7 +110,7 @@ def load_device_config(config_file=None):
         return False
 
 
-def save_device_config(config_file=None):
+def save_device_config(config_file=None) -> bool:
     """Save the current device configuration to a file
 
     Args:
@@ -142,7 +142,7 @@ def save_device_config(config_file=None):
         return False
 
 
-def set_device_config(config_file):
+def set_device_config(config_file) -> bool:
     """Set the device configuration from a file and initialize hardware
 
     Args:
@@ -166,8 +166,8 @@ def get_device_info():
         "name": _device_config.get("name", "Unknown device"),
         "model": current_model.value if current_model else "unknown",
         "shield": current_shield or "unknown",
-        "cameras": _cameras,
-        "motors": _motors,
+        "cameras": {name: controller.get_status() for name, controller in get_all_camera_controllers().items()},
+        "motors": {name: controller.get_status() for name, controller in get_all_motor_controllers().items()},
         "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()}
     }
 
@@ -258,7 +258,7 @@ def _detect_cameras() -> List[Camera]:
 
 def initialize(detect_cameras = False):
     """Detect and load hardware components"""
-    global _cameras, _motors, _lights, cloud
+    global _cameras, _motors, _lights, _initialized, cloud
     # Load environment variables
     load_dotenv()
 
@@ -301,25 +301,16 @@ def initialize(detect_cameras = False):
         "http://openscanfeedback.dnsuser.de:1334",
     )
 
-    """Initialize all hardware controllers"""
-    global _camera_controllers, _motor_controllers, _light_controllers, _initialized
-
-    # Reset controllers
-    _camera_controllers = {}
-    _motor_controllers = {}
-    _light_controllers = {}
-    _initialized = False
-
     # Initialize controllers
     for name, camera in camera_objects.items():
         try:
-            _camera_controllers[name] = create_camera_controller(camera)
+            create_camera_controller(camera)
         except Exception as e:
             print(f"Error initializing camera controller for {name}: {e}")
 
     for name, motor in motor_objects.items():
         try:
-            _motor_controllers[name] = create_motor_controller(motor)
+            create_motor_controller(motor)
         except Exception as e:
             print(f"Error initializing motor controller for {name}: {e}")
 
@@ -354,7 +345,7 @@ def get_available_configs():
                         "path": file_path,
                         "name": config.get("name", "Unknown"),
                         "model": config.get("model", "Unknown"),
-                        "shield": config.get("shield", "default")
+                        "shield": config.get("shield", "Unknown")
                     })
             except:
                 # If we can't read the file, just add the basic info

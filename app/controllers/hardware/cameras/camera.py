@@ -23,6 +23,12 @@ class CameraController(abc.ABC):
         """Get a camera setting"""
         return self.settings_manager.get_setting(setting)
 
+    def get_status(self):
+        """Get camera status"""
+        return {"state": "Not implemented!",
+                "model": self.camera,
+                "settings": self.get_all_settings()}
+
     def set_setting(self, setting: str, value: any) -> bool:
         """Update a single camera setting"""
         try:
