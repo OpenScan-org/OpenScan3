@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 
 from app.controllers.hardware.lights import get_light_controller, get_all_light_controllers
+from config.light import LightConfig
+from .settings_utils import create_settings_endpoints
 
 router = APIRouter(
     prefix="/lights",
@@ -48,3 +50,10 @@ async def toggle_light(light_name: str):
         return controller.get_status()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+create_settings_endpoints(
+    router=router,
+    resource_name="light_name",
+    get_controller=get_light_controller,
+    settings_model=LightConfig
+)

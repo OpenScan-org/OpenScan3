@@ -8,17 +8,16 @@ from .interfaces import StatefulHardware, create_controller_registry
 from app.config.motor import MotorConfig
 from app.models.motor import Motor
 from app.controllers.hardware import gpio
-from ..settings import SettingsManager
+from ..settings import Settings
 
 
 class MotorController(StatefulHardware):
     _executor = ThreadPoolExecutor(max_workers=4)
     def __init__(self, motor: Motor):
         self.model = motor
-        self.settings_manager = SettingsManager(
-            motor,
-            autosave=True,
-            on_settings_changed=self._apply_settings_to_hardware
+        self.settings = Settings(
+            motor.settings,
+            on_change=self._apply_settings_to_hardware
         )
         self._current_steps = 0
         self._target_angle = None
@@ -27,10 +26,14 @@ class MotorController(StatefulHardware):
 
 
     def _apply_settings_to_hardware(self):
+        # update model settings
+        self.model.settings = self.settings
+
+        # apply to hardware
         gpio.initialize_pins([
-            self.settings_manager.get_setting("direction_pin"),
-            self.settings_manager.get_setting("step_pin"),
-            self.settings_manager.get_setting("enable_pin")
+            self.settings.direction_pin,
+            self.settings.step_pin,
+            self.settings.enable_pin
         ])
 
     def is_busy(self) -> bool:
@@ -46,7 +49,7 @@ class MotorController(StatefulHardware):
         }
 
     def get_config(self) -> MotorConfig:
-        return self.settings_manager.get_all_settings()
+        return self.settings.model
 
     async def move_to(self, degrees: float) -> None:
         """Move motor to absolute position"""
@@ -61,8 +64,8 @@ class MotorController(StatefulHardware):
     async def move_degrees(self, degrees: float) -> None:
         """Internal method for relative movement"""
 
-        spr = self.settings_manager.get_setting("steps_per_rotation")
-        dir = self.settings_manager.get_setting("direction")
+        spr = self.settings.steps_per_rotation
+        dir = self.settings.direction
         step_count = int(degrees * spr / 360) * dir
         try:
             await self._execute_movement(step_count)
@@ -75,19 +78,19 @@ class MotorController(StatefulHardware):
 
         # This function will run in a thread
         def do_movement():
-            ramp = self.settings_manager.get_setting("acceleration_ramp")
-            acc = self.settings_manager.get_setting("acceleration")
-            delay_init = self.settings_manager.get_setting("delay")
+            ramp = self.settings.acceleration_ramp
+            acc = self.settings.acceleration
+            delay_init = self.settings.delay
 
             # Set direction
             if step_count > 0:
-                gpio.set_pin(self.settings_manager.get_setting("direction_pin"), True)
+                gpio.set_pin(self.settings.direction_pin, True)
             if step_count < 0:
-                gpio.set_pin(self.settings_manager.get_setting("direction_pin"), False)
+                gpio.set_pin(self.settings.direction_pin, False)
 
             steps = abs(step_count)
             for x in range(steps):
-                gpio.set_pin(self.settings_manager.get_setting("step_pin"), True)
+                gpio.set_pin(self.settings.step_pin, True)
 
                 # Calculate acceleration
                 if x <= ramp and x <= steps / 2:
@@ -102,7 +105,7 @@ class MotorController(StatefulHardware):
                     delay = delay_init
 
                 time.sleep(delay)
-                gpio.set_pin(self.settings_manager.get_setting("step_pin"), False)
+                gpio.set_pin(self.settings.step_pin, False)
                 time.sleep(delay)
 
             self._current_steps = 0

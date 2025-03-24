@@ -92,18 +92,19 @@ class Picamera2Controller(CameraController):
             'awbg_blue': 'ColourGains',  # ColourGains tuple of (red gain, blue gain)
         }
 
-        if self.settings_manager.get_setting("jpeg_quality") is None:
-            self.settings_manager.set_setting("jpeg_quality", 95)
+        #if self.settings.jpeg_quality is None:
+        #    self.settings.jpeg_quality = 95
 
         self._configure_resolution()
         self.mode = CameraMode.PREVIEW
         self._picam.configure(self.preview_config)
         self._picam.start()
 
-        self._apply_settings_to_hardware(self.get_all_settings())
+        self._apply_settings_to_hardware(self.camera.settings)
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """This method is call on every change of settings"""
+        self.camera.settings = settings
         self._configure_focus()
         
         # apply all settings
@@ -117,15 +118,12 @@ class Picamera2Controller(CameraController):
 
 
     def _configure_resolution(self):
-        self.preview_resolution = self.get_setting("resolution_preview")
-        self.preview_config = self.strategy.create_preview_config(self._picam, self.preview_resolution)
+        self.preview_config = self.strategy.create_preview_config(self._picam, self.settings.preview_resolution)
 
-        self.photo_resolution = self.get_setting("resolution_photo")
-        self.photo_config = self.strategy.create_photo_config(self._picam, self.photo_resolution)
-        self.preview_resolution = self.get_setting("resolution_preview")
+        self.photo_config = self.strategy.create_photo_config(self._picam, self.settings.photo_resolution)
 
     def _configure_focus(self):
-        if self.get_setting("AF"):
+        if self.settings.AF:
             width, height = self._picam.camera_properties['PixelArraySize']
 
             # Get the central 1% of the image
@@ -157,13 +155,12 @@ class Picamera2Controller(CameraController):
 
         else:
             # configure manual focus mode
-            manual_focus = self.get_setting("manual_focus")
-            if manual_focus is None:
-                self.set_setting("manual_focus", 1.0)
-            self._picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": self.get_setting("manual_focus")})
+            if self.settings.manual_focus is None:
+                self.settings.manual_focus = 1.0
+            self._picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": self.settings.manual_focus})
 
             # Wait for focus with tolerance
-            target_focus = float(self.get_setting("manual_focus"))
+            target_focus = float(self.settings.manual_focus)
             tolerance = 0.001 # 0.1% tolerance
 
             start = time.time()
@@ -192,7 +189,7 @@ class Picamera2Controller(CameraController):
     def photo(self) -> IO[bytes]:
         if self.mode == CameraMode.PREVIEW:
             self._configure_mode(CameraMode.PHOTO)
-        if self.get_setting("AF"):
+        if self.settings.AF:
             self._picam.autofocus_cycle()
 
         array = self._picam.switch_mode_and_capture_array(self.photo_config, "main")
@@ -200,7 +197,7 @@ class Picamera2Controller(CameraController):
         array = self.strategy.process_photo_frame(array)
 
         _, jpeg = cv2.imencode('.jpg', array,
-                               [int(cv2.IMWRITE_JPEG_QUALITY), self.get_setting("jpeg_quality")])
+                               [int(cv2.IMWRITE_JPEG_QUALITY), self.settings.jpeg_quality])
         return jpeg.tobytes()
 
     def preview(self, mode="main") -> IO[bytes]:

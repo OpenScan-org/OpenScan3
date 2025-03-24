@@ -10,4 +10,3 @@ class Light:
     name: str
 
     settings: LightConfig
-    settings_file: Optional[str] = None
