@@ -24,6 +24,14 @@ async def get_device_info():
     """Get information about the device"""
     return device.get_device_info()
 
+@router.post("/save-current-config")
+async def save_device_config():
+    if device.update_and_save_device_config():
+        return {"status": "success",
+                "message": "Configuration saved successfully",
+                "info": device.get_device_info()}
+    return device.save_device_config()
+
 @router.get("/configurations")
 async def list_config_files():
     """List all available device configuration files"""
