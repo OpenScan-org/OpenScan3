@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi_versionizer import api_version
 from pydantic import BaseModel
 import os
 import json
@@ -19,19 +20,14 @@ class DeviceConfigRequest(BaseModel):
     config_file: str
 
 
+@api_version(0,1)
 @router.get("/info")
 async def get_device_info():
     """Get information about the device"""
     return device.get_device_info()
 
-@router.post("/save-current-config")
-async def save_device_config():
-    if device.update_and_save_device_config():
-        return {"status": "success",
-                "message": "Configuration saved successfully",
-                "info": device.get_device_info()}
-    return device.save_device_config()
 
+@api_version(0,1)
 @router.get("/configurations")
 async def list_config_files():
     """List all available device configuration files"""
@@ -42,6 +38,7 @@ async def list_config_files():
         raise HTTPException(status_code=500, detail=f"Error listing configuration files: {str(e)}")
 
 
+@api_version(0,1)
 @router.post("/configurations/")
 async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequest):
     """Add a device configuration from a JSON object
@@ -75,6 +72,7 @@ async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequ
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
 
 
+@api_version(0,1)
 @router.patch("/configurations/current")
 async def save_device_config():
     if device.update_and_save_device_config():
@@ -83,6 +81,8 @@ async def save_device_config():
                 "info": device.get_device_info()}
     return device.save_device_config()
 
+
+@api_version(0,1)
 @router.put("/configurations/current")
 async def set_config_file(config_data: DeviceConfigRequest):
     """Set the device configuration from a file"""
@@ -127,6 +127,7 @@ async def set_config_file(config_data: DeviceConfigRequest):
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
 
 
+@api_version(0,1)
 @router.post("/configurations/current/initialize")
 async def reinitialize_hardware(detect_cameras: bool = False):
     """Reinitialize hardware components"""
@@ -137,11 +138,14 @@ async def reinitialize_hardware(detect_cameras: bool = False):
         raise HTTPException(status_code=500, detail=f"Error reloading hardware: {str(e)}")
 
 
+@api_version(0,1)
 @router.post("/reboot")
 def reboot(save_config: bool = False):
     """Reboot system"""
     device.reboot(save_config)
 
+
+@api_version(0,1)
 @router.post("/shutdown")
 def shutdown(save_config: bool = False):
     """Shutdown system"""

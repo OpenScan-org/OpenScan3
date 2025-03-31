@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from fastapi_versionizer import api_version
 from pydantic import BaseModel
 
 from app.controllers.hardware.lights import get_light_controller, get_all_light_controllers
@@ -16,6 +17,8 @@ class LightStatusResponse(BaseModel):
     is_on: bool
     settings: LightConfig
 
+
+@api_version(0,1)
 @router.get("/", response_model=dict[str, LightStatusResponse])
 async def get_lights():
     """Get all lights with their current status"""
@@ -24,6 +27,8 @@ async def get_lights():
         for name, controller in get_all_light_controllers().items()
     }
 
+
+@api_version(0,1)
 @router.get("/{light_name}", response_model=LightStatusResponse)
 async def get_light(light_name: str):
     """Get light status"""
@@ -32,6 +37,8 @@ async def get_light(light_name: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+
+@api_version(0,1)
 @router.patch("/{light_name}/turn_on", response_model=LightStatusResponse)
 async def turn_on_light(light_name: str):
     """Turn on light"""
@@ -43,6 +50,7 @@ async def turn_on_light(light_name: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@api_version(0,1)
 @router.patch("/{light_name}/turn_off", response_model=LightStatusResponse)
 async def turn_off_light(light_name: str):
     """Turn of light"""
@@ -53,6 +61,8 @@ async def turn_off_light(light_name: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+
+@api_version(0,1)
 @router.patch("/{light_name}/toggle", response_model=LightStatusResponse)
 async def toggle_light(light_name: str):
     """Toggle light on or off"""
@@ -65,6 +75,7 @@ async def toggle_light(light_name: str):
         return controller.get_status()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
 
 create_settings_endpoints(
     router=router,

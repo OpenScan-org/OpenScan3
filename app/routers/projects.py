@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
+from fastapi_versionizer import api_version
 from pydantic import BaseModel
 import pathlib
 from typing import Optional, List
@@ -23,6 +24,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
 # Response models
 class ScanStatusResponse(BaseModel):
     status: str
@@ -32,13 +34,17 @@ class ScanStatusResponse(BaseModel):
     last_updated: Optional[str]
     system_message: Optional[str]
 
+
 class ScanControlResponse(BaseModel):
     success: bool
     message: str
     scan: Scan
 
+
 project_manager = projects.ProjectManager(str(pathlib.PurePath("projects")))
 
+
+@api_version(0,1)
 @router.get("/", response_model=dict[str, Project])
 async def get_projects():
     """Get all projects with serialized data"""
@@ -47,6 +53,7 @@ async def get_projects():
     return {name: jsonable_encoder(project) for name, project in projects_dict.items()}
 
 
+@api_version(0,1)
 @router.get("/{project_name}", response_model=Project)
 async def get_project(project_name: str):
     """Get a project"""
@@ -55,6 +62,8 @@ async def get_project(project_name: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
+
+@api_version(0,1)
 @router.delete("/{project_name}", response_model=bool)
 async def delete_project(project_name: str):
     """Delete a project"""
@@ -64,6 +73,7 @@ async def delete_project(project_name: str):
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
 
+@api_version(0,1)
 @router.post("/{project_name}", response_model=Project)
 async def new_project(project_name: str):
     """Create a new project"""
@@ -73,6 +83,7 @@ async def new_project(project_name: str):
         raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
 
 
+@api_version(0,1)
 @router.post("/{project_name}/scan", response_model=Scan)
 async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetting):
     """Add a new scan to a project"""
@@ -85,6 +96,8 @@ async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetti
 
     return scan
 
+
+@api_version(0,1)
 @router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
 async def get_scan(project_name: str, scan_index: int):
     """Get Scan by project and index"""
@@ -93,6 +106,8 @@ async def get_scan(project_name: str, scan_index: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@api_version(0,1)
 @router.get("/{project_name}/scans/{scan_index}/status", response_model=ScanStatusResponse)
 async def get_scan_status(project_name: str, scan_index: int):
     """Get the current status of a scan"""
@@ -112,6 +127,8 @@ async def get_scan_status(project_name: str, scan_index: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@api_version(0,1)
 @router.patch("/{project_name}/scans/{scan_index}/pause", response_model=ScanControlResponse)
 async def pause_scan(project_name: str, scan_index: int):
     """Pause a running scan"""
@@ -134,6 +151,7 @@ async def pause_scan(project_name: str, scan_index: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_version(0,1)
 @router.patch("/{project_name}/scans/{scan_index}/resume", response_model=ScanControlResponse)
 async def resume_scan(project_name: str, scan_index: int, camera_name: str):
     """Resume a paused, cancelled or failed scan"""
@@ -172,6 +190,7 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_version(0,1)
 @router.patch("/{project_name}/scans/{scan_index}/cancel", response_model=ScanControlResponse)
 async def cancel_scan(project_name: str, scan_index: int):
     """Cancel a running scan"""
@@ -210,6 +229,7 @@ def _serialize_project_for_zip(project: Project) -> str:
     return json.dumps(project_dict, indent=2)
 
 
+@api_version(0,1)
 @router.get("/{project_name}/zip")
 async def download_project(project_name: str):
     """Download a project as a ZIP file stream
@@ -257,6 +277,7 @@ async def download_project(project_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_version(0,1)
 @router.get("/{project_name}/scans/zip")
 async def download_scans(project_name: str, scan_indices: List[int] = Query(None)):
     """Download selected scans from a project as a ZIP file stream
