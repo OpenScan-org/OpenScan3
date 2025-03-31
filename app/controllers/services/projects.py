@@ -14,8 +14,6 @@ import os
 import shutil
 from io import BytesIO
 
-from gpg.version import description
-
 from app.models.project import Project
 from app.models.scan import Scan, ScanStatus
 from app.controllers.hardware.cameras.camera import CameraController
