@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.controllers.hardware.lights import get_light_controller, get_all_light_controllers
 from config.light import LightConfig
@@ -10,8 +11,12 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+class LightStatusResponse(BaseModel):
+    name: str
+    is_on: bool
+    settings: LightConfig
 
-@router.get("/")
+@router.get("/", response_model=dict[str, LightStatusResponse])
 async def get_lights():
     """Get all lights with their current status"""
     return {
@@ -19,9 +24,17 @@ async def get_lights():
         for name, controller in get_all_light_controllers().items()
     }
 
+@router.get("/{light_name}", response_model=LightStatusResponse)
+async def get_light(light_name: str):
+    """Get light status"""
+    try:
+        return get_light_controller(light_name).get_status()
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/{light_name}/turn_on")
+@router.patch("/{light_name}/turn_on", response_model=LightStatusResponse)
 async def turn_on_light(light_name: str):
+    """Turn on light"""
     try:
         controller = get_light_controller(light_name)
         controller.turn_on()
@@ -30,8 +43,9 @@ async def turn_on_light(light_name: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("/{light_name}/turn_off")
+@router.patch("/{light_name}/turn_off", response_model=LightStatusResponse)
 async def turn_off_light(light_name: str):
+    """Turn of light"""
     try:
         controller = get_light_controller(light_name)
         controller.turn_off()
@@ -39,8 +53,9 @@ async def turn_off_light(light_name: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/{light_name}/toggle")
+@router.patch("/{light_name}/toggle", response_model=LightStatusResponse)
 async def toggle_light(light_name: str):
+    """Toggle light on or off"""
     try:
         controller = get_light_controller(light_name)
         if controller.is_on():

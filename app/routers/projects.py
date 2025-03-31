@@ -11,7 +11,7 @@ from controllers.services.projects import ProjectManager
 from controllers.services.scans import get_scan_manager, get_active_scan_manager
 from app.models.project import Project
 from app.config.scan import ScanSetting
-from app.models.scan import ScanStatus
+from app.models.scan import Scan, ScanStatus
 
 router = APIRouter(
     prefix="/projects",
@@ -31,10 +31,11 @@ class ScanStatusResponse(BaseModel):
 class ScanControlResponse(BaseModel):
     success: bool
     message: str
+    scan: Scan
 
 project_manager = projects.ProjectManager(str(pathlib.PurePath("projects")))
 
-@router.get("/")
+@router.get("/", response_model=dict[str, Project])
 async def get_projects():
     """Get all projects with serialized data"""
     projects_dict = project_manager.get_all_projects()
@@ -44,6 +45,7 @@ async def get_projects():
 
 @router.get("/{project_name}", response_model=Project)
 async def get_project(project_name: str):
+    """Get a project"""
     try:
         return jsonable_encoder(project_manager.get_project_by_name(project_name))
     except FileNotFoundError:
@@ -51,6 +53,7 @@ async def get_project(project_name: str):
 
 @router.delete("/{project_name}", response_model=bool)
 async def delete_project(project_name: str):
+    """Delete a project"""
     try:
         return project_manager.delete_project(projects.get_project(project_name))
     except FileNotFoundError:
@@ -59,14 +62,16 @@ async def delete_project(project_name: str):
 
 @router.post("/{project_name}", response_model=Project)
 async def new_project(project_name: str):
+    """Create a new project"""
     try:
         return project_manager.add_project(project_name)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
 
 
-@router.post("/{project_name}/scan", response_model=bool)
+@router.post("/{project_name}/scan", response_model=Scan)
 async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetting):
+    """Add a new scan to a project"""
     controller = get_camera_controller(camera_name)
     scan = project_manager.add_scan(project_name, controller, scan_settings)
 
@@ -74,8 +79,15 @@ async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetti
 
     asyncio.create_task(scan_manager.start_scan(controller))
 
-    return True
+    return scan
 
+@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
+async def get_scan(project_name: str, scan_index: int):
+    """Get Scan by project and index"""
+    try:
+        return project_manager.get_scan_by_index(project_name, scan_index)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{project_name}/scans/{scan_index}/status", response_model=ScanStatusResponse)
 async def get_scan_status(project_name: str, scan_index: int):
@@ -96,8 +108,7 @@ async def get_scan_status(project_name: str, scan_index: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.post("/{project_name}/scans/{scan_index}/pause", response_model=ScanControlResponse)
+@router.patch("/{project_name}/scans/{scan_index}/pause", response_model=ScanControlResponse)
 async def pause_scan(project_name: str, scan_index: int):
     """Pause a running scan"""
     try:
@@ -112,13 +123,14 @@ async def pause_scan(project_name: str, scan_index: int):
         success = await scan_manager.pause()
         return ScanControlResponse(
             success=success,
-            message="Scan paused" if success else "Failed to pause scan"
+            message="Scan paused" if success else "Failed to pause scan",
+            scan=scan
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{project_name}/scans/{scan_index}/resume", response_model=ScanControlResponse)
+@router.patch("/{project_name}/scans/{scan_index}/resume", response_model=ScanControlResponse)
 async def resume_scan(project_name: str, scan_index: int, camera_name: str):
     """Resume a paused, cancelled or failed scan"""
     camera_controller = get_camera_controller(camera_name)
@@ -149,13 +161,14 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str):
         success = await scan_manager.resume(camera_controller)
         return ScanControlResponse(
             success=success,
-            message="Scan resumed" if success else "Failed to resume scan"
+            message="Scan resumed" if success else "Failed to resume scan",
+            scan=scan
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{project_name}/scans/{scan_index}/cancel", response_model=ScanControlResponse)
+@router.patch("/{project_name}/scans/{scan_index}/cancel", response_model=ScanControlResponse)
 async def cancel_scan(project_name: str, scan_index: int):
     """Cancel a running scan"""
     try:
@@ -170,7 +183,8 @@ async def cancel_scan(project_name: str, scan_index: int):
         success = await scan_manager.cancel()
         return ScanControlResponse(
             success=success,
-            message="Scan cancelled successfully" if success else "Failed to cancel scan"
+            message="Scan cancelled successfully" if success else "Failed to cancel scan",
+            scan=scan
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

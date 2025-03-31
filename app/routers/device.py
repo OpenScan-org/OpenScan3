@@ -24,15 +24,7 @@ async def get_device_info():
     """Get information about the device"""
     return device.get_device_info()
 
-@router.post("/save-current-config")
-async def save_device_config():
-    if device.update_and_save_device_config():
-        return {"status": "success",
-                "message": "Configuration saved successfully",
-                "info": device.get_device_info()}
-    return device.save_device_config()
-
-@router.get("/config-files")
+@router.get("/configurations")
 async def list_config_files():
     """List all available device configuration files"""
     try:
@@ -42,7 +34,48 @@ async def list_config_files():
         raise HTTPException(status_code=500, detail=f"Error listing configuration files: {str(e)}")
 
 
-@router.post("/config")
+@router.post("/configurations/")
+async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequest):
+    """Add a device configuration from a JSON object
+
+    This endpoint accepts a JSON object with the device configuration,
+    validates it and saves it to a file.
+    """
+    try:
+        # Create a temporary file to save the configuration
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_file:
+            # Convert the model to a dictionary and save it as JSON
+            config_dict = config_data.dict()
+            json.dump(config_dict, temp_file, indent=4)
+            temp_path = temp_file.name
+
+        # Save to settings directory with a meaningful name
+        settings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings")
+        os.makedirs(settings_dir, exist_ok=True)
+
+        filename = f"{filename.config_file}.json"
+        target_path = os.path.join(settings_dir, filename)
+
+        # Move the temporary file to the target path
+        shutil.move(temp_path, target_path)
+
+        return {"success": True,
+                "message": "Configuration saved successfully",
+                }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
+
+
+@router.patch("/configurations/current")
+async def save_device_config():
+    if device.update_and_save_device_config():
+        return {"status": "success",
+                "message": "Configuration saved successfully",
+                "info": device.get_device_info()}
+    return device.save_device_config()
+
+@router.put("/configurations/current")
 async def set_config_file(config_data: DeviceConfigRequest):
     """Set the device configuration from a file"""
     try:
@@ -86,53 +119,22 @@ async def set_config_file(config_data: DeviceConfigRequest):
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
 
 
-
-@router.put("/config")
-async def set_config_json(config_data: ScannerDevice):
-    """Set the device configuration from a JSON object
-
-    This endpoint accepts a JSON object with the device configuration,
-    validates it, saves it to a file, and applies it to the device.
-    """
+@router.post("/configurations/current/initialize")
+async def reinitialize_hardware(detect_cameras: bool = False):
+    """Reinitialize hardware components"""
     try:
-        # Create a temporary file to save the configuration
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_file:
-            # Convert the model to a dictionary and save it as JSON
-            config_dict = config_data.dict()
-            json.dump(config_dict, temp_file, indent=4)
-            temp_path = temp_file.name
-
-        # Save to settings directory with a meaningful name
-        settings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings")
-        os.makedirs(settings_dir, exist_ok=True)
-
-        # Create filename based on model and shield
-        filename = f"{config_data.model.value}_{config_data.shield.value}.json"
-        target_path = os.path.join(settings_dir, filename)
-
-        # Move the temporary file to the target path
-        shutil.move(temp_path, target_path)
-
-        # Set device config
-        if device.set_config_from_dict(config_data.dict(), target_path):
-            return {
-                "status": "success",
-                "path": target_path,
-                "info": device.get_device_info()
-            }
-        else:
-            raise HTTPException(status_code=500, detail="Failed to load device configuration")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
-
-
-
-@router.post("/reload")
-async def reload_hardware():
-    """Reload hardware detection and initialization"""
-    try:
-        device.initialize(detect_cameras=True)
+        device.initialize(detect_cameras)
         return {"status": "success", "info": device.get_device_info()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reloading hardware: {str(e)}")
+
+
+@router.post("/reboot")
+def reboot(save_config: bool = False):
+    """Reboot system"""
+    device.reboot(save_config)
+
+@router.post("/shutdown")
+def shutdown(save_config: bool = False):
+    """Shutdown system"""
+    device.shutdown(save_config)

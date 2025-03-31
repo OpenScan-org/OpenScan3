@@ -24,7 +24,7 @@ class LightController(SwitchableHardware):
     def get_status(self):
         return {
             "name": self.model.name,
-            "turned_on": self.is_on(),
+            "is_on": self.is_on(),
             "settings": self.get_config()
         }
 

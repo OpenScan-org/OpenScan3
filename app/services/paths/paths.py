@@ -14,6 +14,7 @@ def polar_to_cartesian(point: PolarPoint3D) -> CartesianPoint3D:
 
 
 def cartesian_to_polar(point: CartesianPoint3D) -> PolarPoint3D:
+    """Convert cartesian coordinates to polar coordinates"""
     r = 1
     theta = np.degrees(np.arccos(point.z / r))
     fi = np.degrees(np.arctan(point.x / point.y))
@@ -21,6 +22,8 @@ def cartesian_to_polar(point: CartesianPoint3D) -> PolarPoint3D:
 
 
 def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
+    """Get path by method and number of points"""
+
     # GRID and ARCHIMEDES path methods are not implemented yet!
 
     #if method == PathMethod.GRID:
@@ -34,12 +37,13 @@ def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
 
 
 def plot_points(points: list[CartesianPoint3D], index = None) -> bytes:
+    """Plot points in 3D"""
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     colors = None
     if (index is not None and (1<= int(index) <= len(points))):
         colors = [i for i in itertools.repeat([0,0,1,0.1], len(points))]
-        colors[int(index)-1] = [1,0,0]
+        colors[int(index)-1] = [1,0,0,1.0]
         
 
     ax.scatter([p.x for p in points], [p.y for p in points], [p.z for p in points], color = colors)

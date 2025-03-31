@@ -198,7 +198,7 @@ def get_device_info():
     return {
         "name": _device_config.get("name", "Unknown device"),
         "model": current_model.value if current_model else "unknown",
-        "shield": current_shield or "unknown",
+        "shield": current_shield.value if current_shield else "unknown",
         "cameras": {name: controller.get_status() for name, controller in get_all_camera_controllers().items()},
         "motors": {name: controller.get_status() for name, controller in get_all_motor_controllers().items()},
         "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()}

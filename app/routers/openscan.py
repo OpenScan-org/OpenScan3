@@ -6,31 +6,24 @@ from typing import Tuple
 
 from app.models.paths import PathMethod, PolarPoint3D
 from controllers.services import projects, scans
-from app.services.paths import paths
-from app.config.scan import ScanSetting
-
+from app.controllers.device import get_scanner_model
 
 router = APIRouter(
     prefix="",
-    tags=["scanner"],
+    tags=["openscan"],
     responses={404: {"description": "Not found"}},
 )
 
 
 @router.get("/")
-async def get_scanner():
-    return {"status": "ok"}
+async def get_software_info():
+    """Get information about the scanner software"""
+    return {"model": get_scanner_model(),
+            "firmware": "-"}
 
 
-@router.post("/move_to")
-async def move_to_point(point: PolarPoint3D):
+@router.put("/scanner-position")
+async def move_to_position(point: PolarPoint3D):
+    """Move Rotor and Turntable to a polar point"""
     await scans.move_to_point(point)
 
-
-@router.post("/reboot")
-def reboot():
-    scans.reboot()
-
-@router.post("/shutdown")
-def shutdown():
-    scans.shutdown()
