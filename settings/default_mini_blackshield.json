@@ -3,8 +3,8 @@
     "model": "mini",
     "shield": "blackshield",
     "cameras": {
-        "arducam_64mp": {
-            "name": "arducam_64mp",
+        "imx519": {
+            "name": "imx519",
             "type": "picamera2",
             "path": "/dev/video0",
             "settings": {

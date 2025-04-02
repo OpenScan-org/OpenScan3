@@ -238,10 +238,10 @@ def _load_light_config(settings: dict) -> LightConfig:
         print("Error loading light settings: ", e)
         return LightConfig()
 
-def _detect_cameras() -> List[Camera]:
+def _detect_cameras() -> Dict[str, Camera]:
     """Get a list of available cameras"""
     print("Loading cameras...")
-    cameras = []
+    cameras = {}
 
     # Get Linux cameras
     try:
@@ -249,12 +249,12 @@ def _detect_cameras() -> List[Camera]:
         for cam in linuxpycameras:
             cam.open()
             if cam.info.card not in ("unicam", "bcm2835-isp"):
-                cameras.append(Camera(
+                cameras[cam.info.card] = Camera(
                     type=CameraType.LINUXPY,
                     name=cam.info.card,
                     path=cam.filename,
                     settings=None
-                ))
+                )
             cam.close()
     except Exception as e:
         print(f"Error loading Linux cameras: {e}")
@@ -263,12 +263,12 @@ def _detect_cameras() -> List[Camera]:
     try:
         gphoto2_cameras = gp.Camera.autodetect()
         for c in gphoto2_cameras:
-            cameras.append(Camera(
+            cameras[c[0]] = Camera(
                 type=CameraType.GPHOTO2,
                 name=c[0],
                 path=c[1],
                 settings=None
-            ))
+            )
     except Exception as e:
         print(f"Error loading GPhoto2 cameras: {e}")
 
@@ -276,12 +276,12 @@ def _detect_cameras() -> List[Camera]:
     try:
         picam = Picamera2()
         picam_name = picam.camera_properties.get("Model")
-        cameras.append(Camera(
+        cameras[picam_name] = Camera(
             type=CameraType.PICAMERA2,
             name=picam_name,
             path="/dev/video" + str(picam.camera_properties.get("Location")),
             settings=_load_camera_config(picam_name)
-        ))
+        )
         picam.close()
         del picam
     except Exception as e:
@@ -298,6 +298,7 @@ def initialize(detect_cameras = False):
     # Detect hardware
     if detect_cameras:
         camera_objects = _detect_cameras()
+        _cameras = camera_objects
     else:
         camera_objects = {}
         for cam_name in _cameras:
