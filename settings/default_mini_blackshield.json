@@ -25,7 +25,7 @@
             "acceleration": 1,
             "acceleration_ramp": 2000,
             "delay": 0.0001,
-            "direction": -1,
+            "direction": 1,
             "steps_per_rotation": 17067
         },
         "turntable": {
@@ -36,7 +36,7 @@
             "acceleration_ramp": 200,
             "delay": 0.0001,
             "direction": 1,
-            "steps_per_rotation": 3200
+            "steps_per_rotation": 800
         }
     },
     "lights": {
