@@ -31,7 +31,7 @@ class MotorController(StatefulHardware):
         self.model.settings = settings
 
         # apply to hardware
-        gpio.initialize_pins([
+        gpio.initialize_output_pins([
             self.settings.direction_pin,
             self.settings.step_pin,
             self.settings.enable_pin
@@ -98,9 +98,9 @@ class MotorController(StatefulHardware):
 
             # Set direction
             if step_count > 0:
-                gpio.set_pin(self.settings.direction_pin, True)
+                gpio.set_output_pin(self.settings.direction_pin, True)
             if step_count < 0:
-                gpio.set_pin(self.settings.direction_pin, False)
+                gpio.set_output_pin(self.settings.direction_pin, False)
 
             steps = abs(step_count)
             for x in range(steps):
@@ -109,7 +109,7 @@ class MotorController(StatefulHardware):
                     print(f"Motor {self.model.name}: Stop requested after {x} steps.")
                     break # Exit loop if stop is requested
 
-                gpio.set_pin(self.settings.step_pin, True)
+                gpio.set_output_pin(self.settings.step_pin, True)
 
                 # Calculate acceleration
                 if x <= ramp and x <= steps / 2:
@@ -124,7 +124,7 @@ class MotorController(StatefulHardware):
                     delay = delay_init
 
                 time.sleep(delay)
-                gpio.set_pin(self.settings.step_pin, False)
+                gpio.set_output_pin(self.settings.step_pin, False)
                 time.sleep(delay)
                 executed_steps += 1
 

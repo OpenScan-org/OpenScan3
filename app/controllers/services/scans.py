@@ -374,6 +374,6 @@ def get_active_scan_manager() -> Optional[ScanManager]:
 
 
 def trigger_external_cam(camera: Camera):
-    gpio.set_pin(camera.external_camera_pin, True)
+    gpio.set_output_pin(camera.external_camera_pin, True)
     time.sleep(camera.external_camera_delay)
-    gpio.set_pin(camera.external_camera_pin, False)
+    gpio.set_output_pin(camera.external_camera_pin, False)

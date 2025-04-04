@@ -19,7 +19,7 @@ class LightController(SwitchableHardware):
         self.model.settings = self.settings
 
         # apply to hardware
-        gpio.initialize_pins(self.settings.pins)
+        gpio.initialize_output_pins(self.settings.pins)
 
     def get_status(self):
         return {
@@ -36,12 +36,12 @@ class LightController(SwitchableHardware):
 
     def turn_on(self):
         for pin in self.settings.pins:
-            gpio.set_pin(pin, True)
+            gpio.set_output_pin(pin, True)
         self._is_on = True
 
     def turn_off(self):
         for pin in self.settings.pins:
-            gpio.set_pin(pin, False)
+            gpio.set_output_pin(pin, False)
         self._is_on = False
 
 
