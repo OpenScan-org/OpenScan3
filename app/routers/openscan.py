@@ -1,6 +1,7 @@
 import asyncio
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi_versionizer import api_version
 
 from typing import Tuple
 
@@ -15,6 +16,7 @@ router = APIRouter(
 )
 
 
+@api_version(0,1)
 @router.get("/")
 async def get_software_info():
     """Get information about the scanner software"""
@@ -22,6 +24,7 @@ async def get_software_info():
             "firmware": "-"}
 
 
+@api_version(0,1)
 @router.put("/scanner-position")
 async def move_to_position(point: PolarPoint3D):
     """Move Rotor and Turntable to a polar point"""

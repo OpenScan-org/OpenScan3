@@ -112,7 +112,7 @@ class TestSettingsManager(unittest.TestCase):
         model = TestModel(settings=settings)
         manager = SettingsManager(model)
 
-        all_settings = manager.get_all_settings()fix: controllers are now properly seperated by controller type
+        all_settings = manager.get_all_settings()
         self.assertEqual(all_settings.value1, 42)
         self.assertEqual(all_settings.value2, "test")
 
