@@ -1,0 +1,49 @@
+{
+    "name": "OpenScan.eu Mini",
+    "model": "mini",
+    "shield": "greenshield",
+    "cameras": {
+        "imx519": {
+            "name": "imx519",
+            "type": "picamera2",
+            "path": "/dev/video0",
+            "settings": {
+                "shutter": 40000,
+                "saturation": 1.0,
+                "contrast": 1.0,
+                "AF": true,
+                "gain": 1.0,
+                "jpeg_quality": 70
+            }
+        }
+    },
+    "motors": {
+        "rotor": {
+            "direction_pin": 5,
+            "enable_pin": 23,
+            "step_pin": 6,
+            "acceleration": 1,
+            "acceleration_ramp": 2000,
+            "delay": 0.0001,
+            "direction": -1,
+            "steps_per_rotation": 17067
+        },
+        "turntable": {
+            "direction_pin": 9,
+            "enable_pin": 22,
+            "step_pin": 11,
+            "acceleration": 1,
+            "acceleration_ramp": 200,
+            "delay": 0.0001,
+            "direction": 1,
+            "steps_per_rotation": 3200
+        }
+    },
+    "lights": {
+      "ringlight": {
+           "name": "OpenScan Ringlight",
+           "pins": [17,27],
+           "pwm": true
+      }
+    }
+}

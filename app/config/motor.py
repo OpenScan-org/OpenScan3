@@ -1,14 +1,12 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
-
-@dataclass
-class MotorConfig:
+class MotorConfig(BaseModel):
     direction_pin: int
     enable_pin: int
     step_pin: int
 
     acceleration: int
     acceleration_ramp: int
-    delay: int
+    delay: float
     direction: int
     steps_per_rotation: int

@@ -2,12 +2,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from app.config.motor import MotorConfig
+from app.config.light import LightConfig
 
 
 @dataclass
-class Motor:
+class Light:
     name: str
-    settings: Optional[MotorConfig]
-    angle: float = 0
 
+    settings: LightConfig

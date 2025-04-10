@@ -4,8 +4,11 @@ uvicorn==0.34.0
 gphoto2==2.5.1
 linuxpy==0.20.0
 pillow==11.1.0
-numpy==2.2.2
+numpy==1.24.2
 picamera2==0.3.24
 orjson==3.10.15
 python-dotenv==1.0.1
 matplotlib==3.10.0
+aiofiles==24.1.0
+zipstream-ng==1.5.0
+fastapi-versionizer==4.0.1

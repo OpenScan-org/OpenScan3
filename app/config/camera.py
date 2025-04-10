@@ -1,13 +1,17 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
+from typing import Optional, Tuple
 
 
-@dataclass
-class CameraSettings:
-    shutter: int
-    saturation: int
-    contrast: int
-    awbg_red: int
-    awbg_blue: int
-    gain: int
-    jpeg_quality: int
-    AF: bool
+#@dataclass
+class CameraSettings(BaseModel):
+    shutter: Optional[int] = None
+    saturation: Optional[float] = None
+    contrast: Optional[float] = None
+    awbg_red: Optional[float] = None
+    awbg_blue: Optional[float] = None
+    gain: Optional[float] = None
+    jpeg_quality: Optional[int] = None
+    AF: Optional[bool] = None
+    manual_focus: Optional[float] = None
+    preview_resolution: Optional[Tuple[int, int]] = None
+    photo_resolution: Optional[Tuple[int, int]] = None
