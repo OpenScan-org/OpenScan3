@@ -1,5 +1,4 @@
-from app.controllers import cloud
-from app.controllers import projects
+from controllers.services import projects, cloud
 
 project_name = "openscan_test4"
 

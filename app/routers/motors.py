@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+from fastapi_versionizer import api_version
 
-from app.controllers import motors
-from app.models.motor import MotorType
+from config.motor import MotorConfig
+from app.controllers.hardware.motors import get_motor_controller, get_all_motor_controllers
+from app.models.paths import PolarPoint3D
+from .settings_utils import create_settings_endpoints
 
 router = APIRouter(
     prefix="/motors",
@@ -9,24 +14,55 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+class MotorStatusResponse(BaseModel):
+    name: str
+    angle: float
+    busy: bool
+    target_angle: Optional[float]
+    settings: MotorConfig
 
-@router.get("/")
+
+@api_version(0,1)
+@router.get("/", response_model=dict[str, MotorStatusResponse])
 async def get_motors():
-    return motors.get_motors()
+    """Get all motors with their current status"""
+    return {
+        name: controller.get_status()
+        for name, controller in get_all_motor_controllers().items()
+    }
 
 
-@router.get("/{motor_type}")
-async def get_motor(motor_type: MotorType):
-    return motors.get_motor(motor_type)
+@api_version(0,1)
+@router.get("/{motor_name}", response_model=MotorStatusResponse)
+async def get_motor(motor_name: str):
+    """Get motor status"""
+    try:
+        return get_motor_controller(motor_name).get_status()
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("/{motor_type}/move_to")
-async def move_motor(motor_type: MotorType, degrees: float):
-    motor = motors.get_motor(motor_type)
-    motors.move_motor_to(motor, degrees)
+@api_version(0,1)
+@router.put("/{motor_name}/angle", response_model=MotorStatusResponse)
+async def move_motor_to_angle(motor_name: str, degrees: float):
+    """Move motor to absolute position"""
+    controller = get_motor_controller(motor_name)
+    await controller.move_to(degrees)
+    return controller.get_status()
 
 
-@router.post("/{motor_type}/move")
-async def move_motor(motor_type: MotorType, degrees: float = Body(embed=True)):
-    motor = motors.get_motor(motor_type)
-    motors.move_motor_degrees(motor, degrees)
+@api_version(0,1)
+@router.patch("/{motor_name}/angle", response_model=MotorStatusResponse)
+async def move_motor_by_degree(motor_name: str, degrees: float = Body(embed=True)):
+    """Move motor by degrees"""
+    controller = get_motor_controller(motor_name)
+    await controller.move_degrees(degrees)
+    return controller.get_status()
+
+
+create_settings_endpoints(
+    router=router,
+    resource_name="motor_name",
+    get_controller=get_motor_controller,
+    settings_model=MotorConfig
+)

@@ -3,10 +3,10 @@ from enum import Enum
 
 
 class PathMethod(Enum):
-    GRID = "grid"
+    #GRID = "grid"
     FIBONACCI = "fibonacci"
     SPIRAL = "spiral"
-    ARCHIMEDES = "archimedes"
+    #ARCHIMEDES = "archimedes"
 
 
 @dataclass

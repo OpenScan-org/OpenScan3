@@ -1,0 +1,8 @@
+{
+  "name": "Default minimal config",
+  "model": "Unknown",
+  "shield": "Unknown",
+  "cameras": {},
+  "motors": {},
+  "lights": {}
+}

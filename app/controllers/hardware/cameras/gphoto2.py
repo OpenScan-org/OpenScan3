@@ -1,9 +1,8 @@
-import io
 from tempfile import TemporaryFile
 from typing import IO
 import gphoto2 as gp
 
-from app.controllers.cameras.camera import CameraController
+from controllers.hardware.cameras.camera import CameraController
 from app.models.camera import Camera
 
 
