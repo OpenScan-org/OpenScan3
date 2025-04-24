@@ -25,10 +25,9 @@ from app.config.motor import MotorConfig
 from app.config.light import LightConfig
 from app.config.cloud import CloudSettings
 
-from app.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers
+from app.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers, remove_camera_controller
 from app.controllers.hardware.motors import create_motor_controller, get_all_motor_controllers
 from app.controllers.hardware.lights import create_light_controller, get_all_light_controllers
-
 
 _initialized = False
 
@@ -42,7 +41,7 @@ cloud = None
 projects_path = pathlib.PurePath("projects")
 
 # Current scanner model
-_device_config = {}
+_device_config_dict = {}
 current_model = None
 current_shield = None
 
@@ -62,7 +61,7 @@ def load_device_config(config_file=None) -> bool:
     Returns:
         bool: True if configuration was loaded successfully
     """
-    global current_model, current_shield, _device_config, _cameras, _motors, _lights
+    global current_model, current_shield, _device_config_dict, _cameras, _motors, _lights
     # Determine which configuration file to load
     if config_file is None:
         # No file specified, try to load device_config.json
@@ -75,44 +74,44 @@ def load_device_config(config_file=None) -> bool:
         print(f"Loading device configuration from: {config_file}")
         if os.path.exists(config_file):
             with open(config_file, "r") as f:
-                _device_config = json.load(f)
+                _device_config_dict = json.load(f)
 
                 # if a config is specified, save it as device_config.json
                 if config_file != DEVICE_CONFIG_FILE:
                     with open(DEVICE_CONFIG_FILE, "w") as f:
-                        json.dump(_device_config, f, indent=4)
+                        json.dump(_device_config_dict, f, indent=4)
 
                 # Get device info
-                current_model = ScannerModel(_device_config.get("model", "unknown"))
-                current_shield = ScannerShield(_device_config.get("shield", "unknown"))
+                current_model = ScannerModel(_device_config_dict.get("model", "unknown"))
+                current_shield = ScannerShield(_device_config_dict.get("shield", "unknown"))
 
                 # Get hardware devices
                 _cameras = {}
-                for cam_name, cam_settings in _device_config.get("cameras", {}).items():
-                    _cameras[cam_name] = cam_settings
+                for cam_name, cam_config in _device_config_dict.get("cameras", {}).items():
+                    _cameras[cam_name] = cam_config
 
                 _motors = {}
-                for motor_name, motor_settings in _device_config.get("motors", {}).items():
-                    _motors[motor_name] = motor_settings
+                for motor_name, motor_config in _device_config_dict.get("motors", {}).items():
+                    _motors[motor_name] = motor_config
 
                 _lights = {}
-                for light_name, light_settings in _device_config.get("lights", {}).items():
-                    _lights[light_name] = light_settings
+                for light_name, light_config in _device_config_dict.get("lights", {}).items():
+                    _lights[light_name] = light_config
 
-                print(f"Loaded device configuration: {_device_config.get('name', 'Unknown device')}")
+                print(f"Loaded device configuration: {_device_config_dict.get('name', 'Unknown device')}")
                 return True
     except Exception as e:
         print(f"Error loading device configuration: {e}")
         return False
 
 
-def save_device_config() -> bool:
+def _save_device_config() -> bool:
     """Save the current device configuration to device_config.json"""
     try:
         os.makedirs(os.path.dirname(DEVICE_CONFIG_FILE), exist_ok=True)
 
         with open(DEVICE_CONFIG_FILE, "w") as f:
-            json.dump(_device_config, f, indent=4)
+            json.dump(_device_config_dict, f, indent=4)
 
         print(f"Saved device configuration to: {DEVICE_CONFIG_FILE}")
         return True
@@ -131,28 +130,13 @@ def update_device_config() -> bool:
     Returns:
         bool: True if the update was successful, False otherwise
     """
-    global _device_config
+    global _device_config_dict
 
     try:
-        # Update cameras configuration
-        camera_controllers = get_all_camera_controllers()
-        for cam_name, camera_data in _cameras.items():
-            if cam_name in camera_controllers:
-                _device_config["cameras"][cam_name]["settings"] = camera_controllers[cam_name].settings.dict()
-
-
-        # Update motors configuration
-        motor_controllers = get_all_motor_controllers()
-        for motor_name, motor_data in _motors.items():
-            if motor_name in motor_controllers:
-                _device_config["motors"][motor_name]["settings"] = motor_controllers[motor_name].settings.dict()
-
-        # Update lights configuration
-        light_controllers = get_all_light_controllers()
-        for light_name, light_data in _lights.items():
-            if light_name in light_controllers:
-                _device_config["lights"][light_name]["settings"] = light_controllers[light_name].settings.dict()
-
+        for camera, model in _cameras.items():
+            _device_config_dict["cameras"][camera] = model.model_dump(mode='json')
+        _device_config_dict["motors"] = _motors
+        _device_config_dict["lights"] = _lights
         return True
     except Exception as e:
         print(f"Error updating device configuration: {e}")
@@ -172,7 +156,7 @@ def update_and_save_device_config() -> bool:
         bool: True if both update and save were successful, False otherwise
     """
     if update_device_config():
-        return save_device_config()
+        return _save_device_config()
     return False
 
 def set_device_config(config_file) -> bool:
@@ -196,7 +180,7 @@ def get_scanner_model():
 def get_device_info():
     """Get information about the device"""
     return {
-        "name": _device_config.get("name", "Unknown device"),
+        "name": _device_config_dict.get("name", "Unknown device"),
         "model": current_model.value if current_model else "unknown",
         "shield": current_shield.value if current_shield else "unknown",
         "cameras": {name: controller.get_status() for name, controller in get_all_camera_controllers().items()},
@@ -224,7 +208,6 @@ def _load_motor_config(settings: dict) -> MotorConfig:
 
 def _load_light_config(settings: dict) -> LightConfig:
     """Load light configuration for the current model"""
-    # Get absolute path to settings
     try:
         pins = settings.get("pins")
         pin = settings.get("pin")
@@ -241,7 +224,17 @@ def _load_light_config(settings: dict) -> LightConfig:
 def _detect_cameras() -> Dict[str, Camera]:
     """Get a list of available cameras"""
     print("Loading cameras...")
+
+    global _device_config_dict
+
+    for camera_controller in get_all_camera_controllers():
+        remove_camera_controller(camera_controller)
+
     cameras = {}
+
+    # Load default camera settings
+    with open(BASE_DIR / "settings" / "default_camera_settings.json", "r") as f:
+        camera_default_settings = json.load(f)
 
     # Get Linux cameras
     try:
@@ -280,14 +273,28 @@ def _detect_cameras() -> Dict[str, Camera]:
             type=CameraType.PICAMERA2,
             name=picam_name,
             path="/dev/video" + str(picam.camera_properties.get("Location")),
-            settings=_load_camera_config(picam_name)
+            settings=_load_camera_config(camera_default_settings[picam_name])
         )
         picam.close()
         del picam
+
+        # if there is already another picamera2 in _device_config, remove it
+        keys_to_delete = []
+        for key, camera in _device_config_dict["cameras"].items():
+            if camera["type"] == "picamera2":
+                keys_to_delete.append(key)
+
+        if keys_to_delete:
+            print(f"Removing existing picamera2 entries: {keys_to_delete}")
+            for key in keys_to_delete:
+                if key in _device_config_dict["cameras"]:
+                    del _device_config_dict["cameras"][key]
+
     except Exception as e:
         print(f"Error loading Picamera2: {e}")
 
     return cameras
+
 
 def initialize(detect_cameras = False):
     """Detect and load hardware components"""
@@ -396,11 +403,11 @@ load_device_config()
 
 def reboot(with_saving = False):
     if with_saving:
-        save_device_config()
+        _save_device_config()
     os.system("sudo reboot")
 
 
 def shutdown(with_saving = False):
     if with_saving:
-        save_device_config()
+        _save_device_config()
     os.system("sudo shutdown now")

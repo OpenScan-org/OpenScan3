@@ -79,7 +79,7 @@ async def save_device_config():
         return {"status": "success",
                 "message": "Configuration saved successfully",
                 "info": device.get_device_info()}
-    return device.save_device_config()
+    return device._save_device_config()
 
 
 @api_version(0,1)
