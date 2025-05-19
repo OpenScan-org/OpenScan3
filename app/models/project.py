@@ -1,7 +1,6 @@
 from datetime import datetime
 import re
-from pydantic import BaseModel, validator
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel, field_validator
 from typing import ClassVar, Optional
 
 from app.models.scan import Scan
@@ -23,9 +22,9 @@ class Project(BaseModel):
 
     # Constants for Validation
     MAX_NAME_LENGTH: ClassVar[int] = 150  # ensures compatability with older Microsoft Windows versions
-    VALID_NAME_PATTERN: ClassVar[re.Pattern] = re.compile(r'^[a-zA-Z0-9_. ][a-zA-Z0-9_\-. ]+[a-zA-Z0-9]$') # Allowed characters and patterns
+    VALID_NAME_PATTERN: ClassVar[re.Pattern] = re.compile(r'^[a-zA-Z0-9_. ][a-zA-Z0-9_\-. ]+[a-zA-Z0-9]$')
 
-    @validator('name')
+    @field_validator('name')
     def validate_name(cls, name: str) -> str:
         """Validate the name of the project which will be used as directory name
 
@@ -52,13 +51,12 @@ class Project(BaseModel):
             raise ValueError(
                 "The project name should only contain characters, numbers, underscores, hyphens and periods. "
                 "It must not start with an hyphen."
-                "Er muss mit einem Buchstaben oder einer Zahl beginnen und enden."
             )
 
         return name
 
 
-    @validator('path')
+    @field_validator('path')
     def validate_path(cls, path: str) -> str:
         """Validate and normalize the path"""
         try:

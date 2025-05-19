@@ -83,12 +83,10 @@ class ScanManager:
             scan = self._scan
 
             scan.current_step = current_step
-            scan.total_steps = total_steps
             scan.last_updated = datetime.now()
 
             if current_step >= total_steps:
                 scan.status = ScanStatus.COMPLETED
-                scan.finished = True
                 scan.duration = (datetime.now() - scan.created).total_seconds()
 
             return True
