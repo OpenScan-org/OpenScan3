@@ -22,6 +22,7 @@ class MotorController(StatefulHardware):
         self._current_steps = 0
         self._target_angle = None
         self._stop_requested = False
+        self.endstop = None
         self._apply_settings_to_hardware(self.settings.model)
 
 
@@ -40,21 +41,51 @@ class MotorController(StatefulHardware):
     def is_busy(self) -> bool:
         return self._current_steps > 0
 
+
     def get_status(self) -> dict:
-        return {
+        status = {
             "name": self.model.name,
             "angle": self.model.angle,
             "busy": self.is_busy(),
             "target_angle": self._target_angle,
-            "settings": self.get_config()
+            "settings": self.get_config(),
+            "endstop": None
         }
+        if self.endstop is not None:
+            status["endstop"] = self.endstop.get_status()
+        return status
+
 
     def get_config(self) -> MotorConfig:
         return self.settings.model
 
+
     def stop(self) -> None:
         """Request to stop the current motor movement."""
         self._stop_requested = True
+
+    def _normalize_target_angle(self, desired_angle: float) -> float:
+        min_limit = self.settings.min_angle
+        max_limit = self.settings.max_angle
+
+        if min_limit == 0.0 and max_limit == 360.0:
+            return desired_angle % 360
+
+        final_angle = desired_angle  # Start with the raw desired angle
+
+        if final_angle < min_limit:
+            print(f"Warning: Desired angle {desired_angle:.2f} is below minimum limit {min_limit:.2f}. "
+                  f"Clamping to {min_limit:.2f}.")
+            final_angle = min_limit
+        elif final_angle > max_limit:
+            print(f"Warning: Desired angle {desired_angle:.2f} is above maximum limit {max_limit:.2f}. "
+                  f"Clamping to {max_limit:.2f}.")
+            final_angle = max_limit
+
+        # If desired_angle was already within [min_limit, max_limit],
+        # final_angle remains unchanged, and no warning is printed.
+        return final_angle
+
 
     async def move_to(self, degrees: float) -> None:
         """Move motor to absolute position"""
@@ -62,8 +93,18 @@ class MotorController(StatefulHardware):
             raise RuntimeError("Motor is busy")
 
         self._stop_requested = False # Reset stop flag before moving
-        self._target_angle = degrees % 360
-        move_angles = self._target_angle - self.model.angle
+
+        target_angle = self._normalize_target_angle(degrees % 360)
+
+        self._target_angle = target_angle
+        current_angle = self.model.angle
+        move_angles = self._target_angle - current_angle
+
+        if move_angles > 180:
+            move_angles -= 360
+        elif move_angles < -180:
+            move_angles += 360
+
         await self.move_degrees(move_angles)
 
 
@@ -74,16 +115,13 @@ class MotorController(StatefulHardware):
 
         self._stop_requested = False # Reset stop flag before moving
 
+        target_degrees = self._normalize_target_angle(self.model.angle + degrees)
 
         spr = self.settings.steps_per_rotation
         direction = self.settings.direction
         step_count = int(degrees * spr / 360) * direction
-        await self._execute_movement(step_count, degrees) # Pass spr for angle calculation
+        await self._execute_movement(step_count, target_degrees) # Pass spr for angle calculation
 
-        #try:
-        #    await self._execute_movement(step_count)
-        #finally:
-        #    self.model.angle = (self.model.angle + degrees) % 360
 
     async def _execute_movement(self, step_count: int, requested_degrees: float) -> None:
         """Execute the actual movement with acceleration"""
@@ -106,6 +144,7 @@ class MotorController(StatefulHardware):
             for x in range(steps):
                 # Check for stop request
                 if self._stop_requested:
+                    gpio.set_output_pin(self.settings.step_pin, True)
                     print(f"Motor {self.model.name}: Stop requested after {x} steps.")
                     break # Exit loop if stop is requested
 

@@ -75,7 +75,7 @@ def initialize_button(pin: int, pull_up: Optional[bool] = True, bounce_time: Opt
         print(f"Error: Cannot initialize pin {pin} as Button. Already initialized as output.")
     else:
         try:
-            _buttons[pin] = Button(pin, pull_up=pull_up, bounce_time=bounce_time)
+            _buttons[pin] = Button(pin, pull_up=pull_up, bounce_time=bounce_time, hold_time=0.01)
             print(f"Initialized pin {pin} as Button (pull_up={pull_up}, bounce_time={bounce_time})")
         except Exception as e:
             print(f"Error initializing button on pin {pin}: {e}")
@@ -99,10 +99,10 @@ def register_button_callback(pin: int, event_type: str, callback: Callable[[], N
         return
 
     button_obj = _buttons[pin]
-    if event_type == 'pressed':
+    if event_type == 'when_pressed':
         button_obj.when_pressed = callback
         print(f"Registered 'when_pressed' callback for button on pin {pin}.")
-    elif event_type == 'released':
+    elif event_type == 'when_released':
         button_obj.when_released = callback
         print(f"Registered 'when_released' callback for button on pin {pin}.")
     else:
@@ -122,13 +122,13 @@ def remove_button_callback(pin: int, event_type: str):
         return
 
     button_obj = _buttons[pin]
-    if event_type == 'pressed':
+    if event_type == 'when_pressed':
         if button_obj.when_pressed is None:
              print(f"Warning: No 'when_pressed' callback was registered for button on pin {pin}.")
         else:
             button_obj.when_pressed = None
             print(f"Removed 'when_pressed' callback for button on pin {pin}.")
-    elif event_type == 'released':
+    elif event_type == 'when_released':
         if button_obj.when_released is None:
              print(f"Warning: No 'when_released' callback was registered for button on pin {pin}.")
         else:
@@ -156,3 +156,35 @@ def is_button_pressed(pin: int) -> Optional[bool]:
          # No warning here, as this might be called speculativey.
          # Returning None indicates it's not a known button.
          return None
+
+def cleanup_all_pins():
+    """Closes all initialized GPIO devices (output pins and buttons)."""
+    print("Cleaning up GPIO resources...")
+
+    # Close output pins
+    pins_to_remove = list(_output_pins.keys()) # Create a copy of keys to iterate over
+    for pin in pins_to_remove:
+        try:
+            print(f"Closing output pin {pin}...")
+            _output_pins[pin].close()
+            del _output_pins[pin] # Remove from tracking dict after successful close
+            print(f"Output pin {pin} closed.")
+        except Exception as e:
+            print(f"Error closing output pin {pin}: {e}")
+
+    # Close buttons
+    buttons_to_remove = list(_buttons.keys()) # Create a copy of keys
+    for pin in buttons_to_remove:
+        try:
+            print(f"Closing button on pin {pin}...")
+            _buttons[pin].close()
+            del _buttons[pin] # Remove from tracking dict after successful close
+            print(f"Button on pin {pin} closed.")
+        except Exception as e:
+            print(f"Error closing button on pin {pin}: {e}")
+
+    # Double check if dictionaries are empty
+    if not _output_pins and not _buttons:
+        print("GPIO cleanup successful. All tracked pins released.")
+    else:
+        print(f"GPIO cleanup potentially incomplete. Remaining outputs: {list(_output_pins.keys())}, Remaining buttons: {list(_buttons.keys())}")

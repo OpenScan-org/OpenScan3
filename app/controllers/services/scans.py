@@ -327,7 +327,7 @@ class ScanManager:
 
             # cleanup: move back to origin position and restore settings
             try:
-                await move_to_point(PolarPoint3D(0, 0))
+                await move_to_point(PolarPoint3D(90, 90))
                 # restore previous focus settings if focus stacking was enabled
                 if focus_stacking and previous_focus_settings:
                     camera_controller.settings.AF = previous_focus_settings[0]

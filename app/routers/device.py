@@ -79,8 +79,8 @@ async def save_device_config():
         return {"status": "success",
                 "message": "Configuration saved successfully",
                 "info": device.get_device_info()}
-    return device._save_device_config()
-
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save device configuration")
 
 @api_version(0,1)
 @router.put("/configurations/current")

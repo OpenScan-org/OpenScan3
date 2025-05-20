@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -20,6 +22,7 @@ class MotorStatusResponse(BaseModel):
     busy: bool
     target_angle: Optional[float]
     settings: MotorConfig
+    endstop: Optional[dict]
 
 
 @api_version(0,1)
@@ -58,6 +61,23 @@ async def move_motor_by_degree(motor_name: str, degrees: float = Body(embed=True
     controller = get_motor_controller(motor_name)
     await controller.move_degrees(degrees)
     return controller.get_status()
+
+
+@api_version(0,2)
+@router.put("/{motor_name}/endstop-calibration", response_model=MotorStatusResponse)
+async def move_motor_to_home_position(motor_name: str):
+    """Move motor to home position"""
+    controller = get_motor_controller(motor_name)
+    if controller.endstop and not controller.is_busy():
+        # Trigger Endstop
+        controller.model.angle = 0
+        await controller.move_degrees(140)
+        # Wait for Endstop and move motor to home position
+        await asyncio.sleep(3)
+        await controller.move_to(90)
+        return controller.get_status()
+    else:
+        raise HTTPException(status_code=422, detail="No endstop configured or motor is busy!")
 
 
 create_settings_endpoints(
