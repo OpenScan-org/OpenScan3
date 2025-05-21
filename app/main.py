@@ -2,15 +2,25 @@ import uvicorn
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_versionizer.versionizer import Versionizer
+from contextlib import asynccontextmanager
+
 
 
 from routers import cameras, motors, projects, cloud, gpio, paths, openscan, lights, device
-
-# Import and initialize hardware manager
 from app.controllers import device as device_controller
-device_controller.initialize()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Code to run on startup
+    device_controller.initialize()
+
+    yield # application runs here
+
+    # Code to run on shutdown
+    device_controller.cleanup_and_exit()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

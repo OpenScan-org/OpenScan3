@@ -23,10 +23,12 @@
             "enable_pin": 23,
             "step_pin": 6,
             "acceleration": 1,
-            "acceleration_ramp": 2000,
+            "acceleration_ramp": 200,
             "delay": 0.0001,
-            "direction": -1,
-            "steps_per_rotation": 17067
+            "direction": 1,
+            "steps_per_rotation": 48000,
+            "min_angle": 12,
+            "max_angle": 125
         },
         "turntable": {
             "direction_pin": 9,

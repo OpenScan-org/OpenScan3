@@ -1,9 +1,9 @@
 from enum import Enum
 from pydantic import BaseModel
 
-from models.camera import Camera
-from models.light import Light
-from models.motor import Motor
+from app.models.camera import Camera
+from app.models.light import Light
+from app.models.motor import Motor
 
 
 class ScannerModel(Enum):

@@ -1,6 +1,7 @@
-from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
+
+from pydantic import BaseModel
 
 from app.config.camera import CameraSettings
 
@@ -15,13 +16,12 @@ class CameraType(Enum):
     EXTERNAL = "external"
 
 
-@dataclass
-class Camera:
+class Camera(BaseModel):
     type: CameraType
     name: str
     path: str
 
     settings: CameraSettings
 
-    mode: Optional[CameraMode] = None
+    #mode: Optional[CameraMode] = None
 

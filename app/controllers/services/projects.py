@@ -9,7 +9,7 @@ import pathlib
 from tempfile import TemporaryFile
 from typing import IO
 from zipfile import ZipFile
-import orjson
+import json
 import os
 import shutil
 from io import BytesIO
@@ -60,7 +60,7 @@ def get_project(project_name: str) -> Project:
 
     # Load project data
     with open(project_json, "rb") as f:
-        project_data = orjson.loads(f.read())
+        project_data = json.loads(f.read())
 
     # Load scan data from their respective folders
     scans = {}
@@ -84,7 +84,7 @@ def get_project(project_name: str) -> Project:
 
 
 def delete_project(project: Project) -> bool:
-    """Delete a project from disk"""
+    """Delete a project from file system"""
     try:
         if os.path.exists(project.path):
             shutil.rmtree(project.path)
@@ -99,140 +99,76 @@ def _scan_exists(project: Project, scan_index: int) -> bool:
     scan_id = f"scan{scan_index:02d}"
     return scan_id in project.scans
 
-def _serialize_scan_setting(scan_setting: ScanSetting) -> dict:
-    """Convert ScanSetting to a serializable dictionary"""
-    return {
-        "path_method": scan_setting.path_method.value,  # Enum to string
-        "points": scan_setting.points,
-        "focus_stacks": scan_setting.focus_stacks,
-        "focus_range": list(scan_setting.focus_range),  # Tuple to list
-    }
-
-
-def _deserialize_scan_settings(settings_data: dict) -> ScanSetting:
-    """Convert a serialized settings dictionary back to a ScanSetting object"""
-    # Convert path method back to an Enum
-    path_method = PathMethod(settings_data["path_method"])
-
-    # Convert focus_range to tuple
-    focus_range = tuple(settings_data.get("focus_range", (0.0, 0.0)))
-
-    # Recreate ScanSettings
-    return ScanSetting(
-        path_method=path_method,
-        points=settings_data["points"],
-        focus_stacks=settings_data.get("focus_stacks", 1),
-        focus_range=focus_range
-    )
-
 
 def _save_scan_json(scan: Scan) -> None:
     """Save a scan to a separate JSON file in the scan directory"""
     # Create a new folder if necessary
-    scan_path = os.path.join(scan.project_name, f"scan{scan.index:02d}")
-    os.makedirs(scan_path, exist_ok=True)
+    base_project_path = _get_project_path(scan.project_name) # Get base path for the project
+    scan_folder_path = os.path.join(base_project_path, f"scan{scan.index:02d}")
+    os.makedirs(scan_folder_path, exist_ok=True)
 
-    # Serialize Scan data
-    serialized_scan = {
-        "project_name": scan.project_name,
-        "index": scan.index,
-        "created": scan.created,
-        "description": scan.description if scan.description else None,
+    scan_json_data = scan.model_dump_json(indent=2)
 
-        "status": scan.status.value,
-        "current_step": scan.current_step,
-        "system_message": scan.system_message,
-        "last_updated": scan.last_updated.isoformat() if scan.last_updated else None,
-        "duration": scan.duration,
-
-        "photos": scan.photos,
-    }
-
-    # ScanSetting
-    if scan.settings:
-        serialized_scan["settings"] = _serialize_scan_setting(scan.settings)
-
-    # CameraSettings
-    if scan.camera_settings:
-        serialized_scan["camera_settings"] = scan.camera_settings.__dict__
-
-    # Save scan settings in a json file
-    with open(os.path.join(scan_path, "scan.json"), "wb") as f:
-        f.write(orjson.dumps(serialized_scan))
+    scan_file_path = os.path.join(scan_folder_path, "scan.json")
+    with open(scan_file_path, "w") as f:
+        f.write(scan_json_data)
 
 
 def _load_scan_json(project_name: str, scan_index: int) -> Scan:
     """Load a scan from its JSON file"""
-    scan_path = os.path.join(project_name, f"scan{scan_index:02d}")
-    scan_file = os.path.join(scan_path, "scan.json")
+    # Construct the full path for the scan directory and file
+    base_project_path = _get_project_path(project_name)
+    scan_folder_path = os.path.join(base_project_path, f"scan{scan_index:02d}")
+    scan_file_path = os.path.join(scan_folder_path, "scan.json")
 
-    if not os.path.exists(scan_file):
-        raise FileNotFoundError(f"Scan file not found: {scan_file}")
+    if not os.path.exists(scan_file_path):
+        raise FileNotFoundError(f"Scan file not found: {scan_file_path}")
 
-    with open(scan_file, "rb") as f:
-        scan_data = orjson.loads(f.read())
+    with open(scan_file_path, "r") as f:  # Open in text mode "r"
+        scan_json_data = f.read()
 
-    # Reconstruct the ScanSettings
-    settings = None
-    if "settings" in scan_data:
-        settings = _deserialize_scan_settings(scan_data["settings"])
-
-    # Reconstruct the CameraSettings
-    camera_settings = {}
-    if "camera_settings" in scan_data:
-        camera_settings = scan_data["camera_settings"]
-
-    # Recreate the Scan object
-    return Scan(
-        project_name=scan_data["project_name"],
-        index=scan_data["index"],
-        created=scan_data["created"],
-        description=scan_data.get("description", None),
-
-        settings=settings,
-        camera_settings=camera_settings,
-
-        status=ScanStatus(scan_data.get("status", "pending")),
-        current_step=scan_data.get("current_step", 0),
-        system_message=scan_data.get("error_message"),
-        last_updated=datetime.fromisoformat(scan_data["last_updated"]) if scan_data.get("last_updated") else None,
-
-        duration=scan_data.get("duration", 0.0),
-        photos=scan_data.get("photos", [])
-    )
+    # Recreate the Scan object using Pydantic's model_validate_json
+    return Scan.model_validate_json(scan_json_data)
 
 
 def save_project(project: Project):
-    """Save a project and scans"""
-    # Ensure project directory exists
-    project.create_directory()
+    """Save the project metadata to openscan_project.json and each scan to its individual file."""
+    project_json_path = os.path.join(project.path, "openscan_project.json")
 
-    # Save scan data separately
-    scan_summaries = {}
-    if project.scans:
-        for scan_id, scan in project.scans.items():
-            # save scan data in the corresponding folders
-            _save_scan_json(scan)
+    # Create project directory if it doesn't exist (e.g., for a new project)
+    os.makedirs(project.path, exist_ok=True)
 
-            # save only scan summaries
-            scan_summaries[scan_id] = {
-                "index": scan.index,
-                "created": scan.created,
-                "status": scan.status.value
-            }
+    # Prepare the main project data for openscan_project.json
+    # We use model_dump to get a serializable dictionary, especially for datetime fields.
+    # Exclude 'scans' as we'll handle its summary representation manually.
+    project_main_data = project.model_dump(mode='json', exclude={'scans'})
 
-    # Save project data and scan summaries
-    project_json = os.path.join(project.path, "openscan_project.json")
-    with open(project_json, "wb") as f:
-        f.write(orjson.dumps({
-            "name": project.name,
-            "created": project.created,
-            "uploaded": project.uploaded,
-            "scans": scan_summaries
-        }))
+    # Create a summary for the scans to be stored in openscan_project.json
+    # This summary typically includes just the index or other minimal identifying info.
+    scans_summary = {}
+    for scan_id, scan_obj in project.scans.items():
+        scans_summary[scan_id] = {"index": scan_obj.index,
+                                  "created": scan_obj.created.isoformat(),
+                                  "status": scan_obj.status.value
+                                  }  # Add more summary fields if needed
 
+    project_main_data['scans'] = scans_summary
+
+    # Write the main project data to openscan_project.json
+    with open(project_json_path, "w") as f:
+        json.dump(project_main_data, f, indent=2)
+
+    # Save each scan to its individual JSON file using the refactored _save_scan_json
     for scan in project.scans.values():
-        _save_scan_json(scan)
+        _save_scan_json(scan)  # scan.project_name should be correctly set in the Scan object
+
+    # Write the main project data to openscan_project.json
+    with open(project_json_path, "w") as f:
+        json.dump(project_main_data, f, indent=2)
+
+    # Save each scan to its individual JSON file using the refactored _save_scan_json
+    for scan in project.scans.values():
+        _save_scan_json(scan)  # scan.project_name should be correctly set in the Scan object
 
 
 def new_project(project_name: str) -> Project:
@@ -271,7 +207,6 @@ class ProjectManager:
         """Initialize project manager with base path"""
         self._path = str(path)  # Ensure string path
         self._projects = {}
-        self._current_project = None
 
         # Load existing projects
         for folder in os.listdir(self._path):
@@ -282,7 +217,7 @@ class ProjectManager:
                 except Exception as e:
                     print(f"Error loading project {folder}: {e}")
 
-        # Reset any running scans to failed state (app was restarted)
+        # Reset any running scans to a failed state (app was restarted)
         self._reset_running_scans()
 
     def _reset_running_scans(self):
@@ -303,33 +238,33 @@ class ProjectManager:
             print("Warning: Found interrupted scans that were reset to ERROR state")
 
     def get_project_by_name(self, project_name: str) -> Optional[Project]:
+        """Get a project by name. Returns None if the project does not exist."""
         if project_name not in self._projects:
             print(f"Project {project_name} does not exist")
             return None
         return self._projects[project_name]
 
     def get_all_projects(self) -> dict[str, Project]:
+        """Get all projects as a dictionary of project name to a project object"""
         return self._projects
 
-    def get_current_project(self) -> Project:
-        return self._current_project
-
-    def set_current_project(self, project: Project) -> bool:
-        if project.name not in self._projects:
-            raise ValueError(f"Project {project.name} does not exist")
-        if self._current_project and self._current_project.name != project.name:
-            save_project(project)
-        self._current_project = self._projects[project.name]
-        return True
 
     def add_project(self, name: str, project_description=None) -> Project:
-        """Create a new project"""
+        """Create a new project.
+
+        Args:
+            name: The name of the project.
+            project_description: Optional description for the project.
+
+        Returns:
+            The newly created project.
+        """
         if name in self._projects.keys():
             raise ValueError(f"Project {name} already exists")
 
         project_path = _get_project_path(name)
 
-        # Create project object (will validate name etc.)
+        # Create project object (Note: This will validate name, path.)
         project = Project(
             name=name,
             path=project_path,
@@ -343,41 +278,61 @@ class ProjectManager:
 
         # Update manager state
         self._projects[name] = project
-        self.set_current_project(project)
 
         return project
 
 
     def delete_project(self, project: Project) -> bool:
-        """Delete a project from the filesystem"""
+        """Delete a project from the filesystem.
+
+        Args:
+            project: The project to delete.
+
+        Returns:
+            True if the project was successfully deleted, False otherwise.
+
+        """
         if delete_project(project):
             del self._projects[project.name]
             return True
         return False
 
-    def add_scan(self, project_name: str, camera_controller: CameraController, scan_settings: ScanSetting) -> Optional[Scan]:
-        """Add a new scan to a project"""
-        if not self.set_current_project(self._projects[project_name]):
-            return None
+    def add_scan(self, project_name: str,
+                 camera_controller: CameraController,
+                 scan_settings: ScanSetting,
+                 scan_description = None,) -> Optional[Scan]:
+        """Add a new scan to a project.
 
-        if self._current_project.scans:
-            sorted_scans = sorted(self._current_project.scans.values(), key=lambda scan: scan.index)
+        Args:
+            project_name: The name of the project to add the scan to.
+            camera_controller: The camera controller to use for the scan.
+            scan_settings: The settings for the scan.
+            scan_description: Optional description for the scan.
+
+        Returns:
+            The newly created scan if successful, None if not.
+        """
+        project = self.get_project_by_name(project_name)
+
+        if project.scans:
+            sorted_scans = sorted(project.scans.values(), key=lambda scan: scan.index)
             new_index = sorted_scans[-1].index + 1
         else:
             new_index = 1
 
-        os.makedirs(os.path.join(self._current_project.path, f"scan{new_index:02d}"), exist_ok=True)
+        os.makedirs(os.path.join(project.path, f"scan{new_index:02d}"), exist_ok=True)
 
         scan = Scan(
-            project_name=self._current_project.name,
+            project_name=project.name,
             index=new_index,
             created=datetime.now(),
             settings=scan_settings,
+            description=scan_description,
             camera_settings=camera_controller.settings.model
         )
 
 
-        self._current_project.scans[f"scan{new_index:02d}"] = scan
+        project.scans[f"scan{new_index:02d}"] = scan
 
         return scan
 
@@ -387,8 +342,7 @@ class ProjectManager:
         photo.seek(0)
         photo_data = photo.read()
 
-        self.set_current_project(self._projects[scan.project_name])
-        project = self._current_project
+        project = self.get_project_by_name(scan.project_name)
 
         photo_path = os.path.join(project.path, f"scan{scan.index:02d}")
         photo_filename = f"scan{scan.index:02d}_{photo_info['position']:03d}"
@@ -405,19 +359,19 @@ class ProjectManager:
             await f.write(photo_data)
             scan.photos.append(photo_filename)
 
-        if len(scan.photos) == scan.settings.points:
-            scan.finished = True
-
         save_project(project)
 
     @staticmethod
-    def save(self, scan: Scan):
+    def save(scan: Scan):
         project = get_project(scan.project_name)
         save_project(project)
 
 
     def get_scan_by_index(self, project_name: str, scan_index: int) -> Optional[Scan]:
-        """Get a scan by its index from a project"""
+        """Get a scan by its index from a project
+
+        :return: The scan object with the given index if it exists, None if not
+        """
         try:
             project = self._projects[project_name]
 
@@ -432,21 +386,20 @@ class ProjectManager:
             print(f"Error getting scan: {e}")
             return None
 
-    def delete_scan(self, project: Project, scan: Scan) -> bool:
-        """Delete a scan from a project"""
+    def delete_scan(self, scan: Scan) -> bool:
+        """Delete a scan from a project
+
+        Args:
+            scan (Scan): The scan to delete
+
+        Returns:
+            bool: True if the scan was successfully deleted, False otherwise
+        """
         try:
-            # Check if project exists
-            if project.name not in self._projects:
-                print(f"Project {project.name} does not exist")
-                return False
-
-            # Check if scan exists
+            project = self._projects[scan.project_name]
             scan_id = f"scan{scan.index:02d}"
-            if scan_id not in project.scans:
-                print(f"Scan {scan_id} does not exist in project {project.name}")
-                return False
 
-            # Delete scan directory and remove scan from project
+            # Delete the scan directory and remove scan from the project
             scan_path = os.path.join(project.path, scan_id)
             if os.path.exists(scan_path):
                 shutil.rmtree(scan_path)
@@ -459,5 +412,18 @@ class ProjectManager:
             print(f"Error deleting scan: {e}")
             return False
 
-    def delete_photo(self, project: Project, scan: Scan, photo_name: str) -> bool:
-        pass
+    def delete_photos(self, scan: Scan, photo_filenames: list[str]) -> bool:
+        """Delete one or more photos from a scan in a project"""
+        try:
+            scan_id = f"scan{scan.index:02d}"
+            photo_path = os.path.join(scan.project_name, scan_id)
+
+            for photo_filename in photo_filenames:
+                photo_path = os.path.join(photo_path, photo_filename)
+                if os.path.exists(photo_path):
+                    os.remove(photo_path)
+
+            return True
+        except Exception as e:
+            print(f"Error deleting photo: {e}")
+            return False

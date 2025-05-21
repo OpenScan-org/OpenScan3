@@ -1,13 +1,11 @@
-from dataclasses import dataclass
-from enum import Enum
 from typing import Optional
+from pydantic import BaseModel
 
 from app.config.motor import MotorConfig
 
 
-@dataclass
-class Motor:
+class Motor(BaseModel):
     name: str
     settings: Optional[MotorConfig]
-    angle: float = 0
+    angle: float = 90.0
 

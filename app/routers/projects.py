@@ -73,6 +73,25 @@ async def delete_project(project_name: str):
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
 
+@api_version(0,2)
+@router.delete("/{project_name}/{scan_index}/", response_model=bool)
+async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
+    """Delete photos from a scan in a project
+
+    Args:
+        project_name: The name of the project
+        scan_index: The index of the scan
+        photo_filenames: A list of photo filenames to delete
+
+    Returns:
+        True if the photos were deleted successfully, False otherwise
+    """
+    try:
+        scan = project_manager.get_scan_by_index(project_name, scan_index)
+        return project_manager.delete_photos(scan, photo_filenames)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
 @api_version(0,1)
 @router.post("/{project_name}", response_model=Project)
 async def new_project(project_name: str):
@@ -82,6 +101,14 @@ async def new_project(project_name: str):
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
 
+@api_version(0,2)
+@router.post("/{project_name}", response_model=Project)
+async def new_project(project_name: str, project_description: Optional[str] = ""):
+    """Create a new project"""
+    try:
+        return project_manager.add_project(project_name, project_description)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
 
 @api_version(0,1)
 @router.post("/{project_name}/scan", response_model=Scan)
@@ -89,6 +116,22 @@ async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetti
     """Add a new scan to a project"""
     controller = get_camera_controller(camera_name)
     scan = project_manager.add_scan(project_name, controller, scan_settings)
+
+    scan_manager = get_scan_manager(scan, project_manager)
+
+    asyncio.create_task(scan_manager.start_scan(controller))
+
+    return scan
+
+@api_version(0,2)
+@router.post("/{project_name}/scan", response_model=Scan)
+async def add_scan_with_description(project_name: str,
+                   camera_name: str,
+                   scan_settings: ScanSetting,
+                   scan_description:  Optional[str] = ""):
+    """Add a new scan to a project"""
+    controller = get_camera_controller(camera_name)
+    scan = project_manager.add_scan(project_name, controller, scan_settings, scan_description)
 
     scan_manager = get_scan_manager(scan, project_manager)
 
@@ -105,6 +148,17 @@ async def get_scan(project_name: str, scan_index: int):
         return project_manager.get_scan_by_index(project_name, scan_index)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_version(0,2)
+@router.delete("/{project_name}", response_model=bool)
+async def delete_scan(project_name: str, scan_index: int):
+    """Delete a scan from a project"""
+    scan = project_manager.get_scan_by_index(project_name, scan_index)
+    try:
+        return project_manager.delete_scan(scan)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
 
 @api_version(0,1)

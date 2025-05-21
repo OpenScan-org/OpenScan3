@@ -3,7 +3,7 @@ from time import time
 from dataclasses import field
 from typing import Optional
 
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel
 from enum import Enum
 
 from app.config.scan import ScanSetting
@@ -17,8 +17,7 @@ class ScanStatus(Enum):
     CANCELLED = "cancelled"
     ERROR = "error"
 
-@dataclass
-class Scan:
+class Scan(BaseModel):
     project_name: str
     index: int
 
@@ -32,7 +31,7 @@ class Scan:
     system_message: Optional[str] = None
     last_updated: datetime = field(default_factory=datetime.now)
 
-    description: str = None
+    description: Optional[str] = None
 
     duration: float = 0.0
 

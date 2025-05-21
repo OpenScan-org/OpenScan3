@@ -83,12 +83,10 @@ class ScanManager:
             scan = self._scan
 
             scan.current_step = current_step
-            scan.total_steps = total_steps
             scan.last_updated = datetime.now()
 
             if current_step >= total_steps:
                 scan.status = ScanStatus.COMPLETED
-                scan.finished = True
                 scan.duration = (datetime.now() - scan.created).total_seconds()
 
             return True
@@ -329,7 +327,7 @@ class ScanManager:
 
             # cleanup: move back to origin position and restore settings
             try:
-                await move_to_point(PolarPoint3D(0, 0))
+                await move_to_point(PolarPoint3D(90, 90))
                 # restore previous focus settings if focus stacking was enabled
                 if focus_stacking and previous_focus_settings:
                     camera_controller.settings.AF = previous_focus_settings[0]
@@ -376,6 +374,6 @@ def get_active_scan_manager() -> Optional[ScanManager]:
 
 
 def trigger_external_cam(camera: Camera):
-    gpio.set_pin(camera.external_camera_pin, True)
+    gpio.set_output_pin(camera.external_camera_pin, True)
     time.sleep(camera.external_camera_delay)
-    gpio.set_pin(camera.external_camera_pin, False)
+    gpio.set_output_pin(camera.external_camera_pin, False)

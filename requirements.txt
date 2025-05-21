@@ -11,4 +11,5 @@ python-dotenv==1.0.1
 matplotlib==3.10.0
 aiofiles==24.1.0
 zipstream-ng==1.5.0
+gpiozero==2.0.1
 fastapi-versionizer==4.0.1
