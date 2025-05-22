@@ -7,9 +7,9 @@ class MotorConfig(BaseModel):
     enable_pin: int
     step_pin: int
 
-    acceleration: float
-    acceleration_ramp: int
-    delay: float
+    acceleration: int = Field(20000, ge=1000, le=80000, description="Acceleration in steps/s², Limits tested on Rpi 4 2GB under full load --> time estimation within 0.5%")
+    max_speed: int = Field(5000, ge=1, le=7500, description="Steps per second, Limits tested on RPi 4 2GB under full load --> time estimation within 0.5%")
+
     direction: Literal[1, -1] = Field(1, description="Motor direction (1 or -1).")
     steps_per_rotation: int = Field(description="Number of steps for a full motor rotation.")
 

@@ -24,9 +24,8 @@
             "direction_pin": 23,
             "enable_pin": 22,
             "step_pin": 27,
-            "acceleration": 1,
-            "acceleration_ramp": 200,
-            "delay": 0.0001,
+            "acceleration": 10000,
+            "max_speed": 5000,
             "direction": -1,
             "steps_per_rotation": 10240,
             "min_angle": 0,
@@ -36,9 +35,8 @@
             "direction_pin": 6,
             "enable_pin": 22,
             "step_pin": 16,
-            "acceleration": 1,
-            "acceleration_ramp": 200,
-            "delay": 0.0001,
+            "acceleration": 10000,
+            "max_speed": 5000,
             "direction": 1,
             "steps_per_rotation": 800
         }
