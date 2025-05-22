@@ -3,18 +3,18 @@ import asyncio
 from asyncio import Queue
 
 from config.endstop import EndstopConfig
+from app.models.motor import Endstop
 from ..settings import Settings
 from app.controllers.hardware.gpio import initialize_button, register_button_callback, remove_button_callback, is_button_pressed
 from app.controllers.hardware.motors import get_motor_controller, MotorController
 
 
-class Endstop:
-    # Added 'loop' parameter
-    def __init__(self, config: EndstopConfig, controller: MotorController):
-        self.model = config
-        self.settings = Settings(config, on_change=self._apply_settings_to_hardware)
+class EndstopController:
+    def __init__(self, endstop: Endstop, controller: MotorController):
+        self.model = endstop
+        self.settings = Settings(endstop.settings, on_change=self._apply_settings_to_hardware)
         self._motor_controller = controller
-        self._pin = config.pin
+        self._pin = endstop.settings.pin
         self._event_queue = Queue()  # Create a queue for this instance
         self._listener_task = None  # To hold the reference to the listener task
 
@@ -26,7 +26,7 @@ class Endstop:
 
     def _apply_settings_to_hardware(self, config: EndstopConfig):
         remove_button_callback(self._pin, "when_released")
-        self.model = config
+        self.model.settings = config
         self._pin = config.pin
         initialize_button(self._pin, pull_up=self.model.pull_up, bounce_time=self.model.bounce_time)
         register_button_callback(self._pin, "when_released", self._gpio_callback)

@@ -43,11 +43,14 @@
     },
     "endstops": {
         "rotor-endstop": {
-            "pin": 17,
-            "angular_position": 145,
-            "motor_name": "rotor",
-            "pull_up": true,
-            "bounce_time": 0.005
+            "name": "rotor-endstop",
+            "settings": {
+                "pin": 17,
+                "angular_position": 145,
+                "motor_name": "rotor",
+                "pull_up": true,
+                "bounce_time": 0.005
+            }
         }
     },
     "lights": {

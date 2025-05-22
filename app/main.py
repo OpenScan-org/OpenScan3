@@ -12,7 +12,7 @@ from app.controllers import device as device_controller
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Code to run on startup
-    device_controller.initialize()
+    device_controller.initialize(device_controller.load_device_config())
 
     yield # application runs here
 
