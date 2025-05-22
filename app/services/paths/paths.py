@@ -1,99 +1,150 @@
 import abc
-import io
-from dataclasses import dataclass
-
-import matplotlib.pyplot as plt
 import numpy as np
-import itertools
-
 from app.models.paths import CartesianPoint3D, PathMethod, PolarPoint3D
 
 
 def polar_to_cartesian(point: PolarPoint3D) -> CartesianPoint3D:
-    ...
+    """Convert polar coordinates to cartesian coordinates"""
+    theta_rad = np.radians(point.theta)
+    fi_rad = np.radians(point.fi)
+    x = point.r * np.sin(theta_rad) * np.cos(fi_rad)
+    y = point.r * np.sin(theta_rad) * np.sin(fi_rad)
+    z = point.r * np.cos(theta_rad)
+    return CartesianPoint3D(x, y, z)
 
 
 def cartesian_to_polar(point: CartesianPoint3D) -> PolarPoint3D:
     """Convert cartesian coordinates to polar coordinates"""
-    r = 1
+    r = np.sqrt(point.x ** 2 + point.y ** 2 + point.z ** 2)
+    # Handle case where r=0
+    if r < 1e-10:
+        return PolarPoint3D(0, 0, 0)
+
     theta = np.degrees(np.arccos(point.z / r))
-    fi = np.degrees(np.arctan(point.x / point.y))
+    # Handle the case where both x and y are zero
+    if abs(point.x) < 1e-10 and abs(point.y) < 1e-10:
+        fi = 0
+    else:
+        fi = np.degrees(np.arctan2(point.y, point.x))
+        # Convert to range 0-360°
+        if fi < 0:
+            fi += 360
+
     return PolarPoint3D(theta, fi, r)
 
 
 def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
     """Get path by method and number of points"""
-
-    # GRID and ARCHIMEDES path methods are not implemented yet!
-
-    #if method == PathMethod.GRID:
-    #    return PathGeneratorGrid.get_path(num_points)
     if method == PathMethod.FIBONACCI:
-        return PathGeneratorFibonacci.get_path(num_points)
-    elif method == PathMethod.SPIRAL:
-        return PathGeneratorSpiral.get_path(num_points)
-    #elif method == PathMethod.ARCHIMEDES:
-    #    return PathGeneratorArchimedes.get_path(num_points)
+        return _PathGeneratorFibonacci.get_path(num_points)
+    else:
+        raise ValueError(f"Method {method} not implemented")
 
 
-def plot_points(points: list[CartesianPoint3D], index = None) -> bytes:
-    """Plot points in 3D"""
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    colors = None
-    if (index is not None and (1<= int(index) <= len(points))):
-        colors = [i for i in itertools.repeat([0,0,1,0.1], len(points))]
-        colors[int(index)-1] = [1,0,0,1.0]
-        
-
-    ax.scatter([p.x for p in points], [p.y for p in points], [p.z for p in points], color = colors)
-    with io.BytesIO() as f:
-        plt.savefig(f)
-        return f.getvalue()
+def get_polar_path(method: PathMethod, num_points: int) -> list[PolarPoint3D]:
+    """Get path directly in polar coordinates"""
+    cartesian_points = get_path(method, num_points)
+    return [cartesian_to_polar(point) for point in cartesian_points]
 
 
-class PathGenerator(abc.ABC):
-    @abc.abstractstaticmethod
+def get_constrained_path(method: PathMethod, num_points: int, min_theta: float = 0,
+                         max_theta: float = 180) -> list[PolarPoint3D]:
+    """
+    Generate a path within specific theta angle constraints.
+
+    This function generates points specifically within the theta constraints
+    rather than filtering from a full sphere, ensuring better distribution.
+
+    Args:
+        method: The path generation method to use
+        num_points: The target number of points to generate
+        min_theta: Minimum theta angle in degrees (default: 0)
+        max_theta: Maximum theta angle in degrees (default: 180)
+
+    Returns:
+        A list of PolarPoint3D objects within the specified constraints
+    """
+    # Validate input constraints
+    if min_theta < 0 or max_theta > 180:
+        raise ValueError("Theta angle must be between 0° and 180°")
+    if min_theta >= max_theta:
+        raise ValueError("Minimum theta angle must be less than maximum theta angle")
+
+    if method == PathMethod.FIBONACCI:
+        return _generate_constrained_fibonacci(num_points, min_theta, max_theta)
+    else:
+        raise ValueError(f"Constrained path generation not implemented for method {method}")
+
+
+def _generate_constrained_fibonacci(num_points: int, min_theta: float, max_theta: float) -> list[PolarPoint3D]:
+    """
+    Generate fibonacci points within theta constraints by directly controlling the Z range.
+
+    The fibonacci sphere algorithm works by:
+    1. Distributing Z values linearly from -1 to 1
+    2. Converting Z to theta via theta = arccos(z)
+
+    To constrain theta, we need to constrain the Z values accordingly.
+    """
+    # Convert theta constraints to Z constraints
+    # theta = arccos(z), so z = cos(theta)
+    # Note: theta increases as z decreases
+    z_max = np.cos(np.radians(min_theta))  # z at min_theta
+    z_min = np.cos(np.radians(max_theta))  # z at max_theta
+
+    # Generate fibonacci points within the constrained Z range
+    ga = (3 - np.sqrt(5)) * np.pi  # golden angle
+
+    points = []
+    for i in range(num_points):
+        # Distribute Z values linearly within the constrained range
+        z = z_min + (z_max - z_min) * (i / (num_points - 1)) if num_points > 1 else (z_min + z_max) / 2
+
+        # Calculate radius at this Z level
+        radius = np.sqrt(1 - z * z)
+
+        # Calculate fibonacci angle
+        theta_fib = ga * i
+
+        # Calculate cartesian coordinates
+        x = radius * np.cos(theta_fib)
+        y = radius * np.sin(theta_fib)
+
+        # Convert to polar coordinates
+        r = 1.0  # unit sphere
+        theta = np.degrees(np.arccos(z))
+        fi = np.degrees(np.arctan2(y, x))
+
+        # Ensure fi is in 0-360 range
+        if fi < 0:
+            fi += 360
+
+        points.append(PolarPoint3D(theta, fi, r))
+
+    return points
+
+
+class _PathGenerator(abc.ABC):
+    """Base class for path generators"""
+    @staticmethod
+    @abc.abstractmethod
     def get_path(num_points: int) -> list[CartesianPoint3D]:
         raise NotImplementedError
 
 
-class PathGeneratorGrid(PathGenerator):
-    def get_path(num_points: int) -> list[CartesianPoint3D]:
-        return []
-
-
-#  fibonacci sphere based on method by Seahmatthews
-#  on https://gist.github.com/Seanmatthews/a51ac697db1a4f58a6bca7996d75f68c
-class PathGeneratorFibonacci(PathGenerator):
+class _PathGeneratorFibonacci(_PathGenerator):
+    """Fibonacci sphere path generator"""
+    @staticmethod
     def get_path(num_points: int) -> list[CartesianPoint3D]:
         ga = (3 - np.sqrt(5)) * np.pi  # golden angle
-        # Create a list of golden angle increments along tha range of number of points
+        # Create a list of golden angle increments along the range of number of points
         theta = ga * np.arange(num_points)
-        # Z is a split into a range of -1 to 1 in order to create a unit circle
+        # Z is split into a range of -1 to 1 to create a unit sphere
         z = np.linspace(1 / num_points - 1, 1 - 1 / num_points, num_points)
-        # a list of the radii at each height step of the unit circle
+        # Calculate the radii at each height step of the unit sphere
         radius = np.sqrt(1 - z * z)
         # Determine where xy fall on the sphere, given the azimuthal and polar angles
         y = radius * np.sin(theta)
         x = radius * np.cos(theta)
 
         return [CartesianPoint3D(x[i], y[i], z[i]) for i in range(len(z))]
-
-
-class PathGeneratorSpiral(PathGenerator):
-    def get_path(num_points: int) -> list[CartesianPoint3D]:
-        a = 0.05
-        r = 1
-        t = np.linspace(1 / num_points - 30, 30 - 1 / num_points, num_points)
-        # Determine where xy fall on the sphere, given the azimuthal and polar angles
-        x = r * np.cos(t) / np.sqrt(a**2 * t**2 + 1)
-        y = r * np.sin(t) / np.sqrt(a**2 * t**2 + 1)
-        z = -(a * r * t) / np.sqrt(a**2 * t**2 + 1)
-
-        return [CartesianPoint3D(x[i], y[i], z[i]) for i in range(len(z))]
-
-
-class PathGeneratorArchimedes(PathGenerator):
-    def get_path(num_points: int) -> list[CartesianPoint3D]:
-        return []
