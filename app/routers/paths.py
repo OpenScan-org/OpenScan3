@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 from fastapi_versionizer import api_version
 
-from app.services.paths import paths
+from app.utils.paths import paths
 
 router = APIRouter(
     prefix="/paths",

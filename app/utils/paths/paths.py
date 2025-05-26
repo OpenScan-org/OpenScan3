@@ -1,5 +1,7 @@
 import abc
 import numpy as np
+from typing import Optional
+
 from app.models.paths import CartesianPoint3D, PathMethod, PolarPoint3D
 
 
@@ -34,7 +36,16 @@ def cartesian_to_polar(point: CartesianPoint3D) -> PolarPoint3D:
 
 
 def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
-    """Get path by method and number of points"""
+    """
+    Get path by method and number of points
+
+    Args:
+        method: Path generation method
+        num_points: Number of points to generate
+
+    Returns:
+        List of cartesian points
+    """
     if method == PathMethod.FIBONACCI:
         return _PathGeneratorFibonacci.get_path(num_points)
     else:
@@ -42,7 +53,16 @@ def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
 
 
 def get_polar_path(method: PathMethod, num_points: int) -> list[PolarPoint3D]:
-    """Get path directly in polar coordinates"""
+    """
+    Get path directly in polar coordinates
+
+    Args:
+        method: Path generation method
+        num_points: Number of points to generate
+
+    Returns:
+        List of polar points
+    """
     cartesian_points = get_path(method, num_points)
     return [cartesian_to_polar(point) for point in cartesian_points]
 
@@ -126,6 +146,7 @@ def _generate_constrained_fibonacci(num_points: int, min_theta: float, max_theta
 
 class _PathGenerator(abc.ABC):
     """Base class for path generators"""
+
     @staticmethod
     @abc.abstractmethod
     def get_path(num_points: int) -> list[CartesianPoint3D]:
@@ -134,6 +155,7 @@ class _PathGenerator(abc.ABC):
 
 class _PathGeneratorFibonacci(_PathGenerator):
     """Fibonacci sphere path generator"""
+
     @staticmethod
     def get_path(num_points: int) -> list[CartesianPoint3D]:
         ga = (3 - np.sqrt(5)) * np.pi  # golden angle

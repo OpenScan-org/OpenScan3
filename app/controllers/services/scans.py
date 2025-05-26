@@ -14,7 +14,7 @@ from app.controllers.hardware.cameras.camera import CameraController, get_camera
 from app.models.camera import Camera
 from app.models.paths import CartesianPoint3D, PolarPoint3D
 from app.models.scan import Scan, ScanStatus
-from app.services.paths import paths
+from app.utils.paths import paths
 
 
 async def move_to_point(point: paths.PolarPoint3D):

@@ -22,7 +22,7 @@
             "direction_pin": 5,
             "enable_pin": 23,
             "step_pin": 6,
-            "acceleration": 10000,
+            "acceleration": 20000,
             "max_speed": 5000,
             "direction": 1,
             "steps_per_rotation": 48000,
@@ -33,7 +33,7 @@
             "direction_pin": 9,
             "enable_pin": 22,
             "step_pin": 11,
-            "acceleration": 10000,
+            "acceleration": 50000,
             "max_speed": 5000,
             "direction": 1,
             "steps_per_rotation": 3200
