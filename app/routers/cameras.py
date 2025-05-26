@@ -9,6 +9,8 @@ from fastapi_versionizer import api_version
 from app.config.camera import CameraSettings
 from app.models.camera import Camera, CameraType
 from app.controllers.hardware.cameras.camera import get_all_camera_controllers, get_camera_controller
+from app.controllers.services.scans import get_active_scan_manager
+from app.controllers.hardware.motors import get_all_motor_controllers
 from .settings_utils import create_settings_endpoints
 
 router = APIRouter(
@@ -45,19 +47,31 @@ async def get_camera(camera_name: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@api_version(0,1)
+@api_version(0, 1)
 @router.get("/{camera_name}/preview")
 async def get_preview(camera_name: str):
     """Get a camera preview stream in lower resolution"""
-    controller = controller = get_camera_controller(camera_name)
-
+    controller = get_camera_controller(camera_name)
 
     async def generate():
         while True:
+            # Check if any motors are busy
+            motor_busy = any(
+                motor_controller.is_busy()
+                for motor_controller in get_all_motor_controllers().values()
+            )
+
+            # Check if a scan is running
+            scan_manager = get_active_scan_manager()
+            scan_busy = scan_manager and scan_manager._scan.status == ScanStatus.RUNNING
+
+            # Adjust sleep time based on motor or scan status
+            sleep_time = 0.7 if (motor_busy or scan_busy) else 0.02
+
             frame = controller.preview()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(sleep_time)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace;boundary=frame")
 
