@@ -6,6 +6,7 @@ and their specific configurations.
 """
 
 import json
+import logging
 import os
 import pathlib
 from typing import Dict, List, Optional
@@ -32,6 +33,7 @@ from app.controllers.hardware.lights import create_light_controller, get_all_lig
 from app.controllers.hardware.endstops import EndstopController
 from app.controllers.hardware.gpio import cleanup_all_pins
 
+logger = logging.getLogger(__name__)
 
 # Current scanner model
 _scanner_device = ScannerDevice(
@@ -71,10 +73,10 @@ def load_device_config(config_file=None) -> dict:
             # If device_config.json doesn't exist, safe default config as device_config.json
             with open(DEVICE_CONFIG_FILE, "w") as f:
                 json.dump(config_dict, f, indent=4)
-            print("No device configuration found. Loading default configuration.")
+            logger.warning("No device configuration found. Loading default configuration.")
         config_file = DEVICE_CONFIG_FILE
     try:
-        print(f"Loading device configuration from: {config_file}")
+        logger.debug(f"Loading device configuration from: {config_file}")
         if os.path.exists(config_file):
             with open(config_file, "r") as f:
                 loaded_config_from_file = json.load(f)
@@ -84,9 +86,9 @@ def load_device_config(config_file=None) -> dict:
                 if config_file != DEVICE_CONFIG_FILE:
                     with open(DEVICE_CONFIG_FILE, "w") as f:
                         json.dump(config_dict, f, indent=4)
-            print(f"Loaded device configuration: {config_dict['name']}")
+            logger.info(f"Loaded device configuration for: {config_dict['name']} with {config_dict['shield']}")
     except Exception as e:
-        print(f"Error loading device configuration: {e}")
+        logger.error(f"Error loading device configuration: {e}")
 
     return config_dict
 
@@ -103,10 +105,10 @@ def save_device_config() -> bool:
         with open(DEVICE_CONFIG_FILE, "w") as f:
             json.dump(serialized_device, f, indent=4)
 
-        print(f"Saved device configuration to: {DEVICE_CONFIG_FILE}")
+        logger.info(f"Saved device configuration to: {DEVICE_CONFIG_FILE}")
         return True
     except Exception as e:
-        print(f"Error saving device configuration: {e}")
+        logger.error(f"Error saving device configuration: {e}")
         return False
 
 
@@ -145,7 +147,7 @@ def _load_camera_config(settings: dict) -> CameraSettings:
         return CameraSettings(**settings)
     except Exception as e:
         # Return default settings if error occured
-        print("Error loading camera settings: ", e)
+        logger.error("Error loading camera settings: ", e)
         return CameraSettings()
 
 def _load_motor_config(settings: dict) -> MotorConfig:
@@ -154,7 +156,7 @@ def _load_motor_config(settings: dict) -> MotorConfig:
         return MotorConfig(**settings)
     except Exception as e:
         # Return default settings if error occured
-        print("Error loading motor settings: ", e)
+        logger.error("Error loading motor settings: ", e)
         return MotorConfig()
 
 def _load_light_config(settings: dict) -> LightConfig:
@@ -169,7 +171,7 @@ def _load_light_config(settings: dict) -> LightConfig:
         return LightConfig(**settings)
     except Exception as e:
         # Return default settings if error occured
-        print("Error loading light settings: ", e)
+        logger.error("Error loading light settings: ", e)
         return LightConfig()
 
 def _load_endstop_config(settings: dict) -> EndstopConfig:
@@ -178,12 +180,12 @@ def _load_endstop_config(settings: dict) -> EndstopConfig:
         return EndstopConfig(**settings)
     except Exception as e:
         # Return default settings if error occured
-        print("Error loading endstop settings: ", e)
+        logger.error("Error loading endstop settings: ", e)
         return EndstopConfig()
 
 def _detect_cameras() -> Dict[str, Camera]:
     """Get a list of available cameras"""
-    print("Loading cameras...")
+    logger.debug("Loading cameras...")
 
     global _scanner_device
 
@@ -210,7 +212,7 @@ def _detect_cameras() -> Dict[str, Camera]:
                 )
             cam.close()
     except Exception as e:
-        print(f"Error loading Linux cameras: {e}")
+        logger.error(f"Error loading Linux cameras: {e}")
 
     # Get GPhoto2 cameras
     try:
@@ -223,7 +225,7 @@ def _detect_cameras() -> Dict[str, Camera]:
                 settings=None
             )
     except Exception as e:
-        print(f"Error loading GPhoto2 cameras: {e}")
+        logger.error(f"Error loading GPhoto2 cameras: {e}")
 
     # Get Picamera2
     try:
@@ -239,7 +241,7 @@ def _detect_cameras() -> Dict[str, Camera]:
         del picam
 
     except Exception as e:
-        print(f"Error loading Picamera2: {e}")
+        logger.error(f"Error loading Picamera2: {e}")
 
     return cameras
 
@@ -252,11 +254,12 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
 
     # if already initialized, remove all controllers for reinitializing
     if _scanner_device.initialized:
+        logger.debug("Hardware already initialized. Cleaning up old controllers.")
         for controller in get_all_motor_controllers():
             remove_motor_controller(controller)
         for controller in get_all_light_controllers():
             remove_light_controller(controller)
-        print("Cleaned up old controllers.")
+        logger.debug("Cleaned up old controllers.")
 
     # Detect hardware
     if detect_cameras:
@@ -278,6 +281,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
         motor = Motor(name=motor_name,
         settings=_load_motor_config(config["motors"][motor_name]))
         motor_objects[motor_name] = motor
+        logger.debug(f"Loaded motor {motor_name} with settings: {motor.settings}")
 
     # Create light objects
     light_objects = {}
@@ -287,6 +291,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
             settings=_load_light_config(config["lights"][light_name])
         )
         light_objects[light_name] = light
+        logger.debug(f"Loaded light {light_name} with settings: {light.settings}")
 
     # Cloud settings
     cloud = CloudSettings(
@@ -301,13 +306,13 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
         try:
             create_camera_controller(camera)
         except Exception as e:
-            print(f"Error initializing camera controller for {name}: {e}")
+            logger.error(f"Error initializing camera controller for {name}: {e}")
 
     for name, motor in motor_objects.items():
         try:
             create_motor_controller(motor)
         except Exception as e:
-            print(f"Error initializing motor controller for {name}: {e}")
+            logger.error(f"Error initializing motor controller for {name}: {e}")
 
     # Create endstop objects
     endstop_objects = {}
@@ -318,15 +323,16 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
                               settings=_load_endstop_config(config["endstops"][endstop_name]))
             endstop_controller = EndstopController(endstop, controller=get_motor_controller(settings.motor_name))
             endstop_objects[endstop_name] = endstop
+            logging.debug(f"Loaded endstop {endstop_name} with settings: {endstop.settings}")
             endstop_controller.start_listener()
         except Exception as e:
-            print(f"Error initializing endstop '{endstop_name}': {e}")
+            logger.error(f"Error initializing endstop '{endstop_name}': {e}")
 
     for name, light in light_objects.items():
         try:
             create_light_controller(light)
         except Exception as e:
-            print(f"Error initializing light controller for {name}: {e}")
+            logger.error(f"Error initializing light controller for {name}: {e}")
 
     _scanner_device = ScannerDevice(
         name=config["name"],
@@ -338,6 +344,8 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
         endstops=endstop_objects,
         initialized=True
     )
+    logger.info("Hardware initialized.")
+    logger.debug(f"Initialized ScannerDevice: {_scanner_device.model_dump(mode='json')}.")
 
 def get_available_configs():
     """Get a list of all available device configuration files
@@ -388,4 +396,4 @@ def shutdown(with_saving = False):
 
 def cleanup_and_exit():
     cleanup_all_pins()
-    print("Exiting now...")
+    logger.info("Exiting now...")
