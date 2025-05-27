@@ -27,9 +27,12 @@ from app.config.light import LightConfig
 from app.config.endstop import EndstopConfig
 from app.config.cloud import CloudSettings
 
-from app.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers, remove_camera_controller
-from app.controllers.hardware.motors import create_motor_controller, get_all_motor_controllers, get_motor_controller, remove_motor_controller
-from app.controllers.hardware.lights import create_light_controller, get_all_light_controllers, remove_light_controller
+from app.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers, \
+    remove_camera_controller
+from app.controllers.hardware.motors import create_motor_controller, get_all_motor_controllers, get_motor_controller, \
+    remove_motor_controller
+from app.controllers.hardware.lights import create_light_controller, get_all_light_controllers, remove_light_controller, \
+    get_light_controller
 from app.controllers.hardware.endstops import EndstopController
 from app.controllers.hardware.gpio import cleanup_all_pins
 
@@ -162,12 +165,6 @@ def _load_motor_config(settings: dict) -> MotorConfig:
 def _load_light_config(settings: dict) -> LightConfig:
     """Load light configuration for the current model"""
     try:
-        pins = settings.get("pins")
-        pin = settings.get("pin")
-        if pin is not None and pins is None:
-            settings["pins"] = [pin]
-        elif pins is None:
-            settings["pins"] = []
         return LightConfig(**settings)
     except Exception as e:
         # Return default settings if error occured
@@ -328,11 +325,17 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
         except Exception as e:
             logger.error(f"Error initializing endstop '{endstop_name}': {e}")
 
-    for name, light in light_objects.items():
+
+    for name, controller in light_objects.items():
         try:
             create_light_controller(light)
         except Exception as e:
             logger.error(f"Error initializing light controller for {name}: {e}")
+
+    # turn on lights
+    for _, controller in get_all_light_controllers().items():
+        controller.turn_on()
+
 
     _scanner_device = ScannerDevice(
         name=config["name"],
