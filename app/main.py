@@ -1,10 +1,11 @@
 import uvicorn
+import logging
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_versionizer.versionizer import Versionizer
 from contextlib import asynccontextmanager
 
-
+from app.config.logger import setup_logging_from_json_file
 
 from routers import cameras, motors, projects, cloud, gpio, paths, openscan, lights, device
 from app.controllers import device as device_controller
@@ -12,7 +13,9 @@ from app.controllers import device as device_controller
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Code to run on startup
-    device_controller.initialize()
+    setup_logging_from_json_file(path_to_config="settings/advanced_logging.json", default_level=logging.DEBUG)
+
+    device_controller.initialize(device_controller.load_device_config())
 
     yield # application runs here
 

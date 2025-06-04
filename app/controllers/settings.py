@@ -3,12 +3,12 @@ Settings module with callback-enabled attribute access for hardware components.
 
 Provides direct attribute access to settings while allowing callbacks when settings change.
 """
-
+import logging
 from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, get_type_hints
-from pathlib import Path
-import json
 
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -43,6 +43,7 @@ class Settings(Generic[T]):
         """
         self._settings = settings
         self._on_change = on_change
+        logger.debug(f"Initialized '{settings.__class__.__name__}': {settings}")
 
     def __getattr__(self, name: str) -> Any:
         """Allow direct attribute access to the wrapped settings."""
@@ -55,11 +56,16 @@ class Settings(Generic[T]):
         if name.startswith('_'):
             super().__setattr__(name, value)
             return
-            
+
+        logger.debug(f"Trying to set '{name}' to '{value}'")
+
+
         # Update the setting
-        settings_dict = self._settings.dict()
+        settings_dict = self._settings.model_dump()
         settings_dict[name] = value
         new_settings = self._settings.__class__(**settings_dict)
+        logger.debug(f"Set '{name}' to '{value}'")
+
         
         # Set the new settings and trigger callback
         self._settings = new_settings
@@ -76,12 +82,16 @@ class Settings(Generic[T]):
         # Only update if we have valid arguments
         if not kwargs:
             return False
-            
+
+        logger.debug(f"Trying to update old settings: {self._settings} with new settings: {kwargs}")
+
         # Create updated settings object
-        settings_dict = self._settings.dict()
+        settings_dict = self._settings.model_dump()
         settings_dict.update({k: v for k, v in kwargs.items() if v is not None})
         new_settings = self._settings.__class__(**settings_dict)
-        
+
+        logger.debug(f"Updating settings: {kwargs}")
+
         # Set the new settings and trigger callback
         self._settings = new_settings
         if self._on_change:
@@ -96,9 +106,12 @@ class Settings(Generic[T]):
         Args:
             new_settings: New settings object (must be the same type as initial settings)
         """
+        logger.debug(f"Trying to replace old settings: {self._settings} with new settings: {new_settings}")
         if not isinstance(new_settings, self._settings.__class__):
+            logger.error(f"Expected {self._settings.__class__.__name__}, got {type(new_settings).__name__}")
             raise TypeError(f"Expected {self._settings.__class__.__name__}, got {type(new_settings).__name__}")
-            
+
+        logger.debug(f"Replacing settings with: {new_settings}")
         self._settings = new_settings
         if self._on_change:
             self._on_change(self._settings)

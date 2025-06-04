@@ -17,27 +17,26 @@ from io import BytesIO
 from app.models.project import Project
 from app.models.scan import Scan, ScanStatus
 from app.controllers.hardware.cameras.camera import CameraController
-from app.controllers.device import projects_path, cloud
 from app.config.scan import ScanSetting
 from app.models.paths import PathMethod
 
 ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png")
 
 
-def get_projects() -> list[Project]:
+def get_projects(projects_path: str) -> list[Project]:
     """Get all projects in the projects directory"""
     projects = []
     for folder in os.listdir(projects_path):
         project_json = os.path.join(projects_path, folder, "openscan_project.json")
         if os.path.exists(project_json):
             try:
-                projects.append(get_project(folder))
+                projects.append(get_project(projects_path, folder))
             except Exception as e:
                 print(f"Error loading project {folder}: {e}")
     return projects
 
 
-def _get_project_path(project_name: str) -> str:
+def _get_project_path(projects_path: str, project_name: str) -> str:
     """Get the absolute path for a project"""
     return os.path.join(str(projects_path), project_name)
 
@@ -50,9 +49,9 @@ def _get_project_photos(project_path: str) -> list[str]:
     ]
 
 
-def get_project(project_name: str) -> Project:
+def get_project(projects_path: str, project_name: str) -> Project:
     """Load a project from disk including all scan data"""
-    project_path = _get_project_path(project_name)
+    project_path = _get_project_path(projects_path, project_name)
     project_json = os.path.join(project_path, "openscan_project.json")
 
     if not os.path.exists(project_json):
@@ -67,7 +66,7 @@ def get_project(project_name: str) -> Project:
     if "scans" in project_data:
         for scan_id, scan_summary in project_data["scans"].items():
             try:
-                scan = _load_scan_json(project_name, scan_summary["index"])
+                scan = _load_scan_json(projects_path, project_name, scan_summary["index"])
                 scans[scan_id] = scan
             except FileNotFoundError as e:
                 print(f"Warning: Could not load scan {scan_id}: {e}")
@@ -100,11 +99,11 @@ def _scan_exists(project: Project, scan_index: int) -> bool:
     return scan_id in project.scans
 
 
-def _save_scan_json(scan: Scan) -> None:
+def _save_scan_json(projects_path: str, scan: Scan) -> None:
     """Save a scan to a separate JSON file in the scan directory"""
     # Create a new folder if necessary
-    base_project_path = _get_project_path(scan.project_name) # Get base path for the project
-    scan_folder_path = os.path.join(base_project_path, f"scan{scan.index:02d}")
+    #base_project_path = _get_project_path(projects_path, scan.project_name) # Get base path for the project
+    scan_folder_path = os.path.join(projects_path, f"scan{scan.index:02d}")
     os.makedirs(scan_folder_path, exist_ok=True)
 
     scan_json_data = scan.model_dump_json(indent=2)
@@ -114,10 +113,10 @@ def _save_scan_json(scan: Scan) -> None:
         f.write(scan_json_data)
 
 
-def _load_scan_json(project_name: str, scan_index: int) -> Scan:
+def _load_scan_json(project_path: str, project_name: str, scan_index: int) -> Scan:
     """Load a scan from its JSON file"""
     # Construct the full path for the scan directory and file
-    base_project_path = _get_project_path(project_name)
+    base_project_path = _get_project_path(project_path,project_name)
     scan_folder_path = os.path.join(base_project_path, f"scan{scan_index:02d}")
     scan_file_path = os.path.join(scan_folder_path, "scan.json")
 
@@ -160,7 +159,7 @@ def save_project(project: Project):
 
     # Save each scan to its individual JSON file using the refactored _save_scan_json
     for scan in project.scans.values():
-        _save_scan_json(scan)  # scan.project_name should be correctly set in the Scan object
+        _save_scan_json(project.path, scan)  # scan.project_name should be correctly set in the Scan object
 
     # Write the main project data to openscan_project.json
     with open(project_json_path, "w") as f:
@@ -168,42 +167,12 @@ def save_project(project: Project):
 
     # Save each scan to its individual JSON file using the refactored _save_scan_json
     for scan in project.scans.values():
-        _save_scan_json(scan)  # scan.project_name should be correctly set in the Scan object
+        _save_scan_json(project.path, scan)  # scan.project_name should be correctly set in the Scan object
 
-
-def new_project(project_name: str) -> Project:
-    projects = get_projects()
-    if project_name in [project.name for project in projects]:
-        raise ValueError(f"Project {project_name} already exists")
-    project_path = _get_project_path(project_name)
-    project = Project(name=project_name, path=project_path, created=datetime.now(), scans={})
-    save_project(project)
-    return project
-
-
-def compress_project_photos(project: Project) -> IO[bytes]:
-    file = TemporaryFile()
-    with ZipFile(file, "w") as zipf:
-        counter = 1
-        for photo in project.photos:
-            zipf.write(project.path.joinpath(photo), photo)
-            print(f"{photo} - {counter}/{len(project.photos)}")
-            counter += 1
-    return file
-
-
-def split_file(file: IO[bytes]) -> list[io.BytesIO]:
-    file.seek(0, 2)
-    file.seek(0)
-
-    chunk = file.read(cloud.split_size)
-    while chunk:
-        yield io.BytesIO(chunk)
-        chunk = file.read(cloud.split_size)
 
 
 class ProjectManager:
-    def __init__(self, path=projects_path):
+    def __init__(self, path=pathlib.PurePath("projects")):
         """Initialize project manager with base path"""
         self._path = str(path)  # Ensure string path
         self._projects = {}
@@ -213,7 +182,7 @@ class ProjectManager:
             project_json = os.path.join(self._path, folder, "openscan_project.json")
             if os.path.isdir(os.path.join(self._path, folder)) and os.path.exists(project_json):
                 try:
-                    self._projects[folder] = get_project(folder)
+                    self._projects[folder] = get_project(self._path, folder)
                 except Exception as e:
                     print(f"Error loading project {folder}: {e}")
 
@@ -262,7 +231,7 @@ class ProjectManager:
         if name in self._projects.keys():
             raise ValueError(f"Project {name} already exists")
 
-        project_path = _get_project_path(name)
+        project_path = _get_project_path(self._path,name)
 
         # Create project object (Note: This will validate name, path.)
         project = Project(
@@ -313,6 +282,8 @@ class ProjectManager:
             The newly created scan if successful, None if not.
         """
         project = self.get_project_by_name(project_name)
+        if not project:
+            raise ValueError(f"Project {project_name} does not exist")
 
         if project.scans:
             sorted_scans = sorted(project.scans.values(), key=lambda scan: scan.index)
@@ -333,6 +304,8 @@ class ProjectManager:
 
 
         project.scans[f"scan{new_index:02d}"] = scan
+
+        save_project(project)
 
         return scan
 
@@ -361,9 +334,8 @@ class ProjectManager:
 
         save_project(project)
 
-    @staticmethod
-    def save(scan: Scan):
-        project = get_project(scan.project_name)
+    def save(self, scan: Scan):
+        project = get_project(self._path,scan.project_name)
         save_project(project)
 
 
