@@ -6,6 +6,7 @@ and their specific configurations.
 """
 
 import json
+import logging
 import os
 import pathlib
 from typing import Dict, List, Optional
@@ -16,43 +17,46 @@ import gphoto2 as gp
 from picamera2 import Picamera2
 
 from app.models.camera import Camera, CameraType
-from app.models.motor import Motor
+from app.models.motor import Motor, Endstop
 from app.models.light import Light
-from app.models.scanner import ScannerModel, ScannerShield
+from app.models.scanner import ScannerDevice, ScannerModel, ScannerShield
 
 from app.config.camera import CameraSettings
 from app.config.motor import MotorConfig
 from app.config.light import LightConfig
+from app.config.endstop import EndstopConfig
 from app.config.cloud import CloudSettings
 
-from app.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers
-from app.controllers.hardware.motors import create_motor_controller, get_all_motor_controllers
-from app.controllers.hardware.lights import create_light_controller, get_all_light_controllers
+from app.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers, \
+    remove_camera_controller
+from app.controllers.hardware.motors import create_motor_controller, get_all_motor_controllers, get_motor_controller, \
+    remove_motor_controller
+from app.controllers.hardware.lights import create_light_controller, get_all_light_controllers, remove_light_controller, \
+    get_light_controller
+from app.controllers.hardware.endstops import EndstopController
+from app.controllers.hardware.gpio import cleanup_all_pins
 
-
-_initialized = False
-
-# Hardware components
-_cameras = {}
-_motors = {}
-_lights = {}
-
-# Cloud settings
-cloud = None
-projects_path = pathlib.PurePath("projects")
+logger = logging.getLogger(__name__)
 
 # Current scanner model
-_device_config = {}
-current_model = None
-current_shield = None
+_scanner_device = ScannerDevice(
+    name="Unknown device",
+    model=None,
+    shield=None,
+    cameras={},
+    motors={},
+    lights={},
+    endstops={},
+    initialized=False
+)
 
 # Path to device configuration file
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent
-DEFAULT_CONFIG_FILE = BASE_DIR / "settings" / "default_minimal_config.json"
 DEVICE_CONFIG_FILE = BASE_DIR / "settings" / "device_config.json"
+DEFAULT_CAMERA_SETTINGS_FILE = BASE_DIR / "settings" / "default_camera_settings.json"
 
 
-def load_device_config(config_file=None) -> bool:
+def load_device_config(config_file=None) -> dict:
     """Load device configuration from a file
 
     Args:
@@ -62,118 +66,54 @@ def load_device_config(config_file=None) -> bool:
     Returns:
         bool: True if configuration was loaded successfully
     """
-    global current_model, current_shield, _device_config, _cameras, _motors, _lights
+    # populate default config dictionary
+    config_dict = _scanner_device.model_dump(mode='json')
+
     # Determine which configuration file to load
     if config_file is None:
         # No file specified, try to load device_config.json
-        if os.path.exists(DEVICE_CONFIG_FILE):
-            config_file = DEVICE_CONFIG_FILE
-        else:
-            # Fall back to default.json if no device_config.json exists
-            config_file = DEFAULT_CONFIG_FILE
+        if not os.path.exists(DEVICE_CONFIG_FILE):
+            # If device_config.json doesn't exist, safe default config as device_config.json
+            with open(DEVICE_CONFIG_FILE, "w") as f:
+                json.dump(config_dict, f, indent=4)
+            logger.warning("No device configuration found. Loading default configuration.")
+        config_file = DEVICE_CONFIG_FILE
     try:
-        print(f"Loading device configuration from: {config_file}")
+        logger.debug(f"Loading device configuration from: {config_file}")
         if os.path.exists(config_file):
             with open(config_file, "r") as f:
-                _device_config = json.load(f)
+                loaded_config_from_file = json.load(f)
+                config_dict.update(loaded_config_from_file)
 
                 # if a config is specified, save it as device_config.json
                 if config_file != DEVICE_CONFIG_FILE:
                     with open(DEVICE_CONFIG_FILE, "w") as f:
-                        json.dump(_device_config, f, indent=4)
-
-                # Get device info
-                current_model = ScannerModel(_device_config.get("model", "unknown"))
-                current_shield = ScannerShield(_device_config.get("shield", "unknown"))
-
-                # Get hardware devices
-                _cameras = {}
-                for cam_name, cam_settings in _device_config.get("cameras", {}).items():
-                    _cameras[cam_name] = cam_settings
-
-                _motors = {}
-                for motor_name, motor_settings in _device_config.get("motors", {}).items():
-                    _motors[motor_name] = motor_settings
-
-                _lights = {}
-                for light_name, light_settings in _device_config.get("lights", {}).items():
-                    _lights[light_name] = light_settings
-
-                print(f"Loaded device configuration: {_device_config.get('name', 'Unknown device')}")
-                return True
+                        json.dump(config_dict, f, indent=4)
+            logger.info(f"Loaded device configuration for: {config_dict['name']} with {config_dict['shield']}")
     except Exception as e:
-        print(f"Error loading device configuration: {e}")
-        return False
+        logger.error(f"Error loading device configuration: {e}")
+
+    return config_dict
 
 
 def save_device_config() -> bool:
     """Save the current device configuration to device_config.json"""
+    #global _scanner_device
+
     try:
         os.makedirs(os.path.dirname(DEVICE_CONFIG_FILE), exist_ok=True)
 
+        serialized_device = _scanner_device.model_dump(mode='json')
+
         with open(DEVICE_CONFIG_FILE, "w") as f:
-            json.dump(_device_config, f, indent=4)
+            json.dump(serialized_device, f, indent=4)
 
-        print(f"Saved device configuration to: {DEVICE_CONFIG_FILE}")
+        logger.info(f"Saved device configuration to: {DEVICE_CONFIG_FILE}")
         return True
     except Exception as e:
-        print(f"Error saving device configuration: {e}")
+        logger.error(f"Error saving device configuration: {e}")
         return False
 
-
-def update_device_config() -> bool:
-    """Update the device configuration with current hardware state
-
-    This function updates the global _device_config object with the current
-    state of all hardware components (cameras, motors, lights). Call this
-    function after making changes to hardware settings before saving the config.
-
-    Returns:
-        bool: True if the update was successful, False otherwise
-    """
-    global _device_config
-
-    try:
-        # Update cameras configuration
-        camera_controllers = get_all_camera_controllers()
-        for cam_name, camera_data in _cameras.items():
-            if cam_name in camera_controllers:
-                _device_config["cameras"][cam_name]["settings"] = camera_controllers[cam_name].settings.dict()
-
-
-        # Update motors configuration
-        motor_controllers = get_all_motor_controllers()
-        for motor_name, motor_data in _motors.items():
-            if motor_name in motor_controllers:
-                _device_config["motors"][motor_name]["settings"] = motor_controllers[motor_name].settings.dict()
-
-        # Update lights configuration
-        light_controllers = get_all_light_controllers()
-        for light_name, light_data in _lights.items():
-            if light_name in light_controllers:
-                _device_config["lights"][light_name]["settings"] = light_controllers[light_name].settings.dict()
-
-        return True
-    except Exception as e:
-        print(f"Error updating device configuration: {e}")
-        return False
-
-
-def update_and_save_device_config() -> bool:
-    """Update the device configuration with current hardware state and save it
-
-    This is a convenience function that calls update_device_config() and then
-    save_device_config() to update and save the configuration in one step.
-
-    Args:
-        config_file: Path to save the configuration. If None, uses the current config file.
-
-    Returns:
-        bool: True if both update and save were successful, False otherwise
-    """
-    if update_device_config():
-        return save_device_config()
-    return False
 
 def set_device_config(config_file) -> bool:
     """Set the device configuration from a file and initialize hardware
@@ -184,21 +124,21 @@ def set_device_config(config_file) -> bool:
     Returns:
         bool: True if successful, False otherwise
     """
-    if load_device_config(config_file):
-        initialize()
-        return True
-    return False
+
+    initialize(load_device_config(config_file))
+    return True
 
 def get_scanner_model():
     """Get the current scanner model"""
-    return current_model
+    return _scanner_device.model
+
 
 def get_device_info():
     """Get information about the device"""
     return {
-        "name": _device_config.get("name", "Unknown device"),
-        "model": current_model.value if current_model else "unknown",
-        "shield": current_shield.value if current_shield else "unknown",
+        "name": _scanner_device.name,
+        "model": _scanner_device.model,
+        "shield": _scanner_device.shield,
         "cameras": {name: controller.get_status() for name, controller in get_all_camera_controllers().items()},
         "motors": {name: controller.get_status() for name, controller in get_all_motor_controllers().items()},
         "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()}
@@ -210,7 +150,7 @@ def _load_camera_config(settings: dict) -> CameraSettings:
         return CameraSettings(**settings)
     except Exception as e:
         # Return default settings if error occured
-        print("Error loading camera settings: ", e)
+        logger.error("Error loading camera settings: ", e)
         return CameraSettings()
 
 def _load_motor_config(settings: dict) -> MotorConfig:
@@ -219,29 +159,41 @@ def _load_motor_config(settings: dict) -> MotorConfig:
         return MotorConfig(**settings)
     except Exception as e:
         # Return default settings if error occured
-        print("Error loading motor settings: ", e)
+        logger.error("Error loading motor settings: ", e)
         return MotorConfig()
 
 def _load_light_config(settings: dict) -> LightConfig:
     """Load light configuration for the current model"""
-    # Get absolute path to settings
     try:
-        pins = settings.get("pins")
-        pin = settings.get("pin")
-        if pin is not None and pins is None:
-            settings["pins"] = [pin]
-        elif pins is None:
-            settings["pins"] = []
         return LightConfig(**settings)
     except Exception as e:
         # Return default settings if error occured
-        print("Error loading light settings: ", e)
+        logger.error("Error loading light settings: ", e)
         return LightConfig()
+
+def _load_endstop_config(settings: dict) -> EndstopConfig:
+    """Load endstop configuration"""
+    try:
+        return EndstopConfig(**settings)
+    except Exception as e:
+        # Return default settings if error occured
+        logger.error("Error loading endstop settings: ", e)
+        return EndstopConfig()
 
 def _detect_cameras() -> Dict[str, Camera]:
     """Get a list of available cameras"""
-    print("Loading cameras...")
+    logger.debug("Loading cameras...")
+
+    global _scanner_device
+
+    for camera_controller in get_all_camera_controllers():
+        remove_camera_controller(camera_controller)
+
     cameras = {}
+
+    # Load default camera settings
+    with open(DEFAULT_CAMERA_SETTINGS_FILE, "r") as f:
+        camera_default_settings = json.load(f)
 
     # Get Linux cameras
     try:
@@ -257,7 +209,7 @@ def _detect_cameras() -> Dict[str, Camera]:
                 )
             cam.close()
     except Exception as e:
-        print(f"Error loading Linux cameras: {e}")
+        logger.error(f"Error loading Linux cameras: {e}")
 
     # Get GPhoto2 cameras
     try:
@@ -270,7 +222,7 @@ def _detect_cameras() -> Dict[str, Camera]:
                 settings=None
             )
     except Exception as e:
-        print(f"Error loading GPhoto2 cameras: {e}")
+        logger.error(f"Error loading GPhoto2 cameras: {e}")
 
     # Get Picamera2
     try:
@@ -280,52 +232,63 @@ def _detect_cameras() -> Dict[str, Camera]:
             type=CameraType.PICAMERA2,
             name=picam_name,
             path="/dev/video" + str(picam.camera_properties.get("Location")),
-            settings=_load_camera_config(picam_name)
+            settings=_load_camera_config(camera_default_settings[picam_name])
         )
         picam.close()
         del picam
+
     except Exception as e:
-        print(f"Error loading Picamera2: {e}")
+        logger.error(f"Error loading Picamera2: {e}")
 
     return cameras
 
-def initialize(detect_cameras = False):
+
+def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_cameras = False):
     """Detect and load hardware components"""
-    global _cameras, _motors, _lights, _initialized, cloud
+    global _scanner_device
     # Load environment variables
     load_dotenv()
+
+    # if already initialized, remove all controllers for reinitializing
+    if _scanner_device.initialized:
+        logger.debug("Hardware already initialized. Cleaning up old controllers.")
+        for controller in get_all_motor_controllers():
+            remove_motor_controller(controller)
+        for controller in get_all_light_controllers():
+            remove_light_controller(controller)
+        logger.debug("Cleaned up old controllers.")
 
     # Detect hardware
     if detect_cameras:
         camera_objects = _detect_cameras()
-        _cameras = camera_objects
     else:
         camera_objects = {}
-        for cam_name in _cameras:
+        for cam_name in config["cameras"]:
             camera = Camera(
                 name=cam_name,
-                type=CameraType(_cameras[cam_name]["type"]),
-                path=_cameras[cam_name]["path"],
-                settings=_load_camera_config(_cameras[cam_name]["settings"])
+                type=CameraType(config["cameras"][cam_name]["type"]),
+                path=config["cameras"][cam_name]["path"],
+                settings=_load_camera_config(config["cameras"][cam_name]["settings"])
             )
             camera_objects[cam_name] = camera
-        _cameras = camera_objects
 
     # Create motor objects
     motor_objects = {}
-    for motor_name in _motors:
+    for motor_name in config["motors"]:
         motor = Motor(name=motor_name,
-        settings=_load_motor_config(_motors[motor_name]))
+        settings=_load_motor_config(config["motors"][motor_name]))
         motor_objects[motor_name] = motor
+        logger.debug(f"Loaded motor {motor_name} with settings: {motor.settings}")
 
     # Create light objects
     light_objects = {}
-    for light_name in _lights:
+    for light_name in config["lights"]:
         light = Light(
-            name=_lights[light_name]["name"],
-            settings=_load_light_config(_lights[light_name])
+            name=config["lights"][light_name]["name"],
+            settings=_load_light_config(config["lights"][light_name])
         )
         light_objects[light_name] = light
+        logger.debug(f"Loaded light {light_name} with settings: {light.settings}")
 
     # Cloud settings
     cloud = CloudSettings(
@@ -340,21 +303,52 @@ def initialize(detect_cameras = False):
         try:
             create_camera_controller(camera)
         except Exception as e:
-            print(f"Error initializing camera controller for {name}: {e}")
+            logger.error(f"Error initializing camera controller for {name}: {e}")
 
     for name, motor in motor_objects.items():
         try:
             create_motor_controller(motor)
         except Exception as e:
-            print(f"Error initializing motor controller for {name}: {e}")
+            logger.error(f"Error initializing motor controller for {name}: {e}")
 
-    for name, light in light_objects.items():
+    # Create endstop objects
+    endstop_objects = {}
+    for endstop_name in config["endstops"]:
+        settings = _load_endstop_config(config["endstops"][endstop_name])
+        try:
+            endstop = Endstop(name=config["endstops"][endstop_name],
+                              settings=_load_endstop_config(config["endstops"][endstop_name]))
+            endstop_controller = EndstopController(endstop, controller=get_motor_controller(settings.motor_name))
+            endstop_objects[endstop_name] = endstop
+            logging.debug(f"Loaded endstop {endstop_name} with settings: {endstop.settings}")
+            endstop_controller.start_listener()
+        except Exception as e:
+            logger.error(f"Error initializing endstop '{endstop_name}': {e}")
+
+
+    for name, controller in light_objects.items():
         try:
             create_light_controller(light)
         except Exception as e:
-            print(f"Error initializing light controller for {name}: {e}")
+            logger.error(f"Error initializing light controller for {name}: {e}")
 
-    _initialized = True
+    # turn on lights
+    for _, controller in get_all_light_controllers().items():
+        controller.turn_on()
+
+
+    _scanner_device = ScannerDevice(
+        name=config["name"],
+        model=config["model"],
+        shield=config["shield"],
+        cameras=camera_objects,
+        motors=motor_objects,
+        lights=light_objects,
+        endstops=endstop_objects,
+        initialized=True
+    )
+    logger.info("Hardware initialized.")
+    logger.debug(f"Initialized ScannerDevice: {_scanner_device.model_dump(mode='json')}.")
 
 def get_available_configs():
     """Get a list of all available device configuration files
@@ -390,9 +384,6 @@ def get_available_configs():
 
     return configs
 
-# Load device config and initialize hardware
-load_device_config()
-
 
 def reboot(with_saving = False):
     if with_saving:
@@ -404,3 +395,8 @@ def shutdown(with_saving = False):
     if with_saving:
         save_device_config()
     os.system("sudo shutdown now")
+
+
+def cleanup_and_exit():
+    cleanup_all_pins()
+    logger.info("Exiting now...")

@@ -14,25 +14,25 @@ router = APIRouter(
 @router.get("/")
 async def get_pins():
     """Get all initialized GPIO pins"""
-    return gpio.get_pins()
+    return gpio.get_initialized_pins()
 
 
 @api_version(0,1)
 @router.get("/{pin_id}", response_model=bool)
 async def get_pin(pin_id: int):
     """Get output value of a specific GPIO pin"""
-    return gpio.get_pin(pin_id)
+    return gpio.get_output_pin(pin_id)
 
 
 @api_version(0,1)
 @router.patch("/{pin_id}")
 async def set_pin(pin_id: int, status: bool):
     """Set GPIO pin output value"""
-    return gpio.set_pin(pin_id, status)
+    return gpio.set_output_pin(pin_id, status)
 
 
 @api_version(0,1)
 @router.patch("/{pin_id}/toggle")
 async def toggle_pin(pin_id: int):
     """Toggle GPIO pin output value"""
-    return gpio.toggle_pin(pin_id)
+    return gpio.toggle_output_pin(pin_id)

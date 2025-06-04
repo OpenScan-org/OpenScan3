@@ -1,12 +1,9 @@
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from pydantic import BaseModel
 
 from app.config.light import LightConfig
 
 
-@dataclass
-class Light:
+class Light(BaseModel):
     name: str
 
     settings: LightConfig

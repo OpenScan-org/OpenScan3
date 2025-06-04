@@ -75,12 +75,12 @@ async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequ
 @api_version(0,1)
 @router.patch("/configurations/current")
 async def save_device_config():
-    if device.update_and_save_device_config():
+    if device.save_device_config():
         return {"status": "success",
                 "message": "Configuration saved successfully",
                 "info": device.get_device_info()}
-    return device.save_device_config()
-
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save device configuration")
 
 @api_version(0,1)
 @router.put("/configurations/current")
@@ -132,7 +132,7 @@ async def set_config_file(config_data: DeviceConfigRequest):
 async def reinitialize_hardware(detect_cameras: bool = False):
     """Reinitialize hardware components"""
     try:
-        device.initialize(detect_cameras)
+        device.initialize(detect_cameras=detect_cameras)
         return {"status": "success", "info": device.get_device_info()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reloading hardware: {str(e)}")
