@@ -64,6 +64,14 @@ class MotorController(StatefulHardware):
         self._stop_requested = True
 
     def _normalize_target_angle(self, desired_angle: float) -> float:
+        """Normalize the target angle to the range [min_angle, max_angle].
+
+        Args:
+            desired_angle: Target angle in degrees.
+
+        Returns:
+            Normalized target angle in degrees.
+        """
         min_limit = self.settings.min_angle
         max_limit = self.settings.max_angle
 
@@ -199,12 +207,20 @@ class MotorController(StatefulHardware):
 
         self._stop_requested = False # Reset stop flag before moving
 
-        target_degrees = self._normalize_target_angle(self.model.angle + degrees)
+        target_angle = self._normalize_target_angle(self.model.angle + degrees)
 
         spr = self.settings.steps_per_rotation
         direction = self.settings.direction
-        step_count = int(degrees * spr / 360) * direction
-        await self._execute_movement(step_count, target_degrees) # Pass spr for angle calculation
+
+        if self.settings.min_angle == 0.0 and self.settings.max_angle == 360.0:
+            print("Motor is unrestricted, no need to clamp angles")
+            step_count = int(degrees * spr / 360) * direction
+        else:
+            print("Clamping angles")
+            degrees_to_move = target_angle - self.model.angle
+            step_count = int(degrees_to_move * spr / 360) * direction
+
+        await self._execute_movement(step_count, target_angle) # Pass spr for angle calculation
 
 
     def _pre_calculate_step_times(self, steps: int, min_interval=0.0001) -> List[float]:

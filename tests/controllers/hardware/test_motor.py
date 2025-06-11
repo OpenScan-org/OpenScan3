@@ -40,7 +40,6 @@ MOVE_TO_CASES = [
 ]
 
 
-# --- Fixtures ---
 @pytest.fixture
 def motor_config_instance():
     """Provides a MotorConfig instance for tests."""
@@ -152,3 +151,100 @@ async def test_move_to(motor_controller_instance, motor_model_instance, mocked_d
     else:
         assert motor_model.angle == pytest.approx(expected_angle, abs=1), \
             f"Angle mismatch for move_to({target_val}) from {initial_angle}"
+
+
+# --- Test Clamping ---
+
+@pytest.fixture
+def motor_config_clamping_instance():
+    """Provides a MotorConfig instance for tests."""
+    return MotorConfig(
+        direction_pin=1, enable_pin=2, step_pin=3,
+        acceleration=20000, max_speed=7500,
+        min_angle=0, max_angle=150,
+        direction=1, steps_per_rotation=3200
+    )
+
+
+@pytest.fixture
+def motor_model_clamping_instance(motor_config_clamping_instance):
+    """Provides a Motor model instance, initialized at angle 0."""
+    return Motor(name="test_motor", settings=motor_config_clamping_instance, angle=90.0)
+
+@pytest.fixture
+def motor_controller_clamping_instance(motor_model_clamping_instance, motor_config_clamping_instance, mocked_dependencies, mocker):
+    """Provides a MotorController instance with mocked dependencies."""
+    # Ensure motor_model_instance is correctly passed if found
+    controller = MotorController(motor=motor_model_clamping_instance) # Corrected argument name
+    controller.is_busy = MagicMock(return_value=False)
+    controller._stop_requested = False
+    # If MotorController explicitly creates/uses an executor, e.g. self._executor,
+    # you might need to mock it if it's not implicitly handled by mocking run_in_executor's loop.
+    # controller._executor = MagicMock() # Example if it has its own executor instance
+    return controller
+
+MOVE_DEGREES_CASES = [
+    # (initial_angle, move_degrees_val, expected_final_angle)
+    (0, 90, 90.0),
+    (0, -90, 0.0),
+    (100, 90, 150.0),
+    (160, -20, 140.0),
+]
+
+MOVE_TO_CASES = [
+    # (initial_angle, target_degrees_val, expected_final_angle)
+    (0, 90, 90.0),
+    (0, 200, 150.0),
+    (90, -20, 150.0), # because normalization happens before clamping...
+    (0, -20, 150.0), # ... so it normalizes -20 to 340 and clamps to 150 in both cases
+]
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("initial_angle, move_val, expected_angle", MOVE_DEGREES_CASES)
+async def test_move_degrees_with_clamping(motor_controller_clamping_instance, motor_model_clamping_instance, mocked_dependencies,
+                            initial_angle, move_val, expected_angle):
+    """Tests move_degrees method: motor.angle should be updated correctly."""
+    controller = motor_controller_clamping_instance
+    motor_model = motor_model_clamping_instance
+
+    motor_model.angle = float(initial_angle)
+    controller._stop_requested = False
+
+    mocked_dependencies["gpio"].reset_mock()
+    mocked_dependencies["time_sleep"].reset_mock()
+    mocked_dependencies["math_cos"].reset_mock()
+    mocked_dependencies["run_in_executor"].reset_mock()
+
+
+    await controller.move_degrees(float(move_val))
+
+    assert motor_model.angle == pytest.approx(expected_angle, abs=1), \
+        f"Angle mismatch for move_degrees({move_val}) from {initial_angle}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("initial_angle, target_val, expected_angle", MOVE_TO_CASES)
+async def test_move_to_with_clamping(motor_controller_clamping_instance, motor_model_clamping_instance, mocked_dependencies,
+                       initial_angle, target_val, expected_angle):
+    """Tests move_to method: motor.angle should be set to the target angle (% 360)."""
+    controller = motor_controller_clamping_instance
+    motor_model = motor_model_clamping_instance
+
+    motor_model.angle = float(initial_angle)
+    controller._stop_requested = False
+
+    mocked_dependencies["gpio"].reset_mock()
+    mocked_dependencies["time_sleep"].reset_mock()
+    mocked_dependencies["math_cos"].reset_mock()
+    mocked_dependencies["run_in_executor"].reset_mock()
+
+    await controller.move_to(float(target_val))
+
+    # Treat -180 and 180 as equivalent
+    if expected_angle == 180.0:
+        assert motor_model.angle == pytest.approx(180.0, abs=1) or motor_model.angle == pytest.approx(-180.0, abs=1), \
+            f"Angle mismatch for move_to({target_val}) from {initial_angle} (expected ±180°)"
+    else:
+        assert motor_model.angle == pytest.approx(expected_angle, abs=1), \
+            f"Angle mismatch for move_to({target_val}) from {initial_angle}"
+
