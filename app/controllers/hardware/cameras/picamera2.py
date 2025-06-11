@@ -1,3 +1,11 @@
+"""
+Picamera2 Controller
+
+This module provides a CameraController class for controlling the picamera2 camera.
+
+"""
+
+import logging
 import time
 
 import cv2
@@ -10,6 +18,8 @@ from picamera2 import Picamera2
 from app.controllers.hardware.cameras.camera import CameraController
 from app.models.camera import Camera
 from app.config.camera import CameraSettings
+
+logger = logging.getLogger(__name__)
 
 class CameraStrategy:
     """Base strategy class for camera-specific configurations and processing"""
@@ -31,6 +41,7 @@ class CameraStrategy:
         return frame
 
 class IMX519Strategy(CameraStrategy):
+    """Strategy class for camera-specific configurations and processing for the Arducam IMX519 camera with 16MP."""
     def create_preview_config(self, picam: Picamera2, preview_resolution=None):
         self.photogrammetry_settings.pop("ScalerCrop", None)
         if preview_resolution is None:
@@ -60,6 +71,7 @@ class IMX519Strategy(CameraStrategy):
 
 
 class HawkeyeStrategy(CameraStrategy):
+    """Strategy class for camera-specific configurations and processing for the Arducam Hawkeye camera with 64MP."""
     def create_preview_config(self, picam: Picamera2, preview_resolution=None):
         # adjust crop to match photo config
         # known limitation: fov is still not identical, preview image is slightly larger
@@ -114,6 +126,7 @@ class Picamera2Controller(CameraController):
         self._picam.start()
 
         self._apply_settings_to_hardware(self.camera.settings)
+        self._configure_focus(camera_mode="preview")
 
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
@@ -132,6 +145,7 @@ class Picamera2Controller(CameraController):
         if red_gain is not None and blue_gain is not None:
             self._picam.set_controls({'ColourGains': (red_gain, blue_gain)})
         self._busy = False
+        logger.debug(f"Applied settings to hardware: {settings.model_dump_json()}")
 
 
     def _configure_resolutions(self):
@@ -194,6 +208,7 @@ class Picamera2Controller(CameraController):
                         "AfMode": controls.AfModeEnum.Auto,
                         "AfSpeed": controls.AfSpeedEnum.Fast
                     })
+            logger.info(f"Auto focus enabled with AFWindow: {af_window}")
 
         else:
             # configure manual focus mode
@@ -208,9 +223,11 @@ class Picamera2Controller(CameraController):
             start = time.time()
             while abs(self._picam.capture_metadata()["LensPosition"] - target_focus) > tolerance:
                 if time.time() - start > 5:
-                    print(f"Warning: Focus timeout! Target: {target_focus}, Current: {self._picam.capture_metadata()['LensPosition']}")
+                    logger.warning(f"Warning: Focus timeout! Target: {target_focus}, Current: {self._picam.capture_metadata()['LensPosition']}")
                     break
                 time.sleep(0.05) # wait for focus to be applied
+
+            logger.info(f"Manual focus enabled, current Focus set to: {self._picam.capture_metadata()['LensPosition']}")
 
 
     def restart_camera(self):
@@ -219,6 +236,7 @@ class Picamera2Controller(CameraController):
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
         self._picam.start()
+        logger.info(f"Picamera2 restarted.")
 
 
     def photo(self) -> IO[bytes]:
@@ -238,16 +256,22 @@ class Picamera2Controller(CameraController):
             self._picam.autofocus_cycle()
 
         array = self._picam.switch_mode_and_capture_array(self.photo_config, "main")
+        logger.debug(f"Captured photo array with metadata: {self._picam.capture_metadata()}")
+
+        # reset focus to preview
+        self._configure_focus(camera_mode="preview")
 
         if self.settings.crop_height > 0 or self.settings.crop_width > 0:
             y_start, y_end, x_start, x_end = self._configure_cropping()
             array = array[y_start:y_end, x_start:x_end]
+            logger.debug(f"Cropped photo array.")
 
         array = cv2.rotate(array, cv2.ROTATE_90_COUNTERCLOCKWISE)
         array = self._strategy.process_photo_frame(array)
 
         _, jpeg = cv2.imencode('.jpg', array,
                                [int(cv2.IMWRITE_JPEG_QUALITY), self.settings.jpeg_quality])
+        logger.debug(f"Converted photo array to JPEG with quality {self.settings.jpeg_quality}.")
         self._busy = False
         return jpeg.tobytes()
 
@@ -264,7 +288,7 @@ class Picamera2Controller(CameraController):
         Returns:
             IO[bytes]: A file-like object containing the JPEG image.
         """
-        self._configure_focus(camera_mode="preview")
+        #self._configure_focus(camera_mode="preview")
 
         frame = self._picam.capture_array(mode)
 
@@ -343,10 +367,15 @@ def _transform_settings_to_camera_coordinates(setting_coordinates: tuple[int, in
         cam_h = settings_width
     else:
         # This case should not be reached due to modulo 4, but as a fallback:
+        logger.error("Invalid norm rotation value")
         raise ValueError(f"Unexpected normalized rotation: {norm_rotation}")
 
     # Check if the window is outside the camera sensor boundaries
     if cam_x + cam_w > resolution_x or cam_y + cam_h > resolution_y:
+        logger.error(
+            f"Calculated AF window (x:{cam_x}, y:{cam_y}, w:{cam_w}, h:{cam_h}) "
+            f"is outside the native camera sensor boundaries ({resolution_x}x{resolution_y}). "
+            f"Original user settings: AF_window=({setting_x}, {setting_y}, {settings_width}, {setting_height}), ")
         raise ValueError(
             f"Calculated AF window (x:{cam_x}, y:{cam_y}, w:{cam_w}, h:{cam_h}) "
             f"is outside the native camera sensor boundaries ({resolution_x}x{resolution_y}). "

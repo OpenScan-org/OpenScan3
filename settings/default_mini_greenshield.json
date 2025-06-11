@@ -11,6 +11,8 @@
                 "shutter": 40000,
                 "saturation": 1.0,
                 "contrast": 1.0,
+                "awbg_red": 1.878318190574646,
+                "awbg_blue": 1.7744160890579224,
                 "AF": true,
                 "gain": 1.0,
                 "jpeg_quality": 70
