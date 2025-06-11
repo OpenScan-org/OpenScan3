@@ -103,10 +103,18 @@ def save_device_config() -> bool:
     try:
         os.makedirs(os.path.dirname(DEVICE_CONFIG_FILE), exist_ok=True)
 
-        serialized_device = _scanner_device.model_dump(mode='json')
+        config_to_save = {
+            "name": _scanner_device.name,
+            "model": _scanner_device.model.value,
+            "shield": _scanner_device.shield.value,
+            "cameras": {name: cam.model_dump(mode='json') for name, cam in _scanner_device.cameras.items()},
+            "motors": {name: motor.settings.model_dump(mode='json') for name, motor in _scanner_device.motors.items()},
+            "lights": {name: light.settings.model_dump(mode='json') for name, light in _scanner_device.lights.items()},
+            "endstops": {name: endstop.model_dump(mode='json') for name, endstop in _scanner_device.endstops.items()}
+        }
 
         with open(DEVICE_CONFIG_FILE, "w") as f:
-            json.dump(serialized_device, f, indent=4)
+            json.dump(config_to_save, f, indent=4)
 
         logger.info(f"Saved device configuration to: {DEVICE_CONFIG_FILE}")
         return True
