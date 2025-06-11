@@ -6,6 +6,7 @@ import requests
 #from app.config import config
 from app.config import cloud
 from app.controllers.services import projects
+from app.models.project import Project
 
 
 def _cloud_request(method: str, path: str, params=None) -> requests.Response:
@@ -87,3 +88,13 @@ def get_project_info(project_name: str) -> dict[str, Any]:
     return _cloud_request(
         "get", "getProjectInfo", params={"project": project_name}
     )
+
+def compress_project_photos(project: Project) -> IO[bytes]:
+    file = TemporaryFile()
+    with ZipFile(file, "w") as zipf:
+        counter = 1
+        for photo in project.photos:
+            zipf.write(project.path.joinpath(photo), photo)
+            print(f"{photo} - {counter}/{len(project.photos)}")
+            counter += 1
+    return file

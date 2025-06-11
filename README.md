@@ -20,9 +20,8 @@ To run a copy of the firmware in your Raspberry Pi you can follow of two routes
 
 ## Install OpenScan Image (Recommended)
 
-1. Download the latest image from [dropbox](https://www.dropbox.com/scl/fi/4js93yb49jcwrcr3um77e/OpenScan_2024-11-19-raspios-bookworm-armhf-lite.img.xz?rlkey=8vhj7ve2to9hbv7twhyatmgaf&st=c3i30jtu&dl=0)
-2. Unzip the archive
-3. Write the image to an SD card using dd or Raspi Imager
+1. Download the latest image from [openscan.eu](https://openscan.eu/pages/resources-downloads)
+2. Write the image to an SD card using dd (unzip first) or Raspi Imager (without custom settings!)
 
 or patch your own image: https://github.com/esto-openscan/OpenScan3-image-patcher
 
