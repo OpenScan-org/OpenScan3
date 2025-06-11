@@ -65,13 +65,15 @@ async def get_preview(camera_name: str):
             scan_manager = get_active_scan_manager()
             scan_busy = scan_manager and scan_manager._scan.status == ScanStatus.RUNNING
 
-            # Adjust sleep time based on motor or scan status
-            sleep_time = 0.7 if (motor_busy or scan_busy) else 0.02
+            # Stop preview (wait) if motor or scan is busy, otherwise continue with 0.02s delay
+            if motor_busy or scan_busy:
+                await asyncio.sleep(0.1)  # Small sleep to prevent busy waiting
+                continue  # Skip frame generation and yield
 
             frame = controller.preview()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            await asyncio.sleep(sleep_time)
+            await asyncio.sleep(0.02)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace;boundary=frame")
 

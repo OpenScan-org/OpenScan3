@@ -5,19 +5,19 @@ from fastapi.encoders import jsonable_encoder
 from typing import AsyncGenerator, Tuple, Optional, TYPE_CHECKING
 from datetime import datetime
 
-
 from config.scan import ScanSetting
 from app.controllers.hardware import gpio
 from app.controllers.hardware.motors import get_motor_controller
 from app.controllers.services.projects import ProjectManager
 from app.controllers.hardware.cameras.camera import CameraController, get_camera_controller
 from app.models.camera import Camera
-from app.models.paths import CartesianPoint3D, PolarPoint3D
+from app.models.paths import CartesianPoint3D, PolarPoint3D, PathMethod
 from app.models.scan import Scan, ScanStatus
 from app.utils.paths import paths
+from app.utils.paths.optimization import PathOptimizer
 
 
-async def move_to_point(point: paths.PolarPoint3D):
+async def move_to_point(point: PolarPoint3D):
     """Move motors to specified polar coordinates"""
     # Get motor controllers
     turntable = get_motor_controller("turntable")
@@ -32,6 +32,67 @@ async def move_to_point(point: paths.PolarPoint3D):
         turntable.move_to(point.fi),
         rotor.move_to(point.theta)
     )
+
+
+def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
+    """
+    Generate scan path based on settings, with optional optimization
+
+    Args:
+        scan_settings: Scan configuration including path method and optimization settings
+
+    Returns:
+        List of polar points representing the scan path
+    """
+
+    # Generate constrained path
+    if scan_settings.path_method == PathMethod.FIBONACCI:
+        path = paths.get_constrained_path(
+            method=scan_settings.path_method,
+            num_points=scan_settings.points,
+            min_theta=scan_settings.min_theta,
+            max_theta=scan_settings.max_theta
+        )
+    else:
+        raise ValueError(f"Path method {scan_settings.path_method} not implemented")
+
+
+    # Optimize path if requested
+    if scan_settings.optimize_path:
+
+        # Get motor controllers for optimization parameters
+        rotor_controller = get_motor_controller("rotor")
+        turntable_controller = get_motor_controller("turntable")
+
+        # Create optimizer with motor parameters
+        optimizer = PathOptimizer(
+            rotor_spr=rotor_controller.settings.steps_per_rotation,
+            rotor_acceleration=rotor_controller.settings.acceleration,
+            rotor_max_speed=rotor_controller.settings.max_speed,
+            turntable_spr=turntable_controller.settings.steps_per_rotation,
+            turntable_acceleration=turntable_controller.settings.acceleration,
+            turntable_max_speed=turntable_controller.settings.max_speed
+        )
+
+        # Calculate times for comparison
+        start_position = PolarPoint3D(
+            theta=rotor_controller.model.angle,
+            fi=turntable_controller.model.angle,
+            r=1.0
+        )
+
+        original_time, _ = optimizer.calculate_path_time(path, start_position)
+
+        # Optimize the path
+        optimized_path = optimizer.optimize_path(
+            path,
+            algorithm=scan_settings.optimization_algorithm,
+            start_position=start_position
+        )
+
+        return optimized_path
+
+    return path
 
 
 class ScanManager:
@@ -194,8 +255,8 @@ class ScanManager:
             self._update_status(ScanStatus.ERROR, str(e))
             print(f"Error during scan: {e}")
 
-
-    async def scan_async(self, camera_controller: CameraController, start_from_step: int = 0) -> AsyncGenerator[Tuple[int, int], None]:
+    async def scan_async(self, camera_controller: CameraController, start_from_step: int = 0) -> AsyncGenerator[
+        Tuple[int, int], None]:
         """Run a scan asynchronously with pause/resume/cancel support
 
         This method is designed to be used as an async generator. The generator
@@ -216,7 +277,8 @@ class ScanManager:
         scan = self._scan
         project_manager = self._project_manager
 
-        path = paths.get_path(scan.settings.path_method, scan.settings.points)
+        # Generate optimized scan path
+        path = generate_scan_path(scan.settings)
         total = len(path)
 
         # Photo queue for asynchronous save
@@ -235,8 +297,9 @@ class ScanManager:
 
         save_task = asyncio.create_task(save_photos())
 
-        # remove points before start_from_step
-        path = path[start_from_step:]
+        # Filter points for resuming from specific step
+        if start_from_step > 0:
+            path = path[start_from_step:]
 
         next_point = None
         focus_stacking = False
@@ -271,15 +334,12 @@ class ScanManager:
 
                 photo_info = {"position": index + start_from_step}
 
-                # prepare next coordinate
-                if index < total - 1:
-                    next_point = paths.cartesian_to_polar(path[index + 1])
-
-                # current position
-                current_polar = paths.cartesian_to_polar(current_point)
+                # prepare next coordinate for concurrent movement
+                if index < len(path) - 1:
+                    next_point = path[index + 1]
 
                 # move to current position
-                await move_to_point(current_polar)
+                await move_to_point(current_point)
 
                 # Start moving to next point early if it exists
                 move_task = asyncio.create_task(move_to_point(next_point)) if next_point else None
