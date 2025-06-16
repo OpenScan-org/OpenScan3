@@ -18,6 +18,8 @@ from app.models.project import Project
 from app.config.scan import ScanSetting
 from app.models.scan import Scan, ScanStatus
 
+from app.controllers.services.projects import get_project_manager
+
 router = APIRouter(
     prefix="/projects",
     tags=["projects"],
@@ -41,13 +43,13 @@ class ScanControlResponse(BaseModel):
     scan: Scan
 
 
-project_manager = projects.ProjectManager(str(pathlib.PurePath("projects")))
-
+#project_manager = get_project_manager()
 
 @api_version(0,1)
 @router.get("/", response_model=dict[str, Project])
 async def get_projects():
     """Get all projects with serialized data"""
+    project_manager = get_project_manager()
     projects_dict = project_manager.get_all_projects()
     # Convert to serializable format
     return {name: jsonable_encoder(project) for name, project in projects_dict.items()}
@@ -57,6 +59,7 @@ async def get_projects():
 @router.get("/{project_name}", response_model=Project)
 async def get_project(project_name: str):
     """Get a project"""
+    project_manager = get_project_manager()
     try:
         return jsonable_encoder(project_manager.get_project_by_name(project_name))
     except FileNotFoundError:
@@ -67,6 +70,7 @@ async def get_project(project_name: str):
 @router.delete("/{project_name}", response_model=bool)
 async def delete_project(project_name: str):
     """Delete a project"""
+    project_manager = get_project_manager()
     try:
         return project_manager.delete_project(projects.get_project(project_name))
     except FileNotFoundError:
@@ -86,6 +90,7 @@ async def delete_photos(project_name: str, scan_index: int, photo_filenames: lis
     Returns:
         True if the photos were deleted successfully, False otherwise
     """
+    project_manager = get_project_manager()
     try:
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         return project_manager.delete_photos(scan, photo_filenames)
@@ -96,6 +101,7 @@ async def delete_photos(project_name: str, scan_index: int, photo_filenames: lis
 @router.post("/{project_name}", response_model=Project)
 async def new_project(project_name: str):
     """Create a new project"""
+    project_manager = get_project_manager()
     try:
         return project_manager.add_project(project_name)
     except ValueError:
@@ -106,6 +112,7 @@ async def new_project(project_name: str):
 async def new_project(project_name: str, project_description: Optional[str] = ""):
     """Create a new project"""
     try:
+        project_manager = get_project_manager()
         return project_manager.add_project(project_name, project_description)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
@@ -114,6 +121,7 @@ async def new_project(project_name: str, project_description: Optional[str] = ""
 @router.post("/{project_name}/scan", response_model=Scan)
 async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetting):
     """Add a new scan to a project"""
+    project_manager = get_project_manager()
     controller = get_camera_controller(camera_name)
     scan = project_manager.add_scan(project_name, controller, scan_settings)
 
@@ -131,6 +139,7 @@ async def add_scan_with_description(project_name: str,
                    scan_description:  Optional[str] = ""):
     """Add a new scan to a project"""
     controller = get_camera_controller(camera_name)
+    project_manager = get_project_manager()
     scan = project_manager.add_scan(project_name, controller, scan_settings, scan_description)
 
     scan_manager = get_scan_manager(scan, project_manager)
@@ -145,6 +154,7 @@ async def add_scan_with_description(project_name: str,
 async def get_scan(project_name: str, scan_index: int):
     """Get Scan by project and index"""
     try:
+        project_manager = get_project_manager()
         return project_manager.get_scan_by_index(project_name, scan_index)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -154,6 +164,7 @@ async def get_scan(project_name: str, scan_index: int):
 @router.delete("/{project_name}", response_model=bool)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project"""
+    project_manager = get_project_manager()
     scan = project_manager.get_scan_by_index(project_name, scan_index)
     try:
         return project_manager.delete_scan(scan)
@@ -166,6 +177,7 @@ async def delete_scan(project_name: str, scan_index: int):
 async def get_scan_status(project_name: str, scan_index: int):
     """Get the current status of a scan"""
     try:
+        project_manager = get_project_manager()
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
@@ -187,6 +199,7 @@ async def get_scan_status(project_name: str, scan_index: int):
 async def pause_scan(project_name: str, scan_index: int):
     """Pause a running scan"""
     try:
+        project_manager = get_project_manager()
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
@@ -211,6 +224,7 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str):
     """Resume a paused, cancelled or failed scan"""
     camera_controller = get_camera_controller(camera_name)
     try:
+        project_manager = get_project_manager()
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
@@ -249,6 +263,7 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str):
 async def cancel_scan(project_name: str, scan_index: int):
     """Cancel a running scan"""
     try:
+        project_manager = get_project_manager()
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
@@ -300,7 +315,7 @@ async def download_project(project_name: str):
     try:
         # Import zipstream-ng
         from zipstream import ZipStream
-
+        project_manager = get_project_manager()
         # Get project
         project = project_manager.get_project_by_name(project_name)
         if not project:
@@ -349,7 +364,7 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
     try:
         # Import zipstream-ng
         from zipstream import ZipStream
-
+        project_manager = get_project_manager()
         # Get project
         project = project_manager.get_project_by_name(project_name)
         if not project:

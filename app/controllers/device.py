@@ -36,6 +36,8 @@ from app.controllers.hardware.lights import create_light_controller, get_all_lig
 from app.controllers.hardware.endstops import EndstopController
 from app.controllers.hardware.gpio import cleanup_all_pins
 
+from app.controllers.services.projects import get_project_manager
+
 logger = logging.getLogger(__name__)
 
 # Current scanner model
@@ -47,7 +49,7 @@ _scanner_device = ScannerDevice(
     motors={},
     lights={},
     endstops={},
-    initialized=False
+    initialized=False,
 )
 
 # Path to device configuration file
@@ -105,8 +107,8 @@ def save_device_config() -> bool:
 
         config_to_save = {
             "name": _scanner_device.name,
-            "model": _scanner_device.model.value,
-            "shield": _scanner_device.shield.value,
+            "model": _scanner_device.model.value if _scanner_device.model else None,
+            "shield": _scanner_device.shield.value if _scanner_device.shield else None,
             "cameras": {name: cam.model_dump(mode='json') for name, cam in _scanner_device.cameras.items()},
             "motors": {name: motor.settings.model_dump(mode='json') for name, motor in _scanner_device.motors.items()},
             "lights": {name: light.settings.model_dump(mode='json') for name, light in _scanner_device.lights.items()},
@@ -116,10 +118,10 @@ def save_device_config() -> bool:
         with open(DEVICE_CONFIG_FILE, "w") as f:
             json.dump(config_to_save, f, indent=4)
 
-        logger.info(f"Saved device configuration to: {DEVICE_CONFIG_FILE}")
+        logger.info(f"Device configuration saved successfully to {DEVICE_CONFIG_FILE}")
         return True
     except Exception as e:
-        logger.error(f"Error saving device configuration: {e}")
+        logger.error(f"Error saving device configuration: {e}", exc_info=True)
         return False
 
 
@@ -135,6 +137,7 @@ def set_device_config(config_file) -> bool:
 
     initialize(load_device_config(config_file))
     return True
+
 
 def get_scanner_model():
     """Get the current scanner model"""
@@ -161,6 +164,7 @@ def _load_camera_config(settings: dict) -> CameraSettings:
         logger.error("Error loading camera settings: ", e)
         return CameraSettings()
 
+
 def _load_motor_config(settings: dict) -> MotorConfig:
     """Load motor configuration for the current model"""
     try:
@@ -169,6 +173,7 @@ def _load_motor_config(settings: dict) -> MotorConfig:
         # Return default settings if error occured
         logger.error("Error loading motor settings: ", e)
         return MotorConfig()
+
 
 def _load_light_config(settings: dict) -> LightConfig:
     """Load light configuration for the current model"""
@@ -179,6 +184,7 @@ def _load_light_config(settings: dict) -> LightConfig:
         logger.error("Error loading light settings: ", e)
         return LightConfig()
 
+
 def _load_endstop_config(settings: dict) -> EndstopConfig:
     """Load endstop configuration"""
     try:
@@ -187,6 +193,7 @@ def _load_endstop_config(settings: dict) -> EndstopConfig:
         # Return default settings if error occured
         logger.error("Error loading endstop settings: ", e)
         return EndstopConfig()
+
 
 def _detect_cameras() -> Dict[str, Camera]:
     """Get a list of available cameras"""
@@ -340,15 +347,20 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
         except Exception as e:
             logger.error(f"Error initializing light controller for {name}: {e}")
 
+    # initialize project manager
+    try:
+        project_manager = get_project_manager(BASE_DIR / "projects")
+    except Exception as e:
+        logger.error(f"Error initializing project manager: {e}", exc_info=True)
+
     # turn on lights
     for _, controller in get_all_light_controllers().items():
         controller.turn_on()
 
-
     _scanner_device = ScannerDevice(
         name=config["name"],
-        model=config["model"],
-        shield=config["shield"],
+        model=ScannerModel(config.get("model")) if config.get("model") else None,
+        shield=ScannerShield(config.get("shield")) if config.get("shield") else None,
         cameras=camera_objects,
         motors=motor_objects,
         lights=light_objects,

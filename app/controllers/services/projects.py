@@ -1,3 +1,22 @@
+"""
+Project Manager
+
+The Project Manager is responsible for loading and saving projects to disk.
+
+A project is a directory in the projects folder. Projects have a json file
+called openscan_project.json which contains a list of scans and other metadata.
+Each project has a directory for each scan.
+
+A project is a collection of scans. The Scans are indexed with scan01, scan02, etc.
+and are in the respective projects folder. A scan consists of a collection of photos
+and a scan settings json file.
+
+If a scan is running, the Scan Manager sends photos to the Project Manager, which is
+responsible for naming them and saving them to disk in the scan folder.
+
+"""
+
+import logging
 from datetime import datetime
 import io
 import asyncio
@@ -18,35 +37,14 @@ from app.models.project import Project
 from app.models.scan import Scan, ScanStatus
 from app.controllers.hardware.cameras.camera import CameraController
 from app.config.scan import ScanSetting
-from app.models.paths import PathMethod
 
-ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png")
-
-
-def get_projects(projects_path: str) -> list[Project]:
-    """Get all projects in the projects directory"""
-    projects = []
-    for folder in os.listdir(projects_path):
-        project_json = os.path.join(projects_path, folder, "openscan_project.json")
-        if os.path.exists(project_json):
-            try:
-                projects.append(get_project(projects_path, folder))
-            except Exception as e:
-                print(f"Error loading project {folder}: {e}")
-    return projects
+logger = logging.getLogger(__name__)
+logger.info("Testlog aus ProjectManager!")
 
 
 def _get_project_path(projects_path: str, project_name: str) -> str:
     """Get the absolute path for a project"""
     return os.path.join(str(projects_path), project_name)
-
-
-def _get_project_photos(project_path: str) -> list[str]:
-    """Get list of photos in a project directory"""
-    return [
-        file for file in os.listdir(project_path)
-        if file.lower().endswith(ALLOWED_EXTENSIONS)
-    ]
 
 
 def get_project(projects_path: str, project_name: str) -> Project:
@@ -55,6 +53,7 @@ def get_project(projects_path: str, project_name: str) -> Project:
     project_json = os.path.join(project_path, "openscan_project.json")
 
     if not os.path.exists(project_json):
+        logger.error(f"Project {project_name} not found")
         raise FileNotFoundError(f"Project {project_name} not found")
 
     # Load project data
@@ -69,7 +68,7 @@ def get_project(projects_path: str, project_name: str) -> Project:
                 scan = _load_scan_json(projects_path, project_name, scan_summary["index"])
                 scans[scan_id] = scan
             except FileNotFoundError as e:
-                print(f"Warning: Could not load scan {scan_id}: {e}")
+                logger.error(f"Error: Could not load scan {scan_id}: {e}")
 
     # Create project with string path
     return Project(
@@ -90,19 +89,13 @@ def delete_project(project: Project) -> bool:
             return True
         return False
     except Exception as e:
-        print(f"Error deleting project: {e}")
+        logger.error(f"Error deleting project: {e}", exc_info=e)
         return False
-
-def _scan_exists(project: Project, scan_index: int) -> bool:
-    """Check if a scan exists in a project"""
-    scan_id = f"scan{scan_index:02d}"
-    return scan_id in project.scans
 
 
 def _save_scan_json(projects_path: str, scan: Scan) -> None:
     """Save a scan to a separate JSON file in the scan directory"""
     # Create a new folder if necessary
-    #base_project_path = _get_project_path(projects_path, scan.project_name) # Get base path for the project
     scan_folder_path = os.path.join(projects_path, f"scan{scan.index:02d}")
     os.makedirs(scan_folder_path, exist_ok=True)
 
@@ -126,7 +119,6 @@ def _load_scan_json(project_path: str, project_name: str, scan_index: int) -> Sc
     with open(scan_file_path, "r") as f:  # Open in text mode "r"
         scan_json_data = f.read()
 
-    # Recreate the Scan object using Pydantic's model_validate_json
     return Scan.model_validate_json(scan_json_data)
 
 
@@ -138,7 +130,6 @@ def save_project(project: Project):
     os.makedirs(project.path, exist_ok=True)
 
     # Prepare the main project data for openscan_project.json
-    # We use model_dump to get a serializable dictionary, especially for datetime fields.
     # Exclude 'scans' as we'll handle its summary representation manually.
     project_main_data = project.model_dump(mode='json', exclude={'scans'})
 
@@ -149,7 +140,7 @@ def save_project(project: Project):
         scans_summary[scan_id] = {"index": scan_obj.index,
                                   "created": scan_obj.created.isoformat(),
                                   "status": scan_obj.status.value
-                                  }  # Add more summary fields if needed
+                                  }
 
     project_main_data['scans'] = scans_summary
 
@@ -159,23 +150,16 @@ def save_project(project: Project):
 
     # Save each scan to its individual JSON file using the refactored _save_scan_json
     for scan in project.scans.values():
-        _save_scan_json(project.path, scan)  # scan.project_name should be correctly set in the Scan object
-
-    # Write the main project data to openscan_project.json
-    with open(project_json_path, "w") as f:
-        json.dump(project_main_data, f, indent=2)
-
-    # Save each scan to its individual JSON file using the refactored _save_scan_json
-    for scan in project.scans.values():
-        _save_scan_json(project.path, scan)  # scan.project_name should be correctly set in the Scan object
-
+        _save_scan_json(project.path, scan)
 
 
 class ProjectManager:
     def __init__(self, path=pathlib.PurePath("projects")):
         """Initialize project manager with base path"""
-        self._path = str(path)  # Ensure string path
+        self._path = str(path)
         self._projects = {}
+
+        logger.debug(f"Initializing ProjectManager at {self._path}")
 
         # Load existing projects
         for folder in os.listdir(self._path):
@@ -184,7 +168,9 @@ class ProjectManager:
                 try:
                     self._projects[folder] = get_project(self._path, folder)
                 except Exception as e:
-                    print(f"Error loading project {folder}: {e}")
+                    logger.error(f"Error loading project {folder}: {e}", exc_info=True)
+
+        logger.info(f"Loaded {len(self._projects)} projects.")
 
         # Reset any running scans to a failed state (app was restarted)
         self._reset_running_scans()
@@ -202,14 +188,15 @@ class ProjectManager:
                     scan.system_message = error_msg
                     scan.last_updated = datetime.now()
                     running_scans_found = True
+                    logger.debug(f"Reset scan {scan_id} in project {project_name} to ERROR state: {error_msg}")
 
         if running_scans_found:
-            print("Warning: Found interrupted scans that were reset to ERROR state")
+            logger.warning("Warning: Found interrupted scans that were reset to ERROR state")
 
     def get_project_by_name(self, project_name: str) -> Optional[Project]:
         """Get a project by name. Returns None if the project does not exist."""
         if project_name not in self._projects:
-            print(f"Project {project_name} does not exist")
+            logger.error(f"Project {project_name} does not exist")
             return None
         return self._projects[project_name]
 
@@ -229,6 +216,7 @@ class ProjectManager:
             The newly created project.
         """
         if name in self._projects.keys():
+            logger.error(f"Project {name} already exists")
             raise ValueError(f"Project {name} already exists")
 
         project_path = _get_project_path(self._path,name)
@@ -248,6 +236,8 @@ class ProjectManager:
         # Update manager state
         self._projects[name] = project
 
+        logger.debug(f"Created project {name} with description {project_description}")
+
         return project
 
 
@@ -263,6 +253,7 @@ class ProjectManager:
         """
         if delete_project(project):
             del self._projects[project.name]
+            logger.info(f"Deleted project {project.name}")
             return True
         return False
 
@@ -283,6 +274,7 @@ class ProjectManager:
         """
         project = self.get_project_by_name(project_name)
         if not project:
+            logger.error(f"Project {project_name} does not exist")
             raise ValueError(f"Project {project_name} does not exist")
 
         if project.scans:
@@ -306,6 +298,8 @@ class ProjectManager:
         project.scans[f"scan{new_index:02d}"] = scan
 
         save_project(project)
+
+        logger.info(f"Added scan {scan.index} to project {project.name}")
 
         return scan
 
@@ -332,6 +326,8 @@ class ProjectManager:
             await f.write(photo_data)
             scan.photos.append(photo_filename)
 
+        logger.debug(f"Added photo {photo_filename} to scan {scan.index} in project {scan.project_name}")
+
         save_project(project)
 
     def save(self, scan: Scan):
@@ -342,7 +338,12 @@ class ProjectManager:
     def get_scan_by_index(self, project_name: str, scan_index: int) -> Optional[Scan]:
         """Get a scan by its index from a project
 
-        :return: The scan object with the given index if it exists, None if not
+        Args:
+            project_name: The name of the project to get the scan from.
+            scan_index: The index of the scan to get.
+
+        Returns:
+             The scan object with the given index if it exists, None if not
         """
         try:
             project = self._projects[project_name]
@@ -350,12 +351,12 @@ class ProjectManager:
             # Check if scan exists
             scan_id = f"scan{scan_index:02d}"
             if scan_id not in project.scans:
-                print(f"Scan {scan_id} does not exist in project {project_name}")
+                logger.error(f"Scan {scan_id} does not exist in project {project_name}")
                 return None
 
             return project.scans[scan_id]
         except Exception as e:
-            print(f"Error getting scan: {e}")
+            logger.error(f"Error getting scan: {e}", exc_info=True)
             return None
 
     def delete_scan(self, scan: Scan) -> bool:
@@ -379,9 +380,11 @@ class ProjectManager:
 
             save_project(project)
 
+            logger.info(f"Deleted scan {scan_id} from project {scan.project_name}")
+
             return True
         except Exception as e:
-            print(f"Error deleting scan: {e}")
+            logger.error(f"Error deleting scan: {e}", exc_info=True)
             return False
 
     def delete_photos(self, scan: Scan, photo_filenames: list[str]) -> bool:
@@ -395,7 +398,45 @@ class ProjectManager:
                 if os.path.exists(photo_path):
                     os.remove(photo_path)
 
+            logger.info(f"Deleted photo {photo_path} from scan {scan_id} in project {scan.project_name}")
+
             return True
         except Exception as e:
-            print(f"Error deleting photo: {e}")
+            logger.error(f"Error deleting photo: {e}", exc_info=True)
             return False
+
+
+_active_project_manager: Optional[ProjectManager] = None
+
+def get_project_manager(path: Optional[pathlib.PurePath] = None) -> ProjectManager:
+    """Get or create a ProjectManager instance for the given path"""
+    global _active_project_manager
+
+    if path is None:
+        if _active_project_manager:
+            logger.debug("No path provided, returning existing ProjectManager")
+            return _active_project_manager
+
+    resolved_path_str = str(pathlib.Path(path).resolve()) if path else None
+
+    if _active_project_manager is None:
+        if resolved_path_str is None:
+            logger.warning("No path provided, initializing new ProjectManager with default path")
+            _active_project_manager = ProjectManager()
+        logger.info(f"Creating new ProjectManager for {path}")
+        _active_project_manager = ProjectManager(path)
+        return _active_project_manager
+    else:
+        # An instance already exists, check if paths match
+        # Ensure _active_project_manager._path is also a resolved string for fair comparison
+        # Assuming _active_project_manager._path was stored as a resolved string or Path object
+        current_manager_path_str = str(pathlib.Path(_active_project_manager._path).resolve())
+
+        if resolved_path_str == current_manager_path_str:
+            logger.debug("Explicitly requested ProjectManager for the same path already exists, returning existing ProjectManager")
+            return _active_project_manager
+        else:
+            raise RuntimeError(
+                f"ProjectManager is already initialized with a different path. "
+                f"Current: '{current_manager_path_str}', Requested: '{resolved_path_str}'"
+            )
