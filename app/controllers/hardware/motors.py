@@ -1,3 +1,17 @@
+"""Motor Controller
+
+This module provides a MotorController class for controlling motors.
+It implements the StatefulHardware interface to manage the state of the motor.
+Currently supporting only stepper motors.
+Possible angles for a given motor are limited by min_angle and max_angle and can be between 0 and 360 degrees.
+
+OpenScan Mini:
+If the camera is in horizontal position, the rotor motor is at an 90 degrees angle.
+The camera is in (hypothetical) vertical position facing down, the rotor motor is at a 0 degrees angle.
+
+"""
+
+import logging
 from typing import Optional, Dict, List
 import time
 import math
@@ -10,8 +24,18 @@ from app.models.motor import Motor
 from app.controllers.hardware import gpio
 from ..settings import Settings
 
+logger = logging.getLogger(__name__)
 
 class MotorController(StatefulHardware):
+    """Motor controller
+
+    Attributes:
+        model (Motor): The motor model.
+        settings (Settings): The settings for the motor.
+        _current_steps (int): The current number of steps the motor has moved.
+        _target_angle (float): The target angle for the motor.
+        _stop_requested (bool): Flag to indicate if a stop request has been made.
+        endstop (Endstop): The endstop for the motor."""
     _executor = ThreadPoolExecutor(max_workers=4)
     def __init__(self, motor: Motor):
         self.model = motor
@@ -25,6 +49,8 @@ class MotorController(StatefulHardware):
         self.endstop = None
         self._apply_settings_to_hardware(self.settings.model)
 
+        logger.debug(f"Motor controller for '{self.model.name}' initialized.")
+
 
     def _apply_settings_to_hardware(self, settings: MotorConfig):
         # update model settings
@@ -37,7 +63,10 @@ class MotorController(StatefulHardware):
             self.settings.enable_pin
         ])
 
+        logger.info(f"Motor '{self.model.name}' settings updated.")
+
     def is_busy(self) -> bool:
+        """Check if the motor is busy (moving)."""
         return self._current_steps > 0
 
 
@@ -62,8 +91,17 @@ class MotorController(StatefulHardware):
     def stop(self) -> None:
         """Request to stop the current motor movement."""
         self._stop_requested = True
+        logger.info(f"Motor '{self.model.name}' stop requested.")
 
     def _normalize_target_angle(self, desired_angle: float) -> float:
+        """Normalize the target angle to the range [min_angle, max_angle].
+
+        Args:
+            desired_angle: Target angle in degrees.
+
+        Returns:
+            Normalized target angle in degrees.
+        """
         min_limit = self.settings.min_angle
         max_limit = self.settings.max_angle
 
@@ -73,16 +111,17 @@ class MotorController(StatefulHardware):
         final_angle = desired_angle  # Start with the raw desired angle
 
         if final_angle < min_limit:
-            print(f"Warning: Desired angle {desired_angle:.2f} is below minimum limit {min_limit:.2f}. "
+            logger.warning(f"Warning: Desired angle {desired_angle:.2f} is below minimum limit {min_limit:.2f}. "
                   f"Clamping to {min_limit:.2f}.")
             final_angle = min_limit
         elif final_angle > max_limit:
-            print(f"Warning: Desired angle {desired_angle:.2f} is above maximum limit {max_limit:.2f}. "
+            logger.warning(f"Warning: Desired angle {desired_angle:.2f} is above maximum limit {max_limit:.2f}. "
                   f"Clamping to {max_limit:.2f}.")
             final_angle = max_limit
 
         # If desired_angle was already within [min_limit, max_limit],
         # final_angle remains unchanged, and no warning is printed.
+        logger.debug(f"Normalized target angle: {final_angle:.2f}.")
         return final_angle
 
     def estimate_movement_time(self, steps: int) -> float:
@@ -163,7 +202,7 @@ class MotorController(StatefulHardware):
         current_angle = self.model.angle
         move_angles = target_angle - current_angle
 
-        # Calculate shortest path (same logic as move_to method)
+        # Calculate shortest path (same logic as move_to_target_angle method)
         if move_angles > 180:
             move_angles -= 360
         elif move_angles < -180:
@@ -179,33 +218,47 @@ class MotorController(StatefulHardware):
         self._stop_requested = False  # Reset stop flag before moving
 
         target_angle = self._normalize_target_angle(degrees % 360)
-
-        self._target_angle = target_angle
-        current_angle = self.model.angle
-        move_angles = self._target_angle - current_angle
-
-        if move_angles > 180:
-            move_angles -= 360
-        elif move_angles < -180:
-            move_angles += 360
-
-        await self.move_degrees(move_angles)
+        await self._move_to_target_angle(target_angle)
 
 
     async def move_degrees(self, degrees: float) -> None:
-        """Move motor by degrees"""
+        """Move motor by degrees
+
+        Args:
+            degrees: Number of degrees to move"""
         if self.is_busy():
             raise RuntimeError("Motor is busy")
 
         self._stop_requested = False # Reset stop flag before moving
 
-        target_degrees = self._normalize_target_angle(self.model.angle + degrees)
+        target_angle = self._normalize_target_angle(self.model.angle + degrees)
+        await self._move_to_target_angle(target_angle)
+
+
+    async def _move_to_target_angle(self, target_angle: float) -> None:
+        """Internal method to move motor to target angle.
+
+        Args:
+            target_angle: Target angular position in degrees"""
+
+        logger.debug(f"Will move motor {self.model.name} to target angle: {target_angle}")
 
         spr = self.settings.steps_per_rotation
         direction = self.settings.direction
-        step_count = int(degrees * spr / 360) * direction
-        await self._execute_movement(step_count, target_degrees) # Pass spr for angle calculation
 
+        degrees_to_move = target_angle - self.model.angle
+
+
+        # Optional: take the shortest path (for full 360°)
+        if self.settings.min_angle == 0.0 and self.settings.max_angle == 360.0:
+            if degrees_to_move > 180:
+                degrees_to_move -= 360
+            elif degrees_to_move < -180:
+                degrees_to_move += 360
+
+        step_count = int(degrees_to_move * spr / 360) * direction
+        logger.debug(f"Motor {self.model.name} will move {step_count} steps.")
+        await self._execute_movement(step_count, target_angle)
 
     def _pre_calculate_step_times(self, steps: int, min_interval=0.0001) -> List[float]:
         """
@@ -281,7 +334,9 @@ class MotorController(StatefulHardware):
         return step_times
 
     async def _execute_movement(self, step_count: int, requested_degrees: float) -> None:
-        """Execute the movement using pre-calculated step timings"""
+        """Execute the movement using pre-calculated step timings
+        Args:
+            step_count: Number of steps to move"""
         self._current_steps = abs(step_count)
 
         # This function will run in a thread
@@ -313,7 +368,7 @@ class MotorController(StatefulHardware):
             while i < len(step_times):
                 # Check for stop request
                 if self._stop_requested:
-                    print(f"Motor {self.model.name}: Stop requested after {executed_steps} steps.")
+                    logger.debug(f"Motor {self.model.name}: Stop requested after {executed_steps} steps.")
                     break
 
                 # Current time relative to start
@@ -371,6 +426,7 @@ class MotorController(StatefulHardware):
 
         # Update the angle based on actual executed movement
         self.model.angle = (self.model.angle + executed_degrees) % 360
+        logger.debug(f"Motor {self.model.name} moved {executed_degrees:.2f} degrees.")
         self._current_steps = 0 # Reset step counter after movement completion/stop
         self._target_angle = None # Reset target angle
 

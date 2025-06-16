@@ -1,9 +1,20 @@
+"""
+Path generation utilities
+
+Provides functions and classes for generating scan paths in both cartesian and polar coordinates.
+Supports Fibonacci-based point distributions with optional constraints on the theta angle,
+which is typically limited by the degrees of freedom of the rotor motor (e.g., in the OpenScan Mini).
+"""
+
 import abc
+import logging
+
 import numpy as np
 from typing import Optional
 
 from app.models.paths import CartesianPoint3D, PathMethod, PolarPoint3D
 
+logger = logging.getLogger(__name__)
 
 def polar_to_cartesian(point: PolarPoint3D) -> CartesianPoint3D:
     """Convert polar coordinates to cartesian coordinates"""
@@ -49,6 +60,7 @@ def get_path(method: PathMethod, num_points: int) -> list[CartesianPoint3D]:
     if method == PathMethod.FIBONACCI:
         return _PathGeneratorFibonacci.get_path(num_points)
     else:
+        logger.error(f"Unknown path method {method}")
         raise ValueError(f"Method {method} not implemented")
 
 
@@ -84,15 +96,19 @@ def get_constrained_path(method: PathMethod, num_points: int, min_theta: float =
     Returns:
         A list of PolarPoint3D objects within the specified constraints
     """
+    logger.debug(f"Generating constrained path for {num_points} points, min theta: {min_theta}, max theta: {max_theta}")
     # Validate input constraints
     if min_theta < 0 or max_theta > 180:
+        logger.error("Theta angle must be between 0° and 180°")
         raise ValueError("Theta angle must be between 0° and 180°")
     if min_theta >= max_theta:
+        logger.error("Minimum theta angle must be less than maximum theta angle")
         raise ValueError("Minimum theta angle must be less than maximum theta angle")
 
     if method == PathMethod.FIBONACCI:
         return _generate_constrained_fibonacci(num_points, min_theta, max_theta)
     else:
+        logger.error(f"Constrained path generation not implemented for method {method}")
         raise ValueError(f"Constrained path generation not implemented for method {method}")
 
 
@@ -106,6 +122,7 @@ def _generate_constrained_fibonacci(num_points: int, min_theta: float, max_theta
 
     To constrain theta, we need to constrain the Z values accordingly.
     """
+    logger.debug(f"Generating constrained fibonacci path for {num_points} points, min theta: {min_theta}, max theta: {max_theta}")
     # Convert theta constraints to Z constraints
     # theta = arccos(z), so z = cos(theta)
     # Note: theta increases as z decreases
@@ -141,6 +158,7 @@ def _generate_constrained_fibonacci(num_points: int, min_theta: float, max_theta
 
         points.append(PolarPoint3D(theta, fi, r))
 
+    logger.debug(f"Generated fibonacci path for {num_points} points")
     return points
 
 
@@ -158,6 +176,7 @@ class _PathGeneratorFibonacci(_PathGenerator):
 
     @staticmethod
     def get_path(num_points: int) -> list[CartesianPoint3D]:
+        logger.debug(f"Generating unconstrained fibonacci path with {num_points} points")
         ga = (3 - np.sqrt(5)) * np.pi  # golden angle
         # Create a list of golden angle increments along the range of number of points
         theta = ga * np.arange(num_points)

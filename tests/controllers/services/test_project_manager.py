@@ -110,7 +110,7 @@ def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
         "project_name": project_name,
         "index": scan_index,
         "created": datetime.now().isoformat(),
-        "settings": ScanSetting(path_method="spiral", points=10).model_dump(mode='json'),
+        "settings": ScanSetting(path_method="fibonacci", points=10).model_dump(mode='json'),
         "camera_settings": CameraSettings().model_dump(mode='json'), 
         "status": ScanStatus.COMPLETED.value,
         "current_step": 0,
@@ -155,7 +155,7 @@ def test_pm_init_reset_running_scan(MOCKED_PROJECTS_PATH):
 
     scan_file_data = {
         "project_name": project_name, "index": scan_index, "created": datetime.now().isoformat(),
-        "settings": ScanSetting(path_method="spiral", points=5).model_dump(mode='json'),
+        "settings": ScanSetting(path_method="fibonacci", points=5).model_dump(mode='json'),
         "camera_settings": CameraSettings().model_dump(mode='json'),
         "status": ScanStatus.RUNNING.value, 
         "current_step": 1, "system_message": None, "last_updated": datetime.now().isoformat(),
@@ -243,7 +243,7 @@ def test_pm_add_multiple_scans_increment_index(project_manager: ProjectManager, 
     """Test that scan indices are incremented correctly when adding multiple scans."""
     project_name = "ProjectMultiScan"
     project_manager.add_project(name=project_name)
-    scan_settings = ScanSetting(path_method="spiral", points=10)
+    scan_settings = ScanSetting(path_method="fibonacci", points=10)
 
     scan1 = project_manager.add_scan(project_name, mock_camera_controller, scan_settings)
     assert scan1.index == 1
@@ -260,7 +260,7 @@ def test_pm_add_multiple_scans_increment_index(project_manager: ProjectManager, 
 
 def test_pm_add_scan_to_non_existent_project(project_manager: ProjectManager, mock_camera_controller: MagicMock):
     """Test adding a scan to a project name that doesn't exist in the manager."""
-    scan_settings = ScanSetting(path_method="spiral", points=10)
+    scan_settings = ScanSetting(path_method="fibonacci", points=10)
     
     # This behavior changed: set_current_project within add_scan raises ValueError if project not found by name
     # The original add_scan would try self._projects[project_name] which would be a KeyError

@@ -11,6 +11,8 @@
                 "shutter": 40000,
                 "saturation": 1.0,
                 "contrast": 1.0,
+                "awbg_red": 1.878318190574646,
+                "awbg_blue": 1.7744160890579224,
                 "AF": true,
                 "gain": 1.0,
                 "jpeg_quality": 70
@@ -25,7 +27,7 @@
             "acceleration": 20000,
             "max_speed": 5000,
             "direction": 1,
-            "steps_per_rotation": 48000,
+            "steps_per_rotation": 42667,
             "min_angle": 12,
             "max_angle": 125
         },
@@ -33,7 +35,7 @@
             "direction_pin": 9,
             "enable_pin": 22,
             "step_pin": 11,
-            "acceleration": 50000,
+            "acceleration": 5000,
             "max_speed": 5000,
             "direction": 1,
             "steps_per_rotation": 3200

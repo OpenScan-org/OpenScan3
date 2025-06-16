@@ -1,6 +1,9 @@
+import logging
+
 from gpiozero import DigitalOutputDevice, Button
 from typing import Dict, List, Optional, Callable
 
+logger = logging.getLogger(__name__)
 
 # Track pins and buttons
 _output_pins = {}
@@ -11,15 +14,15 @@ def initialize_output_pins(pins: List[int]):
     """Initializes one or more GPIO pins as digital outputs."""
     for pin in pins:
         if pin in _output_pins:
-            print(f"Warning: Output pin {pin} already initialized.")
+            logger.warning(f"Warning: Output pin {pin} already initialized.")
         elif pin in _buttons:
-            print(f"Error: Cannot initialize pin {pin} as output. Already initialized as Button.")
+            logger.error(f"Error: Cannot initialize pin {pin} as output. Already initialized as Button.")
         else:
             try:
                 _output_pins[pin] = DigitalOutputDevice(pin, initial_value=False)
-                print(f"Initialized pin {pin} as DigitalOutputDevice.")
+                logger.debug(f"Initialized pin {pin} as DigitalOutputDevice.")
             except Exception as e:
-                print(f"Error initializing output pin {pin}: {e}")
+                logger.error(f"Error initializing output pin {pin}: {e}", exc_info=True)
                 # Clean up if initialization failed partially
                 if pin in _output_pins:
                     del _output_pins[pin]
@@ -30,7 +33,7 @@ def toggle_output_pin(pin: int):
     if pin in _output_pins:
         _output_pins[pin].toggle()
     else:
-        print(f"Warning: Cannot toggle pin {pin}. Not initialized as output.")
+        logger.warning(f"Warning: Cannot toggle pin {pin}. Not initialized as output.")
 
 
 def set_output_pin(pin: int, status: bool):
@@ -38,7 +41,7 @@ def set_output_pin(pin: int, status: bool):
     if pin in _output_pins:
         _output_pins[pin].value = status
     else:
-        print(f"Warning: Cannot set pin {pin}. Not initialized as output.")
+        logger.warning(f"Warning: Cannot set pin {pin}. Not initialized as output.")
 
 
 def get_initialized_pins() -> Dict[str, List[int]]:
@@ -54,7 +57,7 @@ def get_output_pin(pin: int):
     if pin in _output_pins:
         return _output_pins[pin].value
     else:
-        print(f"Warning: Pin {pin} not initialized as output.")
+        logger.warning(f"Warning: Pin {pin} not initialized as output.")
         return None
 
 
@@ -70,15 +73,15 @@ def initialize_button(pin: int, pull_up: Optional[bool] = True, bounce_time: Opt
         bounce_time: Debounce time in seconds (default: 0.05s or 50ms).
     """
     if pin in _buttons:
-        print(f"Warning: Button on pin {pin} already initialized.")
+        logger.warning(f"Warning: Button on pin {pin} already initialized.")
     elif pin in _output_pins:
-        print(f"Error: Cannot initialize pin {pin} as Button. Already initialized as output.")
+        logger.error(f"Error: Cannot initialize pin {pin} as Button. Already initialized as output.")
     else:
         try:
             _buttons[pin] = Button(pin, pull_up=pull_up, bounce_time=bounce_time, hold_time=0.01)
-            print(f"Initialized pin {pin} as Button (pull_up={pull_up}, bounce_time={bounce_time})")
+            logger.debug(f"Initialized pin {pin} as Button (pull_up={pull_up}, bounce_time={bounce_time})")
         except Exception as e:
-            print(f"Error initializing button on pin {pin}: {e}")
+            logger.error(f"Error initializing button on pin {pin}: {e}", exc_info=True)
             # Clean up if initialization failed partially
             if pin in _buttons:
                 del _buttons[pin]
@@ -95,18 +98,18 @@ def register_button_callback(pin: int, event_type: str, callback: Callable[[], N
         callback: The function to call when the event occurs (takes no arguments).
     """
     if pin not in _buttons:
-        print(f"Error: Button on pin {pin} not initialized. Call initialize_buttons() first.")
+        logger.error(f"Error: Button on pin {pin} not initialized. Call initialize_buttons() first.")
         return
 
     button_obj = _buttons[pin]
     if event_type == 'when_pressed':
         button_obj.when_pressed = callback
-        print(f"Registered 'when_pressed' callback for button on pin {pin}.")
+        logger.debug(f"Registered 'when_pressed' callback for button on pin {pin}.")
     elif event_type == 'when_released':
         button_obj.when_released = callback
-        print(f"Registered 'when_released' callback for button on pin {pin}.")
+        logger.debug(f"Registered 'when_released' callback for button on pin {pin}.")
     else:
-        print(f"Error: Invalid event_type '{event_type}'. Use 'pressed' or 'released'.")
+        logger.error(f"Error: Invalid event_type '{event_type}'. Use 'pressed' or 'released'.")
 
 
 def remove_button_callback(pin: int, event_type: str):
@@ -118,24 +121,24 @@ def remove_button_callback(pin: int, event_type: str):
         event_type: The event type ('pressed' or 'released') whose callback should be removed.
     """
     if pin not in _buttons:
-        print(f"Warning: Cannot remove callback. Button on pin {pin} not initialized.")
+        logger.warning(f"Warning: Cannot remove callback. Button on pin {pin} not initialized.")
         return
 
     button_obj = _buttons[pin]
     if event_type == 'when_pressed':
         if button_obj.when_pressed is None:
-             print(f"Warning: No 'when_pressed' callback was registered for button on pin {pin}.")
+             logger.warning(f"Warning: No 'when_pressed' callback was registered for button on pin {pin}.")
         else:
             button_obj.when_pressed = None
-            print(f"Removed 'when_pressed' callback for button on pin {pin}.")
+            logger.debug(f"Removed 'when_pressed' callback for button on pin {pin}.")
     elif event_type == 'when_released':
         if button_obj.when_released is None:
-             print(f"Warning: No 'when_released' callback was registered for button on pin {pin}.")
+             logger.warning(f"Warning: No 'when_released' callback was registered for button on pin {pin}.")
         else:
             button_obj.when_released = None
-            print(f"Removed 'when_released' callback for button on pin {pin}.")
+            logger.debug(f"Removed 'when_released' callback for button on pin {pin}.")
     else:
-        print(f"Error: Invalid event_type '{event_type}'. Use 'pressed' or 'released'.")
+        logger.error(f"Error: Invalid event_type '{event_type}'. Use 'pressed' or 'released'.")
 
 
 def is_button_pressed(pin: int) -> Optional[bool]:
@@ -159,32 +162,30 @@ def is_button_pressed(pin: int) -> Optional[bool]:
 
 def cleanup_all_pins():
     """Closes all initialized GPIO devices (output pins and buttons)."""
-    print("Cleaning up GPIO resources...")
+    logger.debug("Cleaning up GPIO resources...")
 
     # Close output pins
     pins_to_remove = list(_output_pins.keys()) # Create a copy of keys to iterate over
     for pin in pins_to_remove:
         try:
-            print(f"Closing output pin {pin}...")
             _output_pins[pin].close()
             del _output_pins[pin] # Remove from tracking dict after successful close
-            print(f"Output pin {pin} closed.")
+            logger.debug(f"Output pin {pin} closed.")
         except Exception as e:
-            print(f"Error closing output pin {pin}: {e}")
+            logger.error(f"Error closing output pin {pin}: {e}", exc_info=True)
 
     # Close buttons
     buttons_to_remove = list(_buttons.keys()) # Create a copy of keys
     for pin in buttons_to_remove:
         try:
-            print(f"Closing button on pin {pin}...")
             _buttons[pin].close()
             del _buttons[pin] # Remove from tracking dict after successful close
-            print(f"Button on pin {pin} closed.")
+            logger.debug(f"Button on pin {pin} closed.")
         except Exception as e:
-            print(f"Error closing button on pin {pin}: {e}")
+            logger.error(f"Error closing button on pin {pin}: {e}", exc_info=True)
 
     # Double check if dictionaries are empty
     if not _output_pins and not _buttons:
-        print("GPIO cleanup successful. All tracked pins released.")
+        logger.info("GPIO cleanup successful. All tracked pins released.")
     else:
-        print(f"GPIO cleanup potentially incomplete. Remaining outputs: {list(_output_pins.keys())}, Remaining buttons: {list(_buttons.keys())}")
+        logger.warning(f"GPIO cleanup potentially incomplete. Remaining outputs: {list(_output_pins.keys())}, Remaining buttons: {list(_buttons.keys())}")

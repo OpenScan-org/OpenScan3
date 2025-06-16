@@ -4,11 +4,12 @@ Path optimization module for OpenScan3
 Provides algorithms to optimize scanning paths for minimal execution time.
 The primary algorithm implemented is Nearest Neighbor TSP heuristic.
 """
-
+import logging
 import math
 from typing import List, Optional, Tuple
 from app.models.paths import PolarPoint3D
 
+logger = logging.getLogger(__name__)
 
 class PathOptimizer:
     """Path optimization using various algorithms"""
@@ -35,6 +36,9 @@ class PathOptimizer:
         self._turntable_accel = turntable_acceleration
         self._turntable_speed = turntable_max_speed
 
+        logger.debug(f"Rotor spr: {self._rotor_spr}, accel: {self._rotor_accel}, speed: {self._rotor_speed}")
+        logger.debug(f"Turntable spr: {self._turntable_spr}, accel: {self._turntable_accel}, speed: {self._turntable_speed}")
+
     def optimize_path(self, points: List[PolarPoint3D],
                      algorithm: str = "nearest_neighbor",
                      start_position: Optional[PolarPoint3D] = None) -> List[PolarPoint3D]:
@@ -50,14 +54,17 @@ class PathOptimizer:
             Optimized list of points
         """
         if not points:
+            logger.debug("No points to optimize, returning empty list")
             return []
 
         if algorithm == "none" or algorithm is None:
+            logger.debug("No optimization algorithm specified, returning original path")
             return points.copy()
 
         if algorithm == "nearest_neighbor":
             return self._nearest_neighbor_tsp(points, start_position)
 
+        logger.error(f"Unknown optimization algorithm: {algorithm}")
         raise ValueError(f"Unknown optimization algorithm: {algorithm}")
 
     def calculate_path_time(self, points: List[PolarPoint3D],
@@ -72,10 +79,13 @@ class PathOptimizer:
         Returns:
             Tuple of (total_time, individual_move_times)
         """
+        logger.debug("Calculating total execution time")
         if not points:
+            logger.debug("No points to optimize, returning empty list")
             return 0.0, []
 
         if start_position is None:
+            logger.debug("No start position specified, defaulting to theta 90°, fi 0°")
             start_position = PolarPoint3D(theta=90.0, fi=0.0, r=1.0)
 
         total_time = 0.0
@@ -88,6 +98,7 @@ class PathOptimizer:
             total_time += move_time
             current_pos = point
 
+        logger.debug(f"Total time: {total_time}, move times: {move_times}")
         return total_time, move_times
 
     def _nearest_neighbor_tsp(self, points: List[PolarPoint3D],
@@ -103,6 +114,7 @@ class PathOptimizer:
         Returns:
             Optimized path
         """
+        logger.debug("Optimizing path: Running nearest neighbor TSP")
         if start_position is None:
             start_position = PolarPoint3D(theta=90.0, fi=0.0, r=1.0)
 
@@ -127,6 +139,7 @@ class PathOptimizer:
                 unvisited.remove(nearest_point)
                 current_pos = nearest_point
 
+        logger.debug(f"Optimized path with nearest neighbor: {optimized_path}")
         return optimized_path
 
     def _calculate_move_time(self, from_point: PolarPoint3D, to_point: PolarPoint3D) -> float:

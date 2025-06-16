@@ -1,4 +1,13 @@
+"""
+Camera Controller
+
+This module provides a CameraController class for controlling cameras.
+It implements the CameraController interface to manage the state of the camera.
+Currently supporting only picamera2.
+"""
+
 import abc
+import logging
 from typing import Dict, IO, Optional, Type
 
 from app.models.camera import Camera, CameraType
@@ -6,7 +15,14 @@ from app.config.camera import CameraSettings
 from app.controllers.hardware.interfaces import create_controller_registry
 from app.controllers.settings import Settings
 
+logger = logging.getLogger(__name__)
+
 class CameraController(abc.ABC):
+    """
+    Abstract Base Class for Camera Controller
+
+    This class provides a generic interface for camera controllers.
+    """
     def __init__(self, camera: Camera):
         self.camera = camera
         # Create settings with callback for hardware updates
@@ -32,24 +48,33 @@ class CameraController(abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def photo(camera: Camera) -> IO[bytes]:
+        """Capture a single photo with high resolution."""
         raise NotImplementedError
 
     @staticmethod
     @abc.abstractmethod
     def preview(camera: Camera) -> IO[bytes]:
+        """Capture a faster and low resolution preview."""
         raise NotImplementedError
 
 def _create_camera_controller_instance(camera: Camera) -> 'CameraController':
+    """Create a camera controller instance based on the camera type.
+    Currently, supports only picamera2 properly.
+    """
     if camera.type == CameraType.GPHOTO2:
         from .gphoto2 import Gphoto2Camera
+        logger.debug("Creating Gphoto2 camera controller")
         return Gphoto2Camera(camera)
     elif camera.type == CameraType.PICAMERA2:
+        logger.debug("Creating Picamera2 camera controller")
         from .picamera2 import Picamera2Controller
         return Picamera2Controller(camera)
     elif camera.type == CameraType.LINUXPY:
+        logger.debug("Creating LinuxPy camera controller")
         from .linuxpy import LINUXPYCamera
         return LINUXPYCamera(camera)
     else:
+        logger.error("Unknown camera type: {}".format(camera.type))
         raise ValueError(f"Couldn't find controller for {camera.type}")
 
 create_camera_controller, get_camera_controller, remove_camera_controller, _camera_registry = create_controller_registry(_create_camera_controller_instance)
