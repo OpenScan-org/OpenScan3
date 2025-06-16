@@ -1,4 +1,13 @@
+"""
+Scan Manager
+
+The Scan Manager is responsible for managing the scan process, including
+the scan status, progress, and control. There can only be one active ScanManager
+at a time.
+
+"""
 import asyncio
+import logging
 import time
 import os
 from fastapi.encoders import jsonable_encoder
@@ -16,6 +25,7 @@ from app.models.scan import Scan, ScanStatus
 from app.utils.paths import paths
 from app.utils.paths.optimization import PathOptimizer
 
+logger = logging.getLogger(__name__)
 
 async def move_to_point(point: PolarPoint3D):
     """Move motors to specified polar coordinates"""
@@ -25,6 +35,7 @@ async def move_to_point(point: PolarPoint3D):
 
     # wait until motors are ready
     while turntable.is_busy() or rotor.is_busy():
+        logger.debug("Waiting for motors to be ready")
         await asyncio.sleep(0.01)
 
     # Move both motors concurrently to specified point
@@ -32,6 +43,8 @@ async def move_to_point(point: PolarPoint3D):
         turntable.move_to(point.fi),
         rotor.move_to(point.theta)
     )
+
+    logger.debug(f"Moved to {point}")
 
 
 def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
@@ -53,12 +66,15 @@ def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
             min_theta=scan_settings.min_theta,
             max_theta=scan_settings.max_theta
         )
+        logger.debug(f"Generated Fibonacci path with {len(path)} points")
     else:
+        logger.error(f"Unknown path method {scan_settings.path_method}")
         raise ValueError(f"Path method {scan_settings.path_method} not implemented")
 
 
     # Optimize path if requested
     if scan_settings.optimize_path:
+        logger.debug(f"Generating optimized path with {len(path)} points")
 
         # Get motor controllers for optimization parameters
         rotor_controller = get_motor_controller("rotor")
@@ -89,6 +105,8 @@ def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
             algorithm=scan_settings.optimization_algorithm,
             start_position=start_position
         )
+        logger.debug(f"Generated optimized path with {len(optimized_path)} points"
+                     f"Used algorithm {scan_settings.optimization_algorithm}")
 
         return optimized_path
 
@@ -96,7 +114,8 @@ def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
 
 
 class ScanManager:
-    """Manage scan routines including status, progress and control"""
+    """Manage scan routines including status, progress and control
+    """
 
     def __init__(self, project_manager: ProjectManager, scan: Scan):
         self._paused = asyncio.Event()
@@ -104,6 +123,7 @@ class ScanManager:
         self._paused.set()  # Not paused initially
         self._scan = scan  # Reference to the scan being managed
         self._project_manager = project_manager
+        logger.info(f"Initialized scan manager for scan {scan.id} of project {scan.project_name}.")
 
     def _update_status(self, status: ScanStatus, error_message: Optional[str] = None) -> bool:
         """Update scan status and error message
@@ -119,15 +139,15 @@ class ScanManager:
             self._scan.status = status
             self._scan.last_updated = datetime.now()
             if error_message and status == ScanStatus.ERROR:
-                print(f"Scan error: {error_message}")
+                logger.error(f"Scan error: {error_message}")
                 self._scan.system_message = error_message
 
             if status in [ScanStatus.COMPLETED, ScanStatus.CANCELLED]:
                 self._scan.duration = (datetime.now() - self._scan.created).total_seconds()
-
+            logger.info(f"Updated status for scan {self._scan.index} of project '{self._scan.project_name}' to: {status}")
             return True
         except Exception as e:
-            print(f"Error updating scan status: {e}")
+            logger.error(f"Error updating scan status: {e}", exc_info=True)
             return False
 
     def update_progress(self, current_step: int, total_steps: int) -> bool:
@@ -150,9 +170,10 @@ class ScanManager:
                 scan.status = ScanStatus.COMPLETED
                 scan.duration = (datetime.now() - scan.created).total_seconds()
 
+            logger.info(f"Updated scan progress: {current_step}/{total_steps}")
             return True
         except Exception as e:
-            print(f"Error updating scan progress: {e}")
+            logger.error(f"Error updating scan progress: {e}", exc_info=True)
             return False
 
     async def pause(self) -> bool:
@@ -165,7 +186,7 @@ class ScanManager:
             self._paused.clear()
             return self._update_status(ScanStatus.PAUSED)
         except Exception as e:
-            print(f"Error pausing scan: {e}")
+            logger.error(f"Error pausing scan: {e}", exc_info=True)
             return False
 
     async def resume(self, camera_controller: CameraController) -> bool:
@@ -186,13 +207,15 @@ class ScanManager:
                 # Restart scan task
                 asyncio.create_task(self._run_scan_task(camera_controller, start_from_step=current_step))
                 self._update_status(ScanStatus.RUNNING)
+                logger.info(f"Restarted scanning task: {self._scan.index} from step {current_step}")
                 return True
 
             # Resume paused scan
+
             return self._update_status(ScanStatus.RUNNING)
 
         except Exception as e:
-            print(f"Error resuming scan: {e}")
+            logger.error(f"Error resuming scan: {e}", exc_info=True)
             self._update_status(ScanStatus.ERROR, str(e))
             return False
 
@@ -207,11 +230,12 @@ class ScanManager:
             self._paused.set()  # Ensure we're not stuck in pause
             return self._update_status(ScanStatus.CANCELLED)
         except Exception as e:
-            print(f"Error cancelling scan: {e}")
+            logger.error(f"Error cancelling scan: {e}", exc_info=True)
             return False
 
     async def wait_if_paused(self):
         """Wait if scan is paused"""
+        logger.debug("Waiting for scan to be paused...")
         await self._paused.wait()
 
     def is_cancelled(self) -> bool:
@@ -237,7 +261,7 @@ class ScanManager:
             return True
         except Exception as e:
             self._update_status(ScanStatus.ERROR, str(e))
-            print(f"Error starting scan: {e}")
+            logger.error(f"Error starting scan: {e}", exc_info=True)
             return False
 
     async def _run_scan_task(self, camera_controller: CameraController, start_from_step: int = 0):
@@ -253,7 +277,7 @@ class ScanManager:
                 self.update_progress(step, total)
         except Exception as e:
             self._update_status(ScanStatus.ERROR, str(e))
-            print(f"Error during scan: {e}")
+            logger.error(f"Error during scan: {e}", exc_info=True)
 
     async def scan_async(self, camera_controller: CameraController, start_from_step: int = 0) -> AsyncGenerator[
         Tuple[int, int], None]:
@@ -292,7 +316,7 @@ class ScanManager:
                     await project_manager.add_photo_async(scan, photo, info)
                     photo_queue.task_done()
                 except Exception as e:
-                    print(f"Error saving photo: {e}")
+                    logger.error(f"Error saving photo: {e}", exc_info=True)
                     raise
 
         save_task = asyncio.create_task(save_photos())
@@ -306,11 +330,13 @@ class ScanManager:
 
         # prepare focus stacking, if necessary
         if scan.settings.focus_stacks > 1:
+            logger.debug(f"Focus stacking: {scan.settings.focus_stacks}")
             focus_stacking = True
             # save focus settings to restore after scanning and turn off autofocus
             previous_focus_settings = (camera_controller.settings.AF,
                                        camera_controller.settings.manual_focus)
             camera_controller.settings.AF = False
+            logger.debug(f"Saved focus settings and disabled Autofocus" )
 
             # Calculate focus positions
             min_focus, max_focus = scan.settings.focus_range
@@ -318,6 +344,7 @@ class ScanManager:
                 min_focus + i * (max_focus - min_focus) / (scan.settings.focus_stacks - 1)
                 for i in range(scan.settings.focus_stacks)
             ]
+            logger.debug(f"Calculated focus positions: {focus_positions}")
 
         try:
             for index, current_point in enumerate(path):
@@ -345,25 +372,26 @@ class ScanManager:
                 move_task = asyncio.create_task(move_to_point(next_point)) if next_point else None
 
                 try:
+                    logger.debug(f"Capturing photo at position {current_point}")
                     # take photos (with or without focus stacking)
                     if not focus_stacking:
                         photo = camera_controller.photo()
                         await photo_queue.put((photo, photo_info))
                     else:
                         for stack_index, focus in enumerate(focus_positions):
+                            logger.debug(f"Focus stacking enabled, capturing photo with focus {focus}")
                             camera_controller.settings.manual_focus = focus
                             photo = camera_controller.photo()
                             stack_photo_info = photo_info.copy()
                             stack_photo_info["stack_index"] = stack_index
                             await photo_queue.put((photo, stack_photo_info))
-                            print(f"focus stacking {stack_index}")
 
                     # Wait for movement to complete if it was started
                     if move_task:
                         await move_task
 
                 except Exception as e:
-                    print(f"Error taking photo at position {index}: {e}")
+                    logger.error(f"Error taking photo at position {index}: {e}", exc_info=True)
                     raise
 
                 # Update duration for this step
@@ -374,63 +402,68 @@ class ScanManager:
 
         except Exception as e:
             self._update_status(ScanStatus.ERROR, str(e))
-            print("Scanning error: ", e)
+            logger.error("Scanning error: ", e, exc_info=True)
             raise
 
         finally:
+            logger.debug("Scanning finished")
             await photo_queue.join()
             save_task.cancel()
             try:
                 await save_task
             except asyncio.CancelledError:
-                pass
+                logger.error("Scan and saving photos cancelled")
 
             # cleanup: move back to origin position and restore settings
             try:
+                logger.debug("Cleanup after scan...")
                 await move_to_point(PolarPoint3D(90, 90))
                 # restore previous focus settings if focus stacking was enabled
                 if focus_stacking and previous_focus_settings:
+                    logger.debug("Settings focus settings back to previous settings")
                     camera_controller.settings.AF = previous_focus_settings[0]
                     camera_controller.settings.manual_focus = previous_focus_settings[1]
             except Exception as e:
-                print(f"Error during cleanup: {e}")
+                logger.error(f"Error during cleanup: {e}", exc_info=True)
 
 
 # Create a global scan manager instance that can be accessed by different parts of the application
-_active_manager: Optional[ScanManager] = None
+_active_scan_manager: Optional[ScanManager] = None
 
 
 def get_scan_manager(scan: Scan, project_manager: ProjectManager) -> ScanManager:
     """Get or create a ScanManager instance for the given scan"""
-    global _active_manager
+    global _active_scan_manager
 
     # If no active manager exists, create a new one
-    if _active_manager is None:
-        _active_manager = ScanManager(project_manager, scan)
-        return _active_manager
+    if _active_scan_manager is None:
+        _active_scan_manager = ScanManager(project_manager, scan)
+        return _active_scan_manager
 
     # If the active manager is managing the same scan, return it
-    if _active_manager._scan == scan:
-        return _active_manager
+    if _active_scan_manager._scan == scan:
+        return _active_scan_manager
 
     # Check the status of the current scan
-    current_status = _active_manager._scan.status
+    current_status = _active_scan_manager._scan.status
     if current_status in [ScanStatus.RUNNING, ScanStatus.PAUSED]:
+        logger.error(f"Cannot start new scan: Another scan is {current_status.value}")
         raise RuntimeError(f"Cannot start new scan: Another scan is {current_status.value}")
 
     # If the current scan is completed, cancelled or failed,
     # we can start a new scan
     if current_status in [ScanStatus.COMPLETED, ScanStatus.CANCELLED, ScanStatus.ERROR]:
-        _active_manager = ScanManager(project_manager, scan)
-        return _active_manager
+        _active_scan_manager = ScanManager(project_manager, scan)
+        return _active_scan_manager
 
     # For all other statuses (e.g. PENDING) we refuse to start a new scan
+    logger.error(f"Cannot start new scan: Current scan status is {current_status.value}")
     raise RuntimeError(f"Cannot start new scan: Current scan status is {current_status.value}")
 
 
 def get_active_scan_manager() -> Optional[ScanManager]:
     """Get the currently active scan manager, if any"""
-    return _active_manager
+    return _active_scan_manager
 
 
 def trigger_external_cam(camera: Camera):
