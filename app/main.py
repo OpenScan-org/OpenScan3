@@ -7,8 +7,13 @@ from contextlib import asynccontextmanager
 
 from app.config.logger import setup_logging_from_json_file
 
-from routers import cameras, motors, projects, cloud, gpio, paths, openscan, lights, device
+from routers import cameras, motors, projects, cloud, gpio, paths, openscan, lights, device, tasks
 from app.controllers import device as device_controller
+
+
+from app.controllers.services.tasks.task_manager import task_manager
+from app.controllers.services.tasks.scan_task import ScanTask
+# from app.controllers.services.tasks.example_tasks import HelloWorldTask, ExclusiveDemoTask
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,6 +21,10 @@ async def lifespan(app: FastAPI):
     setup_logging_from_json_file(path_to_config="settings/advanced_logging.json", default_level=logging.DEBUG)
 
     device_controller.initialize(device_controller.load_device_config())
+
+    # task_manager.register_task("hello_world", HelloWorldTask)
+    # task_manager.register_task("exclusive_demo", ExclusiveDemoTask)
+    task_manager.register_task("scan_task", ScanTask)
 
     yield # application runs here
 
@@ -32,6 +41,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(tasks.router)
 
 app.include_router(cameras.router)
 app.include_router(motors.router)

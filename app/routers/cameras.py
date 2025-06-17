@@ -9,7 +9,7 @@ from fastapi_versionizer import api_version
 from app.config.camera import CameraSettings
 from app.models.camera import Camera, CameraType
 from app.controllers.hardware.cameras.camera import get_all_camera_controllers, get_camera_controller
-from app.controllers.services.scans import get_active_scan_manager
+#from app.controllers.services.scans import get_active_scan_manager
 from app.controllers.hardware.motors import get_all_motor_controllers
 from .settings_utils import create_settings_endpoints
 

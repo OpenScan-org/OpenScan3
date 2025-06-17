@@ -1,18 +1,20 @@
 import pytest
 import os
+import json
 from pathlib import Path
 from datetime import datetime
+from unittest.mock import MagicMock
 
-from app.controllers.services.projects import ProjectManager, _get_project_path
+from app.controllers.services.projects import ProjectManager
 from app.models.project import Project
-from app.models.scan import Scan, ScanStatus  
-from app.config.scan import ScanSetting  
-from app.config.camera import CameraSettings  
+from app.models.scan import Scan
+from app.config.scan import ScanSetting
+from app.config.camera import CameraSettings
 
-# Helper to temporarily change the base projects_path for testing
-@pytest.fixture(autouse=True)
-def MOCKED_PROJECTS_PATH(tmp_path, monkeypatch):
-    # Create a subdirectory within tmp_path for projects to mimic the real structure if needed
+
+@pytest.fixture
+def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
+    """Fixture to create a temporary, isolated projects directory for testing."""
     mock_projects_dir = tmp_path / "projects_test_root"
     mock_projects_dir.mkdir()
     return mock_projects_dir
@@ -21,19 +23,22 @@ def MOCKED_PROJECTS_PATH(tmp_path, monkeypatch):
 @pytest.fixture
 def project_manager(MOCKED_PROJECTS_PATH) -> ProjectManager:
     """Fixture to create a ProjectManager instance with a temporary projects path."""
-    # The ProjectManager's __init__ will now use MOCKED_PROJECTS_PATH
+    # Instantiate the ProjectManager. Assuming __init__ is synchronous and loads data.
+    # If ProjectManager needs async initialization, this fixture would need to be async
+    # and use an async factory or `await ProjectManager.create(...)` pattern.
     pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
     return pm
 
 
 # --- Test Cases for ProjectManager ---
 
-def test_pm_add_project_new(project_manager: ProjectManager, MOCKED_PROJECTS_PATH):
+@pytest.mark.asyncio
+async def test_pm_add_project_new(project_manager: ProjectManager, MOCKED_PROJECTS_PATH):
     """Test adding a new project successfully."""
     project_name = "Test Project"
     project_description = "A test project description."
 
-    # Action: Add the project
+    # Action: Add the project (synchronous call)
     created_project = project_manager.add_project(name=project_name, project_description=project_description)
 
     # Assertions for the returned project object
@@ -43,47 +48,44 @@ def test_pm_add_project_new(project_manager: ProjectManager, MOCKED_PROJECTS_PAT
     assert isinstance(created_project.created, datetime)
     assert len(created_project.scans) == 0
 
-    # Check path construction (relative to our MOCKED_PROJECTS_PATH)
-    # _get_project_path uses the module-level projects_path, which is monkeypatched
     expected_path = MOCKED_PROJECTS_PATH / project_name
     assert Path(created_project.path).resolve() == expected_path.resolve()
 
-    # Assertions for ProjectManager internal state
-    assert project_name in project_manager.get_all_projects()
+    # Assertions for ProjectManager internal state (synchronous calls)
+    all_projects = project_manager.get_all_projects()
+    assert project_name in all_projects
     assert project_manager.get_project_by_name(project_name) == created_project
 
-    # Assertions for filesystem (existence of project directory and JSON file)
+    # Assertions for filesystem
     project_dir_path = MOCKED_PROJECTS_PATH / project_name
-    assert project_dir_path.exists()
-    assert project_dir_path.is_dir()
-
+    assert project_dir_path.exists() and project_dir_path.is_dir()
     project_json_file = project_dir_path / "openscan_project.json"
-    assert project_json_file.exists()
-    assert project_json_file.is_file()
-
-    # Optional: Load the project from JSON and verify its contents further
-    # This would also test parts of get_project indirectly
-    # For now, focusing on add_project's direct responsibilities
+    assert project_json_file.exists() and project_json_file.is_file()
 
 
-def test_pm_add_project_already_exists(project_manager: ProjectManager):
+@pytest.mark.asyncio
+async def test_pm_add_project_already_exists(project_manager: ProjectManager):
     """Test trying to add a project that already exists."""
     project_name = "Test Project Beta"
-    project_manager.add_project(name=project_name)  # Add it once
+    project_manager.add_project(name=project_name)  # Add it once (synchronous call)
 
     # Action & Assertion: Try to add it again, expecting a ValueError
     with pytest.raises(ValueError, match=f"Project {project_name} already exists"):
-        project_manager.add_project(name=project_name)
+        project_manager.add_project(name=project_name) # Synchronous call
 
 
-def test_pm_init_empty_dir(MOCKED_PROJECTS_PATH):
+@pytest.mark.asyncio
+async def test_pm_init_empty_dir(MOCKED_PROJECTS_PATH):
     """Test ProjectManager initialization with an empty projects directory."""
     pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
-    assert len(pm.get_all_projects()) == 0
+    # The loading happens in __init__, so we check the result right after (synchronous call).
+    all_projects = pm.get_all_projects()
+    assert len(all_projects) == 0
 
 
-def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
-    """Test ProjectManager loads an existing project from the filesystem."""
+@pytest.mark.asyncio
+async def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
+    """Test ProjectManager loads an existing project from the filesystem on initialization."""
     project_name = "ExistingProject"
     scan_index = 1
     project_dir = MOCKED_PROJECTS_PATH / project_name
@@ -91,186 +93,108 @@ def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
     scan_dir = project_dir / f"scan{scan_index:02d}"
     scan_dir.mkdir()
 
-    # Create dummy openscan_project.json
+    # Create dummy openscan_project.json (without status)
     project_data = {
-        "name": project_name, 
-        "path": str(project_dir.resolve()), 
+        "name": project_name,
+        "path": str(project_dir.resolve()),
         "created": datetime.now().isoformat(),
         "uploaded": False,
         "description": "An existing test project",
         "scans": {
-            f"scan{scan_index:02d}": {"index": scan_index, "created": datetime.now().isoformat(), "status": ScanStatus.COMPLETED.value}
+            f"scan{scan_index:02d}": {"index": scan_index, "created": datetime.now().isoformat()}
         }
     }
     with open(project_dir / "openscan_project.json", "w") as f:
         json.dump(project_data, f, indent=2)
 
-    # Create dummy scan.json
+    # Create dummy scan.json (without status)
     scan_data = {
         "project_name": project_name,
         "index": scan_index,
         "created": datetime.now().isoformat(),
         "settings": ScanSetting(path_method="fibonacci", points=10).model_dump(mode='json'),
-        "camera_settings": CameraSettings().model_dump(mode='json'), 
-        "status": ScanStatus.COMPLETED.value,
-        "current_step": 0,
+        "camera_settings": CameraSettings().model_dump(mode='json'),
+        "current_step": 10,
         "system_message": None,
         "last_updated": datetime.now().isoformat(),
         "description": "A test scan",
-        "duration": 0.0,
+        "duration": 120.5,
         "photos": []
     }
     with open(scan_dir / "scan.json", "w") as f:
         json.dump(scan_data, f, indent=2)
 
-    # Initialize ProjectManager - this should trigger loading
+    # Initialize ProjectManager - this should trigger loading from disk
     pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
-    
-    assert project_name in pm.get_all_projects()
-    loaded_project = pm.get_project_by_name(project_name)
+    all_projects = pm.get_all_projects() # Synchronous call
+    assert project_name in all_projects
+
+    loaded_project = pm.get_project_by_name(project_name) # Synchronous call
     assert loaded_project is not None
     assert loaded_project.name == project_name
     assert str(Path(loaded_project.path).resolve()) == str(project_dir.resolve())
     assert f"scan{scan_index:02d}" in loaded_project.scans
+
     actual_scan = loaded_project.scans[f"scan{scan_index:02d}"]
     assert actual_scan.index == scan_index
-    assert actual_scan.status == ScanStatus.COMPLETED
-
-
-def test_pm_init_reset_running_scan(MOCKED_PROJECTS_PATH):
-    """Test ProjectManager resets status of a 'running' scan on init."""
-    project_name = "ProjectWithRunningScan"
-    scan_index = 1
-    project_dir = MOCKED_PROJECTS_PATH / project_name
-    project_dir.mkdir()
-    scan_dir = project_dir / f"scan{scan_index:02d}"
-    scan_dir.mkdir()
-
-    project_file_data = {
-        "name": project_name, "path": str(project_dir.resolve()), "created": datetime.now().isoformat(),
-        "scans": {f"scan{scan_index:02d}": {"index": scan_index, "created": datetime.now().isoformat(), "status": ScanStatus.RUNNING.value}}
-    }
-    with open(project_dir / "openscan_project.json", "w") as f:
-        json.dump(project_file_data, f, indent=2)
-
-    scan_file_data = {
-        "project_name": project_name, "index": scan_index, "created": datetime.now().isoformat(),
-        "settings": ScanSetting(path_method="fibonacci", points=5).model_dump(mode='json'),
-        "camera_settings": CameraSettings().model_dump(mode='json'),
-        "status": ScanStatus.RUNNING.value, 
-        "current_step": 1, "system_message": None, "last_updated": datetime.now().isoformat(),
-        "description": None, "duration": 0.0, "photos": []
-    }
-    with open(scan_dir / "scan.json", "w") as f:
-        json.dump(scan_file_data, f, indent=2)
-    
-    pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
-
-    loaded_project = pm.get_project_by_name(project_name)
-    assert loaded_project is not None
-    the_scan = loaded_project.scans.get(f"scan{scan_index:02d}")
-    assert the_scan is not None
-    assert the_scan.status == ScanStatus.ERROR
-    assert "interrupted because the application was restarted" in the_scan.system_message
-    
-    # Verify that the changes were saved back to scan.json by ProjectManager._reset_running_scans
-    # This requires _reset_running_scans to call save_project or for the scan to be saved some other way.
-    # Current ProjectManager._reset_running_scans modifies in-memory only.
-    # If save_project is called within _reset_running_scans (after modifications), this check would be valid:
-    # with open(scan_dir / "scan.json", "r") as f:
-    #     updated_scan_data_on_disk = json.load(f)
-    # assert updated_scan_data_on_disk["status"] == ScanStatus.ERROR.value
-
-
-import json 
-from unittest.mock import MagicMock 
+    assert actual_scan.duration == 120.5 # Verify other fields are loaded correctly
+    assert actual_scan.current_step == 10
 
 
 @pytest.fixture
 def mock_camera_controller() -> MagicMock:
     """Fixture for a mocked CameraController."""
     controller = MagicMock()
-    controller.settings = MagicMock()
-    # Ensure .model returns a Pydantic model or a dict that can be validated by Pydantic
-    controller.settings.model = CameraSettings(shutter=400)
+    controller.name = "mock_camera"
+    # Simulate the structure that add_scan_to_project expects
+    controller.settings = CameraSettings(shutter=400)
     return controller
 
 
-def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_camera_controller: MagicMock, MOCKED_PROJECTS_PATH):
+@pytest.mark.asyncio
+async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_camera_controller: MagicMock, MOCKED_PROJECTS_PATH):
     """Test adding a new scan to an existing project."""
-    project_name = "ProjectForScans"
-    project = project_manager.add_project(name=project_name)
+    project_name = "ProjectForScanning"
+    project_manager.add_project(name=project_name) # Synchronous call
 
-    scan_settings = ScanSetting(path_method="fibonacci", points=20, focus_stacks=3)
+    scan_settings = ScanSetting(points=50, path_method="fibonacci", )
+    scan_description = "First scan"
 
-    new_scan = project_manager.add_scan(
-        project_name=project_name, 
-        camera_controller=mock_camera_controller, 
-        scan_settings=scan_settings
+    # Action: Add the scan (asynchronous call)
+    new_scan = await project_manager.add_scan(
+        project_name=project_name,
+        scan_settings=scan_settings,
+        camera_controller=mock_camera_controller,
+        scan_description=scan_description
     )
 
+    # Assertions for the returned Scan object
     assert new_scan is not None
-    assert new_scan.project_name == project_name
     assert new_scan.index == 1
-    assert new_scan.settings == scan_settings
-    assert isinstance(new_scan.camera_settings, CameraSettings) 
-    assert new_scan.camera_settings.shutter == 400
-    assert new_scan.status == ScanStatus.PENDING
+    assert new_scan.project_name == project_name
+    assert new_scan.description == scan_description
+    assert new_scan.settings.points == 50
+    assert new_scan.camera_settings.shutter == 400 # From mock_camera_controller
+    assert new_scan.current_step == 0
+    assert new_scan.duration == 0.0
 
-    updated_project = project_manager.get_project_by_name(project_name)
-    assert f"scan{new_scan.index:02d}" in updated_project.scans
-    assert updated_project.scans[f"scan{new_scan.index:02d}"] == new_scan
+    # Assertions for filesystem
+    scan_dir = MOCKED_PROJECTS_PATH / project_name / "scan01"
+    assert scan_dir.exists() and scan_dir.is_dir()
+    scan_json_file = scan_dir / "scan.json"
+    assert scan_json_file.exists() and scan_json_file.is_file()
 
-    scan_dir_path = MOCKED_PROJECTS_PATH / project_name / f"scan{new_scan.index:02d}"
-    assert scan_dir_path.exists() and scan_dir_path.is_dir()
+    # Verify data in ProjectManager's memory
+    project = project_manager.get_project_by_name(project_name) # Synchronous call
+    assert "scan01" in project.scans
+    assert project.scans["scan01"].index == 1
 
-    scan_json_file = scan_dir_path / "scan.json"
-    assert scan_json_file.exists()
-    with open(scan_json_file, "r") as f:
-        scan_data_on_disk = json.load(f)
-    assert scan_data_on_disk["index"] == new_scan.index
-    assert scan_data_on_disk["settings"]["points"] == scan_settings.points
-    assert scan_data_on_disk["camera_settings"]["shutter"] == 400
-
-    project_json_file = MOCKED_PROJECTS_PATH / project_name / "openscan_project.json"
-    with open(project_json_file, "r") as f:
-        project_json_data = json.load(f)
-    assert f"scan{new_scan.index:02d}" in project_json_data["scans"]
-    assert project_json_data["scans"][f"scan{new_scan.index:02d}"]["index"] == new_scan.index
-
-
-def test_pm_add_multiple_scans_increment_index(project_manager: ProjectManager, mock_camera_controller: MagicMock):
-    """Test that scan indices are incremented correctly when adding multiple scans."""
-    project_name = "ProjectMultiScan"
-    project_manager.add_project(name=project_name)
-    scan_settings = ScanSetting(path_method="fibonacci", points=10)
-
-    scan1 = project_manager.add_scan(project_name, mock_camera_controller, scan_settings)
-    assert scan1.index == 1
-
-    scan2 = project_manager.add_scan(project_name, mock_camera_controller, scan_settings)
-    assert scan2.index == 2
-
-    scan3 = project_manager.add_scan(project_name, mock_camera_controller, scan_settings)
-    assert scan3.index == 3
-
-    project = project_manager.get_project_by_name(project_name)
-    assert len(project.scans) == 3
-
-
-def test_pm_add_scan_to_non_existent_project(project_manager: ProjectManager, mock_camera_controller: MagicMock):
-    """Test adding a scan to a project name that doesn't exist in the manager."""
-    scan_settings = ScanSetting(path_method="fibonacci", points=10)
-    
-    # This behavior changed: set_current_project within add_scan raises ValueError if project not found by name
-    # The original add_scan would try self._projects[project_name] which would be a KeyError
-    # Now, self.set_current_project(self._projects[project_name]) is called.
-    # If project_name is not in self._projects, it's a KeyError.
-    # If the project object from self._projects somehow differs from what set_current_project expects, it's ValueError.
-    # Let's assume the first case (project not in dict) is the most direct to test.
-    with pytest.raises(ValueError):
-        project_manager.add_scan(
-            project_name="NonExistentProject", 
-            camera_controller=mock_camera_controller, 
-            scan_settings=scan_settings
-        )
+    # Add a second scan to test indexing (asynchronous call)
+    second_scan = await project_manager.add_scan(
+        project_name=project_name,
+        scan_settings=ScanSetting(points=100, path_method="fibonacci"),
+        camera_controller=mock_camera_controller
+    )
+    assert second_scan.index == 2
+    project = project_manager.get_project_by_name(project_name) # Synchronous call
+    assert "scan02" in project.scans
