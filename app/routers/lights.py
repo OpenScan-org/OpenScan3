@@ -68,7 +68,7 @@ async def toggle_light(light_name: str):
     """Toggle light on or off"""
     try:
         controller = get_light_controller(light_name)
-        if controller.is_on():
+        if controller.is_on:
             controller.turn_off()
         else:
             controller.turn_on()
