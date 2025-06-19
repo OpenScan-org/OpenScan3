@@ -123,7 +123,7 @@ class ScanManager:
         self._paused.set()  # Not paused initially
         self._scan = scan  # Reference to the scan being managed
         self._project_manager = project_manager
-        logger.info(f"Initialized scan manager for scan {scan.id} of project {scan.project_name}.")
+        logger.info(f"Initialized scan manager for scan {scan.index} of project {scan.project_name}.")
 
     def _update_status(self, status: ScanStatus, error_message: Optional[str] = None) -> bool:
         """Update scan status and error message
