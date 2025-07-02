@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from app.config.logger import setup_logging_from_json_file
 
-from routers import cameras, motors, projects, cloud, gpio, paths, openscan, lights, device, tasks
+from app.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks
 from app.controllers import device as device_controller
 
 
@@ -30,6 +30,7 @@ async def lifespan(app: FastAPI):
 
     # Code to run on shutdown
     device_controller.cleanup_and_exit()
+    logging.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -53,7 +54,7 @@ app.include_router(openscan.router)
 
 app.include_router(device.router)
 
-app.include_router(cloud.router)
+#app.include_router(cloud.router)
 app.include_router(paths.router)
 
 

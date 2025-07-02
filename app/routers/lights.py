@@ -3,7 +3,7 @@ from fastapi_versionizer import api_version
 from pydantic import BaseModel
 
 from app.controllers.hardware.lights import get_light_controller, get_all_light_controllers
-from config.light import LightConfig
+from app.config.light import LightConfig
 from .settings_utils import create_settings_endpoints
 
 router = APIRouter(
