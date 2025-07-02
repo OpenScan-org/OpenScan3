@@ -26,6 +26,9 @@ async def lifespan(app: FastAPI):
     # task_manager.register_task("exclusive_demo", ExclusiveDemoTask)
     task_manager.register_task("scan_task", ScanTask)
 
+    # Now that tasks are registered, restore any persisted tasks
+    task_manager.restore_tasks_from_persistence()
+
     yield # application runs here
 
     # Code to run on shutdown

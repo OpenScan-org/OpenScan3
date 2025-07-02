@@ -82,16 +82,18 @@ class TaskManager:
             # Persistence Setup
             cls._instance._tasks_storage_path = TASKS_STORAGE_PATH
             os.makedirs(cls._instance._tasks_storage_path, exist_ok=True)
-            cls._instance._load_tasks_on_startup()
+            # The loading of tasks is now deferred to an explicit call to `restore_tasks_from_persistence`
 
         return cls._instance
 
-    def _load_tasks_on_startup(self):
-        """Loads all persisted task JSON files from the storage directory on startup.
+    def restore_tasks_from_persistence(self):
+        """Loads all persisted task JSON files from the storage directory.
+        This should be called during application startup, after all task types have been registered.
+
         If a file is corrupt or invalid, it's skipped and a warning is logged.
         Tasks that were successfully completed in a previous run are cleaned up.
         """
-        logger.info(f"Loading persisted tasks from {self._tasks_storage_path}...")
+        logger.info(f"Restoring persisted tasks from {self._tasks_storage_path}...")
         loaded_count = 0
         interrupted_count = 0
         cleaned_count = 0
@@ -682,4 +684,3 @@ task_manager = TaskManager()
 def get_task_manager() -> "TaskManager":
     """FastAPI dependency to get the singleton TaskManager instance."""
     return task_manager
-
