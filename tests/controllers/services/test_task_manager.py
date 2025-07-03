@@ -506,7 +506,7 @@ async def test_tasks_are_reloaded_on_startup(task_manager_fixture: TaskManager):
     # Instead of creating a new instance, we clear the internal state of the
     # existing (and correctly configured) manager and trigger the loading manually.
     tm._tasks = {}
-    tm._load_tasks_on_startup()
+    tm.restore_tasks_from_persistence()
 
     # --- Verification ---
     # Check if all non-completed tasks were loaded
@@ -590,7 +590,7 @@ async def test_startup_with_corrupt_task_files(task_manager_fixture: TaskManager
 
     # 4. Simulate an application restart by clearing state and reloading.
     tm._tasks = {}
-    tm._load_tasks_on_startup()
+    tm.restore_tasks_from_persistence()
 
     # 5. Check that only the valid, non-completed task was loaded.
     loaded_tasks = tm.get_all_tasks_info()
@@ -668,7 +668,7 @@ async def test_restart_interrupted_task_after_shutdown(task_manager_fixture: Tas
     # internal state and reload from disk.
     task_id_to_restart = task.id
     tm._tasks = {}
-    tm._load_tasks_on_startup()
+    tm.restore_tasks_from_persistence()
 
     # 3. Verify the task was loaded correctly
     reloaded_task = tm.get_task_info(task_id_to_restart)
@@ -840,7 +840,7 @@ async def test_auto_cleanup_of_completed_tasks_on_startup(task_manager_fixture: 
 
     # 2. Simulate an application restart by clearing state and reloading
     tm._tasks = {}
-    tm._load_tasks_on_startup()
+    tm.restore_tasks_from_persistence()
 
     # 3. Verify the state after restart
     # The completed task should be gone (cleaned up)
@@ -880,6 +880,7 @@ async def test_startup_with_unregistered_task_type(task_manager_fixture: TaskMan
     # This will trigger _load_tasks_on_startup.
     TaskManager._instance = None
     restarted_tm = TaskManager()
+    restarted_tm.restore_tasks_from_persistence()
 
     # Register some standard tasks, but deliberately omit the unregistered one.
     restarted_tm.register_task("hello_world_async", HelloWorldAsyncTask)

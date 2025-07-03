@@ -6,15 +6,13 @@ import pytest_asyncio
 from unittest.mock import MagicMock, AsyncMock, patch, call
 from datetime import datetime
 
-from app.config.camera import CameraSettings
 from app.config.scan import ScanSetting
 
 from app.models.task import Task, TaskStatus, TaskProgress
 from app.models.scan import Scan, ScanStatus
-from app.models.paths import CartesianPoint3D, PathMethod, PolarPoint3D
+from app.models.paths import CartesianPoint3D, PolarPoint3D
 from app.controllers.services.tasks.scan_task import ScanTask
 from app.controllers.services.tasks.task_manager import TaskManager
-from app.models.paths import PathMethod
 from app.controllers.services.projects import ProjectManager
 from app.controllers.hardware.motors import MotorController
 from app.models.motor import Motor
@@ -22,42 +20,6 @@ from app.config.motor import MotorConfig
 
 # Mark all tests in this module as asyncio tests
 pytestmark = pytest.mark.asyncio
-
-@pytest.fixture
-def mock_camera_controller() -> MagicMock:
-    """Fixture for a mocked CameraController."""
-    controller = MagicMock()
-    controller.settings = MagicMock()
-    # Ensure .model returns a Pydantic model or a dict that can be validated by Pydantic
-    controller.settings.model = CameraSettings()
-    return controller
-
-@pytest.fixture
-def sample_scan_settings() -> ScanSetting:
-    """Provides sample ScanSettings for testing."""
-    return ScanSetting(
-        path_method=PathMethod.FIBONACCI,
-        points=10,
-        min_theta=0,
-        max_theta=170,
-        optimize_path=True,
-        optimization_algorithm="nearest_neighbor",
-        focus_stacks=1,
-        focus_range=(10.0, 15.0)
-    )
-
-@pytest.fixture
-def sample_scan_model(sample_scan_settings: ScanSetting) -> Scan:
-    """Provides a sample Scan model instance."""
-    return Scan(
-        project_name="test_project",
-        index=1,
-        created=datetime.now(),
-        description="Test Scan",
-        settings=sample_scan_settings,
-        camera_settings=CameraSettings(),
-    )
-
 
 @pytest_asyncio.fixture
 async def task_manager_fixture() -> TaskManager:
@@ -110,8 +72,9 @@ async def async_sleep_side_effect(*args, **kwargs):
     """Helper to correctly simulate an async delay in a mock."""
     await asyncio.sleep(0.02)
 
+
 class TestScanTask:
-    """Test suite for the ScanTask, covering success, error, cancellation, and pause/resume."""
+    """Test suite for the ScanTask execution and lifecycle management."""
 
     @patch('app.controllers.services.tasks.scan_task.generate_scan_path')
     @patch('app.controllers.services.tasks.scan_task.motors', autospec=True)

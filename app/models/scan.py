@@ -13,6 +13,8 @@ from app.config.camera import CameraSettings
 class ScanStatus(str, Enum):
     """Defines the persistent status of a scan."""
     PENDING = "pending"
+    RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"

@@ -94,6 +94,10 @@ class TaskManager:
         Tasks that were successfully completed in a previous run are cleaned up.
         """
         logger.info(f"Restoring persisted tasks from {self._tasks_storage_path}...")
+
+        # Ensure the storage directory exists to prevent errors during testing or first run.
+        os.makedirs(self._tasks_storage_path, exist_ok=True)
+
         loaded_count = 0
         interrupted_count = 0
         cleaned_count = 0
@@ -148,7 +152,8 @@ class TaskManager:
         try:
             # Default serialization: try to save everything
             json_string = task_model.model_dump_json(indent=2)
-        except PydanticSerializationError:
+        except PydanticSerializationError as e:
+            logger.debug(f"Failed to serialize task {task_model.id} for persistence: {e}")
             logger.warning(
                 f"Task {task_model.id} ({task_model.name}) has non-serializable arguments. "
                 f"It will not be restartable after an application shutdown."

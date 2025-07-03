@@ -173,6 +173,7 @@ class ScanTask(BaseTask):
         try:
             for index, current_point in enumerate(path):
                 step_start_time = datetime.now()
+                scan.status = ScanStatus.RUNNING
 
                 # Check for cancellation
                 if self.is_cancelled():

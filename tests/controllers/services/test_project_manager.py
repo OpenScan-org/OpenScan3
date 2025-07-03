@@ -161,7 +161,7 @@ async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_came
     scan_description = "First scan"
 
     # Action: Add the scan (asynchronous call)
-    new_scan = await project_manager.add_scan(
+    new_scan = project_manager.add_scan(
         project_name=project_name,
         scan_settings=scan_settings,
         camera_controller=mock_camera_controller,
@@ -190,7 +190,7 @@ async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_came
     assert project.scans["scan01"].index == 1
 
     # Add a second scan to test indexing (asynchronous call)
-    second_scan = await project_manager.add_scan(
+    second_scan = project_manager.add_scan(
         project_name=project_name,
         scan_settings=ScanSetting(points=100, path_method="fibonacci"),
         camera_controller=mock_camera_controller

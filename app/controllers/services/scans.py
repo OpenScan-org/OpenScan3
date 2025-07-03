@@ -15,7 +15,7 @@ from app.controllers.hardware.cameras.camera import CameraController
 from app.controllers.services.projects import ProjectManager
 from app.controllers.services.tasks.scan_task import ScanTask
 from app.controllers.services.tasks.task_manager import get_task_manager
-from app.models.scan import Scan
+from app.models.scan import Scan, ScanStatus
 from app.models.task import Task, TaskStatus
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ async def start_scan(
     # If the scan already has a task_id, check its status.
     # This prevents creating a new task for a scan that is already running, paused, etc.
     if scan.task_id:
-        existing_task = task_manager.get_task(scan.task_id)
+        existing_task = task_manager.get_task_info(scan.task_id)
         if existing_task and existing_task.status not in [
             TaskStatus.COMPLETED,
             TaskStatus.CANCELLED,
@@ -59,22 +59,15 @@ async def start_scan(
             )
             return existing_task
 
-    # Create an instance of the task worker
-    scan_task_worker = ScanTask()
-
-    # Create the task via the TaskManager
-    task_name = f"scan_{scan.project_name}_{scan.index}"
+    task_name = "scan_task"
     task = await task_manager.create_and_run_task(
-        worker=scan_task_worker,
-        name=task_name,
-        args=[scan, camera_controller, project_manager],
-        kwargs={"start_from_step": start_from_step},
-        description=f"Executes a 3D scan for project '{scan.project_name}', scan index {scan.index}.",
+        task_name,
+        scan, camera_controller, project_manager, start_from_step
     )
 
     # Save the task_id in the scan object for future reference
     scan.task_id = task.id
-    await project_manager.save_scan(scan)
+    await project_manager.save_scan_state(scan)
     logger.info(f"Started scan {scan.index} for project '{scan.project_name}' with task_id {task.id}")
 
     return task
@@ -95,6 +88,7 @@ async def pause_scan(scan: Scan) -> Optional[Task]:
         return None
 
     task_manager = get_task_manager()
+    scan.status = ScanStatus.PAUSED
     return await task_manager.pause_task(scan.task_id)
 
 
@@ -131,4 +125,5 @@ async def cancel_scan(scan: Scan) -> Optional[Task]:
         return None
 
     task_manager = get_task_manager()
+    scan.status = ScanStatus.CANCELLED
     return await task_manager.cancel_task(scan.task_id)

@@ -247,7 +247,7 @@ class ProjectManager:
             return True
         return False
 
-    async def add_scan(self, project_name: str,
+    def add_scan(self, project_name: str,
                  camera_controller: CameraController,
                  scan_settings: ScanSetting,
                  scan_description = None,) -> Optional[Scan]:
@@ -281,15 +281,16 @@ class ProjectManager:
             created=datetime.now(),
             settings=scan_settings,
             description=scan_description,
-            camera_settings=camera_controller.settings,
-            camera_name=camera_controller.name
+            camera_name=camera_controller.camera.name,
+            camera_settings=camera_controller.settings.model,
         )
 
 
         project.scans[f"scan{new_index:02d}"] = scan
 
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, save_project, project)
+        #await loop.run_in_executor(None, save_project, project)
+        save_project(project)
 
         logger.info(f"Added scan {scan.index} to project {project.name}")
 
@@ -330,7 +331,7 @@ class ProjectManager:
         await loop.run_in_executor(None, save_project, project)
 
 
-    async def get_scan_by_index(self, project_name: str, scan_index: int) -> Optional[Scan]:
+    def get_scan_by_index(self, project_name: str, scan_index: int) -> Optional[Scan]:
         """Get a scan by its index from a project
 
         Args:
