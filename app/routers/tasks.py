@@ -3,12 +3,13 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status
 from fastapi_versionizer import api_version
 
-from app.controllers.services.tasks.task_manager import task_manager
+from app.controllers.services.tasks.task_manager import get_task_manager
 from app.models.task import Task, TaskStatus
+
 
 router = APIRouter(
     prefix="/tasks",
-    tags=["Tasks"],
+    tags=["tasks"],
     responses={404: {"description": "Not found"}},
 )
 
@@ -19,28 +20,8 @@ async def get_all_tasks():
     """
     Retrieve a list of all tasks known to the task manager.
     """
+    task_manager = get_task_manager()
     return task_manager.get_all_tasks_info()
-
-
-@api_version(0,3)
-@router.post("/{task_name}", response_model=Task, status_code=status.HTTP_202_ACCEPTED)
-async def create_task(task_name: str):
-    """
-    Create and start a new background task.
-
-    Args:
-        task_name: The name of the task to create, as registered in the TaskManager.
-
-    Returns:
-        The created task object.
-    """
-    try:
-        # Note: We don't pass arguments via the API in this basic example.
-        # A more advanced implementation might accept a request body with parameters.
-        task = await task_manager.create_and_run_task(task_name)
-        return task
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @api_version(0,3)
@@ -49,6 +30,7 @@ async def get_task_status(task_id: str):
     """
     Retrieve the status and details of a specific task.
     """
+    task_manager = get_task_manager()
     task = task_manager.get_task_info(task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -61,6 +43,7 @@ async def cancel_task(task_id: str):
     """
     Request cancellation of a running task.
     """
+    task_manager = get_task_manager()
     task = await task_manager.cancel_task(task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -75,6 +58,7 @@ async def pause_task(task_id: str):
 
     - **task_id**: The ID of the task to pause.
     """
+    task_manager = get_task_manager()
     task = await task_manager.pause_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found or cannot be paused.")
@@ -93,6 +77,7 @@ async def resume_task(task_id: str):
 
     - **task_id**: The ID of the task to resume.
     """
+    task_manager = get_task_manager()
     task = await task_manager.resume_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found or cannot be resumed.")
@@ -100,3 +85,52 @@ async def resume_task(task_id: str):
         # This case might indicate the task wasn't paused or an issue occurred.
         pass # Return current task state
     return task
+
+
+@api_version(0,3)
+@router.post("/crop", response_model=Task)
+async def crop(camera_name: str):
+    """Example image cropping task"""
+
+    # The task will get the controller itself using the camera_name.
+    # We only pass the serializable name string here to avoid serialization errors.
+    task_manager = get_task_manager()
+
+    task = await task_manager.create_and_run_task("crop_task", camera_name)
+    return task
+
+
+@api_version(0,3)
+@router.post("/hello-world-async", response_model=Task)
+async def hello_world_async(total_steps: int, delay: float):
+    """Example image cropping task"""
+
+
+    # we registered the task in main.py!
+    task_manager = get_task_manager()
+
+    task = await task_manager.create_and_run_task("hello_world_async", total_steps, delay)
+    return task
+
+@api_version(0,3)
+@router.post("/{task_name}", response_model=Task, status_code=status.HTTP_202_ACCEPTED)
+async def create_task(task_name: str):
+    """
+    Create and start a new background task.
+
+    Note: We don't pass arguments via the API in this basic example.
+    A more advanced implementation might accept a request body with parameters.
+    Remember you can't pass python objects and need to de-/serialize them to JSON.
+
+    Args:
+        task_name: The name of the task to create, as registered in the TaskManager.
+
+    Returns:
+        The created task object.
+    """
+    try:
+        task_manager = get_task_manager()
+        task = await task_manager.create_and_run_task(task_name)
+        return task
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

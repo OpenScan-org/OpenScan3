@@ -61,14 +61,14 @@ async def get_preview(camera_name: str):
                 for motor_controller in get_all_motor_controllers().values()
             )
 
-            # Check if a scan is running
-            scan_manager = get_active_scan_manager()
-            scan_busy = scan_manager and scan_manager._scan.status == ScanStatus.RUNNING
+            # TODO: Check if a scan is running
+            #scan_manager = get_active_scan_manager()
+            #scan_busy = scan_manager and scan_manager._scan.status == ScanStatus.RUNNING
 
             # Stop preview (wait) if motor or scan is busy, otherwise continue with 0.02s delay
-            if motor_busy or scan_busy:
-                await asyncio.sleep(0.1)  # Small sleep to prevent busy waiting
-                continue  # Skip frame generation and yield
+            # if motor_busy or scan_busy:
+             #   await asyncio.sleep(0.1)  # Small sleep to prevent busy waiting
+             #   continue  # Skip frame generation and yield
 
             frame = controller.preview()
             yield (b'--frame\r\n'

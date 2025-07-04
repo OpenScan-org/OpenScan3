@@ -11,9 +11,10 @@ from app.routers import cameras, motors, projects, gpio, paths, openscan, lights
 from app.controllers import device as device_controller
 
 
-from app.controllers.services.tasks.task_manager import task_manager
+from app.controllers.services.tasks.task_manager import get_task_manager
 from app.controllers.services.tasks.scan_task import ScanTask
-# from app.controllers.services.tasks.example_tasks import HelloWorldTask, ExclusiveDemoTask
+from app.controllers.services.tasks.crop_task import CropTask
+from app.controllers.services.tasks.example_tasks import HelloWorldAsyncTask, ExclusiveDemoTask
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,9 +23,13 @@ async def lifespan(app: FastAPI):
 
     device_controller.initialize(device_controller.load_device_config())
 
-    # task_manager.register_task("hello_world", HelloWorldTask)
+    task_manager = get_task_manager()
+
+    task_manager.register_task("hello_world_async", HelloWorldAsyncTask)
     # task_manager.register_task("exclusive_demo", ExclusiveDemoTask)
     task_manager.register_task("scan_task", ScanTask)
+    task_manager.register_task("crop_task", CropTask)
+
 
     # Now that tasks are registered, restore any persisted tasks
     task_manager.restore_tasks_from_persistence()

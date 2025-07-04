@@ -72,6 +72,7 @@ class HelloWorldAsyncTask(BaseTask):
                 return "Hello World task cancelled by request."
 
             self._task_model.progress = TaskProgress(current=i, total=total_steps, message=f"Hello World! Step {i} of {total_steps}")
+            logger.info(f"[{self.id}] Hello World! Step {i} of {total_steps}")
             await asyncio.sleep(delay)
 
         logger.info(f"[{self.id}] HelloWorldTask finished.")

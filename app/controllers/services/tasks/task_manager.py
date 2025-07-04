@@ -323,6 +323,7 @@ class TaskManager:
         Raises:
             ValueError: If the task name is not registered.
         """
+        logger.debug(f"Creating and running task '{task_name}' with args: {args}, kwargs: {kwargs}")
         if task_name not in self._task_registry:
             raise ValueError(f"Task '{task_name}' is not registered.")
 
@@ -339,6 +340,7 @@ class TaskManager:
             run_args=args,
             run_kwargs=kwargs
         )
+        logger.debug(f"Creating new task '{task_model.name}' ({task_model.id}) with args: {args}, kwargs: {kwargs}")
         task_instance = task_class(task_model)  # BaseTask instance
 
         self._tasks[task_model.id] = task_model
