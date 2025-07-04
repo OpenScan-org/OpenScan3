@@ -34,7 +34,7 @@ import shutil
 from io import BytesIO
 
 from app.models.project import Project
-from app.models.scan import Scan, ScanStatus
+from app.models.scan import Scan
 from app.controllers.hardware.cameras.camera import CameraController
 from app.config.scan import ScanSetting
 
@@ -93,9 +93,21 @@ def delete_project(project: Project) -> bool:
         return False
 
 
-def _save_scan_json(projects_path: str, scan: Scan) -> None:
+async def _save_scan_json_async(projects_path: str, scan: Scan) -> None:
     """Save a scan to a separate JSON file in the scan directory"""
     # Create a new folder if necessary
+    scan_folder_path = os.path.join(projects_path, f"scan{scan.index:02d}")
+    os.makedirs(scan_folder_path, exist_ok=True)
+
+    scan_json_data = scan.model_dump_json(indent=2)
+
+    scan_file_path = os.path.join(scan_folder_path, "scan.json")
+    async with aiofiles.open(scan_file_path, "w") as f:
+        await f.write(scan_json_data)
+
+
+def _save_scan_json(projects_path: str, scan: Scan) -> None:
+    """Synchronously save a scan to a separate JSON file in the scan directory."""
     scan_folder_path = os.path.join(projects_path, f"scan{scan.index:02d}")
     os.makedirs(scan_folder_path, exist_ok=True)
 
@@ -139,7 +151,6 @@ def save_project(project: Project):
     for scan_id, scan_obj in project.scans.items():
         scans_summary[scan_id] = {"index": scan_obj.index,
                                   "created": scan_obj.created.isoformat(),
-                                  "status": scan_obj.status.value
                                   }
 
     project_main_data['scans'] = scans_summary
@@ -171,27 +182,6 @@ class ProjectManager:
                     logger.error(f"Error loading project {folder}: {e}", exc_info=True)
 
         logger.info(f"Loaded {len(self._projects)} projects.")
-
-        # Reset any running scans to a failed state (app was restarted)
-        self._reset_running_scans()
-
-    def _reset_running_scans(self):
-        """Reset any running scans to failed state when app starts"""
-        running_scans_found = False
-
-        for project_name, project in self._projects.items():
-            for scan_id, scan in project.scans.items():
-                if scan.status == ScanStatus.RUNNING or scan.status == ScanStatus.PAUSED:
-                    # App was restarted while scan was running
-                    error_msg = "Scan was interrupted because the application was restarted"
-                    scan.status = ScanStatus.ERROR
-                    scan.system_message = error_msg
-                    scan.last_updated = datetime.now()
-                    running_scans_found = True
-                    logger.debug(f"Reset scan {scan_id} in project {project_name} to ERROR state: {error_msg}")
-
-        if running_scans_found:
-            logger.warning("Warning: Found interrupted scans that were reset to ERROR state")
 
     def get_project_by_name(self, project_name: str) -> Optional[Project]:
         """Get a project by name. Returns None if the project does not exist."""
@@ -291,12 +281,15 @@ class ProjectManager:
             created=datetime.now(),
             settings=scan_settings,
             description=scan_description,
-            camera_settings=camera_controller.settings.model
+            camera_name=camera_controller.camera.name,
+            camera_settings=camera_controller.settings.model,
         )
 
 
         project.scans[f"scan{new_index:02d}"] = scan
 
+        loop = asyncio.get_running_loop()
+        #await loop.run_in_executor(None, save_project, project)
         save_project(project)
 
         logger.info(f"Added scan {scan.index} to project {project.name}")
@@ -328,11 +321,14 @@ class ProjectManager:
 
         logger.debug(f"Added photo {photo_filename} to scan {scan.index} in project {scan.project_name}")
 
-        save_project(project)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, save_project, project)
 
-    def save(self, scan: Scan):
+    async def save_scan_state(self, scan: Scan) -> None:
+        """Asynchronously saves the state of a single scan to its JSON file."""
         project = get_project(self._path,scan.project_name)
-        save_project(project)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, save_project, project)
 
 
     def get_scan_by_index(self, project_name: str, scan_index: int) -> Optional[Scan]:

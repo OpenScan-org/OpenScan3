@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 from fastapi_versionizer import api_version
 
-from config.motor import MotorConfig
+from app.config.motor import MotorConfig
 from app.controllers.hardware.motors import get_motor_controller, get_all_motor_controllers
 from app.models.paths import PolarPoint3D
 from .settings_utils import create_settings_endpoints

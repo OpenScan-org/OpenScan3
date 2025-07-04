@@ -23,6 +23,8 @@ from app.config.motor import MotorConfig
 from app.models.motor import Motor
 from app.controllers.hardware import gpio
 from ..settings import Settings
+from app.models.paths import PolarPoint3D, PathMethod
+
 
 logger = logging.getLogger(__name__)
 
@@ -451,3 +453,23 @@ def is_motor_busy(name: str) -> bool:
         return get_motor_controller(name).is_busy()
     except ValueError:
         return False
+
+
+async def move_to_point(point: PolarPoint3D):
+    """Move motors to specified polar coordinates"""
+    # Get motor controllers
+    turntable = get_motor_controller("turntable")
+    rotor = get_motor_controller("rotor")
+
+    # wait until motors are ready
+    while turntable.is_busy() or rotor.is_busy():
+        logger.debug("Waiting for motors to be ready")
+        await asyncio.sleep(0.01)
+
+    # Move both motors concurrently to specified point
+    await asyncio.gather(
+        turntable.move_to(point.fi),
+        rotor.move_to(point.theta)
+    )
+
+    logger.debug(f"Moved to {point}")
