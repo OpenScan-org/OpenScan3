@@ -418,5 +418,13 @@ def shutdown(with_saving = False):
 
 
 def cleanup_and_exit():
+    cam_controllers = get_all_camera_controllers()
+    for name, controller in cam_controllers.items():
+        try:
+            controller.cleanup()
+            logger.debug(f"Camera controller '{name}' closed successfully.")
+        except Exception as e:
+            logger.error(f"Error closing camera controller '{name}': {e}")
+
     cleanup_all_pins()
     logger.info("Exiting now...")

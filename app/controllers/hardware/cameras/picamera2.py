@@ -308,6 +308,7 @@ class Picamera2Controller(CameraController):
         """Clean up the camera resource."""
         self._picam.close()
         Picamera2Controller._picam = None
+        logger.debug("Picamera2 controller closed successfully.")
 
 
 """

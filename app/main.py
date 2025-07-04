@@ -7,8 +7,14 @@ from contextlib import asynccontextmanager
 
 from app.config.logger import setup_logging_from_json_file
 
-from routers import cameras, motors, projects, cloud, gpio, paths, openscan, lights, device
+from app.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks
 from app.controllers import device as device_controller
+
+
+from app.controllers.services.tasks.task_manager import get_task_manager
+from app.controllers.services.tasks.scan_task import ScanTask
+from app.controllers.services.tasks.crop_task import CropTask
+from app.controllers.services.tasks.example_tasks import HelloWorldAsyncTask, ExclusiveDemoTask
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,10 +23,22 @@ async def lifespan(app: FastAPI):
 
     device_controller.initialize(device_controller.load_device_config())
 
+    task_manager = get_task_manager()
+
+    task_manager.register_task("hello_world_async", HelloWorldAsyncTask)
+    # task_manager.register_task("exclusive_demo", ExclusiveDemoTask)
+    task_manager.register_task("scan_task", ScanTask)
+    task_manager.register_task("crop_task", CropTask)
+
+
+    # Now that tasks are registered, restore any persisted tasks
+    task_manager.restore_tasks_from_persistence()
+
     yield # application runs here
 
     # Code to run on shutdown
     device_controller.cleanup_and_exit()
+    logging.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -33,6 +51,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(tasks.router)
+
 app.include_router(cameras.router)
 app.include_router(motors.router)
 app.include_router(lights.router)
@@ -42,7 +62,7 @@ app.include_router(openscan.router)
 
 app.include_router(device.router)
 
-app.include_router(cloud.router)
+#app.include_router(cloud.router)
 app.include_router(paths.router)
 
 

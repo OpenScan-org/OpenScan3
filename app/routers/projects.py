@@ -11,14 +11,17 @@ import json
 from datetime import datetime
 
 from app.controllers.hardware.cameras.camera import get_all_camera_controllers, get_camera_controller
-from controllers.services import projects
-from controllers.services.projects import ProjectManager
-from controllers.services.scans import get_scan_manager, get_active_scan_manager
+from app.controllers.services import projects
+from app.controllers.services.projects import ProjectManager
+import app.controllers.services.scans as scans #import start_scan, cancel_scan, pause_scan, resume_scan
 from app.models.project import Project
 from app.config.scan import ScanSetting
 from app.models.scan import Scan, ScanStatus
+from app.models.task import Task, TaskStatus
 
 from app.controllers.services.projects import get_project_manager
+from app.controllers.services.tasks.task_manager import task_manager, get_task_manager
+from app.controllers.services.tasks.scan_task import ScanTask
 
 router = APIRouter(
     prefix="/projects",
@@ -60,42 +63,11 @@ async def get_projects():
 async def get_project(project_name: str):
     """Get a project"""
     project_manager = get_project_manager()
-    try:
-        return jsonable_encoder(project_manager.get_project_by_name(project_name))
-    except FileNotFoundError:
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+    return project
 
-
-@api_version(0,1)
-@router.delete("/{project_name}", response_model=bool)
-async def delete_project(project_name: str):
-    """Delete a project"""
-    project_manager = get_project_manager()
-    try:
-        return project_manager.delete_project(projects.get_project(project_name))
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
-
-
-@api_version(0,2)
-@router.delete("/{project_name}/{scan_index}/", response_model=bool)
-async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
-    """Delete photos from a scan in a project
-
-    Args:
-        project_name: The name of the project
-        scan_index: The index of the scan
-        photo_filenames: A list of photo filenames to delete
-
-    Returns:
-        True if the photos were deleted successfully, False otherwise
-    """
-    project_manager = get_project_manager()
-    try:
-        scan = project_manager.get_scan_by_index(project_name, scan_index)
-        return project_manager.delete_photos(scan, photo_filenames)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
 @api_version(0,1)
 @router.post("/{project_name}", response_model=Project)
@@ -117,19 +89,6 @@ async def new_project(project_name: str, project_description: Optional[str] = ""
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
 
-@api_version(0,1)
-@router.post("/{project_name}/scan", response_model=Scan)
-async def add_scan(project_name: str, camera_name: str, scan_settings: ScanSetting):
-    """Add a new scan to a project"""
-    project_manager = get_project_manager()
-    controller = get_camera_controller(camera_name)
-    scan = project_manager.add_scan(project_name, controller, scan_settings)
-
-    scan_manager = get_scan_manager(scan, project_manager)
-
-    asyncio.create_task(scan_manager.start_scan(controller))
-
-    return scan
 
 @api_version(0,2)
 @router.post("/{project_name}/scan", response_model=Scan)
@@ -138,15 +97,22 @@ async def add_scan_with_description(project_name: str,
                    scan_settings: ScanSetting,
                    scan_description:  Optional[str] = ""):
     """Add a new scan to a project"""
-    controller = get_camera_controller(camera_name)
+    camera_controller = get_camera_controller(camera_name)
     project_manager = get_project_manager()
-    scan = project_manager.add_scan(project_name, controller, scan_settings, scan_description)
 
-    scan_manager = get_scan_manager(scan, project_manager)
+    try:
+        scan = project_manager.add_scan(project_name, camera_controller, scan_settings, scan_description)
 
-    asyncio.create_task(scan_manager.start_scan(controller))
+        # Pass the initialized project_manager and the scan object to the task.
+        #await task_manager.create_and_run_task("scan_task", scan, controller, project_manager)
+        task = await scans.start_scan(project_manager, scan, camera_controller)
+        success = task is not None
 
-    return scan
+        return scan
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start scan: {e}")
+
 
 
 @api_version(0,1)
@@ -160,8 +126,40 @@ async def get_scan(project_name: str, scan_index: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_version(0,3)
+@router.delete("/{project_name}/{scan_index}/", response_model=bool)
+async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
+    """Delete photos from a scan in a project
+
+    Args:
+        project_name: The name of the project
+        scan_index: The index of the scan
+        photo_filenames: A list of photo filenames to delete
+
+    Returns:
+        True if the photos were deleted successfully, False otherwise
+    """
+    project_manager = get_project_manager()
+    try:
+        scan = project_manager.get_scan_by_index(project_name, scan_index)
+        return project_manager.delete_photos(scan, photo_filenames)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+
 @api_version(0,2)
 @router.delete("/{project_name}", response_model=bool)
+async def delete_project(project_name: str):
+    """Delete a project"""
+    project_manager = get_project_manager()
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+    return project_manager.delete_project(project)
+
+@api_version(0,3)
+@router.delete("/{project_name}/scans/", response_model=bool)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project"""
     project_manager = get_project_manager()
@@ -198,57 +196,53 @@ async def get_scan_status(project_name: str, scan_index: int):
 @router.patch("/{project_name}/scans/{scan_index}/pause", response_model=ScanControlResponse)
 async def pause_scan(project_name: str, scan_index: int):
     """Pause a running scan"""
-    try:
-        project_manager = get_project_manager()
-        scan = project_manager.get_scan_by_index(project_name, scan_index)
-        if not scan:
-            raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
+    project_manager = get_project_manager()
+    scan = project_manager.get_scan_by_index(project_name, scan_index)
+    if not scan:
+        raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
 
-        scan_manager = get_active_scan_manager()
-        if scan_manager is None or scan_manager._scan != scan:
-            raise HTTPException(status_code=409, detail="No active scan found")
+    updated_task = await scans.pause_scan(scan)
+    success = updated_task is not None
 
-        success = await scan_manager.pause()
-        return ScanControlResponse(
-            success=success,
-            message="Scan paused" if success else "Failed to pause scan",
-            scan=scan
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return ScanControlResponse(
+        success=success,
+        message="Scan paused successfully." if success else "Failed to pause scan. It might not be running.",
+        scan=scan
+    )
 
 
 @api_version(0,1)
 @router.patch("/{project_name}/scans/{scan_index}/resume", response_model=ScanControlResponse)
 async def resume_scan(project_name: str, scan_index: int, camera_name: str):
     """Resume a paused, cancelled or failed scan"""
-    camera_controller = get_camera_controller(camera_name)
     try:
+
+        camera_controller = get_camera_controller(camera_name)
         project_manager = get_project_manager()
         scan = project_manager.get_scan_by_index(project_name, scan_index)
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
 
-        # If no active manager exists, create a new one for this scan
-        scan_manager = get_active_scan_manager()
-        if scan_manager is None:
-            try:
-                scan_manager = get_scan_manager(scan, project_manager)
-            except RuntimeError as e:
-                raise HTTPException(status_code=409, detail=str(e))
+        #task_manager = get_task_manager()
+        task = task_manager.get_task_info(scan.task_id) if scan.task_id else None
 
-        # Check if the right scan is active
-        if scan_manager._scan != scan:
-            raise HTTPException(status_code=409, detail="This is not the active scan")
-
-        # Allow resume for paused, cancelled and failed scans
-        if scan.status not in [ScanStatus.PAUSED, ScanStatus.CANCELLED, ScanStatus.ERROR]:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Scan cannot be resumed (current status: {scan.status.value})"
+        if task and task.status == TaskStatus.PAUSED:
+            updated_task = await scans.resume_scan(scan)
+            message = "Scan resumed successfully." if updated_task else "Failed to resume paused scan."
+        elif not task or task.status in [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.ERROR]:
+            # This logic handles resuming an INTERRUPTED scan or restarting a failed/completed one.
+            updated_task = await scans.start_scan(
+                project_manager,
+                scan,
+                camera_controller,
+                start_from_step=scan.current_step
             )
+            message = "Scan restarted successfully." if updated_task else "Failed to restart scan."
+        else:
+            raise HTTPException(status_code=400, detail=f"Scan cannot be resumed from its current state: {task.status.value}")
 
-        success = await scan_manager.resume(camera_controller)
+        resumed_task = await scans.resume_scan(scan)
+        success = resumed_task is not None
         return ScanControlResponse(
             success=success,
             message="Scan resumed" if success else "Failed to resume scan",
@@ -268,11 +262,9 @@ async def cancel_scan(project_name: str, scan_index: int):
         if not scan:
             raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
 
-        scan_manager = get_active_scan_manager()
-        if scan_manager is None or scan_manager._scan != scan:
-            raise HTTPException(status_code=409, detail="No active scan found")
+        updated_task = await scans.cancel_scan(scan)
+        success = updated_task is not None
 
-        success = await scan_manager.cancel()
         return ScanControlResponse(
             success=success,
             message="Scan cancelled successfully" if success else "Failed to cancel scan",
@@ -421,4 +413,3 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-
