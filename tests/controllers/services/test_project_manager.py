@@ -141,14 +141,16 @@ async def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
     assert actual_scan.current_step == 10
 
 
-@pytest.fixture
-def mock_camera_controller() -> MagicMock:
-    """Fixture for a mocked CameraController."""
-    controller = MagicMock()
-    controller.name = "mock_camera"
-    # Simulate the structure that add_scan_to_project expects
-    controller.settings = CameraSettings(shutter=400)
-    return controller
+# @pytest.fixture
+# def mock_camera_controller() -> MagicMock:
+#     """Fixture for a mocked CameraController."""
+#     controller = MagicMock()
+#     controller.name = "mock_camera_controller"
+#     controller.camera.name = "mock_camera"
+#     # Simulate the structure that add_scan_to_project expects
+#     controller.settings = MagicMock()
+#     controller.settings.model = CameraSettings(shutter=400)
+#     return controller
 
 
 @pytest.mark.asyncio
