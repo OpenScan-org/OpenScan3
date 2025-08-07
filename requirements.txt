@@ -18,3 +18,5 @@ pydantic==2.11.3
 requests==2.28.1
 pytest==8.3.5
 python-json-logger==3.3.0
+typing-extensions==4.14.1
+anyio==4.10.0

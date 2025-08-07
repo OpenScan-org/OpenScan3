@@ -461,9 +461,45 @@ async def move_to_point(point: PolarPoint3D):
     turntable = get_motor_controller("turntable")
     rotor = get_motor_controller("rotor")
 
-    # wait until motors are ready
+    # Calculate adaptive timeouts based on estimated movement times
+    # If motors are busy, we don't know exactly what movement they're doing,
+    # so we use a reasonable grace period based on typical movements
+    max_typical_movement_time = max(   # Worst case: half rotation
+        turntable.estimate_movement_time_for_degrees(180),
+        rotor.estimate_movement_time_for_degrees(180)
+    )
+    
+    # Adaptive timeouts based on motor capabilities
+    graceful_wait = max(2.0, max_typical_movement_time * 1.5)  # 1.5x estimated time, min 2s
+    total_timeout = max(10.0, max_typical_movement_time * 3.0)  # 3x estimated time, min 10s
+    
+    logger.debug(f"Using adaptive timeouts: graceful={graceful_wait:.1f}s, total={total_timeout:.1f}s")
+    
+    start_time = asyncio.get_event_loop().time()
+    
     while turntable.is_busy() or rotor.is_busy():
-        logger.debug("Waiting for motors to be ready")
+        current_time = asyncio.get_event_loop().time()
+        elapsed = current_time - start_time
+        
+        if elapsed > graceful_wait:
+            # After graceful wait, try to stop motors
+            logger.info(f"Motors still busy after {graceful_wait:.1f}s graceful wait, requesting stop...")
+            turntable.stop()
+            rotor.stop()
+            
+            # Give motors a moment to respond to stop
+            await asyncio.sleep(0.2)
+            
+            # Continue waiting but with total timeout
+            if elapsed > total_timeout:
+                logger.error(f"Timeout waiting for motors after {total_timeout:.1f}s. Motors may be stuck.")
+                if turntable.is_busy() or rotor.is_busy():
+                    raise RuntimeError(f"Motors failed to stop after {total_timeout:.1f}s timeout. Turntable busy: {turntable.is_busy()}, Rotor busy: {rotor.is_busy()}")
+                break
+        
+        # Log less frequently to reduce spam
+        if int(elapsed * 10) % 10 == 0:  # Log every 100ms
+            logger.debug("Waiting for motors to be ready")
         await asyncio.sleep(0.01)
 
     # Move both motors concurrently to specified point

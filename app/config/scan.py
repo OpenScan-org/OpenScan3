@@ -25,3 +25,20 @@ class ScanSetting(BaseModel):
         confloat(ge=0.0, le=15.0),
         confloat(ge=0.0, le=15.0)] = Field(default=(10.0, 15.0),
                                            description="Minimum and maximum focus distance in diopters.")
+
+    @property
+    def focus_positions(self) -> list[float]:
+        """Calculate focus positions for focus stacking.
+        
+        Returns:
+            List of focus positions from min_focus to max_focus.
+            Empty list if focus_stacks <= 1.
+        """
+        if self.focus_stacks <= 1:
+            return []
+        
+        min_focus, max_focus = self.focus_range
+        return [
+            min_focus + i * (max_focus - min_focus) / (self.focus_stacks - 1)
+            for i in range(self.focus_stacks)
+        ]

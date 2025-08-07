@@ -12,28 +12,10 @@ from app.config.scan import ScanSetting
 from app.config.camera import CameraSettings
 
 
-@pytest.fixture
-def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
-    """Fixture to create a temporary, isolated projects directory for testing."""
-    mock_projects_dir = tmp_path / "projects_test_root"
-    mock_projects_dir.mkdir()
-    return mock_projects_dir
-
-
-@pytest.fixture
-def project_manager(MOCKED_PROJECTS_PATH) -> ProjectManager:
-    """Fixture to create a ProjectManager instance with a temporary projects path."""
-    # Instantiate the ProjectManager. Assuming __init__ is synchronous and loads data.
-    # If ProjectManager needs async initialization, this fixture would need to be async
-    # and use an async factory or `await ProjectManager.create(...)` pattern.
-    pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
-    return pm
-
-
 # --- Test Cases for ProjectManager ---
 
 @pytest.mark.asyncio
-async def test_pm_add_project_new(project_manager: ProjectManager, MOCKED_PROJECTS_PATH):
+async def test_pm_add_project_new(project_manager: ProjectManager):
     """Test adding a new project successfully."""
     project_name = "Test Project"
     project_description = "A test project description."
@@ -48,7 +30,7 @@ async def test_pm_add_project_new(project_manager: ProjectManager, MOCKED_PROJEC
     assert isinstance(created_project.created, datetime)
     assert len(created_project.scans) == 0
 
-    expected_path = MOCKED_PROJECTS_PATH / project_name
+    expected_path = Path(project_manager._path) / project_name
     assert Path(created_project.path).resolve() == expected_path.resolve()
 
     # Assertions for ProjectManager internal state (synchronous calls)
@@ -57,7 +39,7 @@ async def test_pm_add_project_new(project_manager: ProjectManager, MOCKED_PROJEC
     assert project_manager.get_project_by_name(project_name) == created_project
 
     # Assertions for filesystem
-    project_dir_path = MOCKED_PROJECTS_PATH / project_name
+    project_dir_path = Path(project_manager._path) / project_name
     assert project_dir_path.exists() and project_dir_path.is_dir()
     project_json_file = project_dir_path / "openscan_project.json"
     assert project_json_file.exists() and project_json_file.is_file()
@@ -75,20 +57,19 @@ async def test_pm_add_project_already_exists(project_manager: ProjectManager):
 
 
 @pytest.mark.asyncio
-async def test_pm_init_empty_dir(MOCKED_PROJECTS_PATH):
+async def test_pm_init_empty_dir(project_manager: ProjectManager):
     """Test ProjectManager initialization with an empty projects directory."""
-    pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
     # The loading happens in __init__, so we check the result right after (synchronous call).
-    all_projects = pm.get_all_projects()
+    all_projects = project_manager.get_all_projects()
     assert len(all_projects) == 0
 
 
 @pytest.mark.asyncio
-async def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
+async def test_pm_init_loads_existing_project(project_manager: ProjectManager):
     """Test ProjectManager loads an existing project from the filesystem on initialization."""
     project_name = "ExistingProject"
     scan_index = 1
-    project_dir = MOCKED_PROJECTS_PATH / project_name
+    project_dir = Path(project_manager._path) / project_name
     project_dir.mkdir()
     scan_dir = project_dir / f"scan{scan_index:02d}"
     scan_dir.mkdir()
@@ -125,11 +106,10 @@ async def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
         json.dump(scan_data, f, indent=2)
 
     # Initialize ProjectManager - this should trigger loading from disk
-    pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
-    all_projects = pm.get_all_projects() # Synchronous call
+    all_projects = project_manager.get_all_projects() # Synchronous call
     assert project_name in all_projects
 
-    loaded_project = pm.get_project_by_name(project_name) # Synchronous call
+    loaded_project = project_manager.get_project_by_name(project_name) # Synchronous call
     assert loaded_project is not None
     assert loaded_project.name == project_name
     assert str(Path(loaded_project.path).resolve()) == str(project_dir.resolve())
@@ -154,7 +134,7 @@ async def test_pm_init_loads_existing_project(MOCKED_PROJECTS_PATH):
 
 
 @pytest.mark.asyncio
-async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_camera_controller: MagicMock, MOCKED_PROJECTS_PATH):
+async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_camera_controller: MagicMock):
     """Test adding a new scan to an existing project."""
     project_name = "ProjectForScanning"
     project_manager.add_project(name=project_name) # Synchronous call
@@ -181,7 +161,7 @@ async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_came
     assert new_scan.duration == 0.0
 
     # Assertions for filesystem
-    scan_dir = MOCKED_PROJECTS_PATH / project_name / "scan01"
+    scan_dir = Path(project_manager._path) / project_name / "scan01"
     assert scan_dir.exists() and scan_dir.is_dir()
     scan_json_file = scan_dir / "scan.json"
     assert scan_json_file.exists() and scan_json_file.is_file()

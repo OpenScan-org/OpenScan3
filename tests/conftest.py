@@ -1,11 +1,31 @@
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
+from pathlib import Path
 
+from app.controllers.services.projects import ProjectManager
 from app.config.camera import CameraSettings
 from app.config.scan import ScanSetting
 from app.models.paths import PathMethod
 from app.models.scan import Scan
+
+
+@pytest.fixture
+def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
+    """Fixture to create a temporary, isolated projects directory for testing."""
+    mock_projects_dir = tmp_path / "projects_test_root"
+    mock_projects_dir.mkdir()
+    return mock_projects_dir
+
+
+@pytest.fixture
+def project_manager(MOCKED_PROJECTS_PATH) -> ProjectManager:
+    """Fixture to create a ProjectManager instance with a temporary projects path."""
+    # Instantiate the ProjectManager. Assuming __init__ is synchronous and loads data.
+    # If ProjectManager needs async initialization, this fixture would need to be async
+    # and use an async factory or `await ProjectManager.create(...)` pattern.
+    pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
+    return pm
 
 
 @pytest.fixture
