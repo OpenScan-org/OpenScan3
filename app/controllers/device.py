@@ -186,7 +186,7 @@ def _load_light_config(settings: dict) -> LightConfig:
 
 
 def _load_endstop_config(settings: dict) -> EndstopConfig:
-    """Load endstop configuration"""
+    """Helper function to load and validate endstop settings from a dictionary."""
     try:
         return EndstopConfig(**settings)
     except Exception as e:
@@ -328,17 +328,20 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
 
     # Create endstop objects
     endstop_objects = {}
-    for endstop_name in config["endstops"]:
-        settings = _load_endstop_config(config["endstops"][endstop_name])
-        try:
-            endstop = Endstop(name=config["endstops"][endstop_name],
-                              settings=_load_endstop_config(config["endstops"][endstop_name]))
-            endstop_controller = EndstopController(endstop, controller=get_motor_controller(settings.motor_name))
-            endstop_objects[endstop_name] = endstop
-            logging.debug(f"Loaded endstop {endstop_name} with settings: {endstop.settings}")
-            endstop_controller.start_listener()
-        except Exception as e:
-            logger.error(f"Error initializing endstop '{endstop_name}': {e}")
+    if "endstops" in config:
+        for endstop_name in config["endstops"]:
+            try:
+                settings = _load_endstop_config(config["endstops"][endstop_name]["settings"])
+                endstop = Endstop(name=endstop_name, settings=settings)
+                controller = get_motor_controller(settings.motor_name)
+                if not controller:
+                    raise ValueError(f"Motor '{settings.motor_name}' not found for endstop '{endstop_name}'")
+                endstop_controller = EndstopController(endstop, controller=controller)
+                endstop_objects[endstop_name] = endstop
+                logging.debug(f"Loaded endstop {endstop_name} with settings: {endstop.settings}")
+                endstop_controller.start_listener()
+            except Exception as e:
+                logger.error(f"Error initializing endstop '{endstop_name}': {e}")
 
 
     for name, controller in light_objects.items():
@@ -369,6 +372,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
     )
     logger.info("Hardware initialized.")
     logger.debug(f"Initialized ScannerDevice: {_scanner_device.model_dump(mode='json')}.")
+
 
 def get_available_configs():
     """Get a list of all available device configuration files

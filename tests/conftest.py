@@ -13,8 +13,9 @@ def mock_camera_controller() -> MagicMock:
     """Fixture for a mocked CameraController."""
     controller = MagicMock()
     controller.settings = MagicMock()
+    controller.settings.model = MagicMock()
     controller.settings.model = CameraSettings(shutter=400)
-    controller.model.name = "mock_camera"
+    controller.camera.name = "mock_camera"
     return controller
 
 

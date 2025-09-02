@@ -7,6 +7,7 @@ from app.controllers.hardware.motors import MotorController
 from app.config.endstop import EndstopConfig
 from app.config.motor import MotorConfig
 from app.models.motor import Motor, Endstop
+from app.controllers import device as device_controller_module
 
 Device.pin_factory = MockFactory()
 
@@ -156,3 +157,57 @@ async def test_endstop_integration_with_motor(endstop_config, motor_controller_i
     # Clean up
     controller.stop_listener()
     await asyncio.sleep(0.1)
+
+
+def test_device_controller_initializes_endstop_from_nested_config(monkeypatch):
+    """
+    Integration test to ensure the device module correctly initializes an endstop
+    from a nested configuration, preventing regression of the validation error.
+    """
+    # 1. Create a mock configuration mimicking the real JSON structure
+    mock_device_config = {
+        "name": "Test Device",
+        "model": "mini",
+        "shield": "blackshield",
+        "cameras": {},
+        "motors": {
+            "test_motor": {
+                "direction_pin": 1, "enable_pin": 2, "step_pin": 3,
+                "acceleration": 10000, "max_speed": 5000, "direction": 1,
+                "steps_per_rotation": 800
+            }
+        },
+        "lights": {},
+        "endstops": {
+            "test_endstop": {
+                "name": "test_endstop",
+                "settings": {
+                    "pin": 4,
+                    "angular_position": 130,
+                    "motor_name": "test_motor",
+                    "pull_up": True,
+                    "bounce_time": 0.005
+                }
+            }
+        }
+    }
+
+    # 2. Mock motor controller dependencies
+    mock_motor_controller = MotorController(Motor(name="test_motor", settings=MotorConfig(**mock_device_config["motors"]["test_motor"])))
+    monkeypatch.setattr('app.controllers.device.create_motor_controller', lambda motor: None)
+    monkeypatch.setattr('app.controllers.device.get_motor_controller', lambda name: mock_motor_controller)
+
+    # 3. Mock the listener to avoid hardware interaction
+    monkeypatch.setattr(EndstopController, 'start_listener', lambda self: None)
+
+    # 4. Run the initialization logic from the device module
+    try:
+        device_controller_module.initialize(mock_device_config)
+    except Exception as e:
+        pytest.fail(f"device.initialize failed with nested config: {e}")
+
+    # 5. Assert that the endstop was created in the global scanner device object
+    scanner_device = device_controller_module._scanner_device
+    assert "test_endstop" in scanner_device.endstops
+    assert scanner_device.endstops["test_endstop"].name == "test_endstop"
+    assert scanner_device.endstops["test_endstop"].settings.pin == 4
