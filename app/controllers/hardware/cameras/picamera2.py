@@ -5,12 +5,16 @@ This module provides a CameraController class for controlling the picamera2 came
 
 """
 
+import io
 import logging
 import time
+from importlib.metadata import metadata
+from io import BytesIO
 
 import cv2
 import numpy as np
-from typing import IO
+import piexif
+from typing import IO, Any
 from libcamera import ColorSpace, controls, Transform
 ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
@@ -23,15 +27,20 @@ logger = logging.getLogger(__name__)
 
 class CameraStrategy:
     """Base strategy class for camera-specific configurations and processing"""
-    photogrammetry_settings = { "AeEnable": False, # Disable auto exposure
-                                "NoiseReductionMode": 0, # Disable noise reduction
-                                "AwbEnable": False # Disable automatic white balance
-                               }
 
-    def create_preview_config(self, picam: Picamera2, preview_resolution=None):
+    def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         raise NotImplementedError
 
-    def create_photo_config(self, picam: Picamera2, photo_resolution=None):
+    def create_photo_config(self, picam: Picamera2, photo_resolution=None, additional_settings=None):
+        raise NotImplementedError
+
+    def create_raw_config(self, picam: Picamera2, raw_resolution=None, additional_settings=None):
+        raise NotImplementedError
+
+    def create_yuv_config(self, picam: Picamera2, additional_settings=None):
+        raise NotImplementedError
+
+    def create_rgb_config(self, picam: Picamera2, additional_settings=None):
         raise NotImplementedError
 
     def process_preview_frame(self, frame):
@@ -42,28 +51,53 @@ class CameraStrategy:
 
 class IMX519Strategy(CameraStrategy):
     """Strategy class for camera-specific configurations and processing for the Arducam IMX519 camera with 16MP."""
-    def create_preview_config(self, picam: Picamera2, preview_resolution=None):
-        self.photogrammetry_settings.pop("ScalerCrop", None)
+    def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         if preview_resolution is None:
             return picam.create_preview_configuration(
                 main={"size": (2328, 1748)},
                 lores={"size": (640, 480), "format": "YUV420"},
-                controls=self.photogrammetry_settings
+                raw=None,
+                controls=additional_settings
             )
         return picam.create_preview_configuration(
             main={"size": preview_resolution},
-            controls=self.photogrammetry_settings
+            controls=additional_settings
         )
 
-    def create_photo_config(self, picam: Picamera2, photo_resolution=None):
+    def create_photo_config(self, picam: Picamera2, photo_resolution=None, additional_settings=None):
         if photo_resolution is None:
             return picam.create_still_configuration(buffer_count=1,
                                                     main={"size": (4656, 3496),  "format": "RGB888"},
-                                                    controls=self.photogrammetry_settings
+                                                    controls=additional_settings
                                                     )
         return picam.create_still_configuration(buffer_count=1,
                                                 main={"size": photo_resolution, "format": "RGB888"},
-                                                controls=self.photogrammetry_settings
+                                                controls=additional_settings
+                                                )
+
+    def create_raw_config(self, picam: Picamera2, raw_resolution=None, additional_settings=None):
+        if raw_resolution is None:
+            return picam.create_still_configuration(buffer_count=1,
+                                                    main={"size": (4656, 3496)},
+                                                    raw={"size": (4656, 3496)},
+                                                    controls=additional_settings
+                                                    )
+        return picam.create_still_configuration(buffer_count=1,
+                                                main={"size": (2328, 1748)},
+                                                raw={"size": raw_resolution},
+                                                controls=additional_settings
+                                                )
+
+    def create_yuv_config(self, picam: Picamera2, additional_settings=None):
+        return picam.create_still_configuration(buffer_count=1,
+                                                main={"size": (4656, 3496), "format": "YUV420"},
+                                                controls=additional_settings
+                                                )
+
+    def create_rgb_config(self, picam: Picamera2, additional_settings=None):
+        return picam.create_still_configuration(buffer_count=1,
+                                                main={"size": (4656, 3496)},
+                                                controls=additional_settings
                                                 )
 
     def process_preview_frame(self, frame):
@@ -72,33 +106,62 @@ class IMX519Strategy(CameraStrategy):
 
 class HawkeyeStrategy(CameraStrategy):
     """Strategy class for camera-specific configurations and processing for the Arducam Hawkeye camera with 64MP."""
-    def create_preview_config(self, picam: Picamera2, preview_resolution=None):
-        # adjust crop to match photo config
-        # known limitation: fov is still not identical, preview image is slightly larger
-        self.photogrammetry_settings["ScalerCrop"] = (624, 472, 8624, 6472)
+    def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         return picam.create_preview_configuration(
             transform=Transform(hflip=True, vflip=False),
-            main={"size": (2328, 1748)},
-            controls=self.photogrammetry_settings
+            main={"size": (2312, 1736)},
+            raw=None,
+            controls=additional_settings
             )
 
-    def create_photo_config(self, picam: Picamera2, photo_resolution=None):
+    def create_photo_config(self, picam: Picamera2, photo_resolution=None, additional_settings=None):
         if photo_resolution is None:
-            # pop cropping dict key to use default cropping
-            self.photogrammetry_settings.pop("ScalerCrop", None)
             return picam.create_still_configuration(
                 buffer_count=1,
-                transform=Transform(hflip=True, vflip=False),
-                main={"size": (8000, 6000)},
-                controls=self.photogrammetry_settings
+                main={"size": (9152, 6944)},
+                raw=None, # needed to be set to None explicitly to avoid memory issues
+                controls=additional_settings
                 )
-        return picam.create_still_configuration(buffer_count=1, main={"size": photo_resolution})
+        return picam.create_still_configuration(buffer_count=1,
+                                                main={"size": photo_resolution},
+                                                raw=None,
+                                                controls=additional_settings)
+
+    def create_raw_config(self, picam: Picamera2, raw_resolution=None, additional_settings=None):
+        if raw_resolution is None:
+            return picam.create_still_configuration(
+                buffer_count=1,
+                main={"size": (2312, 1736)}, # main cannot be None and has to be reduced to avoid memory issues
+                raw={"size": (9152, 6944)},
+                controls=additional_settings
+                )
+        return picam.create_still_configuration(buffer_count=1,
+                                                main={"size": (2312, 1736)},
+                                                raw={"size": raw_resolution},
+                                                controls=additional_settings
+                                                )
+
+    def create_yuv_config(self, picam: Picamera2, additional_settings=None):
+        return picam.create_still_configuration(buffer_count=1,
+                                                main={"size": (9152, 6944), "format": "YUV420"},
+                                                raw=None,
+                                                controls=additional_settings
+                                                )
+
+    def create_rgb_config(self, picam: Picamera2, additional_settings=None):
+        return picam.create_still_configuration(buffer_count=1,
+                                                main={"size": (9152, 6944)},
+                                                raw=None,
+                                                controls=additional_settings
+                                                )
 
     def process_preview_frame(self, frame):
         return frame[:, :, [2, 1, 0]]  # correct the color channels
 
     def process_photo_frame(self, frame):
-        return frame[:, :, [2, 1, 0]]  # correct the color channels
+        frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        #return frame[:, :, [2, 1, 0]]  # correct the color channels
+        return frame
 
 
 class Picamera2Controller(CameraController):
@@ -148,14 +211,28 @@ class Picamera2Controller(CameraController):
         logger.debug(f"Applied settings to hardware: {settings.model_dump_json()}")
 
 
-    def _configure_resolutions(self):
+    def _configure_resolutions(self, additional_settings=None):
         """Create preview and photo configurations."""
-        self.preview_config = self._strategy.create_preview_config(self._picam, self.settings.preview_resolution)
-        self.photo_config = self._strategy.create_photo_config(self._picam, self.settings.photo_resolution)
+        logger.debug("Configuring resolutions...")
+        photogrammetry_settings = {"AeEnable": False,  # Disable auto exposure
+                                   "NoiseReductionMode": 0,  # Disable noise reduction
+                                   "AwbEnable": False  # Disable automatic white balance
+                                   }
+
+        if additional_settings is not None:
+            photogrammetry_settings.update(additional_settings)
+
+        self.preview_config = self._strategy.create_preview_config(self._picam, self.settings.preview_resolution, photogrammetry_settings)
+        self.photo_config = self._strategy.create_photo_config(self._picam, self.settings.photo_resolution, photogrammetry_settings)
+        self.raw_config = self._strategy.create_raw_config(self._picam, self.settings.photo_resolution, photogrammetry_settings)
+        self.yuv_config = self._strategy.create_yuv_config(self._picam, photogrammetry_settings)
+        self.rgb_config = self._strategy.create_rgb_config(self._picam, photogrammetry_settings)
+
+        logger.debug(f"Configured resolutions with {photogrammetry_settings}.")
 
 
     def _configure_cropping(self):
-        """Configure cropping of the image based on settings."""
+        """Deprecated! Configure cropping of the image based on settings."""
         full_x, full_y = self._picam.camera_properties['PixelArraySize']
         # because of rotation, height is x and width is y
         crop_x = self.settings.crop_height / 100
@@ -167,6 +244,31 @@ class Picamera2Controller(CameraController):
         y_end = int(full_y - y_start)
 
         return y_start, y_end, x_start, x_end
+
+    def _configure_cropping_for_scalercrop(self):
+        """Configure cropping of the image based on settings. This is used for the photo and raw configurations."""
+        full_x, full_y = self._picam.camera_properties["PixelArraySize"]
+
+        if self.camera.name == "arducam_64mp":
+            # adujst for camera rotation
+            crop_x = self.settings.crop_height / 100
+            crop_y = self.settings.crop_width / 100
+        print("crop_x: ", crop_x)
+        print("crop_y: ", crop_y)
+
+        width = int(full_x * (1 - crop_x))  // 2 * 2
+        height = int(full_y * (1 - crop_y))  // 2 * 2
+
+
+        x_start = (full_x - width) // 2
+        y_start = (full_y - height) // 2
+
+        update_controls = {"ScalerCrop": (x_start, y_start, width, height)}
+        print("update_controls: ", update_controls)
+        self.photo_config = self._strategy.create_photo_config(self._picam, (width, height), update_controls)
+        self.raw_config = self._strategy.create_raw_config(self._picam, (width, height), update_controls)
+
+        return (x_start, y_start, width, height)
 
 
     def _configure_focus(self, camera_mode: str = None):
@@ -229,51 +331,204 @@ class Picamera2Controller(CameraController):
 
             logger.info(f"Manual focus enabled, current Focus set to: {self._picam.capture_metadata()['LensPosition']}")
 
+    def calibrate_awb_and_lock(self, warmup_frames=12,
+                                     stable_frames=4,
+                                     eps=0.01,
+                                     timeout_s=2.0) -> tuple[float, float]:
+        """Use the picamera2 automatic white balance and lock it afterward for consistent color correction.
+
+        Args:
+            warmup_frames (int, optional): Number of frames to warm up the camera. Defaults to 12.
+            stable_frames (int, optional): Number of frames to wait for the AWB to stabilize. Defaults to 4.
+            eps (float, optional): Epsilon value for the AWB stability check. Defaults to 0.01.
+            timeout_s (float, optional): Timeout in seconds for the AWB calibration. Defaults to 2.0.
+
+        Returns:
+            tuple: A tuple containing the red and blue gains.
+        """
+        self._busy = True
+        logger.info("Will configure automatic white balance for color correction...")
+        logger.debug(
+            f"Warmup frames: {warmup_frames}, Stable frames: {stable_frames}, Epsilon: {eps}, Timeout: {timeout_s}")
+        logger.debug(f"Current camera metadata: {self._picam.capture_metadata()}")
+
+        self._picam.set_controls({"AwbEnable": True})
+
+        metadata = self._picam.capture_metadata()
+        current_controls = {c: metadata[c] for c in ["ExposureTime", "ColourGains"]}
+        logger.info(f"Current Exposure {current_controls['ExposureTime']}, ColourGains {current_controls['ColourGains']}")
+
+        self._picam.drop_frames(warmup_frames, wait=True)
+
+        last = None
+        steady = 0
+        best_gains = None
+        t0 = time.monotonic()
+
+        while time.monotonic() - t0 < timeout_s:
+            md = self._picam.capture_metadata()
+            gains = md.get("ColourGains")
+            if not gains:
+                continue
+
+            if last is not None:
+                dr = abs(gains[0] - last[0])
+                db = abs(gains[1] - last[1])
+                if dr < eps and db < eps:
+                    steady += 1
+                else:
+                    steady = 0
+            last = gains
+            best_gains = gains
+
+            if steady >= stable_frames:
+                break
+
+        if best_gains is None:
+            logger.error("Could not determine gains from metadata.")
+            raise RuntimeError("Could not determine gains from metadata.")
+
+        # Disable AWB and lock the gains
+        self._picam.set_controls({
+            "AwbEnable": False,
+            "ColourGains": (float(best_gains[0]), float(best_gains[1]))
+        })
+        self.settings.awbg_red = best_gains[0]
+        self.settings.awbg_blue = best_gains[1]
+        logger.info(f"AWB locked with gains: {best_gains}")
+
+        self._busy = False
+
+        return float(best_gains[0]), float(best_gains[1])
 
     def restart_camera(self):
-        """Restart the camera."""
+        """Restart the camera and reconfigure resolution."""
         self._picam.stop()
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
         self._picam.start()
         logger.info(f"Picamera2 restarted.")
 
+    def _capture_array(self, config):
+        self._busy = True
+        self._configure_focus(camera_mode="photo")
+        if self.settings.AF:
+            self._picam.autofocus_cycle()
 
-    def photo(self) -> IO[bytes]:
-        """Capture a single photo.
+        array = self._picam.switch_mode_and_capture_array(config, "main")
+        cam_metadata = self._picam.capture_metadata()
+        logger.debug(f"Captured array with metadata: {cam_metadata}")
+
+        self._configure_focus(camera_mode="preview")
+        self._busy = False
+        return array, cam_metadata
+
+
+    def capture_rgb_array(self) -> tuple[Any, Any]:
+        """Capture a rgb array.
+
+        Returns:
+            tuple[Any, Any]: A tuple containing the rgb array and metadata.
+
+        """
+        return self._capture_array(self.rgb_config)
+
+
+    def capture_yuv_array(self):
+        """Capture a yuv array.
+
+        Returns:
+            tuple[Any, Any]: A tuple containing the yuv array and metadata.
+        """
+        return self._capture_array(self.yuv_config)
+
+
+    def crop_arrays(self, array):
+        """Todo: keep as utility function or delete?"""
+        processed_array = self._strategy.process_photo_frame(array)
+
+        if self.settings.crop_height > 0 or self.settings.crop_width > 0:
+            y_start, y_end, x_start, x_end = self._configure_cropping()
+            processed_array = processed_array[y_start:y_end, x_start:x_end]
+            logger.debug(f"Cropped photo array.")
+
+        return processed_array
+
+
+
+    def capture_jpeg(self, optional_exif_data: dict = None) -> tuple[BytesIO, dict]:
+        """Capture a jpeg.
 
         Capture a single photo using the current photo configuration.
         We capture a photo by switching to photo config and immediately returning to faster preview mode.
         This results in much faster autofocus adjustments after motor movements.
         The photo is processed according to the strategy and then converted to a JPEG image.
 
+        Args:
+            optional_exif_data (dict, optional): Optional exif data to be added to the image. Defaults to None.
+
         Returns:
-            IO[bytes]: A file-like object containing the JPEG image.
-        """
+            tuple[BytesIO, dict]: A tuple containing the JPEG data and metadata."""
         self._busy = True
         self._configure_focus(camera_mode="photo")
+        self._configure_cropping_for_scalercrop()
         if self.settings.AF:
             self._picam.autofocus_cycle()
 
-        array = self._picam.switch_mode_and_capture_array(self.photo_config, "main")
-        logger.debug(f"Captured photo array with metadata: {self._picam.capture_metadata()}")
+        self._picam.options["quality"] = self.settings.jpeg_quality
 
-        # reset focus to preview
+        exif_data = {
+            "0th": {
+                piexif.ImageIFD.Orientation: self.settings.orientation_flag,
+                # piexif.ImageIFD.Make: "Raspberry Pi",
+                piexif.ImageIFD.Model: self.camera.name,
+                piexif.ImageIFD.Software: "OpenScan3 (Picamera2)",
+            }
+        }
+
+        if optional_exif_data:
+            exif_data.update(optional_exif_data)
+
+        jpeg_data = io.BytesIO()
+        cam_metadata = self._picam.switch_mode_and_capture_file(self.photo_config,
+                                                            jpeg_data,
+                                                            #delay=5,
+                                                            format='jpeg',
+                                                            exif_data=exif_data)
+
         self._configure_focus(camera_mode="preview")
 
-        if self.settings.crop_height > 0 or self.settings.crop_width > 0:
-            y_start, y_end, x_start, x_end = self._configure_cropping()
-            array = array[y_start:y_end, x_start:x_end]
-            logger.debug(f"Cropped photo array.")
+        logger.debug(f"Captured jpeg with metadata: {cam_metadata}")
 
-        array = cv2.rotate(array, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        array = self._strategy.process_photo_frame(array)
-
-        _, jpeg = cv2.imencode('.jpg', array,
-                               [int(cv2.IMWRITE_JPEG_QUALITY), self.settings.jpeg_quality])
-        logger.debug(f"Converted photo array to JPEG with quality {self.settings.jpeg_quality}.")
         self._busy = False
-        return jpeg.tobytes()
+
+        return jpeg_data, cam_metadata
+
+
+    def capture_dng(self) -> tuple[BytesIO, Any]:
+        """Capture a dng.
+
+        Returns:
+            tuple[BytesIO, Any]: A tuple containing the dng data and metadata."""
+        self._busy = True
+        self._configure_focus(camera_mode="photo")
+        self._picam.set_controls({"ScalerCrop": self._configure_cropping_for_scalercrop()})
+        if self.settings.AF:
+            self._picam.autofocus_cycle()
+
+        dng_data = io.BytesIO()
+        metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
+                                                            dng_data,
+                                                            name='raw')
+
+        self._configure_focus(camera_mode="preview")
+
+        logger.debug(f"Captured dng with metadata: {metadata}")
+
+        self._busy = False
+
+        return dng_data, metadata
+
 
 
     def preview(self, mode="main") -> IO[bytes]:
@@ -288,7 +543,6 @@ class Picamera2Controller(CameraController):
         Returns:
             IO[bytes]: A file-like object containing the JPEG image.
         """
-        #self._configure_focus(camera_mode="preview")
 
         frame = self._picam.capture_array(mode)
 
@@ -299,8 +553,15 @@ class Picamera2Controller(CameraController):
             frame = cv2.resize(frame, (640,480))
             frame = self._strategy.process_preview_frame(frame)
 
-        frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        _, jpeg = cv2.imencode('.jpg', frame)
+        rotate_map = {
+            1: lambda f: f,
+            3: lambda f: cv2.rotate(f, cv2.ROTATE_180),
+            6: lambda f: cv2.rotate(f, cv2.ROTATE_90_CLOCKWISE),
+            8: lambda f: cv2.rotate(f, cv2.ROTATE_90_COUNTERCLOCKWISE),
+        }
+        frame = rotate_map.get(self.settings.orientation_flag, lambda f: f)(frame)
+
+        _, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
         return jpeg.tobytes()
 
 

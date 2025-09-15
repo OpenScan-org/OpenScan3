@@ -8,7 +8,10 @@ Currently supporting only picamera2.
 
 import abc
 import logging
-from typing import Dict, IO, Optional, Type
+from io import BytesIO
+from typing import Dict, IO, Optional, Type, Any
+
+import numpy
 
 from app.models.camera import Camera, CameraType
 from app.config.camera import CameraSettings
@@ -45,17 +48,41 @@ class CameraController(abc.ABC):
         """
         pass
 
+    def photo(self) -> tuple[BytesIO, Any]:
+        """Capture a single photo with high resolution.
+        Deprecated! Use according capture method instead."""
+        return self.capture_jpeg()
+
     @staticmethod
     @abc.abstractmethod
-    def photo(camera: Camera) -> IO[bytes]:
-        """Capture a single photo with high resolution."""
+    def preview(self, camera: Camera) -> IO[bytes]:
+        """Capture a faster and low resolution preview."""
         raise NotImplementedError
 
     @staticmethod
     @abc.abstractmethod
-    def preview(camera: Camera) -> IO[bytes]:
-        """Capture a faster and low resolution preview."""
+    def capture_rgb_array(camera: Camera) -> numpy.ndarray:
+        """Capture a numpy array to use for image analysis."""
         raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def capture_yuv_array(camera: Camera) -> numpy.ndarray:
+        """Capture a yuv array."""
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def capture_dng(camera: Camera) -> tuple[BytesIO, Any]:
+        """Capture a raw image and encode it to dng."""
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def capture_jpeg() -> tuple[BytesIO, Any]:
+        """Capture an image and encode it to jpeg."""
+        raise NotImplementedError
+
 
 def _create_camera_controller_instance(camera: Camera) -> 'CameraController':
     """Create a camera controller instance based on the camera type.
