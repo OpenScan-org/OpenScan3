@@ -2,12 +2,14 @@ import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
 from pathlib import Path
+import io
 
 from app.controllers.services.projects import ProjectManager
 from app.config.camera import CameraSettings
 from app.config.scan import ScanSetting
 from app.models.paths import PathMethod
 from app.models.scan import Scan
+from app.models.camera import CameraMetadata, PhotoData
 
 
 @pytest.fixture
@@ -38,6 +40,19 @@ def mock_camera_controller() -> MagicMock:
     controller.camera.name = "mock_camera"
     return controller
 
+@pytest.fixture
+def sample_camera_metadata() -> CameraMetadata:
+    """Fixture for a mocked CameraMetadata."""
+    return CameraMetadata(camera_name="mock_camera",
+                          camera_settings=CameraSettings(shutter=400),
+                          raw_metadata={})
+
+@pytest.fixture
+def fake_photo_data(sample_camera_metadata: CameraMetadata) -> PhotoData:
+    """Fixture for a mocked PhotoData."""
+    return PhotoData(data=io.BytesIO(b"fake_image_bytes"),
+                     format="jpeg",
+                     camera_metadata=sample_camera_metadata)
 
 @pytest.fixture
 def sample_scan_settings() -> ScanSetting:
@@ -52,7 +67,8 @@ def sample_scan_settings() -> ScanSetting:
         optimize_path=True,
         optimization_algorithm="nearest_neighbor",
         focus_stacks=1,
-        focus_range=(10.0, 15.0)
+        focus_range=(10.0, 15.0),
+        image_format="jpeg"
     )
 
 

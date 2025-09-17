@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, confloat
-from typing import Tuple
+from typing import Tuple, Literal
 
 from app.models.paths import PathMethod
 
@@ -7,6 +7,8 @@ from app.models.paths import PathMethod
 class ScanSetting(BaseModel):
     path_method: PathMethod
     points: int = Field(130, ge=1, le=999, description="Number of points in scanning path.")
+
+    image_format: Literal['jpeg','dng','rgb_array', 'yuv_array']
 
     # Theta constraints for constrained paths
     min_theta: float = Field(12.0, ge=0.0, le=180.0,

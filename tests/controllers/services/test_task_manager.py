@@ -167,8 +167,11 @@ async def test_exclusive_task_blocks_others(task_manager_fixture: TaskManager):
     await wait_for_task_completion(tm, exclusive_task.id, timeout=3)
 
     # Now, the pending task should have started
-    await asyncio.sleep(0.1)  # Give the queue processor time to run
-    assert tm.get_task_info(non_exclusive_task.id).status == TaskStatus.RUNNING
+    #await asyncio.sleep(0.1)  # Give the queue processor time to run
+    status = tm.get_task_info(non_exclusive_task.id).status
+    # since the pending task may finish quickly, we are also allowing COMPLETED state
+    assert status in (TaskStatus.RUNNING, TaskStatus.COMPLETED)
+
 
 
 async def test_exclusive_task_waits_for_others(task_manager_fixture: TaskManager):

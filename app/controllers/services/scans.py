@@ -67,7 +67,7 @@ async def start_scan(
     task_name = "scan_task"
     task = await task_manager.create_and_run_task(
         task_name,
-        scan, start_from_step  # Only 2 serializable arguments!
+        scan, start_from_step
     )
 
     # Save the task_id in the scan object for future reference

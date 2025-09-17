@@ -65,7 +65,8 @@ async def test_pm_init_empty_dir(project_manager: ProjectManager):
 
 
 @pytest.mark.asyncio
-async def test_pm_init_loads_existing_project(project_manager: ProjectManager):
+async def test_pm_init_loads_existing_project(project_manager: ProjectManager,
+                                              sample_scan_settings: ScanSetting):
     """Test ProjectManager loads an existing project from the filesystem on initialization."""
     project_name = "ExistingProject"
     scan_index = 1
@@ -93,7 +94,7 @@ async def test_pm_init_loads_existing_project(project_manager: ProjectManager):
         "project_name": project_name,
         "index": scan_index,
         "created": datetime.now().isoformat(),
-        "settings": ScanSetting(path_method="fibonacci", points=10).model_dump(mode='json'),
+        "settings": sample_scan_settings.model_dump(mode='json'),
         "camera_settings": CameraSettings().model_dump(mode='json'),
         "current_step": 10,
         "system_message": None,
@@ -106,10 +107,11 @@ async def test_pm_init_loads_existing_project(project_manager: ProjectManager):
         json.dump(scan_data, f, indent=2)
 
     # Initialize ProjectManager - this should trigger loading from disk
-    all_projects = project_manager.get_all_projects() # Synchronous call
+    pm = ProjectManager(path=Path(project_manager._path))
+    all_projects = pm.get_all_projects() # Synchronous call
     assert project_name in all_projects
 
-    loaded_project = project_manager.get_project_by_name(project_name) # Synchronous call
+    loaded_project = pm.get_project_by_name(project_name) # Synchronous call
     assert loaded_project is not None
     assert loaded_project.name == project_name
     assert str(Path(loaded_project.path).resolve()) == str(project_dir.resolve())
@@ -134,12 +136,14 @@ async def test_pm_init_loads_existing_project(project_manager: ProjectManager):
 
 
 @pytest.mark.asyncio
-async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_camera_controller: MagicMock):
+async def test_pm_add_scan_to_project(project_manager: ProjectManager,
+                                      mock_camera_controller: MagicMock,
+                                      sample_scan_settings: ScanSetting):
     """Test adding a new scan to an existing project."""
     project_name = "ProjectForScanning"
     project_manager.add_project(name=project_name) # Synchronous call
 
-    scan_settings = ScanSetting(points=50, path_method="fibonacci", )
+    scan_settings = sample_scan_settings
     scan_description = "First scan"
 
     # Action: Add the scan (asynchronous call)
@@ -155,7 +159,7 @@ async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_came
     assert new_scan.index == 1
     assert new_scan.project_name == project_name
     assert new_scan.description == scan_description
-    assert new_scan.settings.points == 50
+    assert new_scan.settings.points == 10
     assert new_scan.camera_settings.shutter == 400 # From mock_camera_controller
     assert new_scan.current_step == 0
     assert new_scan.duration == 0.0
@@ -174,7 +178,7 @@ async def test_pm_add_scan_to_project(project_manager: ProjectManager, mock_came
     # Add a second scan to test indexing (asynchronous call)
     second_scan = project_manager.add_scan(
         project_name=project_name,
-        scan_settings=ScanSetting(points=100, path_method="fibonacci"),
+        scan_settings=sample_scan_settings,
         camera_controller=mock_camera_controller
     )
     assert second_scan.index == 2

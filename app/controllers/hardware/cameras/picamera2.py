@@ -20,7 +20,7 @@ ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
 from app.controllers.hardware.cameras.camera import CameraController
-from app.models.camera import Camera
+from app.models.camera import Camera, CameraMetadata, PhotoData
 from app.config.camera import CameraSettings
 
 logger = logging.getLogger(__name__)
@@ -249,12 +249,14 @@ class Picamera2Controller(CameraController):
         """Configure cropping of the image based on settings. This is used for the photo and raw configurations."""
         full_x, full_y = self._picam.camera_properties["PixelArraySize"]
 
-        if self.camera.name == "arducam_64mp":
+        crop_x = self.settings.crop_width / 100
+        crop_y = self.settings.crop_height / 100
+
+        rotated_flags = {5, 6, 7, 8}
+        if self.camera.settings.orientation_flag in rotated_flags:
             # adujst for camera rotation
             crop_x = self.settings.crop_height / 100
             crop_y = self.settings.crop_width / 100
-        print("crop_x: ", crop_x)
-        print("crop_y: ", crop_y)
 
         width = int(full_x * (1 - crop_x))  // 2 * 2
         height = int(full_y * (1 - crop_y))  // 2 * 2
@@ -264,7 +266,7 @@ class Picamera2Controller(CameraController):
         y_start = (full_y - height) // 2
 
         update_controls = {"ScalerCrop": (x_start, y_start, width, height)}
-        print("update_controls: ", update_controls)
+        logger.debug("Updated ScalerCrop: ", update_controls)
         self.photo_config = self._strategy.create_photo_config(self._picam, (width, height), update_controls)
         self.raw_config = self._strategy.create_raw_config(self._picam, (width, height), update_controls)
 
@@ -302,13 +304,13 @@ class Picamera2Controller(CameraController):
                 # Configure continuous auto focus mode
                 self._picam.set_controls({
                         "AfMode": controls.AfModeEnum.Continuous,
-                        "AfSpeed": controls.AfSpeedEnum.Fast
+                        #"AfSpeed": controls.AfSpeedEnum.Fast
                     })
             elif camera_mode == "photo":
                 # Configure auto focus mode
                 self._picam.set_controls({
                         "AfMode": controls.AfModeEnum.Auto,
-                        "AfSpeed": controls.AfSpeedEnum.Fast
+                        #"AfSpeed": controls.AfSpeedEnum.Fast
                     })
             logger.info(f"Auto focus enabled with AFWindow: {af_window}")
 
@@ -404,6 +406,7 @@ class Picamera2Controller(CameraController):
     def restart_camera(self):
         """Restart the camera and reconfigure resolution."""
         self._picam.stop()
+        self._busy = False
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
         self._picam.start()
@@ -415,32 +418,55 @@ class Picamera2Controller(CameraController):
         if self.settings.AF:
             self._picam.autofocus_cycle()
 
-        array = self._picam.switch_mode_and_capture_array(config, "main")
-        cam_metadata = self._picam.capture_metadata()
-        logger.debug(f"Captured array with metadata: {cam_metadata}")
+        last_exc = None
+        try:
+            for attempt in range(1, 4):
+                try:
+                    req = self._picam.switch_mode_and_capture_request(config, wait=True)
+                    try:
+                        array = req.make_array("main")
+                        cam_metadata = req.get_metadata()
+                    finally:
+                        req.release()
+                    logger.debug(f"Captured array with metadata: {cam_metadata}")
+                    return array, cam_metadata
+                except Exception as e:
+                    last_exc = e
+                    logger.warning(f"_capture_array attempt {attempt}/3 failed: {e}")
+                    if attempt < 3:
+                        # Exponential backoff to give the system time to free/recover memory
+                        backoff = [1, 2, 4][attempt - 1]
+                        time.sleep(backoff)
+                        continue
+                    break
+        except:
+            # All attempts failed; re-raise the last exception for upstream handling
+            raise last_exc
+        finally:
+            # Always switch back to preview focus and clear busy flag
+            self._configure_focus(camera_mode="preview")
+            self._busy = False
 
-        self._configure_focus(camera_mode="preview")
-        self._busy = False
-        return array, cam_metadata
 
-
-    def capture_rgb_array(self) -> tuple[Any, Any]:
+    def capture_rgb_array(self) -> PhotoData:
         """Capture a rgb array.
 
         Returns:
             tuple[Any, Any]: A tuple containing the rgb array and metadata.
 
         """
-        return self._capture_array(self.rgb_config)
+        array, camera_metadata = self._capture_array(self.rgb_config)
+        return self._create_artifact(array, "rgb_array", camera_metadata)
 
 
-    def capture_yuv_array(self):
+    def capture_yuv_array(self) -> PhotoData:
         """Capture a yuv array.
 
         Returns:
             tuple[Any, Any]: A tuple containing the yuv array and metadata.
         """
-        return self._capture_array(self.yuv_config)
+        array, camera_metadata = self._capture_array(self.yuv_config)
+        return self._create_artifact(array, "yuv_array", camera_metadata)
 
 
     def crop_arrays(self, array):
@@ -456,7 +482,7 @@ class Picamera2Controller(CameraController):
 
 
 
-    def capture_jpeg(self, optional_exif_data: dict = None) -> tuple[BytesIO, dict]:
+    def capture_jpeg(self, optional_exif_data: dict = None) -> PhotoData:
         """Capture a jpeg.
 
         Capture a single photo using the current photo configuration.
@@ -502,10 +528,10 @@ class Picamera2Controller(CameraController):
 
         self._busy = False
 
-        return jpeg_data, cam_metadata
+        return self._create_artifact(jpeg_data, "jpeg", cam_metadata)
 
 
-    def capture_dng(self) -> tuple[BytesIO, Any]:
+    def capture_dng(self) -> PhotoData:
         """Capture a dng.
 
         Returns:
@@ -517,7 +543,7 @@ class Picamera2Controller(CameraController):
             self._picam.autofocus_cycle()
 
         dng_data = io.BytesIO()
-        metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
+        camera_metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
                                                             dng_data,
                                                             name='raw')
 
@@ -527,8 +553,32 @@ class Picamera2Controller(CameraController):
 
         self._busy = False
 
-        return dng_data, metadata
+        return self._create_artifact(dng_data, "dng", camera_metadata)
 
+    def _prepare_metadata(self, raw_metadata) -> CameraMetadata:
+        """Prepare metadata for photo artifact.
+
+        Args:
+            raw_metadata (Any): The raw metadata.
+
+        Returns:
+            CameraMetadata: The prepared metadata."""
+        camera_metadata = CameraMetadata(camera_name=self.camera.name,
+                                         camera_settings=self.settings.model,
+                                         raw_metadata=raw_metadata)
+        return camera_metadata
+
+    def _create_artifact(self, data, data_format, camera_metadata) -> PhotoData:
+        """Create a photo artifact.
+
+        Args:
+            data (Any): The data.
+            data_format (Literal['jpeg', 'dng', 'rgb_array', 'yuv_array']): The image format.
+            camera_metadata (CameraMetadata): The camera metadata.
+
+        Returns:
+            PhotoData: The photo artifact."""
+        return PhotoData(data=data, format=data_format, camera_metadata=self._prepare_metadata(camera_metadata))
 
 
     def preview(self, mode="main") -> IO[bytes]:
@@ -543,7 +593,7 @@ class Picamera2Controller(CameraController):
         Returns:
             IO[bytes]: A file-like object containing the JPEG image.
         """
-
+        self._busy = True
         frame = self._picam.capture_array(mode)
 
         if mode == "lores":
@@ -562,6 +612,7 @@ class Picamera2Controller(CameraController):
         frame = rotate_map.get(self.settings.orientation_flag, lambda f: f)(frame)
 
         _, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+        self._busy = False
         return jpeg.tobytes()
 
 

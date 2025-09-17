@@ -61,18 +61,15 @@ async def get_preview(camera_name: str):
                 for motor_controller in get_all_motor_controllers().values()
             )
 
-            # TODO: Check if a scan is running
-            #scan_manager = get_active_scan_manager()
-            #scan_busy = scan_manager and scan_manager._scan.status == ScanStatus.RUNNING
 
             # Stop preview (wait) if motor or scan is busy, otherwise continue with 0.02s delay
             # if motor_busy or scan_busy:
              #   await asyncio.sleep(0.1)  # Small sleep to prevent busy waiting
              #   continue  # Skip frame generation and yield
-
-            frame = controller.preview()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            if not controller.is_busy():
+                frame = controller.preview()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             await asyncio.sleep(0.02)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace;boundary=frame")
@@ -83,8 +80,20 @@ async def get_preview(camera_name: str):
 async def get_photo(camera_name: str):
     """Get a camera photo"""
     controller = get_camera_controller(camera_name)
-    return Response(content=controller.photo(), media_type="image/jpeg")
+    try:
+        if not controller.is_busy():
+            return Response(content=controller.photo().data.getvalue(), media_type="image/jpeg")
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+    return Response(status_code=409, content="Camera is busy. If this is a bug, please restart the camera.")
 
+@api_version(0,4)
+@router.post("/{camera_name}/restart")
+async def restart_camera(camera_name: str):
+    """Restart a camera"""
+    controller = get_camera_controller(camera_name)
+    controller.restart_camera()
+    return Response(status_code=200)
 
 create_settings_endpoints(
     router=router,

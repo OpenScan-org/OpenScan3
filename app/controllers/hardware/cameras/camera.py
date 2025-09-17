@@ -8,19 +8,17 @@ Currently supporting only picamera2.
 
 import abc
 import logging
-from io import BytesIO
-from typing import Dict, IO, Optional, Type, Any
+from typing import IO
 
-import numpy
 
-from app.models.camera import Camera, CameraType
+from app.models.camera import Camera, CameraType, PhotoData
 from app.config.camera import CameraSettings
-from app.controllers.hardware.interfaces import create_controller_registry
+from app.controllers.hardware.interfaces import create_controller_registry, StatefulHardware
 from app.controllers.settings import Settings
 
 logger = logging.getLogger(__name__)
 
-class CameraController(abc.ABC):
+class CameraController(StatefulHardware):
     """
     Abstract Base Class for Camera Controller
 
@@ -39,8 +37,9 @@ class CameraController(abc.ABC):
                 "busy": self._busy,
                 "settings": self.settings.model}
 
+    def get_config(self) -> CameraSettings:
+        return self.settings.model
 
-    @abc.abstractmethod
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """
         This method is called automatically if settings change
@@ -48,38 +47,55 @@ class CameraController(abc.ABC):
         """
         pass
 
-    def photo(self) -> tuple[BytesIO, Any]:
-        """Capture a single photo with high resolution.
-        Deprecated! Use according capture method instead."""
-        return self.capture_jpeg()
+    def is_busy(self):
+        return self._busy
 
-    @staticmethod
+    def photo(self, image_format: str = "jpeg") -> PhotoData:
+        """Capture a single photo with high resolution.
+
+        Args:
+            image_format (str, optional): Image format. Defaults to "jpeg".
+
+        Returns:
+            PhotoData: Captured photo data model.
+        """
+        handler = {
+            "jpeg": self.capture_jpeg,
+            "dng": self.capture_dng,
+            "rgb_array": self.capture_rgb_array,
+            "yuv_array": self.capture_yuv_array,
+        }
+        try:
+            return handler[image_format]()
+        except KeyError:
+            raise ValueError(f"Unsupported image format: {image_format}")
+
     @abc.abstractmethod
-    def preview(self, camera: Camera) -> IO[bytes]:
-        """Capture a faster and low resolution preview."""
+    def preview(self) -> IO[bytes]:
+        """Capture a faster and low resolution preview.
+
+        Returns:
+            IO[bytes]: Preview image data as jpeg bytes.
+        """
         raise NotImplementedError
 
-    @staticmethod
     @abc.abstractmethod
-    def capture_rgb_array(camera: Camera) -> numpy.ndarray:
+    def capture_rgb_array(self) -> PhotoData:
         """Capture a numpy array to use for image analysis."""
         raise NotImplementedError
 
-    @staticmethod
     @abc.abstractmethod
-    def capture_yuv_array(camera: Camera) -> numpy.ndarray:
-        """Capture a yuv array."""
+    def capture_yuv_array(self) -> PhotoData:
+        """Capture a yuv array for image analysis."""
         raise NotImplementedError
 
-    @staticmethod
     @abc.abstractmethod
-    def capture_dng(camera: Camera) -> tuple[BytesIO, Any]:
+    def capture_dng(self) -> PhotoData:
         """Capture a raw image and encode it to dng."""
         raise NotImplementedError
 
-    @staticmethod
     @abc.abstractmethod
-    def capture_jpeg() -> tuple[BytesIO, Any]:
+    def capture_jpeg(self) -> PhotoData:
         """Capture an image and encode it to jpeg."""
         raise NotImplementedError
 
@@ -108,7 +124,7 @@ create_camera_controller, get_camera_controller, remove_camera_controller, _came
 
 
 def get_all_camera_controllers():
-    """Get all currently registered light controllers"""
+    """Get all currently registered camera controllers"""
     return _camera_registry.copy()
 
 def get_camera_controller_by_id(camera_id: int):

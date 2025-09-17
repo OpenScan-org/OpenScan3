@@ -16,7 +16,7 @@ class CartesianPoint3D:
     z: float
 
 
-@dataclass
+@dataclass(frozen=True)
 class PolarPoint3D:
     """
     PolarPoint3D represents a point in spherical coordinates

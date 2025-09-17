@@ -15,7 +15,8 @@
                 "awbg_blue": 1.7744160890579224,
                 "AF": true,
                 "gain": 1.0,
-                "jpeg_quality": 70
+                "jpeg_quality": 70,
+                "orientation_flag": 7
             }
         }
     },

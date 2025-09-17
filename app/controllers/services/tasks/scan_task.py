@@ -8,30 +8,32 @@ import logging
 import time
 import os
 from fastapi.encoders import jsonable_encoder
+from dataclasses import dataclass
 from typing import AsyncGenerator, Tuple, Optional, TYPE_CHECKING
 from datetime import datetime
 
 from app.config.scan import ScanSetting
+
 from app.controllers.hardware import gpio
 from app.controllers.hardware.motors import get_motor_controller
 from app.controllers.hardware import motors
-from app.controllers.services.projects import ProjectManager
+from app.controllers.services.projects import ProjectManager, get_project_manager
 from app.controllers.services.tasks.base_task import BaseTask
 from app.controllers.hardware.cameras.camera import CameraController, get_camera_controller
-from app.models.camera import Camera
+
+from app.models.camera import Camera, PhotoData
 from app.models.paths import CartesianPoint3D, PolarPoint3D, PathMethod
-from app.models.scan import Scan, ScanStatus
+from app.models.scan import Scan, ScanStatus, ScanMetadata
 from app.models.task import TaskProgress
+
 from app.utils.paths import paths
 from app.utils.paths.optimization import PathOptimizer
-from app.controllers.services.projects import get_project_manager
+
 
 logger = logging.getLogger(__name__)
 
 
-
-
-def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
+def generate_scan_path(scan_settings: ScanSetting) -> dict[PolarPoint3D, int]:
     """
     Generate scan path based on settings, with optional optimization
 
@@ -54,6 +56,9 @@ def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
     else:
         logger.error(f"Unknown path method {scan_settings.path_method}")
         raise ValueError(f"Path method {scan_settings.path_method} not implemented")
+
+    # Save original indices of positions for later use
+    path_dict = {pos: i for i, pos in enumerate(path)}
 
 
     # Optimize path if requested
@@ -84,21 +89,34 @@ def generate_scan_path(scan_settings: ScanSetting) -> list[PolarPoint3D]:
         original_time, _ = optimizer.calculate_path_time(path, start_position)
 
         # Optimize the path
-        optimized_path = optimizer.optimize_path(
-            path,
+        optimized_keys = optimizer.optimize_path(
+            list(path_dict.keys()),
             algorithm=scan_settings.optimization_algorithm,
             start_position=start_position
         )
-        logger.debug(f"Generated optimized path with {len(optimized_path)} points"
+        path_dict = {pos: path_dict[pos] for pos in optimized_keys}
+
+        logger.debug(f"Generated optimized path."
                      f"Used algorithm {scan_settings.optimization_algorithm}")
 
-        return optimized_path
+        return path_dict
 
-    return path
+    return path_dict
+
+
+@dataclass
+class ScanRuntime:
+    scan: Scan
+    camera_controller: CameraController
+    project_manager: ProjectManager
+    path_dict: dict[PolarPoint3D, int]
+    focus_context: Optional[dict]
+
 
 class ScanTask(BaseTask):
 
     is_exclusive = True
+    _ctx: Optional[ScanRuntime] = None
 
     async def run(self, scan: Scan, start_from_step: int = 0) -> AsyncGenerator[TaskProgress, None]:
         """Run a scan asynchronously with pause/resume/cancel support
@@ -117,43 +135,43 @@ class ScanTask(BaseTask):
         Yields:
             `TaskProgress` objects with progress information.
         """
+
         # Initialize controllers and generate path
         camera_controller, project_manager = await self._initialize_controllers(scan)
-        path = self._generate_scan_path(scan)
-        total = len(path)
+        path_dict = generate_scan_path(scan.settings)
+        total = len(path_dict)
         logger.info(f"Starting scan {scan.index} for project {scan.project_name} with {total} steps.")
 
-        # Setup photo saving queue
-        photo_queue = asyncio.Queue()
-        save_task = asyncio.create_task(self._create_photo_saver(photo_queue, project_manager, scan))
-
-        # Filter points for resuming from specific step
+        # Filter positions for resuming from specific step
         if start_from_step > 0:
-            path = path[start_from_step:]
+            keys = list(path_dict.keys())[start_from_step:]
+            path_dict = {pos: path_dict[pos] for pos in keys}
 
         # Setup focus stacking if needed
         focus_context = await self._setup_focus_stacking(camera_controller, scan)
 
+        self._ctx = ScanRuntime(
+            scan=scan,
+            camera_controller=camera_controller,
+            project_manager=project_manager,
+            path_dict=path_dict,
+            focus_context=focus_context
+        )
+
         try:
             # Execute main scan loop
-            async for progress in self._execute_scan_loop(
-                scan, path, start_from_step, total, camera_controller, 
-                project_manager, photo_queue, focus_context
-            ):
+            async for progress in self._execute_scan_loop(start_from_step, total):
                 yield progress
 
         except Exception as e:
             logger.error(f"Error during scan {scan.index} for project {scan.project_name}: {e}", exc_info=True)
             scan.system_message = f"Error during scan: {e}"
             scan.status = ScanStatus.FAILED
-            await project_manager.save_scan_state(scan)
+            await self._ctx.project_manager.save_scan_state(scan)
             raise
 
         finally:
-            await self._cleanup_scan(
-                photo_queue, save_task, project_manager, scan, 
-                camera_controller, focus_context
-            )
+            await self._cleanup_scan()
 
     async def _initialize_controllers(self, scan: Scan) -> Tuple[CameraController, ProjectManager]:
         """Initialize camera controller and project manager
@@ -179,45 +197,11 @@ class ScanTask(BaseTask):
             return camera_controller, project_manager
                 
         except Exception as e:
-            logger.error(f"Failed to initialize controllers: {e}")
+            logger.error(f"Failed to initialize scan and get controllers: {e}")
             scan.status = ScanStatus.FAILED
             scan.system_message = f"Controller initialization failed: {e}"
             raise
 
-    def _generate_scan_path(self, scan: Scan) -> list[PolarPoint3D]:
-        """Generate optimized scan path based on scan settings
-        
-        Args:
-            scan: The scan object containing settings
-            
-        Returns:
-            List of polar points representing the scan path
-        """
-        return generate_scan_path(scan.settings)
-
-    async def _create_photo_saver(self, photo_queue: asyncio.Queue, 
-                                 project_manager: ProjectManager, scan: Scan):
-        """Background task for saving photos asynchronously
-        
-        Args:
-            photo_queue: Queue containing photos to save
-            project_manager: Manager for saving photos
-            scan: Current scan object
-        """
-        while True:
-            try:
-                photo, info = await photo_queue.get()
-                try:
-                    await project_manager.add_photo_async(scan, photo, info)
-                except Exception as e:
-                    # Log error during save, but don't kill the whole process
-                    logger.error(f"Failed to save one photo for scan {scan.id}: {e}", exc_info=True)
-                finally:
-                    # This is crucial to ensure that join() can complete.
-                    photo_queue.task_done()
-            except asyncio.CancelledError:
-                logger.info("Photo saver task is stopping.")
-                break
 
     async def _setup_focus_stacking(self, camera_controller: CameraController, 
                                    scan: Scan) -> Optional[dict]:
@@ -253,36 +237,27 @@ class ScanTask(BaseTask):
             'positions': focus_positions
         }
 
-    async def _execute_scan_loop(self, scan: Scan, path: list[PolarPoint3D], 
-                               start_from_step: int, total: int,
-                               camera_controller: CameraController,
-                               project_manager: ProjectManager,
-                               photo_queue: asyncio.Queue,
-                               focus_context: Optional[dict]) -> AsyncGenerator[TaskProgress, None]:
+    async def _execute_scan_loop(self, start_from_step: int, total: int,
+                                  ) -> AsyncGenerator[TaskProgress, None]:
         """Execute the main scan loop
         
         Args:
-            scan: Current scan object
-            path: List of positions to scan
             start_from_step: Step to start from (for resume)
             total: Total number of steps
-            camera_controller: Camera controller instance
-            project_manager: Project manager instance
-            photo_queue: Queue for saving photos
-            focus_context: Focus stacking context or None
             
         Yields:
             TaskProgress objects with current progress
         """
-        for index, current_point in enumerate(path):
+        for current_step, current_point in enumerate(self._ctx.path_dict.keys()):
+            original_index = self._ctx.path_dict[current_point]
             step_start_time = datetime.now()
-            scan.status = ScanStatus.RUNNING
+            self._ctx.scan.status = ScanStatus.RUNNING
 
             # Check for cancellation
             if self.is_cancelled():
-                logger.info(f"Scan {scan.index} for project {scan.project_name} was cancelled.")
-                scan.status = ScanStatus.CANCELLED
-                yield TaskProgress(current=index + start_from_step + 1, total=total, message="Scan cancelled by request.")
+                logger.info(f"Scan {self._ctx.scan.index} for project {self._ctx.scan.project_name} was cancelled.")
+                self._ctx.scan.status = ScanStatus.CANCELLED
+                yield TaskProgress(current=current_step + start_from_step + 1, total=total, message="Scan cancelled by request.")
                 break
 
             # Wait here if the task is paused
@@ -292,120 +267,88 @@ class ScanTask(BaseTask):
             await motors.move_to_point(current_point)
 
             # Capture photos (with or without focus stacking)
-            photo_info = {"position": index + start_from_step}
-            await self._capture_photos_at_position(
-                camera_controller, photo_queue, photo_info, 
-                current_point, index, focus_context
-            )
+            try:
+                await self._capture_photos_at_position(current_point, original_index)
+            except Exception as e:
+                logger.error(f"Error taking photo at position {original_index}: {e}", exc_info=True)
+                raise e
 
             # Update scan progress
-            scan.duration += (datetime.now() - step_start_time).total_seconds()
-            scan.current_step = index + start_from_step + 1
+            self._ctx.scan.duration += (datetime.now() - step_start_time).total_seconds()
+            self._ctx.scan.current_step = current_step + start_from_step + 1
 
-            # Persist the updated scan state
-            await project_manager.save_scan_state(scan)
+            await self._ctx.project_manager.save_scan_state(self._ctx.scan)
 
-            yield TaskProgress(current=index + start_from_step + 1, total=total, message="Scan in progress.")
+            yield TaskProgress(current=current_step + start_from_step + 1, total=total, message="Scan in progress.")
 
         else:  # This block executes if the loop completes without a 'break'
-            scan.status = ScanStatus.COMPLETED
-            logger.info(f"Scan {scan.index} for project {scan.project_name} completed successfully.")
+            self._ctx.scan.status = ScanStatus.COMPLETED
+            logger.info(f"Scan {self._ctx.scan.index} for project {self._ctx.scan.project_name} completed successfully.")
+            self._task_model.result = f"Scan completed successfully after {total} steps."
+            yield TaskProgress(current=total, total=total, message="Scan completed successfully.")
 
-    async def _capture_photos_at_position(self, camera_controller: CameraController,
-                                        photo_queue: asyncio.Queue, photo_info: dict,
-                                        current_point: PolarPoint3D, index: int,
-                                        focus_context: Optional[dict]):
+    async def _capture_photos_at_position(self, current_point: PolarPoint3D, index: int):
         """Capture photos at current position with optional focus stacking
         
         Args:
-            camera_controller: Camera controller instance
-            photo_queue: Queue for saving photos
-            photo_info: Base photo information dict
             current_point: Current scan position
-            index: Current step index
-            focus_context: Focus stacking context or None
+            index: Index of the current original step in path_dict
         """
         try:
             logger.debug(f"Capturing photo at position {current_point}")
             
-            if not focus_context or not focus_context['enabled']:
+            if not self._ctx.focus_context or not self._ctx.focus_context['enabled']:
                 # Single photo capture
-                photo = camera_controller.photo()
-                await photo_queue.put((photo, photo_info.copy()))
+                photo_data = self._ctx.camera_controller.photo(self._ctx.scan.settings.image_format)
+                photo_data.scan_metadata = ScanMetadata(
+                    step=index,
+                    polar_coordinates=current_point,
+                    project_name=self._ctx.scan.project_name,
+                    scan_index=self._ctx.scan.index
+                )
+
+                asyncio.create_task(self._ctx.project_manager.add_photo_async(photo_data))
             else:
                 # Focus stacking capture
-                focus_positions = focus_context['positions']
+                focus_positions = self._ctx.focus_context['positions']
                 for stack_index, focus in enumerate(focus_positions):
                     logger.debug(f"Focus stacking enabled, capturing photo {stack_index} / {len(focus_positions)} with focus {focus}")
-                    camera_controller.settings.manual_focus = focus
-                    photo = camera_controller.photo()
-                    stack_photo_info = photo_info.copy()
-                    stack_photo_info["stack_index"] = stack_index
-                    await photo_queue.put((photo, stack_photo_info))
+                    self._ctx.camera_controller.settings.manual_focus = focus
+
+                    photo_data = self._ctx.camera_controller.photo(self._ctx.scan.settings.image_format)
+                    photo_data.scan_metadata = ScanMetadata(
+                        step=index,
+                        polar_coordinates=current_point,
+                        project_name=self._ctx.scan.project_name,
+                        scan_index=self._ctx.scan.index,
+                        stack_index=stack_index
+                    )
+
+                    asyncio.create_task(self._ctx.project_manager.add_photo_async(photo_data))
 
         except Exception as e:
             logger.error(f"Error taking photo at position {index}: {e}", exc_info=True)
             raise
 
-    async def _cleanup_scan(self, photo_queue: asyncio.Queue, save_task: asyncio.Task,
-                          project_manager: ProjectManager, scan: Scan,
-                          camera_controller: CameraController, 
-                          focus_context: Optional[dict]):
-        """Cleanup after scan completion or failure
-        
-        Args:
-            photo_queue: Photo queue to drain
-            save_task: Photo saver task to cancel
-            project_manager: Project manager for final save
-            scan: Current scan object
-            camera_controller: Camera controller instance
-            focus_context: Focus stacking context or None
+    async def _cleanup_scan(self):
+        """Cleanup after scan completion or failure and reset focus settings if needed.
         """
-        # Wait for all photos to be saved
-        logger.debug("Scan routine finished. Waiting for remaining photos to be saved.")
-        await photo_queue.join()
-
-        # Stop photo saver task
-        logger.debug("All queued photos have been processed. Stopping the photo saver task.")
-        save_task.cancel()
-        try:
-            await save_task
-        except asyncio.CancelledError:
-            logger.info("Photo saver task has been successfully stopped.")
-
         # Always save the final state of the scan
-        logger.info(f"Saving final state for scan {scan.index} with status {scan.status}.")
-        await project_manager.save_scan_state(scan)
+        #logger.info(f"Saving final state for scan {scan.index} with status {scan.status}.")
+        #await project_manager.save_scan_state(scan) # TODO: handle persistance
 
         # Motor and camera cleanup
-        await self._cleanup_hardware(camera_controller, focus_context)
-
-    async def _cleanup_hardware(self, camera_controller: CameraController, 
-                               focus_context: Optional[dict]):
-        """Cleanup hardware after scan
-        
-        Args:
-            camera_controller: Camera controller instance
-            focus_context: Focus stacking context or None
-        """
         try:
-            logger.debug("Cleanup after scan...")
-            
             # Move motors back to origin position
             await motors.move_to_point(PolarPoint3D(90, 90))
-            
+
             # Restore previous focus settings if focus stacking was enabled
-            if focus_context and focus_context['enabled']:
-                previous_settings = focus_context['previous_settings']
+            if self._ctx.focus_context and self._ctx.focus_context['enabled']:
+                previous_settings = self._ctx.focus_context['previous_settings']
                 if previous_settings:
                     logger.debug("Settings focus settings back to previous settings")
-                    camera_controller.settings.AF = previous_settings[0]
-                    camera_controller.settings.manual_focus = previous_settings[1]
-                    
+                    self._ctx.camera_controller.settings.AF = previous_settings[0]
+                    self._ctx.camera_controller.settings.manual_focus = previous_settings[1]
+
         except Exception as e:
             logger.error(f"Error during cleanup: {e}", exc_info=True)
-
-def trigger_external_cam(camera: Camera):
-    gpio.set_output_pin(camera.external_camera_pin, True)
-    time.sleep(camera.external_camera_delay)
-    gpio.set_output_pin(camera.external_camera_pin, False)

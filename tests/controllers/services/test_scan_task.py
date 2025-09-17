@@ -2,6 +2,7 @@ import asyncio
 import time
 import json
 import logging
+import io
 
 import pytest
 import pytest_asyncio
@@ -19,6 +20,10 @@ from app.controllers.services.projects import ProjectManager
 from app.controllers.hardware.motors import MotorController
 from app.models.motor import Motor
 from app.config.motor import MotorConfig
+from app.models.camera import PhotoData
+from app.models.camera import CameraMetadata
+from conftest import fake_photo_data
+
 
 @pytest_asyncio.fixture
 async def task_manager_fixture() -> TaskManager:
@@ -91,6 +96,7 @@ class TestScanTask:
         sample_scan_model: Scan,
         sample_scan_settings: ScanSetting,
         mock_project_manager: MagicMock,
+        sample_camera_metadata: CameraMetadata,
     ):
         """Tests a successful run of the ScanTask using the TaskManager."""
         # Setup service locator mocks
@@ -98,9 +104,9 @@ class TestScanTask:
         mock_get_project_manager.return_value = mock_project_manager
         
         # Mock the path generation to return a simple list of points
-        mock_generate_scan_path.return_value = [
-            PolarPoint3D(theta=i, fi=i) for i in range(sample_scan_settings.points)
-        ]
+        mock_generate_scan_path.return_value = {
+            PolarPoint3D(theta=i, fi=i): i for i in range(sample_scan_settings.points)
+        }
 
         # --- Simulate delays in hardware operations ---
         mock_motors.move_to_point.side_effect = async_sleep_side_effect
@@ -108,7 +114,9 @@ class TestScanTask:
         def delayed_photo(*args, **kwargs):
             """Simulate a blocking I/O delay for photo capture."""
             time.sleep(0.02)
-            return b"fake_image_bytes"
+            return PhotoData(data=io.BytesIO(b"fake_image_bytes"),
+                             format="jpeg",
+                             camera_metadata=sample_camera_metadata)
 
         async def delayed_add_photo(*args, **kwargs):
             """Simulate a non-blocking I/O delay for saving a photo."""
@@ -169,7 +177,7 @@ class TestScanTask:
         mock_get_camera_controller.return_value = mock_camera_controller
         mock_get_project_manager.return_value = mock_project_manager
         
-        mock_generate_scan_path.return_value = [PolarPoint3D(theta=0, fi=0)]
+        mock_generate_scan_path.return_value = {PolarPoint3D(theta=0, fi=0): 1}
 
         def photo_side_effect(*args, **kwargs):
             raise Exception("Camera error")
@@ -261,13 +269,14 @@ class TestScanTask:
         mock_camera_controller: MagicMock,
         sample_scan_model: Scan,
         mock_project_manager: MagicMock,
+        fake_photo_data: PhotoData,
     ):
         """Tests that a running scan task can be paused and resumed."""
         # Setup service locator mocks
         mock_get_camera_controller.return_value = mock_camera_controller
         mock_get_project_manager.return_value = mock_project_manager
         
-        mock_generate_scan_path.return_value = [PolarPoint3D(theta=i, fi=i) for i in range(5)]
+        mock_generate_scan_path.return_value = {PolarPoint3D(theta=i, fi=i): i for i in range(5)}
 
         # Slow operations to allow pause/resume
         async def slow_move_pause(*args, **kwargs):
@@ -277,7 +286,7 @@ class TestScanTask:
             await asyncio.sleep(0.01)
 
         mock_motors.move_to_point.side_effect = slow_move_pause
-        mock_camera_controller.photo.return_value = b"fake_image"
+        mock_camera_controller.photo.return_value = fake_photo_data
         mock_project_manager.add_photo_async.side_effect = slow_add_photo_pause
 
         tm = task_manager_fixture
@@ -354,6 +363,7 @@ class TestScanTaskIntegration:
             sample_scan_model: Scan,
             sample_scan_settings: ScanSetting,
             tmp_path,
+            fake_photo_data: PhotoData,
     ):
         """Test that scan.json is correctly created and updated during scan execution."""
         # Setup real ProjectManager with temporary directory
@@ -379,13 +389,13 @@ class TestScanTaskIntegration:
 
         # Mock the path generation to return a small number of points for faster test
         test_points = 3
-        mock_generate_scan_path.return_value = [
-            PolarPoint3D(theta=i * 10, fi=i * 10) for i in range(test_points)
-        ]
+        mock_generate_scan_path.return_value = {
+            PolarPoint3D(theta=i * 10, fi=i * 10): i for i in range(test_points)
+        }
 
         # Mock hardware operations to be fast
         mock_motors.move_to_point.side_effect = AsyncMock()
-        mock_camera_controller.photo.return_value = b"fake_image_bytes"
+        mock_camera_controller.photo.return_value = fake_photo_data
 
         # Mock save_scan_state and add_photo_async to avoid file I/O issues
         with patch.object(real_project_manager, 'save_scan_state', new_callable=AsyncMock) as mock_save, \
@@ -427,6 +437,7 @@ class TestScanTaskIntegration:
             sample_scan_model: Scan,
             sample_scan_settings: ScanSetting,
             tmp_path,
+            fake_photo_data: PhotoData,
     ):
         """Test that scan.json correctly reflects paused status and photo count matches current_step."""
         # Setup real ProjectManager
@@ -450,9 +461,9 @@ class TestScanTaskIntegration:
         )
 
         test_points = 5
-        mock_generate_scan_path.return_value = [
-            PolarPoint3D(theta=i * 10, fi=i * 10) for i in range(test_points)
-        ]
+        mock_generate_scan_path.return_value =  {
+            PolarPoint3D(theta=i * 10, fi=i * 10): i for i in range(test_points)
+        }
 
         # Slower mock operations to allow time for pause
         async def slow_move(*args, **kwargs):
@@ -462,7 +473,7 @@ class TestScanTaskIntegration:
         def slow_photo(*args, **kwargs):
             """Simulate a slow photo capture."""
             time.sleep(0.05)
-            return b"fake_image_bytes"
+            return fake_photo_data
 
         mock_motors.move_to_point.side_effect = slow_move
         mock_camera_controller.photo.side_effect = slow_photo
@@ -506,7 +517,9 @@ class TestScanTaskIntegration:
             task_manager_fixture: TaskManager,
             mock_camera_controller: MagicMock,
             sample_scan_model: Scan,
+            sample_scan_settings: ScanSetting,
             tmp_path,
+            fake_photo_data: PhotoData
     ):
         """Test that focus stacking creates multiple photos per position and persists correctly."""
         # Setup real ProjectManager
@@ -523,12 +536,8 @@ class TestScanTaskIntegration:
         )
 
         # Create scan settings with focus stacking
-        focus_scan_settings = ScanSetting(
-            path_method=sample_scan_model.settings.path_method,
-            points=2,  # Small number for faster test
-            focus_stacks=3,  # 3 focus levels
-            focus_range=(10.0, 15.0)
-        )
+        focus_scan_settings = sample_scan_settings
+        focus_scan_settings.focus_stacks = 3
 
         # Add scan with focus stacking settings
         scan = real_project_manager.add_scan(
@@ -540,13 +549,13 @@ class TestScanTaskIntegration:
 
         # Mock path generation
         test_positions = 2
-        mock_generate_scan_path.return_value = [
-            PolarPoint3D(theta=i * 45, fi=i * 45) for i in range(test_positions)
-        ]
+        mock_generate_scan_path.return_value = {
+            PolarPoint3D(theta=i * 45, fi=i * 45): i for i in range(test_positions)
+        }
 
         # Mock hardware
         mock_motors.move_to_point.side_effect = AsyncMock()
-        mock_camera_controller.photo.return_value = b"fake_focus_image"
+        mock_camera_controller.photo.return_value = fake_photo_data
         
         # Mock camera settings for focus stacking
         mock_camera_controller.settings = MagicMock()
