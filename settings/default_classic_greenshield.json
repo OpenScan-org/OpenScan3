@@ -1,6 +1,6 @@
 {
-    "name": "OpenScan.eu Mini",
-    "model": "mini",
+    "name": "OpenScan.eu Classic",
+    "model": "classic",
     "shield": "greenshield",
     "cameras": {},
     "motors": {
@@ -11,9 +11,9 @@
             "acceleration": 20000,
             "max_speed": 5000,
             "direction": 1,
-            "steps_per_rotation": 42667,
-            "min_angle": 12,
-            "max_angle": 125
+            "steps_per_rotation": 17067,
+            "min_angle": 0,
+            "max_angle": 140
         },
         "turntable": {
             "direction_pin": 9,

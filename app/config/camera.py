@@ -3,11 +3,11 @@ from typing import Optional, Tuple
 
 
 class CameraSettings(BaseModel):
-    shutter: Optional[int] = Field(40000, ge=1, le=435918849, description="Shutter speed in microseconds.") # 435918849 is the maximum of Arducam Hawkeye
+    shutter: Optional[int] = Field(50000, ge=1, le=435918849, description="Shutter speed in microseconds.") # 435918849 is the maximum of Arducam Hawkeye
     saturation: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Image color saturation from 0 to 32")
     contrast: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Image contrast from 0 to 32.")
-    awbg_red: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Red Gain from 0 to 32.")
-    awbg_blue: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Blue Gain from 0 to 32.")
+    awbg_red: Optional[float] = Field(1.8, ge=0.0, le=32.0, description="Red Gain from 0 to 32.")
+    awbg_blue: Optional[float] = Field(1.8, ge=0.0, le=32.0, description="Blue Gain from 0 to 32.")
     gain: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Analogue Gain from 0 to 32.")
 
     jpeg_quality: Optional[int] = Field(75, ge=0, le=100, description="JPEG image quality from 0 to 100")
@@ -28,7 +28,8 @@ class CameraSettings(BaseModel):
     crop_width: Optional[int] = Field(0, ge=0, le=100, description="Cropping width in percent.")
     crop_height: Optional[int] = Field(0, ge=0, le=100, description="Cropping on height in percent.")
 
-    orientation_flag: Optional[int] = Field(5, ge=1, le=9, description="Orientation in exif flag format.")
+    orientation_flag: Optional[int] = Field(7, ge=1, le=9, description="Orientation in exif flag format."
+                                                                       "For Hawkeye in Mini use 5")
 
     preview_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")
     photo_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")
