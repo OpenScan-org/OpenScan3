@@ -21,7 +21,7 @@ def setup_logging_from_json_file(path_to_config=DEFAULT_LOG_CONFIG_PATH, default
     if not os.path.exists(log_dir):
         try:
             os.makedirs(log_dir)
-            print(f"Log directory created: {log_dir}") # Temporäres Print für Setup-Info
+            print(f"Log directory created: {log_dir}")
         except OSError as e:
             logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
             logging.warning(f"Could not create log directory {log_dir}: {e}. Using basicConfig.")
@@ -38,3 +38,32 @@ def setup_logging_from_json_file(path_to_config=DEFAULT_LOG_CONFIG_PATH, default
     else:
         logging.basicConfig(level=default_level, format="%(levelname)s: %(message)s")
         logging.warning(f"Logging config file {path_to_config} not found. Falling back to basicConfig.")
+
+def flush_memory_handlers():
+    """Flush all MemoryHandler instances across all configured loggers.
+
+    This ensures that any buffered DEBUG/INFO records are written to the
+    underlying file handlers before reading or downloading log files.
+
+    Note:
+        We iterate across the root logger and all named loggers registered in
+        the logging manager to catch every MemoryHandler.
+    """
+    def _flush_handlers(logger: logging.Logger) -> None:
+        for handler in getattr(logger, "handlers", []) or []:
+            try:
+                # Only flush MemoryHandler to force write-through to targets
+                if isinstance(handler, logging.handlers.MemoryHandler):
+                    handler.flush()
+            except Exception:
+                # Use a local logger to avoid recursion on failures
+                logging.getLogger(__name__).exception("Failed to flush handler %r", handler)
+
+    # Flush root logger handlers
+    root_logger = logging.getLogger()
+    _flush_handlers(root_logger)
+
+    # Flush all named loggers known to the logging system
+    for _name, logger in logging.root.manager.loggerDict.items():
+        if isinstance(logger, logging.Logger):
+            _flush_handlers(logger)
