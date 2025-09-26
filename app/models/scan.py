@@ -54,7 +54,7 @@ class ScanMetadata(BaseModel):
     project_name: str = Field(..., description="The name of the project this scan belongs to.")
     scan_index: int = Field(..., description="The sequential index of the scan within the project.")
     stack_index: Optional[int] = Field(None, description="The sequential index of the photo within the focus stack.")
-    cart_coordinates: CartesianPoint3D = Field(..., description="Cartesian coordinates, derived from polar_coordinates.")
+    cart_coordinates: Optional[CartesianPoint3D] = Field(None, description="Cartesian coordinates, derived from polar_coordinates.")
 
     @model_validator(mode="after")
     def set_cart_coordinates(self) -> "ScanMetadata":
