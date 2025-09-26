@@ -1,8 +1,10 @@
 """
-Example Tasks
+Autodiscovered example tasks for OpenScan3.
 
-This module contains four example tasks: HelloWorldTask, ExclusiveDemoTask, ExampleTaskWithGenerator, and BlockingTask for reference.
+These classes are safe to import (no hardware initialization at import time)
+and carry explicit task_name values with the required `_task` suffix.
 """
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -14,42 +16,51 @@ from app.models.task import TaskProgress
 
 logger = logging.getLogger(__name__)
 
+
 class HelloWorldBlockingTask(BaseTask):
+    """Demonstrates a blocking (synchronous) task.
+
+    The TaskManager will run this in a thread pool since `is_blocking=True`.
     """
-    A task that demonstrates the use of a blocking (synchronous) `run` method.
-    By setting `is_blocking = True`, the TaskManager will execute this in a separate
-    thread, preventing it from freezing the application's event loop.
-    """
+
+    task_name = "hello_world_blocking_task"
+    task_category = "example"
     is_exclusive: bool = False
-    is_blocking: bool = True  # Mark this task as blocking
+    is_blocking: bool = True
 
     def run(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        This is a standard synchronous method (`def`, not `async def`).
-        It uses `time.sleep()`, which is a blocking call. Because `is_blocking` is True,
-        the TaskManager will handle it correctly.
+        """Run the blocking example task.
+
+        Args:
+            *args: Unused.
+            **kwargs: May contain `duration`.
+
+        Returns:
+            A simple completion string.
         """
         duration = kwargs.get("duration", 3)
         logger.info(f"[{self.id}] Starting blocking task for {duration} seconds. This will run in a thread.")
-        time.sleep(duration)  # This would block, but it's running in a separate thread.
+        time.sleep(duration)
         logger.info(f"[{self.id}] Blocking task finished.")
         return "Blocking task complete."
 
 
 class HelloWorldAsyncTask(BaseTask):
-    """
-    A simple demonstration asynchronous non-blocking task that counts to 10, updating its progress.
-    The task is not exclusive and can run concurrently with other tasks.
-    """
-    is_exclusive: bool = False # Mark as non-exclusive
+    """Demonstrates an asynchronous non-blocking task with progress updates."""
 
+    task_name = "hello_world_async_task"
+    task_category = "example"
+    is_exclusive: bool = False
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Runs the demo task.
-        It can count steps like before, but can also wait for an asyncio.Event
-        if one is passed in the keyword arguments. This makes it versatile for
-        different test scenarios.
+        """Run the async example task.
+
+        Args:
+            *args: Unused.
+            **kwargs: `wait_for_event`, `total_steps`, `delay`.
+
+        Returns:
+            Final message string when finished.
         """
         wait_for_event: Optional[asyncio.Event] = kwargs.get('wait_for_event')
         if wait_for_event:
@@ -60,10 +71,10 @@ class HelloWorldAsyncTask(BaseTask):
             return "Event-based task finished."
 
         total_steps = kwargs.get('total_steps', 5)
-        delay = kwargs.get('delay', 0.1)  # Use a shorter delay for tests
+        delay = kwargs.get('delay', 0.1)
 
         self._task_model.progress = TaskProgress(current=0, total=total_steps, message="Starting Hello World Task...")
-        await asyncio.sleep(0.01)  # give a small moment for initial state to be processed
+        await asyncio.sleep(0.01)
 
         for i in range(1, total_steps + 1):
             await self.wait_for_pause()
@@ -83,42 +94,43 @@ class HelloWorldAsyncTask(BaseTask):
 
 
 class ExclusiveDemoTask(BaseTask):
-    """
-    A simple demonstration task that runs exclusively.
-    Simulates an operation that requires sole access to resources.
-    """
-    is_exclusive: bool = True  # Mark as exclusive
+    """Demonstrates an exclusive async task."""
+
+    task_name = "exclusive_demo_task"
+    task_category = "example"
+    is_exclusive: bool = True
 
     async def run(self, duration: float = 1.0):
-        """A simple task that just sleeps for a given duration, simulating an exclusive operation."""
+        """Sleep for a given duration to simulate exclusive work.
+
+        Args:
+            duration: Duration in seconds to sleep.
+        """
         logger.info(f"Starting exclusive task '{self.id}' for {duration}s.")
         self._task_model.progress = TaskProgress(current=0, total=1, message="Starting exclusive lock")
-
-        # Simulate work by sleeping for the total duration
         await asyncio.sleep(duration)
-
         self._task_model.progress = TaskProgress(current=1, total=1, message="Finished exclusive lock")
         logger.info(f"Finished exclusive task '{self.id}'.")
         return {"status": "completed", "duration": duration}
 
 
 class ExampleTaskWithGenerator(BaseTask):
-    """
-    A task that demonstrates streaming progress via an async generator and
-    supports being resumed from its last known progress point.
-    """
+    """Demonstrates streaming progress via async generator with resume support."""
+
+    task_name = "generator_task"
+    task_category = "example"
     is_exclusive = False
     is_blocking = False
 
     async def run(self, total_steps: int = 10, interval: float = 0.5) -> AsyncGenerator[TaskProgress, None]:
-        """
-        Runs the streaming task, yielding `TaskProgress` objects.
-
-        If the task is restarted, it will resume from the last completed step.
+        """Run the streaming generator task.
 
         Args:
-            *args: Expects one integer argument for the total number of steps.
-            **kwargs: Can take `total_steps` and `interval` for testing.
+            total_steps: The number of steps to complete.
+            interval: Sleep interval per step.
+
+        Yields:
+            TaskProgress updates.
         """
         steps = total_steps
         start_step = self._task_model.progress.current
@@ -132,32 +144,33 @@ class ExampleTaskWithGenerator(BaseTask):
         for i in range(int(start_step), steps):
             await self.wait_for_pause()
             if self.is_cancelled():
-                # The TaskManager will handle the status change.
-                # We just need to stop the generator.
                 logger.info(f"Task {self.name} ({self.id}) stopping due to cancellation.")
                 return
 
-            await asyncio.sleep(interval)  # Simulate work
+            await asyncio.sleep(interval)
             yield TaskProgress(
                 current=i + 1,
                 total=steps,
                 message=f"Step {i + 1} of {steps} complete."
             )
 
-        # The task is considered complete when the generator finishes.
-        # The TaskManager sets the final status.
-        # If a result is needed, it should be set on the model directly:
-        # self._task_model.result = "All steps finished."
         logger.info(f"[{self.id}] ExampleTaskWithGenerator finished.")
-
         self._task_model.result = f"Generator task completed after {total_steps} steps."
 
 
 class FailingTask(BaseTask):
+    """A task that raises an exception to test error handling."""
+
+    task_name = "failing_task"
+    task_category = "example"
     is_exclusive = False
     is_blocking = False
 
     async def run(self, error_message: str = "This task was designed to fail."):
-        """This task simply raises an exception to test error handling."""
-        await asyncio.sleep(0.01)  # Simulate a tiny bit of work
+        """Raise an exception after a tiny delay.
+
+        Args:
+            error_message: The message to raise.
+        """
+        await asyncio.sleep(0.01)
         raise ValueError(error_message)

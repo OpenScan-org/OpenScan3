@@ -13,7 +13,6 @@ from typing import Optional
 
 from app.controllers.hardware.cameras.camera import CameraController
 from app.controllers.services.projects import ProjectManager
-from app.controllers.services.tasks.scan_task import ScanTask
 from app.controllers.services.tasks.task_manager import get_task_manager
 from app.models.scan import Scan, ScanStatus
 from app.models.task import Task, TaskStatus
@@ -30,8 +29,8 @@ async def start_scan(
     """
     Creates and starts a new scan task with simplified arguments.
 
-    This function initializes a ScanTask, creates a corresponding task in the
-    TaskManager, saves the task_id to the scan object, and starts the task.
+    This function requests the TaskManager to create a `scan_task`, saves the
+    task_id to the scan object, and starts the task.
     The task will resolve its own dependencies using service locators.
 
     Args:

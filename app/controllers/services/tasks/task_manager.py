@@ -41,6 +41,9 @@ import time
 from datetime import datetime
 from typing import Any, Type, Coroutine, AsyncGenerator
 import functools
+import importlib
+import pkgutil
+import re
 
 from pydantic import ValidationError
 from pydantic_core import PydanticSerializationError
@@ -684,6 +687,157 @@ class TaskManager:
             await self._pending_tasks.put((task_instance, args, kwargs))
 
         return task_model
+
+    def autodiscover_tasks(
+        self,
+        namespaces: list[str],
+        include_subpackages: bool = True,
+        ignore_modules: set[str] | None = None,
+        safe_mode: bool = True,
+        override_on_conflict: bool = False,
+        require_explicit_name: bool = True,
+        raise_on_missing_name: bool = True,
+    ) -> list[str]:
+        """Discover and register `BaseTask` subclasses from given namespaces.
+
+        This function dynamically imports modules within the provided namespaces and
+        registers any `BaseTask` subclasses found. It supports optional recursive
+        traversal of subpackages and provides robust error handling and logging.
+
+        Args:
+            namespaces: List of top-level module/package names to scan, e.g.
+                ["app.controllers.services.tasks", "app.tasks.community"].
+            include_subpackages: If True, recursively walk subpackages using
+                `pkgutil.walk_packages`.
+            ignore_modules: Set of module or package names to ignore (e.g.,
+                {"base_task", "task_manager", "examples"}). Matching is performed
+                against any segment of the fully qualified module path, so adding
+                "examples" will ignore the entire examples subtree (e.g.,
+                app.controllers.services.tasks.examples.*).
+            safe_mode: If True, import errors are logged as warnings and the module
+                is skipped. If False, import errors are re-raised.
+            override_on_conflict: If True, a duplicate task_name will overwrite the
+                existing registration. If False, duplicates are skipped with a warning.
+            require_explicit_name: If True, task classes without a `task_name`
+                attribute are considered invalid and are skipped (or raise).
+            raise_on_missing_name: If True and `require_explicit_name` is True,
+                missing or invalid names will raise a RuntimeError; otherwise they
+                are logged and skipped.
+
+        Returns:
+            List of successfully registered task names.
+
+        Raises:
+            RuntimeError: When `raise_on_missing_name` is True and a task is found
+                without a valid explicit name.
+        """
+        logger.info("Starting task autodiscovery...")
+        registered: list[str] = []
+        ignore_modules = ignore_modules or set()
+
+        def _is_valid_task_name(name: str) -> bool:
+            # Enforce snake_case with _task suffix
+            return bool(re.fullmatch(r"[a-z][a-z0-9_]*_task", name))
+
+        def _should_ignore(module_name: str) -> bool:
+            """Return True if any path segment of module_name is in ignore_modules.
+
+            This allows ignoring entire subtrees such as the 'examples' package
+            (e.g., '...\.examples\.*'). We keep support for matching the last
+            component as well.
+            """
+            segments = module_name.split('.')
+            base = segments[-1]
+            if base in ignore_modules:
+                return True
+            return any(seg in ignore_modules for seg in segments)
+
+        modules_to_scan: list[str] = []
+
+        for ns in namespaces:
+            try:
+                pkg = importlib.import_module(ns)
+                modules_to_scan.append(ns)
+                logger.debug(f"Imported namespace package '{ns}' for autodiscovery.")
+            except Exception as e:
+                msg = f"Failed to import namespace '{ns}' during autodiscovery: {e}"
+                if safe_mode:
+                    logger.warning(msg)
+                    continue
+                raise
+
+            # Walk subpackages if requested
+            if include_subpackages and hasattr(pkg, "__path__"):
+                for finder, name, ispkg in pkgutil.walk_packages(pkg.__path__, pkg.__name__ + "."):
+                    if _should_ignore(name):
+                        logger.debug(f"Skipping ignored module '{name}'.")
+                        continue
+                    modules_to_scan.append(name)
+
+        for mod_name in modules_to_scan:
+            if _should_ignore(mod_name):
+                logger.debug(f"Skipping ignored module '{mod_name}'.")
+                continue
+
+            try:
+                module = importlib.import_module(mod_name)
+                logger.debug(f"Imported module '{mod_name}' for autodiscovery.")
+            except Exception as e:
+                msg = f"Failed to import module '{mod_name}' during autodiscovery: {e}"
+                if safe_mode:
+                    logger.warning(msg)
+                    continue
+                raise
+
+            # Allow modules to opt-out explicitly
+            if getattr(module, "__openscan_autodiscover__", True) is False:
+                logger.debug(f"Module '{mod_name}' opted out of autodiscovery via __openscan_autodiscover__ = False.")
+                continue
+
+            for obj in vars(module).values():
+                if isinstance(obj, type) and issubclass(obj, BaseTask) and obj is not BaseTask:
+                    # Avoid re-exports/shadowed classes when possible
+                    if getattr(obj, "__module__", None) != module.__name__:
+                        continue
+
+                    task_name = getattr(obj, "task_name", None)
+                    if require_explicit_name and not task_name:
+                        msg = f"Task class {obj.__name__} in {module.__name__} missing explicit 'task_name'."
+                        logger.error(msg)
+                        if raise_on_missing_name:
+                            raise RuntimeError(msg)
+                        continue
+
+                    if task_name and not _is_valid_task_name(task_name):
+                        msg = f"Task class {obj.__name__} in {module.__name__} has invalid task_name '{task_name}'. Expected snake_case ending with '_task'."
+                        logger.error(msg)
+                        if raise_on_missing_name:
+                            raise RuntimeError(msg)
+                        continue
+
+                    # Handle registration and conflicts
+                    if task_name in self._task_registry:
+                        if override_on_conflict:
+                            logger.warning(f"Task '{task_name}' already registered. Overwriting due to override_on_conflict=True.")
+                        else:
+                            logger.warning(f"Task '{task_name}' already registered. Skipping due to override_on_conflict=False.")
+                            continue
+
+                    # Perform registration without forcing overwrite via register_task()
+                    self._task_registry[task_name] = obj
+                    logger.info(
+                        f"Task '{task_name}' (exclusive: {getattr(obj, 'is_exclusive', False)}, "
+                        f"blocking: {getattr(obj, 'is_blocking', False)}, "
+                        f"category: {getattr(obj, 'task_category', 'community')}) registered via autodiscovery."
+                    )
+                    registered.append(task_name)
+
+        if registered:
+            logger.info(f"Autodiscovery complete. Registered tasks: {sorted(set(registered))}")
+        else:
+            logger.info("Autodiscovery complete. No tasks were registered.")
+
+        return registered
 
 # Singleton instance of the TaskManager
 task_manager = TaskManager()

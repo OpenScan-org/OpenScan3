@@ -6,8 +6,6 @@ import shutil
 import pytest
 import pytest_asyncio
 
-from app.controllers.services.tasks.example_tasks import HelloWorldAsyncTask, ExclusiveDemoTask, ExampleTaskWithGenerator, \
-    HelloWorldBlockingTask, FailingTask
 from app.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
 from app.models.task import TaskStatus, Task, TaskProgress
 
@@ -33,12 +31,18 @@ async def task_manager_fixture():
     TaskManager._instance = None
     tm = TaskManager()
 
-    # Register tasks needed for testing
-    tm.register_task("hello_world_async", HelloWorldAsyncTask)
-    tm.register_task("exclusive_demo", ExclusiveDemoTask)
-    tm.register_task("generator_task", ExampleTaskWithGenerator)
-    tm.register_task("blocking_task", HelloWorldBlockingTask)
-    tm.register_task("failing_task", FailingTask)
+    # Discover demo/example tasks via autodiscovery
+    tm.autodiscover_tasks(
+        namespaces=[
+            "app.controllers.services.tasks",
+        ],
+        include_subpackages=True,
+        ignore_modules={"base_task", "task_manager", "example_tasks"},
+        safe_mode=True,
+        override_on_conflict=False,
+        require_explicit_name=True,
+        raise_on_missing_name=True,
+    )
 
     yield tm  # Provide the cleaned-up instance to the test
 
@@ -102,10 +106,10 @@ async def test_create_and_run_task(task_manager_fixture: TaskManager):
     Tests that a simple async task can be created and run successfully.
     """
     tm = task_manager_fixture
-    task = await tm.create_and_run_task("hello_world_async", total_steps=2)
+    task = await tm.create_and_run_task("hello_world_async_task", total_steps=2)
 
     assert task is not None
-    assert task.name == "hello_world_async"
+    assert task.name == "hello_world_async_task"
 
     final_task_state = await tm.wait_for_task(task.id)
     assert final_task_state.status == TaskStatus.COMPLETED
@@ -123,7 +127,7 @@ async def test_non_exclusive_task_concurrency_limit(task_manager_fixture: TaskMa
     tasks = []
     for _ in range(task_count):
         # Use a long-running task to ensure they don't finish too quickly
-        task = await tm.create_and_run_task("hello_world_async", total_steps=10)
+        task = await tm.create_and_run_task("hello_world_async_task", total_steps=10)
         tasks.append(task)
 
     await asyncio.sleep(0.1) # Allow time for tasks to be processed and statuses updated
@@ -152,11 +156,11 @@ async def test_exclusive_task_blocks_others(task_manager_fixture: TaskManager):
     tm = task_manager_fixture
 
     # Start an exclusive task
-    exclusive_task = await tm.create_and_run_task("exclusive_demo", duration=2)
+    exclusive_task = await tm.create_and_run_task("exclusive_demo_task", duration=2)
     await asyncio.sleep(0.1)  # Give it time to start and occupy the runner
 
     # Try to start a non-exclusive task while the exclusive one is running
-    non_exclusive_task = await tm.create_and_run_task("hello_world_async", total_steps=1)
+    non_exclusive_task = await tm.create_and_run_task("hello_world_async_task", total_steps=1)
     await asyncio.sleep(0.1)  # Give the manager time to process the new task
 
     # The exclusive task should be running, the new one should be pending
@@ -181,11 +185,11 @@ async def test_exclusive_task_waits_for_others(task_manager_fixture: TaskManager
     tm = task_manager_fixture
 
     # Start a non-exclusive task
-    non_exclusive_task = await tm.create_and_run_task("hello_world_async", total_steps=2)
+    non_exclusive_task = await tm.create_and_run_task("hello_world_async_task", total_steps=2)
     await asyncio.sleep(0.1)  # Give it time to start
 
     # Try to start an exclusive task
-    exclusive_task = await tm.create_and_run_task("exclusive_demo", duration=1)
+    exclusive_task = await tm.create_and_run_task("exclusive_demo_task", duration=1)
     await asyncio.sleep(0.1)  # Give the manager time to process it
 
     # The non-exclusive task should be running, the exclusive one should be pending
@@ -238,18 +242,18 @@ async def test_exclusive_task_starvation_prevention(task_manager_fixture: TaskMa
     # The limit is 3, so we start 3 tasks to fill the slots.
     # Use a task that takes a bit of time.
     running_tasks = [
-        await tm.create_and_run_task("hello_world_async", total_steps=3) for _ in range(3)
+        await tm.create_and_run_task("hello_world_async_task", total_steps=3) for _ in range(3)
     ]
     await asyncio.sleep(0.1) # Let them start
 
     # Now, queue an exclusive task. It should become PENDING.
-    exclusive_task = await tm.create_and_run_task("exclusive_demo", duration=0.5)
+    exclusive_task = await tm.create_and_run_task("exclusive_demo_task", duration=0.5)
     await asyncio.sleep(0.1)
     assert tm.get_task_info(exclusive_task.id).status == TaskStatus.PENDING
 
     # Queue another non-exclusive task. Because an exclusive task is pending,
     # this one should also be PENDING, not RUNNING.
-    another_non_exclusive_task = await tm.create_and_run_task("hello_world_async", total_steps=1)
+    another_non_exclusive_task = await tm.create_and_run_task("hello_world_async_task", total_steps=1)
     await asyncio.sleep(0.1)
     assert tm.get_task_info(another_non_exclusive_task.id).status == TaskStatus.PENDING
 
@@ -367,13 +371,13 @@ async def test_blocking_task_does_not_block_event_loop(task_manager_fixture: Tas
     start_time = asyncio.get_event_loop().time()
 
     # Start a blocking task
-    blocking_task = await tm.create_and_run_task("blocking_task", duration=blocking_duration)
+    blocking_task = await tm.create_and_run_task("hello_world_blocking_task", duration=blocking_duration)
 
     # Give the scheduler a moment to process the first task
     await asyncio.sleep(0.01)
 
     # Immediately start another quick, non-blocking task
-    non_blocking_task = await tm.create_and_run_task("hello_world_async", total_steps=1, interval=0.01)
+    non_blocking_task = await tm.create_and_run_task("hello_world_async_task", total_steps=1, interval=0.01)
 
     # The non-blocking task should complete very quickly, long before the blocking one
     await tm.wait_for_task(non_blocking_task.id, timeout=0.2)
@@ -397,7 +401,7 @@ async def test_single_blocking_task_completes(task_manager_fixture: TaskManager)
     blocking_duration = 0.2
 
     # Start a blocking task
-    task = await tm.create_and_run_task("blocking_task", duration=blocking_duration)
+    task = await tm.create_and_run_task("hello_world_blocking_task", duration=blocking_duration)
     assert task.status == TaskStatus.RUNNING
 
     # Wait for it to complete
@@ -413,7 +417,7 @@ async def test_cancel_running_task(task_manager_fixture: TaskManager):
     Tests that a running task can be cancelled.
     """
     tm = task_manager_fixture
-    task = await tm.create_and_run_task("hello_world_async", total_steps=10)  # Long running
+    task = await tm.create_and_run_task("hello_world_async_task", total_steps=10)  # Long running
 
     await asyncio.sleep(0.5)  # Let it start
     assert tm.get_task_info(task.id).status == TaskStatus.RUNNING
@@ -431,10 +435,10 @@ async def test_cancel_pending_task(task_manager_fixture: TaskManager):
     """
     tm = task_manager_fixture
     # Block the runner with an exclusive task
-    exclusive_task = await tm.create_and_run_task("exclusive_demo", duration=3)
+    exclusive_task = await tm.create_and_run_task("exclusive_demo_task", duration=3)
 
     # Create a new task that will be pending
-    pending_task = await tm.create_and_run_task("hello_world_async", total_steps=1)
+    pending_task = await tm.create_and_run_task("hello_world_async_task", total_steps=1)
     await asyncio.sleep(0.1)  # Let the queue process
     assert tm.get_task_info(pending_task.id).status == TaskStatus.PENDING
 
@@ -494,8 +498,8 @@ async def test_tasks_are_reloaded_on_startup(task_manager_fixture: TaskManager):
 
     # --- Simulate a previous application run ---
     # Manually create task models for REAL task types and save them to disk.
-    completed_task = Task(name="completed_task", task_type="hello_world_async", status=TaskStatus.COMPLETED)
-    running_task = Task(name="running_task", task_type="hello_world_async", status=TaskStatus.RUNNING)
+    completed_task = Task(name="completed_task", task_type="hello_world_async_task", status=TaskStatus.COMPLETED)
+    running_task = Task(name="running_task", task_type="hello_world_async_task", status=TaskStatus.RUNNING)
     paused_task = Task(name="paused_task", task_type="generator_task", status=TaskStatus.PAUSED)
 
     with open(TASKS_STORAGE_PATH / f"{completed_task.id}.json", 'w') as f:
@@ -576,7 +580,7 @@ async def test_startup_with_corrupt_task_files(task_manager_fixture: TaskManager
 
     # 1. Create a valid task file that is in a terminal but not 'COMPLETED' state.
     #    This ensures it won't be cleaned up on restart.
-    valid_task_to_preserve = await tm.create_and_run_task("hello_world_async")
+    valid_task_to_preserve = await tm.create_and_run_task("hello_world_async_task")
     await tm.cancel_task(valid_task_to_preserve.id)
     await wait_for_task_completion(tm, valid_task_to_preserve.id)  # Wait for cancellation to finish
     assert tm.get_task_info(valid_task_to_preserve.id).status == TaskStatus.CANCELLED
@@ -619,20 +623,20 @@ async def test_blocking_tasks_ignore_concurrency_limit(task_manager_fixture: Tas
     async_task_can_finish_event = asyncio.Event()
 
     # 1. Start two async tasks that will wait for our event. This fills up the concurrency slots.
-    async_task_1 = await tm.create_and_run_task("hello_world_async", wait_for_event=async_task_can_finish_event)
-    async_task_2 = await tm.create_and_run_task("hello_world_async", wait_for_event=async_task_can_finish_event)
+    async_task_1 = await tm.create_and_run_task("hello_world_async_task", wait_for_event=async_task_can_finish_event)
+    async_task_2 = await tm.create_and_run_task("hello_world_async_task", wait_for_event=async_task_can_finish_event)
 
     await asyncio.sleep(0.05)  # Give scheduler time to start them
     assert tm.get_task_info(async_task_1.id).status == TaskStatus.RUNNING
     assert tm.get_task_info(async_task_2.id).status == TaskStatus.RUNNING
 
     # 2. Start a third async task, which should be queued because the slots are full.
-    async_task_3_queued = await tm.create_and_run_task("hello_world_async", delay=0.1)
+    async_task_3_queued = await tm.create_and_run_task("hello_world_async_task", delay=0.1)
     await asyncio.sleep(0.05)  # Give scheduler time to process
     assert tm.get_task_info(async_task_3_queued.id).status == TaskStatus.PENDING
 
     # 3. Start a blocking task. It should run immediately, ignoring the async limit.
-    blocking_task = await tm.create_and_run_task("blocking_task", duration=0.1)
+    blocking_task = await tm.create_and_run_task("hello_world_blocking_task", duration=0.1)
     await asyncio.sleep(0.05)  # Give scheduler time to start it in the executor
     assert tm.get_task_info(blocking_task.id).status == TaskStatus.RUNNING
 
@@ -702,13 +706,13 @@ async def test_cancel_pending_task_in_full_queue(task_manager_fixture: TaskManag
     # 1. Fill the concurrent task slots
     running_tasks = []
     for _ in range(concurrency_limit):
-        task = await tm.create_and_run_task("hello_world_async", total_steps=5)
+        task = await tm.create_and_run_task("hello_world_async_task", total_steps=5)
         running_tasks.append(task)
 
     await asyncio.sleep(0.1)  # Allow tasks to start running
 
     # 2. Create one more task, which should be PENDING
-    pending_task = await tm.create_and_run_task("hello_world_async", total_steps=1)
+    pending_task = await tm.create_and_run_task("hello_world_async_task", total_steps=1)
     await asyncio.sleep(0.1)  # Allow scheduler to process
 
     assert tm.get_task_info(pending_task.id).status == TaskStatus.PENDING
@@ -743,13 +747,13 @@ async def test_exclusive_tasks_respect_fifo_order(task_manager_fixture: TaskMana
     completion_log = []
 
     # 1. Start a long-running task to block the queue
-    blocker_task = await tm.create_and_run_task("hello_world_async", total_steps=2)
+    blocker_task = await tm.create_and_run_task("hello_world_async_task", total_steps=2)
     await asyncio.sleep(0.1)  # Ensure it's running
 
     # 2. Queue two exclusive tasks. They should both become PENDING.
-    exclusive_task_A = await tm.create_and_run_task("exclusive_demo", duration=0.21)
+    exclusive_task_A = await tm.create_and_run_task("exclusive_demo_task", duration=0.21)
     await asyncio.sleep(0.01)  # Ensure order of arrival in queue
-    exclusive_task_B = await tm.create_and_run_task("exclusive_demo", duration=0.22)
+    exclusive_task_B = await tm.create_and_run_task("exclusive_demo_task", duration=0.22)
     await asyncio.sleep(0.1)
 
     assert tm.get_task_info(exclusive_task_A.id).status == TaskStatus.PENDING
@@ -791,7 +795,7 @@ async def test_delete_task_functionality(task_manager_fixture: TaskManager):
     tm = task_manager_fixture
 
     # 1. Create a task and cancel it to get it into a terminal state
-    cancelled_task = await tm.create_and_run_task("hello_world_async", total_steps=10)
+    cancelled_task = await tm.create_and_run_task("hello_world_async_task", total_steps=10)
     await asyncio.sleep(0.1)
     await tm.cancel_task(cancelled_task.id)
     await asyncio.sleep(0.1)
@@ -808,7 +812,7 @@ async def test_delete_task_functionality(task_manager_fixture: TaskManager):
     assert not os.path.exists(task_file_path)
 
     # 4. Create a running task and verify it cannot be deleted
-    running_task = await tm.create_and_run_task("hello_world_async", total_steps=10)
+    running_task = await tm.create_and_run_task("hello_world_async_task", total_steps=10)
     await asyncio.sleep(0.1)
     assert tm.get_task_info(running_task.id).status == TaskStatus.RUNNING
     with pytest.raises(ValueError, match="Cannot delete task"):
@@ -826,8 +830,8 @@ async def test_auto_cleanup_of_completed_tasks_on_startup(task_manager_fixture: 
     tm = task_manager_fixture
 
     # 1. Create one task that will complete and one that will be cancelled
-    completed_task = await tm.create_and_run_task("hello_world_async", total_steps=1)
-    cancelled_task = await tm.create_and_run_task("hello_world_async", total_steps=5)
+    completed_task = await tm.create_and_run_task("hello_world_async_task", total_steps=1)
+    cancelled_task = await tm.create_and_run_task("hello_world_async_task", total_steps=5)
 
     await tm.wait_for_task(completed_task.id)
     await tm.cancel_task(cancelled_task.id)
@@ -885,9 +889,8 @@ async def test_startup_with_unregistered_task_type(task_manager_fixture: TaskMan
     restarted_tm = TaskManager()
     restarted_tm.restore_tasks_from_persistence()
 
-    # Register some standard tasks, but deliberately omit the unregistered one.
-    restarted_tm.register_task("hello_world_async", HelloWorldAsyncTask)
-    restarted_tm.register_task("failing_task", FailingTask)
+    # No need to register standard tasks for this test; we only verify that
+    # an unregistered task type is loaded into memory with ERROR status.
 
     # 3. Verify the state of the loaded task.
     loaded_task_info = restarted_tm.get_task_info(task_id)
