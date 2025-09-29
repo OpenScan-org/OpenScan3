@@ -40,21 +40,7 @@ MOVE_TO_CASES = [
 ]
 
 
-@pytest.fixture
-def motor_config_instance():
-    """Provides a MotorConfig instance for tests."""
-    return MotorConfig(
-        direction_pin=1, enable_pin=2, step_pin=3,
-        acceleration=20000, max_speed=7500,
-        min_angle=0, max_angle=360,
-        direction=1, steps_per_rotation=3200
-    )
 
-
-@pytest.fixture
-def motor_model_instance(motor_config_instance):
-    """Provides a Motor model instance, initialized at angle 0."""
-    return Motor(name="test_motor", settings=motor_config_instance, angle=90.0)
 
 
 @pytest.fixture

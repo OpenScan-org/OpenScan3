@@ -10,7 +10,10 @@ from app.config.scan import ScanSetting
 from app.models.paths import PathMethod
 from app.models.scan import Scan
 from app.models.camera import CameraMetadata, PhotoData
-
+from app.models.motor import Motor
+from app.config.motor import MotorConfig
+from app.models.light import Light
+from app.config.light import LightConfig
 
 @pytest.fixture
 def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
@@ -29,6 +32,25 @@ def project_manager(MOCKED_PROJECTS_PATH) -> ProjectManager:
     pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
     return pm
 
+@pytest.fixture
+def motor_config_instance():
+    """Provides a MotorConfig instance for tests."""
+    return MotorConfig(
+        direction_pin=1, enable_pin=2, step_pin=3,
+        acceleration=20000, max_speed=7500,
+        min_angle=0, max_angle=360,
+        direction=1, steps_per_rotation=3200
+    )
+
+@pytest.fixture
+def motor_model_instance(motor_config_instance):
+    """Provides a Motor model instance, initialized at angle 0."""
+    return Motor(name="test_motor", settings=motor_config_instance, angle=90.0)
+
+@pytest.fixture
+def light_model_instance():
+    """Provides a Light model instance."""
+    return Light(name="test_light", settings=LightConfig(name="test_light", pins=[1, 2]))
 
 @pytest.fixture
 def mock_camera_controller() -> MagicMock:
