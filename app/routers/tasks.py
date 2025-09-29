@@ -88,30 +88,6 @@ async def resume_task(task_id: str):
 
 
 @api_version(0,3)
-@router.post("/crop", response_model=Task)
-async def crop(camera_name: str):
-    """Example image cropping task"""
-
-    # The task will get the controller itself using the camera_name.
-    # We only pass the serializable name string here to avoid serialization errors.
-    task_manager = get_task_manager()
-
-    task = await task_manager.create_and_run_task("crop_task", camera_name)
-    return task
-
-
-@api_version(0,3)
-@router.post("/hello-world-async", response_model=Task)
-async def hello_world_async(total_steps: int, delay: float):
-    """Start the async hello world demo task."""
-
-    task_manager = get_task_manager()
-
-    # Updated to explicit task_name with required _task suffix
-    task = await task_manager.create_and_run_task("hello_world_async_task", total_steps, delay)
-    return task
-
-@api_version(0,3)
 @router.post("/{task_name}", response_model=Task, status_code=status.HTTP_202_ACCEPTED)
 async def create_task(task_name: str):
     """

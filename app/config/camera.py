@@ -28,8 +28,9 @@ class CameraSettings(BaseModel):
     crop_width: Optional[int] = Field(0, ge=0, le=100, description="Cropping width in percent.")
     crop_height: Optional[int] = Field(0, ge=0, le=100, description="Cropping on height in percent.")
 
-    orientation_flag: Optional[int] = Field(7, ge=1, le=9, description="Orientation in exif flag format."
-                                                                       "For Hawkeye in Mini use 5")
+    orientation_flag: Optional[int] = Field(8, ge=1, le=9, description="Orientation in exif flag format."
+                                                                       "For imx519 use 8."
+                                                                       "For Hawkeye in Mini use 5.")
 
     preview_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")
     photo_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")

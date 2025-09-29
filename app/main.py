@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from app.config.logger import setup_logging_from_json_file
 
-from app.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks
+from app.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks, develop
 from app.controllers import device as device_controller
 
 
@@ -100,6 +100,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks.router)
+app.include_router(develop.router)
 
 app.include_router(cameras.router)
 app.include_router(motors.router)
