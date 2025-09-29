@@ -27,7 +27,7 @@ class CameraController(StatefulHardware):
     def __init__(self, camera: Camera):
         self.camera = camera
         # Create settings with callback for hardware updates
-        self.settings = Settings(camera.settings, on_change=self._apply_settings_to_hardware)
+        self.settings = Settings(camera.settings, on_change=self._on_settings_change)
         self._busy = False
 
     def get_status(self):
@@ -40,12 +40,16 @@ class CameraController(StatefulHardware):
     def get_config(self) -> CameraSettings:
         return self.settings.model
 
+    def _on_settings_change(self, settings: CameraSettings):
+        self.camera.settings = settings
+        self._apply_settings_to_hardware(settings)
+
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """
         This method is called automatically if settings change
         Has to be overwritten by camera controller subclasses.
         """
-        pass
+        raise NotImplementedError
 
     def is_busy(self):
         return self._busy
