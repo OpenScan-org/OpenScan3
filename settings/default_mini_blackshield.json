@@ -38,8 +38,7 @@
         }
     },
     "lights": {
-      "ringlight": {
-           "name": "Blackshield Ringlight",
+      "Blackshield Ringlight": {
            "pins": [24,26],
            "pwm": false
       }

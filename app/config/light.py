@@ -5,7 +5,6 @@ from typing import Optional, List
 logger = logging.getLogger(__name__)
 
 class LightConfig(BaseModel):
-    name: str
     pin: Optional[int] = None
     pins: Optional[List[int]] = None
     pwm: bool = False

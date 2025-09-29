@@ -50,7 +50,7 @@ def motor_model_instance(motor_config_instance):
 @pytest.fixture
 def light_model_instance():
     """Provides a Light model instance."""
-    return Light(name="test_light", settings=LightConfig(name="test_light", pins=[1, 2]))
+    return Light(name="test_light", settings=LightConfig(pins=[1, 2]))
 
 @pytest.fixture
 def mock_camera_controller() -> MagicMock:

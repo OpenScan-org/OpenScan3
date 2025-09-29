@@ -297,7 +297,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
     light_objects = {}
     for light_name in config["lights"]:
         light = Light(
-            name=config["lights"][light_name]["name"],
+            name=light_name,
             settings=_load_light_config(config["lights"][light_name])
         )
         light_objects[light_name] = light
@@ -342,7 +342,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
                 logger.error(f"Error initializing endstop '{endstop_name}': {e}")
 
 
-    for name, controller in light_objects.items():
+    for name, light in light_objects.items():
         try:
             create_light_controller(light)
         except Exception as e:

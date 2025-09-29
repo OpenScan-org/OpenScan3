@@ -26,8 +26,7 @@
         }
     },
     "lights": {
-      "ringlight": {
-           "name": "OpenScan Ringlight",
+      "OpenScan.eu Ringlight": {
            "pins": [17,27],
            "pwm": true
       }
