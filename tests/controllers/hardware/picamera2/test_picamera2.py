@@ -74,3 +74,21 @@ def test_capture_yuv_array():
 
     assert artifact.data is not None
     assert artifact.camera_metadata is not None
+
+
+def test_settings_change(mocker):
+    spy_focus = mocker.spy(camera_controller, "_configure_focus")
+
+
+    camera_controller.settings.shutter = 100000
+
+    configure_focus_calls = spy_focus.call_count
+
+    camera_controller.settings.manual_focus = 5.0
+    camera_controller.settings.AF = False
+
+    time.sleep(0.1)
+    assert camera_controller.settings.shutter == 100000
+    assert camera_controller.settings.AF == False
+    # assert that _configure_focus() has been called twice (one for setting manual_focus and one for setting AF)
+    assert spy_focus.call_count == configure_focus_calls + 2
