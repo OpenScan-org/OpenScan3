@@ -44,8 +44,8 @@ def create_settings_endpoints(
 
     @api_version(0,1)
     @router.patch(f"/{{{resource_name}}}/settings")
-    async def update_settings(name: str, settings: Dict[str, Any] = Body(...)):
-        """Update specific settings for a resource"""
+    async def update_settings(name: str, settings: Dict[str, Any] = Body(..., examples=[{"some_setting": 123}])):
+        """Update one or more specific settings for a resource"""
         controller = get_controller(name)
         try:
             controller.settings.update(**settings)

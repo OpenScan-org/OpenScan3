@@ -32,14 +32,16 @@ import json
 import os
 import shutil
 from io import BytesIO
+import numpy as np
 
 from app.models.project import Project
 from app.models.scan import Scan
+from app.models.camera import PhotoData
 from app.controllers.hardware.cameras.camera import CameraController
 from app.config.scan import ScanSetting
 
+
 logger = logging.getLogger(__name__)
-logger.info("Testlog aus ProjectManager!")
 
 
 def _get_project_path(projects_path: str, project_name: str) -> str:
@@ -163,11 +165,79 @@ def save_project(project: Project):
     for scan in project.scans.values():
         _save_scan_json(project.path, scan)
 
+async def _save_photo_async(photo_data: PhotoData, photo_path: str):
+    """Save a photo to a file.
+
+    Args:
+        photo_data (PhotoData): The photo data to save.
+        photo_path (str): The path to save the photo to.
+    """
+    handler = {
+        "jpeg": _save_photo_jpeg,
+        "dng": _save_photo_dng,
+        "rgb_array": _save_photo_rgb,
+        "yuv_array": _save_photo_yuv,
+    }
+    try:
+        await handler[photo_data.format](photo_data, photo_path)
+        logger.info(f"Saved {photo_data.format} to {photo_path}")
+    except KeyError:
+        raise ValueError(f"Can't save photo, unsupported image format: {photo_data.format}")
+
+async def _save_photo_jpeg(photo_data: PhotoData, file_path: str):
+    """Save a JPEG photo to a file.
+
+    Args:
+        photo_data (PhotoData): The photo data to save.
+        file_path (str): The path to save the photo to.
+    """
+    photo_data.data.seek(0)
+    async with aiofiles.open(file_path + ".jpg", 'wb') as f:
+        await f.write(photo_data.data.read())
+
+async def _save_photo_dng(photo_data: PhotoData, file_path: str, chunk_size: int = 1024 * 1024):
+    """Save a DNG photo to a file.
+
+    We write the dng in chunks to avoid memory issues.
+
+    Args:
+        photo_data (PhotoData): The photo data to save.
+        file_path (str): The path to save the photo to.
+        chunk_size (int, optional): The size of the chunks to write. Defaults to 1024 * 1024.
+    """
+    photo_data.data.seek(0)
+    async with aiofiles.open(file_path + ".dng", 'wb') as f:
+        while chunk := photo_data.data.read(chunk_size):
+            await f.write(chunk)
+
+async def _save_numpy_array(array: np.ndarray, file_path: str):
+    """Save a numpy array to a file using asyncio.to_thread to avoid blocking the event loop.
+
+    Args:
+        array (np.ndarray): The numpy array to save.
+        file_path (str): The path to save the numpy array to."""
+    await asyncio.to_thread(np.save, file_path, array)
+
+async def _save_photo_rgb(photo_data: PhotoData, file_path: str):
+    """Save a rgb numpy array to a file."""
+    await _save_numpy_array(photo_data.data, file_path)
+
+async def _save_photo_yuv(photo_data: PhotoData, file_path: str):
+    """Save a yuv numpy array to a file."""
+    await _save_numpy_array(photo_data.data, file_path)
+
+async def _save_photo_metadata_async(photo_data: PhotoData, file_path: str):
+    """Save a photo metadata to a file."""
+    async with aiofiles.open(file_path + ".json", 'w') as f:
+        await f.write(photo_data.model_dump_json(indent=2, exclude={"data"}))
+
 
 class ProjectManager:
     def __init__(self, path=pathlib.PurePath("projects")):
         """Initialize project manager with base path"""
         self._path = str(path)
+        if not os.path.exists(self._path):
+            os.makedirs(self._path)
         self._projects = {}
 
         logger.debug(f"Initializing ProjectManager at {self._path}")
@@ -296,33 +366,53 @@ class ProjectManager:
 
         return scan
 
-    async def add_photo_async(self, scan: Scan, photo, photo_info: dict) -> None:
-        """Asynchronously save a photo to the current project """
-        photo = BytesIO(photo)
-        photo.seek(0)
-        photo_data = photo.read()
+    async def add_photo_async(self, photo_data: PhotoData) -> None:
+        """Asynchronously save a photo and its metadata to the corresponding project
 
-        project = self.get_project_by_name(scan.project_name)
+        Args:
+            photo_data: The photo data to save.
+        """
 
-        photo_path = os.path.join(project.path, f"scan{scan.index:02d}")
-        photo_filename = f"scan{scan.index:02d}_{photo_info['position']:03d}"
+        project = self.get_project_by_name(photo_data.scan_metadata.project_name)
 
-        # save focus stacking photos
-        if photo_info.get("stack_index") is not None:
-            photo_filename = photo_filename + f"_fs{photo_info['stack_index']:02d}.jpg"
-        # save without focus stacking
-        else:
-            photo_filename = photo_filename + ".jpg"
+        photo_dir, photo_filename = self._prepare_photo_path(photo_data)
+        metadata_dir = os.path.join(photo_dir, "metadata")
+        os.makedirs(metadata_dir, exist_ok=True)
 
+        await asyncio.gather(
+            _save_photo_async(photo_data, os.path.join(photo_dir, photo_filename)),
+            _save_photo_metadata_async(photo_data, os.path.join(metadata_dir, photo_filename))
+        )
 
-        async with aiofiles.open(os.path.join(photo_path, photo_filename), "wb") as f:
-            await f.write(photo_data)
-            scan.photos.append(photo_filename)
-
-        logger.debug(f"Added photo {photo_filename} to scan {scan.index} in project {scan.project_name}")
+        logger.info(f"Saved photo {photo_filename} and metadata to {photo_dir}")
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, save_project, project)
+
+    def _prepare_photo_path(self, photo_data: PhotoData) -> tuple[str, str]:
+        """Prepare the path and the filename for a photo file.
+
+        Filenames are e.g. scan01_001.jpg or, if focus stacking is enabled, scan01_001_fs01.jpg
+
+        Args:
+            photo_data: The photo data to prepare the path for.
+
+        Returns:
+            Tuple of (photo directory, photo filename)
+        """
+        project = self.get_project_by_name(photo_data.scan_metadata.project_name)
+        photo_dir = os.path.join(project.path, f"scan{photo_data.scan_metadata.scan_index:02d}")
+
+        scan_index = photo_data.scan_metadata.scan_index
+        position = photo_data.scan_metadata.step
+
+        photo_filename = f"scan{scan_index:02d}_{position:03d}"
+
+        if photo_data.scan_metadata.stack_index is not None:
+            focus_stack_index = photo_data.scan_metadata.stack_index
+            photo_filename = photo_filename + f"_fs{focus_stack_index:02d}"
+
+        return photo_dir, photo_filename
 
     async def save_scan_state(self, scan: Scan) -> None:
         """Asynchronously saves the state of a single scan to its JSON file."""

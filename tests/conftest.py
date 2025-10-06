@@ -1,12 +1,56 @@
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
+from pathlib import Path
+import io
 
+from app.controllers.services.projects import ProjectManager
 from app.config.camera import CameraSettings
 from app.config.scan import ScanSetting
 from app.models.paths import PathMethod
 from app.models.scan import Scan
+from app.models.camera import CameraMetadata, PhotoData
+from app.models.motor import Motor
+from app.config.motor import MotorConfig
+from app.models.light import Light
+from app.config.light import LightConfig
 
+@pytest.fixture
+def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
+    """Fixture to create a temporary, isolated projects directory for testing."""
+    mock_projects_dir = tmp_path / "projects_test_root"
+    mock_projects_dir.mkdir()
+    return mock_projects_dir
+
+
+@pytest.fixture
+def project_manager(MOCKED_PROJECTS_PATH) -> ProjectManager:
+    """Fixture to create a ProjectManager instance with a temporary projects path."""
+    # Instantiate the ProjectManager. Assuming __init__ is synchronous and loads data.
+    # If ProjectManager needs async initialization, this fixture would need to be async
+    # and use an async factory or `await ProjectManager.create(...)` pattern.
+    pm = ProjectManager(path=MOCKED_PROJECTS_PATH)
+    return pm
+
+@pytest.fixture
+def motor_config_instance():
+    """Provides a MotorConfig instance for tests."""
+    return MotorConfig(
+        direction_pin=1, enable_pin=2, step_pin=3,
+        acceleration=20000, max_speed=7500,
+        min_angle=0, max_angle=360,
+        direction=1, steps_per_rotation=3200
+    )
+
+@pytest.fixture
+def motor_model_instance(motor_config_instance):
+    """Provides a Motor model instance, initialized at angle 0."""
+    return Motor(name="test_motor", settings=motor_config_instance, angle=90.0)
+
+@pytest.fixture
+def light_model_instance():
+    """Provides a Light model instance."""
+    return Light(name="test_light", settings=LightConfig(pins=[1, 2]))
 
 @pytest.fixture
 def mock_camera_controller() -> MagicMock:
@@ -18,6 +62,19 @@ def mock_camera_controller() -> MagicMock:
     controller.camera.name = "mock_camera"
     return controller
 
+@pytest.fixture
+def sample_camera_metadata() -> CameraMetadata:
+    """Fixture for a mocked CameraMetadata."""
+    return CameraMetadata(camera_name="mock_camera",
+                          camera_settings=CameraSettings(shutter=400),
+                          raw_metadata={})
+
+@pytest.fixture
+def fake_photo_data(sample_camera_metadata: CameraMetadata) -> PhotoData:
+    """Fixture for a mocked PhotoData."""
+    return PhotoData(data=io.BytesIO(b"fake_image_bytes"),
+                     format="jpeg",
+                     camera_metadata=sample_camera_metadata)
 
 @pytest.fixture
 def sample_scan_settings() -> ScanSetting:
@@ -32,7 +89,8 @@ def sample_scan_settings() -> ScanSetting:
         optimize_path=True,
         optimization_algorithm="nearest_neighbor",
         focus_stacks=1,
-        focus_range=(10.0, 15.0)
+        focus_range=(10.0, 15.0),
+        image_format="jpeg"
     )
 
 

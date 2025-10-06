@@ -21,7 +21,6 @@ from app.models.task import Task, TaskStatus
 
 from app.controllers.services.projects import get_project_manager
 from app.controllers.services.tasks.task_manager import task_manager, get_task_manager
-from app.controllers.services.tasks.scan_task import ScanTask
 
 router = APIRouter(
     prefix="/projects",

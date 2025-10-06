@@ -13,7 +13,6 @@ from typing import Optional
 
 from app.controllers.hardware.cameras.camera import CameraController
 from app.controllers.services.projects import ProjectManager
-from app.controllers.services.tasks.scan_task import ScanTask
 from app.controllers.services.tasks.task_manager import get_task_manager
 from app.models.scan import Scan, ScanStatus
 from app.models.task import Task, TaskStatus
@@ -28,21 +27,26 @@ async def start_scan(
     start_from_step: int = 0,
 ) -> Task:
     """
-    Creates and starts a new scan task.
+    Creates and starts a new scan task with simplified arguments.
 
-    This function initializes a ScanTask, creates a corresponding task in the
-    TaskManager, saves the task_id to the scan object, and starts the task.
+    This function requests the TaskManager to create a `scan_task`, saves the
+    task_id to the scan object, and starts the task.
+    The task will resolve its own dependencies using service locators.
 
     Args:
-        project_manager: The project manager instance.
+        project_manager: The project manager instance (used for saving scan state).
         scan: The scan object to be executed.
-        camera_controller: The camera controller for the scan.
+        camera_controller: The camera controller for validation.
         start_from_step: The step to resume the scan from.
 
     Returns:
         The created Task object.
     """
     task_manager = get_task_manager()
+
+    # Validate that the camera matches the scan's expected camera
+    if scan.camera_name and scan.camera_name != camera_controller.camera.name:
+        raise ValueError(f"Camera mismatch: scan expects '{scan.camera_name}', got '{camera_controller.camera.name}'")
 
     # If the scan already has a task_id, check its status.
     # This prevents creating a new task for a scan that is already running, paused, etc.
@@ -62,7 +66,7 @@ async def start_scan(
     task_name = "scan_task"
     task = await task_manager.create_and_run_task(
         task_name,
-        scan, camera_controller, project_manager, start_from_step
+        scan, start_from_step
     )
 
     # Save the task_id in the scan object for future reference

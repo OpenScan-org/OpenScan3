@@ -61,7 +61,6 @@ class Project(BaseModel):
         """Validate and normalize the path"""
         try:
             path_obj = pathlib.Path(path)
-            # Resolve macht den Pfad absolut und normalisiert ihn
             return str(path_obj.resolve())
         except Exception as e:
             raise ValueError(f"Invalid path: {e}")

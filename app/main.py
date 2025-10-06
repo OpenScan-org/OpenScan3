@@ -1,5 +1,7 @@
 import uvicorn
 import logging
+import json
+from pathlib import Path
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_versionizer.versionizer import Versionizer
@@ -7,14 +9,11 @@ from contextlib import asynccontextmanager
 
 from app.config.logger import setup_logging_from_json_file
 
-from app.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks
+from app.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks, develop
 from app.controllers import device as device_controller
 
 
 from app.controllers.services.tasks.task_manager import get_task_manager
-from app.controllers.services.tasks.scan_task import ScanTask
-from app.controllers.services.tasks.crop_task import CropTask
-from app.controllers.services.tasks.example_tasks import HelloWorldAsyncTask, ExclusiveDemoTask
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,11 +24,60 @@ async def lifespan(app: FastAPI):
 
     task_manager = get_task_manager()
 
-    task_manager.register_task("hello_world_async", HelloWorldAsyncTask)
-    # task_manager.register_task("exclusive_demo", ExclusiveDemoTask)
-    task_manager.register_task("scan_task", ScanTask)
-    task_manager.register_task("crop_task", CropTask)
+    # Load firmware settings controlling task autodiscovery
+    settings_path = Path("settings/openscan_firmware.json")
+    autodiscovery_settings = {}
+    if settings_path.exists():
+        try:
+            autodiscovery_settings = json.loads(settings_path.read_text())
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                f"Failed to read {settings_path}: {e}. Falling back to defaults.")
 
+    if autodiscovery_settings.get("task_autodiscovery_enabled", True):
+        namespaces = autodiscovery_settings.get(
+            "task_autodiscovery_namespaces", ["app.controllers.services.tasks"]
+        )
+        include_subpackages = autodiscovery_settings.get(
+            "task_autodiscovery_include_subpackages", True
+        )
+        ignore_modules = set(
+            autodiscovery_settings.get("task_autodiscovery_ignore_modules", [])
+        )
+        safe_mode = autodiscovery_settings.get("task_autodiscovery_safe_mode", True)
+        override_on_conflict = autodiscovery_settings.get(
+            "task_autodiscovery_override_on_conflict", False
+        )
+        require_explicit_name = autodiscovery_settings.get(
+            "task_require_explicit_name", True
+        )
+        raise_on_missing_name = autodiscovery_settings.get(
+            "task_raise_on_missing_name", True
+        )
+
+        task_manager.autodiscover_tasks(
+            namespaces=namespaces,
+            include_subpackages=include_subpackages,
+            ignore_modules=ignore_modules,
+            safe_mode=safe_mode,
+            override_on_conflict=override_on_conflict,
+            require_explicit_name=require_explicit_name,
+            raise_on_missing_name=raise_on_missing_name,
+        )
+
+        # Fail-fast on required core tasks
+        if autodiscovery_settings.get("task_categories_enabled", True):
+            required = set(autodiscovery_settings.get("task_required_core_names", []))
+            missing = required - set(task_manager._task_registry.keys())
+            if missing:
+                raise RuntimeError(f"Missing required core tasks: {sorted(missing)}")
+    else:
+        # Fallback manual registration for development
+        from app.controllers.services.tasks.core.scan_task import ScanTask as CoreScanTask
+        from app.controllers.services.tasks.core.crop_task import CropTask as CoreCropTask
+
+        task_manager.register_task("scan_task", CoreScanTask)
+        task_manager.register_task("crop_task", CoreCropTask)
 
     # Now that tasks are registered, restore any persisted tasks
     task_manager.restore_tasks_from_persistence()
@@ -52,6 +100,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks.router)
+app.include_router(develop.router)
 
 app.include_router(cameras.router)
 app.include_router(motors.router)

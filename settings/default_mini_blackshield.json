@@ -2,23 +2,7 @@
     "name": "Mini v2.1",
     "model": "mini",
     "shield": "blackshield",
-    "cameras": {
-        "imx519": {
-            "name": "imx519",
-            "type": "picamera2",
-            "path": "/dev/video0",
-            "settings": {
-                "shutter": 40000,
-                "saturation": 1.0,
-                "contrast": 1.0,
-                "AF": true,
-                "gain": 1.0,
-                "awbg_red": 1.764021635055542,
-                "awbg_blue": 1.7737489938735962,
-                "jpeg_quality": 70
-            }
-        }
-    },
+    "cameras": {},
     "motors": {
         "rotor": {
             "direction_pin": 23,
@@ -54,8 +38,7 @@
         }
     },
     "lights": {
-      "ringlight": {
-           "name": "Blackshield Ringlight",
+      "Blackshield Ringlight": {
            "pins": [24,26],
            "pwm": false
       }

@@ -8,16 +8,17 @@ Currently supporting only picamera2.
 
 import abc
 import logging
-from typing import Dict, IO, Optional, Type
+from typing import IO
 
-from app.models.camera import Camera, CameraType
+
+from app.models.camera import Camera, CameraType, PhotoData
 from app.config.camera import CameraSettings
-from app.controllers.hardware.interfaces import create_controller_registry
+from app.controllers.hardware.interfaces import create_controller_registry, StatefulHardware
 from app.controllers.settings import Settings
 
 logger = logging.getLogger(__name__)
 
-class CameraController(abc.ABC):
+class CameraController(StatefulHardware):
     """
     Abstract Base Class for Camera Controller
 
@@ -26,7 +27,7 @@ class CameraController(abc.ABC):
     def __init__(self, camera: Camera):
         self.camera = camera
         # Create settings with callback for hardware updates
-        self.settings = Settings(camera.settings, on_change=self._apply_settings_to_hardware)
+        self.settings = Settings(camera.settings, on_change=self._on_settings_change)
         self._busy = False
 
     def get_status(self):
@@ -36,26 +37,72 @@ class CameraController(abc.ABC):
                 "busy": self._busy,
                 "settings": self.settings.model}
 
+    def get_config(self) -> CameraSettings:
+        return self.settings.model
 
-    @abc.abstractmethod
+    def _on_settings_change(self, settings: CameraSettings):
+        self.camera.settings = settings
+        self._apply_settings_to_hardware(settings)
+
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """
         This method is called automatically if settings change
         Has to be overwritten by camera controller subclasses.
         """
-        pass
-
-    @staticmethod
-    @abc.abstractmethod
-    def photo(camera: Camera) -> IO[bytes]:
-        """Capture a single photo with high resolution."""
         raise NotImplementedError
 
-    @staticmethod
+    def is_busy(self):
+        return self._busy
+
+    def photo(self, image_format: str = "jpeg") -> PhotoData:
+        """Capture a single photo with high resolution.
+
+        Args:
+            image_format (str, optional): Image format. Defaults to "jpeg".
+
+        Returns:
+            PhotoData: Captured photo data model.
+        """
+        handler = {
+            "jpeg": self.capture_jpeg,
+            "dng": self.capture_dng,
+            "rgb_array": self.capture_rgb_array,
+            "yuv_array": self.capture_yuv_array,
+        }
+        try:
+            return handler[image_format]()
+        except KeyError:
+            raise ValueError(f"Unsupported image format: {image_format}")
+
     @abc.abstractmethod
-    def preview(camera: Camera) -> IO[bytes]:
-        """Capture a faster and low resolution preview."""
+    def preview(self) -> IO[bytes]:
+        """Capture a faster and low resolution preview.
+
+        Returns:
+            IO[bytes]: Preview image data as jpeg bytes.
+        """
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def capture_rgb_array(self) -> PhotoData:
+        """Capture a numpy array to use for image analysis."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def capture_yuv_array(self) -> PhotoData:
+        """Capture a yuv array for image analysis."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def capture_dng(self) -> PhotoData:
+        """Capture a raw image and encode it to dng."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def capture_jpeg(self) -> PhotoData:
+        """Capture an image and encode it to jpeg."""
+        raise NotImplementedError
+
 
 def _create_camera_controller_instance(camera: Camera) -> 'CameraController':
     """Create a camera controller instance based on the camera type.
@@ -81,7 +128,7 @@ create_camera_controller, get_camera_controller, remove_camera_controller, _came
 
 
 def get_all_camera_controllers():
-    """Get all currently registered light controllers"""
+    """Get all currently registered camera controllers"""
     return _camera_registry.copy()
 
 def get_camera_controller_by_id(camera_id: int):

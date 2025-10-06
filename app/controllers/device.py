@@ -206,10 +206,6 @@ def _detect_cameras() -> Dict[str, Camera]:
 
     cameras = {}
 
-    # Load default camera settings
-    with open(DEFAULT_CAMERA_SETTINGS_FILE, "r") as f:
-        camera_default_settings = json.load(f)
-
     # Get Linux cameras
     try:
         linuxpycameras = iter_video_capture_devices()
@@ -246,15 +242,17 @@ def _detect_cameras() -> Dict[str, Camera]:
         cameras[picam_name] = Camera(
             type=CameraType.PICAMERA2,
             name=picam_name,
-            path="/dev/video" + str(picam.camera_properties.get("Location")),
-            settings=_load_camera_config(camera_default_settings[picam_name])
+            path="/dev/video0" + str(picam.camera_properties.get("Location")),
+            settings=CameraSettings()
         )
         picam.close()
         del picam
 
+    except IndexError as e:
+        logger.critical(f"Error loading Picamera2, most likely because of incorrect dtoverlay in /boot/firmware/config.txt.",
+                     exc_info=True)
     except Exception as e:
-        logger.error(f"Error loading Picamera2: {e}")
-
+        logger.error(f"Error loading Picamera2: {e}", exc_info=True)
     return cameras
 
 
@@ -274,7 +272,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
         logger.debug("Cleaned up old controllers.")
 
     # Detect hardware
-    if detect_cameras:
+    if detect_cameras or config["cameras"] == {}:
         camera_objects = _detect_cameras()
     else:
         camera_objects = {}
@@ -299,7 +297,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
     light_objects = {}
     for light_name in config["lights"]:
         light = Light(
-            name=config["lights"][light_name]["name"],
+            name=light_name,
             settings=_load_light_config(config["lights"][light_name])
         )
         light_objects[light_name] = light
@@ -344,7 +342,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
                 logger.error(f"Error initializing endstop '{endstop_name}': {e}")
 
 
-    for name, controller in light_objects.items():
+    for name, light in light_objects.items():
         try:
             create_light_controller(light)
         except Exception as e:
@@ -432,3 +430,35 @@ def cleanup_and_exit():
 
     cleanup_all_pins()
     logger.info("Exiting now...")
+
+
+def check_arducam_overlay(camera_model: str) -> bool:
+    """Check if the arducam overlay is set for the given camera model
+
+    Args:
+        camera_model (str): The camera model to check for
+
+    Returns:
+        bool: True if the correct overlay is set, False otherwise
+    """
+    config_path = "/boot/firmware/config.txt"
+    arducam_overlays = {
+        "arducam_64mp": "dtoverlay=arducam-64mp",
+        "imx519": "dtoverlay=imx519"
+    }
+
+    overlay = arducam_overlays.get(camera_model)
+
+    try:
+        with open( config_path, "r") as f:
+            config_lines = f.read().splitlines()
+
+        if overlay in config_lines:
+            logger.debug(f"Overlay for {camera_model} is set: {overlay}")
+            return True
+        else:
+            logger.error(f"Overlay for {camera_model} missing or wrong, should be: {overlay}")
+            return False
+    except Exception as e:
+        logger.error(f"Error checking for arducam overlay in {config_path}: {e}")
+        return False
