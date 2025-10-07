@@ -114,16 +114,6 @@ async def add_scan_with_description(project_name: str,
 
 
 
-@api_version(0,1)
-@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
-async def get_scan(project_name: str, scan_index: int):
-    """Get Scan by project and index"""
-    try:
-        project_manager = get_project_manager()
-        return project_manager.get_scan_by_index(project_name, scan_index)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @api_version(0,3)
 @router.delete("/{project_name}/{scan_index}/", response_model=bool)
@@ -411,4 +401,14 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
     except Exception as e:
         print(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_version(0,1)
+@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
+async def get_scan(project_name: str, scan_index: int):
+    """Get Scan by project and index"""
+    try:
+        project_manager = get_project_manager()
+        return project_manager.get_scan_by_index(project_name, scan_index)
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
