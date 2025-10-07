@@ -331,71 +331,62 @@ async def download_project(project_name: str):
 @router.get("/{project_name}/scans/zip")
 async def download_scans(project_name: str, scan_indices: List[int] = Query(None)):
     """Download selected scans from a project as a ZIP file stream
-
     This endpoint streams selected scans from a project as a ZIP file.
     If no scan indices are provided, all scans will be included.
-
     Args:
         project_name: Name of the project
         scan_indices: List of scan indices to include in the ZIP file
-
     Returns:
         StreamingResponse: ZIP file stream
     """
     try:
-        # Import zipstream-ng
         from zipstream import ZipStream
         project_manager = get_project_manager()
-        # Get project
         project = project_manager.get_project_by_name(project_name)
         if not project:
             raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
-
-        # Create ZipStream
+        
         zs = ZipStream(sized=True)
-
-        # Set the zip file's comment
         zs.comment = f"OpenScan3 Project: {project_name} - Generated on {datetime.now().isoformat()}"
-
-        # If scan_indices is provided, only include those scans
+        
+        # Build filename based on what's being downloaded
         if scan_indices:
+            if len(scan_indices) == 1:
+                filename = f"{project_name}_scan{scan_indices[0]:02d}.zip"
+            else:
+                scan_nums = "_".join(str(i) for i in sorted(scan_indices))
+                filename = f"{project_name}_scans_{scan_nums}.zip"
+            
             for scan_index in scan_indices:
                 try:
                     scan = project_manager.get_scan_by_index(project_name, scan_index)
                     if not scan:
                         print(f"Scan with index {scan_index} not found")
                         continue
-
-                    # Add scan directory to zip
                     scan_dir = os.path.join(project.path, f"scan{scan_index:02d}")
                     if os.path.exists(scan_dir):
-                        # Use the scan index as the top-level folder name
                         zs.add_path(scan_dir, f"scan{scan_index:02d}")
                 except Exception as e:
                     print(e)
-                    # Skip scans that don't exist or can't be added
                     continue
         else:
-            # Include all scans
+            filename = f"{project_name}_all_scans.zip"
             for scan_id, scan in project.scans.items():
                 scan_dir = os.path.join(project.path, f"scan_{scan.index}")
                 if os.path.exists(scan_dir):
                     zs.add_path(scan_dir, f"scan_{scan.index}")
-
-        # Add project metadata
+        
         zs.add(_serialize_project_for_zip(project), "project_metadata.json")
-
-        # Return streaming response
+        
         response = StreamingResponse(
             zs,
             media_type="application/zip",
             headers={
-                "Content-Disposition": f"attachment; filename={project_name}_scans.zip",
+                "Content-Disposition": f"attachment; filename={filename}",
                 "Content-Length": str(len(zs)),
                 "Last-Modified": str(zs.last_modified),
             }
         )
-
         return response
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
