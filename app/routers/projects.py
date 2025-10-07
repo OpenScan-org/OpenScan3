@@ -148,7 +148,7 @@ async def delete_project(project_name: str):
     return project_manager.delete_project(project)
 
 @api_version(0,3)
-@router.delete("/{project_name}/scans/", response_model=bool)
+@router.delete("/{project_name}/scans/{scan_index}", response_model=bool)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project"""
     project_manager = get_project_manager()
