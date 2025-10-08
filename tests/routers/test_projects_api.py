@@ -11,11 +11,11 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.controllers.services.projects import ProjectManager, get_project_manager
-from app.main import app
-from app.models.project import Project
-from app.models.task import Task
-from app.config.scan import ScanSetting
+from openscan.controllers.services.projects import ProjectManager, get_project_manager
+from openscan.main import app
+from openscan.models.project import Project
+from openscan.models.task import Task
+from openscan.config.scan import ScanSetting
 
 
 @pytest.fixture(scope="function")

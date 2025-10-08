@@ -2,9 +2,9 @@ import time
 
 from picamera2.utils import orientation_to_transform
 
-from app.controllers.hardware.cameras.camera import create_camera_controller
-from app.config.camera import CameraSettings
-from app.models.camera import Camera, CameraType, PhotoData
+from openscan.controllers.hardware.cameras.camera import create_camera_controller
+from openscan.config.camera import CameraSettings
+from openscan.models.camera import Camera, CameraType, PhotoData
 
 
 camera_settings = CameraSettings(

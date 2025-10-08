@@ -1,6 +1,7 @@
 # OpenScan stuff:
 projects/
 logs/
+tests/data
 
 
 # Byte-compiled / optimized / DLL files
@@ -132,3 +133,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.idea/
+.windsurfrules

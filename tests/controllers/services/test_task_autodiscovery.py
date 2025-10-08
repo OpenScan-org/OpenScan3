@@ -2,7 +2,7 @@ import os
 import shutil
 import pytest
 
-from app.controllers.services.tasks.task_manager import TaskManager
+from openscan.controllers.services.tasks.task_manager import TaskManager
 
 
 @pytest.mark.asyncio
@@ -20,8 +20,8 @@ async def test_autodiscover_registers_core_tasks():
 
     registered = tm.autodiscover_tasks(
         namespaces=[
-            "app.controllers.services.tasks",
-            "app.tasks.community",
+            "openscan.controllers.services.tasks",
+            "openscan.tasks.community",
         ],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager", "example_tasks"},
@@ -52,7 +52,7 @@ async def test_autodiscover_safe_mode_handles_import_errors():
 
     # Do not ignore example_tasks to force an import error inside autodiscovery
     registered = tm.autodiscover_tasks(
-        namespaces=["app.controllers.services.tasks"],
+        namespaces=["openscan.controllers.services.tasks"],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager"},
         safe_mode=True,
@@ -73,7 +73,7 @@ async def test_autodiscover_ignore_examples_package():
     tm = TaskManager()
 
     tm.autodiscover_tasks(
-        namespaces=["app.controllers.services.tasks"],
+        namespaces=["openscan.controllers.services.tasks"],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager", "examples"},
         safe_mode=True,
@@ -91,7 +91,7 @@ async def test_autodiscover_ignore_examples_package():
 @pytest.mark.asyncio
 async def test_autodiscover_conflict_override_false():
     """When a task_name already exists and override_on_conflict=False, keep original."""
-    from app.controllers.services.tasks.base_task import BaseTask
+    from openscan.controllers.services.tasks.base_task import BaseTask
 
     class DummyTask(BaseTask):
         task_name = "scan_task"
@@ -108,7 +108,7 @@ async def test_autodiscover_conflict_override_false():
     original_cls = tm._task_registry["scan_task"]
 
     tm.autodiscover_tasks(
-        namespaces=["app.controllers.services.tasks"],
+        namespaces=["openscan.controllers.services.tasks"],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager"},
         safe_mode=True,

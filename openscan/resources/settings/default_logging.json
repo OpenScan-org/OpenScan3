@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "simple": {"format": "%(asctime)s - %(levelname)s - %(name)s - %(message)s"},
+    "detailed": {"format": "%(asctime)s - %(levelname)s - %(name)s - [%(filename)s:%(lineno)d:%(funcName)s] - %(message)s"}
+  },
+  "handlers": {
+    "console": {
+      "class": "logging.StreamHandler",
+      "level": "INFO",
+      "formatter": "simple",
+      "stream": "ext://sys.stdout"
+    },
+    "buffer_to_text_file": {
+      "class": "logging.handlers.MemoryHandler",
+      "level": "DEBUG",
+      "capacity": 256,
+      "flushLevel": 30,
+      "flushOnClose": true,
+      "target": "sdcard_file_handler"
+    },
+    "sdcard_file_handler": {
+      "class": "logging.handlers.RotatingFileHandler",
+      "level": "INFO",
+      "formatter": "detailed",
+      "filename": "logs/openscan.log",
+      "maxBytes": 10485760,
+      "backupCount": 5,
+      "encoding": "utf8"
+    }
+  },
+  "loggers": {
+    "openscan": {"level": "DEBUG", "handlers": ["console", "buffer_to_text_file"], "propagate": false},
+    "uvicorn": {"level": "INFO", "handlers": ["console", "buffer_to_text_file"], "propagate": false},
+    "httpx": {"level": "INFO", "handlers": ["console", "buffer_to_text_file"], "propagate": false},
+    "root": {"level": "INFO", "handlers": ["console", "buffer_to_text_file"]}
+  }
+}

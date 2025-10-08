@@ -1,4 +1,4 @@
-from controllers.services import projects, cloud
+from openscan.controllers.services import projects, cloud
 
 project_name = "openscan_test4"
 
