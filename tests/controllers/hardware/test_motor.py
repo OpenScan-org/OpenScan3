@@ -3,16 +3,16 @@ import asyncio  # Still needed for async functions
 from unittest.mock import AsyncMock, MagicMock  # Keep for specific mock types
 
 # Adjust paths if necessary for your project structure
-from app.controllers.hardware.motors import MotorController
-from app.models.motor import Motor
-from app.config.motor import MotorConfig
+from openscan.controllers.hardware.motors import MotorController
+from openscan.models.motor import Motor
+from openscan.config.motor import MotorConfig
 
 # The module paths for patching are relative to where they are *used*
-# (i.e., in 'app.controllers.hardware.motors.py')
-GPIO_PATCH_PATH = 'app.controllers.hardware.motors.gpio'
-TIME_PATCH_PATH = 'app.controllers.hardware.motors.time'
-ASYNCIO_PATCH_PATH = 'app.controllers.hardware.motors.asyncio'
-MATH_PATCH_PATH = 'app.controllers.hardware.motors.math'  # math.cos is used in _execute_movement
+# (i.e., in 'openscan.controllers.hardware.motors')
+GPIO_PATCH_PATH = 'openscan.controllers.hardware.motors.gpio'
+TIME_PATCH_PATH = 'openscan.controllers.hardware.motors.time'
+ASYNCIO_PATCH_PATH = 'openscan.controllers.hardware.motors.asyncio'
+MATH_PATCH_PATH = 'openscan.controllers.hardware.motors.math'  # math.cos is used in _execute_movement
 
 # --- Test Data ---
 MOVE_DEGREES_CASES = [

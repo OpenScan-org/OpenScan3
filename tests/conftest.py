@@ -4,17 +4,16 @@ from datetime import datetime
 from pathlib import Path
 import io
 
-from app.controllers.services.projects import ProjectManager
-from app.config.camera import CameraSettings
-from app.config.scan import ScanSetting
-from app.models.paths import PathMethod
-from app.models.scan import Scan
-from app.models.camera import CameraMetadata, PhotoData
-from app.models.motor import Motor
-from app.config.motor import MotorConfig
-from app.models.light import Light
-from app.config.light import LightConfig
-
+from openscan.controllers.services.projects import ProjectManager
+from openscan.config.camera import CameraSettings
+from openscan.config.scan import ScanSetting
+from openscan.models.paths import PathMethod
+from openscan.models.scan import Scan
+from openscan.models.camera import CameraMetadata, PhotoData
+from openscan.models.motor import Motor
+from openscan.config.motor import MotorConfig
+from openscan.models.light import Light
+from openscan.config.light import LightConfig
 @pytest.fixture
 def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
     """Fixture to create a temporary, isolated projects directory for testing."""
