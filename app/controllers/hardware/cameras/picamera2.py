@@ -22,6 +22,7 @@ from picamera2 import Picamera2
 from app.controllers.hardware.cameras.camera import CameraController
 from app.models.camera import Camera, CameraMetadata, PhotoData
 from app.config.camera import CameraSettings
+from app.utils.photos import calculate_heatmap, apply_heatmap, calculate_histogram, apply_histogram
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +191,9 @@ class Picamera2Controller(CameraController):
 
         self._apply_settings_to_hardware(self.camera.settings)
         self._configure_focus(camera_mode="preview")
+
+        self._heatmap_counter = 0
+        self._cached_heatmap = None
 
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
@@ -600,7 +604,7 @@ class Picamera2Controller(CameraController):
             frame = cv2.cvtColor(frame, cv2.COLOR_YUV420p2RGB)
             frame = apply_gamma_correction(frame, gamma=2.2)
         elif mode == "main":
-            frame = cv2.resize(frame, (640,480))
+            frame = cv2.resize(frame, (640, 480))
             frame = self._strategy.process_preview_frame(frame)
 
         rotate_map = {
@@ -610,6 +614,24 @@ class Picamera2Controller(CameraController):
             8: lambda f: cv2.rotate(f, cv2.ROTATE_90_COUNTERCLOCKWISE),
         }
         frame = rotate_map.get(self.settings.orientation_flag, lambda f: f)(frame)
+
+        do_heatmap = False
+        do_histogram = True
+        
+        if do_histogram:
+            histogram = calculate_histogram(frame)
+        
+        if do_heatmap:
+            # Calculate heatmap only every 10 frames
+            self._heatmap_counter += 1
+            if self._heatmap_counter >= 10 or self._cached_heatmap is None:
+                self._cached_heatmap = calculate_heatmap(frame, grid_size=32)
+                self._heatmap_counter = 0
+
+            frame = apply_heatmap(frame, self._cached_heatmap)
+
+        if do_histogram:
+            frame = apply_histogram(frame, histogram)
 
         _, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
         self._busy = False
