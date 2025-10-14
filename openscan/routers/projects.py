@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
-from fastapi_versionizer import api_version
 from pydantic import BaseModel
 import pathlib
 from typing import Optional, List
@@ -47,7 +46,6 @@ class ScanControlResponse(BaseModel):
 
 #project_manager = get_project_manager()
 
-@api_version(0,1)
 @router.get("/", response_model=dict[str, Project])
 async def get_projects():
     """Get all projects with serialized data"""
@@ -57,7 +55,6 @@ async def get_projects():
     return {name: jsonable_encoder(project) for name, project in projects_dict.items()}
 
 
-@api_version(0,1)
 @router.get("/{project_name}", response_model=Project)
 async def get_project(project_name: str):
     """Get a project"""
@@ -68,17 +65,6 @@ async def get_project(project_name: str):
     return project
 
 
-@api_version(0,1)
-@router.post("/{project_name}", response_model=Project)
-async def new_project(project_name: str):
-    """Create a new project"""
-    project_manager = get_project_manager()
-    try:
-        return project_manager.add_project(project_name)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
-
-@api_version(0,2)
 @router.post("/{project_name}", response_model=Project)
 async def new_project(project_name: str, project_description: Optional[str] = ""):
     """Create a new project"""
@@ -89,7 +75,6 @@ async def new_project(project_name: str, project_description: Optional[str] = ""
         raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
 
 
-@api_version(0,2)
 @router.post("/{project_name}/scan", response_model=Scan)
 async def add_scan_with_description(project_name: str,
                    camera_name: str,
@@ -115,7 +100,6 @@ async def add_scan_with_description(project_name: str,
 
 
 
-@api_version(0,3)
 @router.delete("/{project_name}/{scan_index}/", response_model=bool)
 async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
     """Delete photos from a scan in a project
@@ -136,7 +120,6 @@ async def delete_photos(project_name: str, scan_index: int, photo_filenames: lis
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
 
-@api_version(0,2)
 @router.delete("/{project_name}", response_model=bool)
 async def delete_project(project_name: str):
     """Delete a project"""
@@ -147,7 +130,6 @@ async def delete_project(project_name: str):
 
     return project_manager.delete_project(project)
 
-@api_version(0,3)
 @router.delete("/{project_name}/scans/{scan_index}", response_model=bool)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project"""
@@ -159,7 +141,6 @@ async def delete_scan(project_name: str, scan_index: int):
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
 
-@api_version(0,1)
 @router.get("/{project_name}/scans/{scan_index}/status", response_model=ScanStatusResponse)
 async def get_scan_status(project_name: str, scan_index: int):
     """Get the current status of a scan"""
@@ -181,7 +162,6 @@ async def get_scan_status(project_name: str, scan_index: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_version(0,1)
 @router.patch("/{project_name}/scans/{scan_index}/pause", response_model=ScanControlResponse)
 async def pause_scan(project_name: str, scan_index: int):
     """Pause a running scan"""
@@ -200,7 +180,6 @@ async def pause_scan(project_name: str, scan_index: int):
     )
 
 
-@api_version(0,1)
 @router.patch("/{project_name}/scans/{scan_index}/resume", response_model=ScanControlResponse)
 async def resume_scan(project_name: str, scan_index: int, camera_name: str):
     """Resume a paused, cancelled or failed scan"""
@@ -241,7 +220,6 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_version(0,1)
 @router.patch("/{project_name}/scans/{scan_index}/cancel", response_model=ScanControlResponse)
 async def cancel_scan(project_name: str, scan_index: int):
     """Cancel a running scan"""
@@ -279,7 +257,6 @@ def _serialize_project_for_zip(project: Project) -> str:
     return json.dumps(project_dict, indent=2)
 
 
-@api_version(0,1)
 @router.get("/{project_name}/zip")
 async def download_project(project_name: str):
     """Download a project as a ZIP file stream
@@ -327,7 +304,6 @@ async def download_project(project_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_version(0,1)
 @router.get("/{project_name}/scans/zip")
 async def download_scans(project_name: str, scan_indices: List[int] = Query(None)):
     """Download selected scans from a project as a ZIP file stream
@@ -345,10 +321,10 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
         project = project_manager.get_project_by_name(project_name)
         if not project:
             raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
-        
+
         zs = ZipStream(sized=True)
         zs.comment = f"OpenScan3 Project: {project_name} - Generated on {datetime.now().isoformat()}"
-        
+
         # Build filename based on what's being downloaded
         if scan_indices:
             if len(scan_indices) == 1:
@@ -356,7 +332,7 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
             else:
                 scan_nums = "_".join(str(i) for i in sorted(scan_indices))
                 filename = f"{project_name}_scans_{scan_nums}.zip"
-            
+
             for scan_index in scan_indices:
                 try:
                     scan = project_manager.get_scan_by_index(project_name, scan_index)
@@ -375,9 +351,9 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
                 scan_dir = os.path.join(project.path, f"scan_{scan.index}")
                 if os.path.exists(scan_dir):
                     zs.add_path(scan_dir, f"scan_{scan.index}")
-        
+
         zs.add(_serialize_project_for_zip(project), "project_metadata.json")
-        
+
         response = StreamingResponse(
             zs,
             media_type="application/zip",
@@ -394,7 +370,6 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_version(0,1)
 @router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
 async def get_scan(project_name: str, scan_index: int):
     """Get Scan by project and index"""

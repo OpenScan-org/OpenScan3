@@ -1,7 +1,6 @@
 import asyncio
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse
-from fastapi_versionizer import api_version
 
 from typing import Tuple
 
@@ -26,7 +25,6 @@ router = APIRouter(
 )
 
 
-@api_version(0,1)
 @router.get("/")
 async def get_software_info():
     """Get information about the scanner software"""
@@ -34,7 +32,6 @@ async def get_software_info():
             "firmware": "-"}
 
 
-@api_version(0,1)
 @router.put("/scanner-position")
 async def move_to_position(point: PolarPoint3D):
     """Move Rotor and Turntable to a polar point"""
@@ -134,7 +131,6 @@ async def _follow_file(file_path: str, poll_interval: float = 1) -> AsyncGenerat
         raise HTTPException(status_code=404, detail="Log file not found")
 
 
-@api_version(0,4)
 @router.get("/logs/tail")
 async def tail_logs(format: str = "text", lines: int = 200, follow: bool = False, poll_interval: float = 1):
     """Show or follow current logs.
@@ -184,7 +180,6 @@ async def tail_logs(format: str = "text", lines: int = 200, follow: bool = False
     return StreamingResponse(iter([content.encode("utf-8")]), media_type=media_type)
 
 
-@api_version(0,4)
 @router.get("/logs/archive")
 async def download_logs_archive():
     """Create and download a ZIP archive containing all log files.

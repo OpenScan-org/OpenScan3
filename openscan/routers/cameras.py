@@ -4,7 +4,6 @@ from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
-from fastapi_versionizer import api_version
 
 from openscan.config.camera import CameraSettings
 from openscan.models.camera import Camera, CameraType
@@ -27,7 +26,6 @@ class CameraStatusResponse(BaseModel):
     settings: CameraSettings
 
 
-@api_version(0,1)
 @router.get("/", response_model=dict[str, CameraStatusResponse])
 async def get_cameras():
     """Get all cameras with their current status"""
@@ -37,7 +35,6 @@ async def get_cameras():
     }
 
 
-@api_version(0,1)
 @router.get("/{camera_name}", response_model=CameraStatusResponse)
 async def get_camera(camera_name: str):
     """Get a camera with its current status"""
@@ -47,7 +44,6 @@ async def get_camera(camera_name: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@api_version(0, 1)
 @router.get("/{camera_name}/preview")
 async def get_preview(camera_name: str):
     """Get a camera preview stream in lower resolution"""
@@ -75,7 +71,6 @@ async def get_preview(camera_name: str):
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace;boundary=frame")
 
 
-@api_version(0,1)
 @router.get("/{camera_name}/photo")
 async def get_photo(camera_name: str):
     """Get a camera photo"""
@@ -87,7 +82,6 @@ async def get_photo(camera_name: str):
         return Response(status_code=500, content=str(e))
     return Response(status_code=409, content="Camera is busy. If this is a bug, please restart the camera.")
 
-@api_version(0,4)
 @router.post("/{camera_name}/restart")
 async def restart_camera(camera_name: str):
     """Restart a camera"""

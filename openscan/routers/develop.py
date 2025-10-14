@@ -6,7 +6,6 @@ These may be removed or changed at any time.
 
 import base64
 from fastapi import APIRouter, HTTPException, status, Response, Query
-from fastapi_versionizer import api_version
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
 from openscan.models.task import TaskStatus, Task
@@ -18,7 +17,6 @@ router = APIRouter(
 )
 
 
-@api_version(0,4)
 @router.get("/crop_image", summary="Run crop task and return visualization image", response_class=Response)
 async def crop_image(camera_name: str, threshold: int | None = Query(default=None, ge=0, le=255)) -> Response:
     """Run the crop task and return the visualization image with bounding boxes.
@@ -58,7 +56,6 @@ async def crop_image(camera_name: str, threshold: int | None = Query(default=Non
 
 
 
-@api_version(0,4)
 @router.post("/hello-world-async", response_model=Task)
 async def hello_world_async(total_steps: int, delay: float):
     """Start the async hello world demo task."""

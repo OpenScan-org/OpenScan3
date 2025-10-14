@@ -3,7 +3,6 @@ import asyncio
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from fastapi_versionizer import api_version
 
 from openscan.config.motor import MotorConfig
 from openscan.controllers.hardware.motors import get_motor_controller, get_all_motor_controllers
@@ -25,7 +24,6 @@ class MotorStatusResponse(BaseModel):
     endstop: Optional[dict]
 
 
-@api_version(0,1)
 @router.get("/", response_model=dict[str, MotorStatusResponse])
 async def get_motors():
     """Get all motors with their current status"""
@@ -35,7 +33,6 @@ async def get_motors():
     }
 
 
-@api_version(0,1)
 @router.get("/{motor_name}", response_model=MotorStatusResponse)
 async def get_motor(motor_name: str):
     """Get motor status"""
@@ -45,7 +42,6 @@ async def get_motor(motor_name: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@api_version(0,1)
 @router.put("/{motor_name}/angle", response_model=MotorStatusResponse)
 async def move_motor_to_angle(motor_name: str, degrees: float):
     """Move motor to absolute position"""
@@ -54,7 +50,6 @@ async def move_motor_to_angle(motor_name: str, degrees: float):
     return controller.get_status()
 
 
-@api_version(0,1)
 @router.patch("/{motor_name}/angle", response_model=MotorStatusResponse)
 async def move_motor_by_degree(motor_name: str, degrees: float = Body(embed=True)):
     """Move motor by degrees"""
@@ -63,7 +58,6 @@ async def move_motor_by_degree(motor_name: str, degrees: float = Body(embed=True
     return controller.get_status()
 
 
-@api_version(0,2)
 @router.put("/{motor_name}/endstop-calibration", response_model=MotorStatusResponse)
 async def move_motor_to_home_position(motor_name: str):
     """Move motor to home position"""

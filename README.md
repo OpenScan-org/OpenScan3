@@ -28,7 +28,7 @@ or patch your own image: https://github.com/esto-openscan/OpenScan3-image-patche
 #### Accessing OpenScan3
 
 *   **Hostname:** `openscan3-alpha`
-*   **Web Interface:** Currently there is only API documentation available. Open a web browser on a device on the same network and navigate to `http://openscan3-alpha:8000/docs` or to `http://openscan3-alpha:8000/latest/docs` for a cleaner overview of API-Endpoints
+*   **Web Interface:** API documentation is available per version. Open a web browser on a device on the same network and navigate to `http://openscan3-alpha:8000/v1.0/docs` or to `http://openscan3-alpha:8000/latest/docs`. You can list available versions at `http://openscan3-alpha:8000/versions`.
 *   **SSH (if enabled):** `ssh pi@openscan3-alpha` (Password: `raspberry`)
 
 #### First Steps After Boot
@@ -39,7 +39,7 @@ There are two ways to load a configuration:
 
 **Method 1: Using the API (Recommended)**
 
-1.  Navigate to the API documentation (usually accessible via a link like `/docs` or `/redoc` on the web interface, so `http://openscan3-alpha:8000/latest/docs`).
+1.  Navigate to the API documentation at `http://openscan3-alpha:8000/latest/docs`.
 3.  Find the **Device** Section and the **PUT** endpoint `/latest/device/configurations/current`.
 4.  Use the "Try it out" feature.
 5.  In the **Request body**, enter the name of the configuration file you want to load. For example, for an OpenScan Mini with a Greenshield, use:
