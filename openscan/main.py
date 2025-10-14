@@ -2,9 +2,8 @@ import uvicorn
 import logging
 import json
 from pathlib import Path
-from fastapi import FastAPI, Body
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_versionizer.versionizer import Versionizer
 from contextlib import asynccontextmanager
 
 from openscan.config.logger import setup_logging, load_settings_json
@@ -82,7 +81,7 @@ async def lifespan(app: FastAPI):
     logging.shutdown()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -92,35 +91,79 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(tasks.router)
-app.include_router(develop.router)
+# Create versioned sub-apps and mount them under /vX.Y and /latest
+# Root app intentionally has no docs; each sub-app exposes its own docs.
 
-app.include_router(cameras.router)
-app.include_router(motors.router)
-app.include_router(lights.router)
-app.include_router(projects.router)
-app.include_router(gpio.router)
-app.include_router(openscan.router)
+# Base routers shared across versions by default
+BASE_ROUTERS = [
+    cameras.router,
+    motors.router,
+    lights.router,
+    projects.router,
+    gpio.router,
+    openscan.router,
+    device.router,
+    tasks.router,
+    develop.router,
+    paths.router,
+]
 
-app.include_router(device.router)
-
-#app.include_router(cloud.router)
-app.include_router(paths.router)
-
-
-versions = Versionizer(
-    app=app,
-    prefix_format='/v{major}.{minor}',
-    semantic_version_format='{major}.{minor}',
-    latest_prefix='/latest', # makes the latest version of endpoints available at /latest
-    include_versions_route=True, # adds a GET /versions route
-    include_version_docs=True, # adds GET /{version}/docs and GET /{version}/redoc
-    sort_routes=False
-).versionize()
+# Router mapping per API version. Extend per version to diverge.
+# Example: "0.2": BASE_ROUTERS + [new_feature.router]
+ROUTERS_BY_VERSION: dict[str, list] = {
+    "0.1": BASE_ROUTERS,
+}
 
 
-# add static files mounts here, because they won't work before versionizer is initialized
-# e.g.: app.mount("/static", app.static_files, name="static")
+def make_version_app(version: str) -> FastAPI:
+    """Create a versioned FastAPI sub-application.
+
+    Args:
+        version: Semantic version string like "1.0".
+
+    Returns:
+        Configured FastAPI sub-app with routers and per-version docs.
+    """
+    sub = FastAPI(
+        title=f"OpenScan3 API v{version}",
+        version=version,
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+    )
+
+    # Apply middleware for mounted sub-apps
+    sub.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Include routers for this version (no extra prefixes; mount path provides version prefix)
+    for r in ROUTERS_BY_VERSION.get(version, BASE_ROUTERS):
+        sub.include_router(r)
+
+    return sub
+
+
+# Supported API versions and latest alias
+SUPPORTED_VERSIONS = [
+    "0.1",
+]
+LATEST = SUPPORTED_VERSIONS[-1]
+
+for v in SUPPORTED_VERSIONS:
+    app.mount(f"/v{v}", make_version_app(v))
+
+app.mount("/latest", make_version_app(LATEST))
+
+
+@app.get("/versions")
+def list_versions():
+    """List available API versions and the current latest alias."""
+    return {"versions": [f"v{v}" for v in SUPPORTED_VERSIONS], "latest": f"v{LATEST}"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

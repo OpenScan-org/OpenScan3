@@ -1,7 +1,6 @@
 from typing import List
 
 from fastapi import APIRouter, HTTPException, status
-from fastapi_versionizer import api_version
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
 from openscan.models.task import Task, TaskStatus
@@ -14,7 +13,6 @@ router = APIRouter(
 )
 
 
-@api_version(0,3)
 @router.get("/", response_model=List[Task])
 async def get_all_tasks():
     """
@@ -24,7 +22,6 @@ async def get_all_tasks():
     return task_manager.get_all_tasks_info()
 
 
-@api_version(0,3)
 @router.get("/{task_id}", response_model=Task)
 async def get_task_status(task_id: str):
     """
@@ -37,7 +34,6 @@ async def get_task_status(task_id: str):
     return task
 
 
-@api_version(0,3)
 @router.delete("/{task_id}", response_model=Task)
 async def cancel_task(task_id: str):
     """
@@ -50,7 +46,6 @@ async def cancel_task(task_id: str):
     return task
 
 
-@api_version(0,3)
 @router.post("/{task_id}/pause", response_model=Task, summary="Pause a Task")
 async def pause_task(task_id: str):
     """
@@ -69,7 +64,6 @@ async def pause_task(task_id: str):
     return task
 
 
-@api_version(0,3)
 @router.post("/{task_id}/resume", response_model=Task, summary="Resume a Task")
 async def resume_task(task_id: str):
     """
@@ -87,7 +81,6 @@ async def resume_task(task_id: str):
     return task
 
 
-@api_version(0,3)
 @router.post("/{task_name}", response_model=Task, status_code=status.HTTP_202_ACCEPTED)
 async def create_task(task_name: str):
     """

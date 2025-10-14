@@ -108,10 +108,31 @@ Autodiscovery is configured in `settings/openscan_firmware.json`. Relevant keys:
 
 - `task_autodiscovery_enabled`: Toggle for discovery at startup.
 - `task_autodiscovery_namespaces`: Python package roots to scan (e.g., `openscan.controllers.services.tasks`, `openscan.tasks.community`).
-- `task_autodiscovery_include_subpackages`: Recursively include subpackages.
 - `task_autodiscovery_ignore_modules`: Module base names to skip (e.g., `base_task`, `task_manager`, optionally `example_tasks`).
 - `task_autodiscovery_safe_mode`: Skip modules that fail to import and log warnings instead of aborting.
 - `task_autodiscovery_override_on_conflict`: Whether to overwrite an already-registered `task_name`.
 - `task_categories_enabled` and `task_required_core_names`: Enable categories and enforce presence of critical tasks (`scan_task`, `crop_task`).
 
 For a developer-oriented deep dive into tasks (naming, structure, examples), see `docs/TASKS.md`.
+
+## API Versioning
+
+OpenScan3 exposes versioned APIs using mounted FastAPI sub-apps.
+
+- Versions are mounted under `/vX.Y` (e.g., `/v1.0`).
+- The latest stable API is additionally mounted under `/latest`.
+- Each version has its own OpenAPI and docs endpoints:
+  - `/vX.Y/openapi.json`, `/vX.Y/docs`, `/vX.Y/redoc`
+  - `/latest/openapi.json`, `/latest/docs`, `/latest/redoc`
+- The root app provides a simple discovery endpoint at `/versions` returning the list of available versions and the current latest alias.
+
+Implementation details (see `openscan/main.py`):
+
+- The root `FastAPI` app defines the global Lifecycle (logging, hardware init, task autodiscovery) so initialization happens only once.
+- For each supported version, `make_version_app(version)` creates a sub-app and includes all routers from `openscan/routers/` without additional prefixes; the mount path provides the version prefix.
+- CORS (and other middlewares if needed) are added per sub-app so they apply within the mounted context.
+
+Client guidance:
+
+- Prefer `/latest/...` to always track the current stable API.
+- Pin to `/vX.Y/...` if you need strict compatibility.
