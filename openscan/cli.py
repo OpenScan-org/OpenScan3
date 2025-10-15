@@ -14,34 +14,47 @@ import uvicorn
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """Create the top-level argument parser.
+    """Create the top-level argument parser (hybrid mode).
+
+    In hybrid mode, running `openscan` without a subcommand defaults to
+    starting the API server (equivalent to `openscan serve`).
 
     Returns:
-        argparse.ArgumentParser: Configured parser with subcommands.
+        argparse.ArgumentParser: Configured parser with `serve` (alias: `start`).
     """
-    parser = argparse.ArgumentParser(
-        prog="openscan",
-        description=(
-            "OpenScan3 - Raspberry Pi based photogrammetry scanner (FastAPI app).\n"
-            "Use `openscan serve` to run the API server."
-        ),
-    )
-
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    # serve subcommand
-    serve = subparsers.add_parser(
-        "serve",
-        help="Start the FastAPI application via uvicorn",
-        description="Start the API service (uvicorn openscan.main:app)",
-    )
-    serve.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-    serve.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
-    serve.add_argument(
+    # Common options shared by top-level and subcommands
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    common.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    common.add_argument(
         "--reload",
         action="store_true",
         help="Enable auto-reload (development only)",
     )
+
+    parser = argparse.ArgumentParser(
+        prog="openscan",
+        parents=[common],
+        description=(
+            "OpenScan3 - Raspberry Pi based photogrammetry scanner (FastAPI app).\n"
+            "Run without a subcommand to start the API server, or use `serve`/`start`."
+        ),
+    )
+
+    # Default action when no subcommand is provided
+    parser.set_defaults(func=_cmd_serve)
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    # serve subcommand (alias: start)
+    serve = subparsers.add_parser(
+        "serve",
+        parents=[common],
+        help="Start the FastAPI application via uvicorn",
+        description="Start the API service (uvicorn openscan.main:app)",
+        aliases=["start"],
+    )
+    serve.set_defaults(func=_cmd_serve)
 
     return parser
 
@@ -77,11 +90,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    if args.command == "serve":
-        code = _cmd_serve(host=args.host, port=args.port, reload=args.reload)
-    else:
-        parser.print_help()
-        code = 2
+    # Execute resolved command (defaults to serving the API)
+    code = args.func(host=args.host, port=args.port, reload=args.reload)
 
     if code != 0:
         sys.exit(code)
