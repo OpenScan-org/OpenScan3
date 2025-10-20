@@ -199,7 +199,6 @@ class Picamera2Controller(CameraController):
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """This method is call on every change of settings."""
         self._busy = True
-        self._configure_focus()
         
         # apply all settings
         for setting, value in settings.__dict__.items():
@@ -211,6 +210,9 @@ class Picamera2Controller(CameraController):
         blue_gain = getattr(settings, 'awbg_blue')
         if red_gain is not None and blue_gain is not None:
             self._picam.set_controls({'ColourGains': (red_gain, blue_gain)})
+
+        self._configure_focus()
+
         self._busy = False
         logger.debug(f"Applied settings to hardware: {settings.model_dump_json()}")
 
