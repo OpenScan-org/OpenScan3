@@ -71,9 +71,9 @@ def apply_heatmap(frame, normalized):
 
             x1, y1 = x * cell_w, y * cell_h
             x2, y2 = min((x + 1) * cell_w, w), min((y + 1) * cell_h, h)
-            overlay[y1:y2, x1:x2] = (r, 0, b, 153)
+            overlay[y1:y2, x1:x2] = (b, 0, r, 153)
 
     alpha = overlay[:, :, 3:4] / 255.0
-    result = (frame * (1 - alpha) + overlay[:, :, :3] * alpha).astype(np.uint8)
+    frame = (frame * (1 - alpha) + overlay[:, :, :3] * alpha).astype(np.uint8)
 
-    return result
+    return frame
