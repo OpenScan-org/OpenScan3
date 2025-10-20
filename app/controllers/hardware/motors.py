@@ -415,23 +415,28 @@ class MotorController(StatefulHardware):
 
             return executed_steps
 
-        # Run movement in thread and get actual steps executed
-        actual_executed_steps = await asyncio.get_event_loop().run_in_executor(
-            self._executor,
-            do_movement
-        )
+        try:
+            # Run movement in thread and get actual steps executed
+            actual_executed_steps = await asyncio.get_event_loop().run_in_executor(
+                self._executor,
+                do_movement
+            )
 
-        # Calculate executed degrees based on actual steps
-        spr = self.settings.steps_per_rotation
-        dir_multiplier = 1 if step_count >= 0 else -1
-        executed_degrees = (actual_executed_steps / spr * 360) * dir_multiplier * self.settings.direction
+            # Calculate executed degrees based on actual steps
+            spr = self.settings.steps_per_rotation
+            dir_multiplier = 1 if step_count >= 0 else -1
+            executed_degrees = (actual_executed_steps / spr * 360) * dir_multiplier * self.settings.direction
 
-        # Update the angle based on actual executed movement
-        self.model.angle = (self.model.angle + executed_degrees) % 360
-        logger.debug(f"Motor {self.model.name} moved {executed_degrees:.2f} degrees.")
-        self._current_steps = 0 # Reset step counter after movement completion/stop
-        self._target_angle = None # Reset target angle
-
+            # Update the angle based on actual executed movement
+            self.model.angle = (self.model.angle + executed_degrees) % 360
+            logger.debug(f"Motor {self.model.name} moved {executed_degrees:.2f} degrees.")
+        except asyncio.CancelledError:
+            logger.info(f"Motor {self.model.name} movement cancelled.")
+            raise
+        finally:
+            # CRITICAL: Always reset busy state, even if cancelled
+            self._current_steps = 0
+            self._target_angle = None
 
 create_motor_controller, get_motor_controller, remove_motor_controller, _motor_registry = create_controller_registry(MotorController)
 
