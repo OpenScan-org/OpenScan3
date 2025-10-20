@@ -206,7 +206,7 @@ class Picamera2Controller(CameraController):
         if red_gain is not None and blue_gain is not None:
             self._picam.set_controls({'ColourGains': (red_gain, blue_gain)})
 
-        self._configure_focus()
+        self._configure_focus(camera_mode="preview")  
 
         self._busy = False
         logger.debug(f"Applied settings to hardware: {settings.model_dump_json()}")
