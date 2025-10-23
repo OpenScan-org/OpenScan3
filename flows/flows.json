@@ -51,7 +51,7 @@
         "showPathInSidebar": false,
         "headerContent": "page",
         "navigationStyle": "default",
-        "titleBarStyle": "default",
+        "titleBarStyle": "fixed",
         "showReconnectNotification": true,
         "notificationDisplayTime": 1,
         "showDisconnectNotification": true,
@@ -109,15 +109,15 @@
         ],
         "order": 2,
         "className": "",
-        "visible": "true",
-        "disabled": "false"
+        "visible": true,
+        "disabled": false
     },
     {
         "id": "95467d067e6410a3",
         "type": "ui-group",
         "name": "Scan Settings",
         "page": "6d83e6d26505be0c",
-        "width": 6,
+        "width": "5",
         "height": 1,
         "order": 1,
         "showTitle": false,
@@ -192,11 +192,11 @@
         "type": "ui-group",
         "name": "Preview",
         "page": "6d83e6d26505be0c",
-        "width": 6,
-        "height": 1,
+        "width": "5",
+        "height": "2",
         "order": 2,
         "showTitle": false,
-        "className": "",
+        "className": "preview-max-height",
         "visible": "true",
         "disabled": "false",
         "groupType": "default"
@@ -300,7 +300,7 @@
         "type": "ui-group",
         "name": "Group 4",
         "page": "8649fbb96031727d",
-        "width": 6,
+        "width": "12",
         "height": 1,
         "order": 1,
         "showTitle": false,
@@ -355,8 +355,8 @@
             }
         ],
         "order": 1,
-        "visible": "true",
-        "disabled": "false"
+        "visible": true,
+        "disabled": false
     },
     {
         "id": "welcome_group",
@@ -372,6 +372,81 @@
         "groupType": "default"
     },
     {
+        "id": "cbb9633b02aa9fa1",
+        "type": "ui-group",
+        "name": "Scan Progress",
+        "page": "6d83e6d26505be0c",
+        "width": 12,
+        "height": 1,
+        "order": 3,
+        "showTitle": false,
+        "className": "",
+        "visible": "false",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "9cfdc423d02b0e36",
+        "type": "ui-page",
+        "name": "old",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "/old",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "6ad432c6b93eca65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 8,
+        "className": "",
+        "visible": "false",
+        "disabled": "false"
+    },
+    {
+        "id": "767c16795f96de37",
+        "type": "ui-group",
+        "name": "Group 8",
+        "page": "9cfdc423d02b0e36",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "ba29b2ed1c599e6b",
+        "type": "ui-spacer",
+        "group": "767c16795f96de37",
+        "name": "spacer",
+        "tooltip": "",
+        "order": 1,
+        "width": 1,
+        "height": 1,
+        "className": ""
+    },
+    {
         "id": "a0dfd410d0551a55",
         "type": "ui-template",
         "z": "b2a8b33c044f1cd2",
@@ -383,14 +458,14 @@
         "width": 0,
         "height": 0,
         "head": "",
-        "format": "<script>\n(function() {\n    const externalLinks = [\n        'https://www.patreon.com/OpenScan',\n        'https://discord.gg/gpaKWPpWtG'\n    ];\n    \n    externalLinks.forEach(url => {\n        const link = document.querySelector(`a[href=\"${url}\"]`);\n        if (link) {\n            link.setAttribute('target', '_blank');\n            link.setAttribute('rel', 'noopener noreferrer');\n        }\n    });\n})();\n</script>\n\n<style>\n.hide-when-disabled:has(.v-input--disabled) {\n    display: none !important;\n}\n</style>",
+        "format": "<script>\n(function() {\n    const externalLinks = [\n        'https://www.patreon.com/OpenScan',\n        'https://discord.gg/gpaKWPpWtG'\n    ];\n    \n    externalLinks.forEach(url => {\n        const link = document.querySelector(`a[href=\"${url}\"]`);\n        if (link) {\n            link.setAttribute('target', '_blank');\n            link.setAttribute('rel', 'noopener noreferrer');\n        }\n    });\n})();\n</script>\n\n<style>\n.hide-when-disabled:has(.v-input--disabled) {\n    display: none !important;\n}\n\n</style>",
         "storeOutMessages": true,
         "passthru": true,
         "resendOnRefresh": true,
         "templateScope": "widget:ui",
         "className": "",
-        "x": 130,
-        "y": 340,
+        "x": 150,
+        "y": 360,
         "wires": [
             []
         ]
@@ -402,7 +477,7 @@
         "name": "Page Control",
         "ui": "cd7a210d1b23a0c9",
         "events": "all",
-        "x": 1070,
+        "x": 1090,
         "y": 160,
         "wires": [
             [
@@ -432,11 +507,12 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 150,
+        "x": 170,
         "y": 120,
         "wires": [
             [
-                "92d24c24a27a0147"
+                "92d24c24a27a0147",
+                "639dd19402f28600"
             ]
         ]
     },
@@ -519,7 +595,7 @@
         "type": "function",
         "z": "b2a8b33c044f1cd2",
         "name": "Check Configuration",
-        "func": "const device = msg.payload;\n\nif (device.model === null) {\n    msg.payload = {\n        pages: {\n            show: ['Welcome'],\n            hide: ['Scan', 'Files', 'Settings', 'Documentation']\n        }\n    };\n} else {\n    msg.payload = {\n        pages: {\n            hide: ['Welcome'],\n            show: ['Scan', 'Files', 'Settings', 'Documentation']\n        }\n    };\n    \n    setTimeout(() => {\n        node.send({payload: 'Scan'});\n    }, 100);\n}\n\nreturn msg;",
+        "func": "const device = msg.payload;\n\nif (device.model === null) {\n    msg.payload = {\n        pages: {\n            show: ['Welcome'],\n            hide: ['Scan', 'Files', 'Settings', 'Documentation']\n        }\n    };\n} else {\n    msg.payload = {\n        pages: {\n            hide: ['Welcome'],\n            show: ['Scan', 'Files', 'Settings', 'Documentation']\n        },\n        groups:{\n            show: ['Scan Settings', 'Preview'],\n            hide: ['Scan Progress']\n        }\n    };\n    \n    setTimeout(() => {\n        node.send({payload: 'Scan'});\n    }, 100);\n}\n\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -555,6 +631,8 @@
         "type": "ui-template",
         "z": "b2a8b33c044f1cd2",
         "group": "welcome_group",
+        "page": "",
+        "ui": "",
         "name": "Welcome UI",
         "order": 1,
         "width": "12",
@@ -564,6 +642,7 @@
         "passthru": false,
         "resendOnRefresh": false,
         "templateScope": "local",
+        "className": "",
         "x": 370,
         "y": 240,
         "wires": [
@@ -577,7 +656,7 @@
         "type": "function",
         "z": "b2a8b33c044f1cd2",
         "name": "Navigate to Scan",
-        "func": "if (msg.topic === 'init_complete') {\n    msg.payload = {\n        pages: {\n            hide: ['Welcome'],\n            show: ['Scan', 'Files', 'Settings', 'Documentation']\n        }\n    };\n    \n    setTimeout(() => {\n        node.send({payload: 'Scan'});\n    }, 500);\n    \n    return msg;\n}\nreturn null;",
+        "func": "if (msg.topic === 'init_complete') {\n    msg.payload = {\n        pages: {\n            hide: ['Welcome', 'Scan Progress'],\n            show: ['Scan', 'Scan Settings', 'Preview', 'Files', 'Settings', 'Documentation']\n        }\n    };\n    \n    setTimeout(() => {\n        node.send({payload: 'Scan'});\n    }, 500);\n    \n    return msg;\n}\nreturn null;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -602,8 +681,8 @@
             "1d9ae1ecd3ce1b62",
             "781010eccfc12506",
             "e9ac796932d7acbe",
-            "de31fdeb5bb259bd",
-            "0bde9e56b4a48751"
+            "0bde9e56b4a48751",
+            "e7df615a95e9bc4d"
         ],
         "x": 755,
         "y": 80,
@@ -617,11 +696,103 @@
         "mode": "link",
         "links": [
             "0bde9e56b4a48751",
-            "de31fdeb5bb259bd"
+            "e7df615a95e9bc4d"
         ],
         "x": 1235,
         "y": 160,
         "wires": []
+    },
+    {
+        "id": "handle_system_action",
+        "type": "function",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Build System Request",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst action = msg.topic;\nconst saveConfig = msg.payload.save_config;\n\nif (action === 'reboot') {\n    msg.url = `${baseUrl}/latest/device/reboot?save_config=${saveConfig}`;\n    msg.method = 'POST';\n} else if (action === 'shutdown') {\n    msg.url = `${baseUrl}/latest/device/shutdown?save_config=${saveConfig}`;\n    msg.method = 'POST';\n} else {\n    return null;\n}\n\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 420,
+        "wires": [
+            [
+                "execute_system_action"
+            ]
+        ]
+    },
+    {
+        "id": "execute_system_action",
+        "type": "http request",
+        "z": "b2a8b33c044f1cd2",
+        "name": "POST System Action",
+        "method": "use",
+        "ret": "obj",
+        "url": "",
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 590,
+        "y": 420,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6b7b0ae54d831284",
+        "type": "ui-template",
+        "z": "b2a8b33c044f1cd2",
+        "group": "",
+        "page": "",
+        "ui": "cd7a210d1b23a0c9",
+        "name": "System Controls",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "head": "",
+        "format": "<template>\n    <Teleport to=\"#app-bar-actions\" :disabled=\"false\" defer>\n        <div class=\"d-flex ga-1\">\n            <v-btn \n                icon=\"mdi-restart\" \n                size=\"small\" \n                variant=\"text\"\n                @click=\"showRebootDialog = true\"\n                title=\"Restart System\"\n            ></v-btn>\n            <v-btn \n                icon=\"mdi-power\" \n                size=\"small\" \n                variant=\"text\"\n                @click=\"showShutdownDialog = true\"\n                title=\"Shutdown System\"\n            ></v-btn>\n        </div>\n    </Teleport>\n\n    <v-dialog v-model=\"showRebootDialog\" max-width=\"400\">\n        <v-card>\n            <v-card-title>Restart System</v-card-title>\n            <v-card-text>\n                Are you sure you want to restart the scanner?\n                <v-checkbox \n                    v-model=\"saveConfigReboot\" \n                    label=\"Save current configuration\"\n                    density=\"compact\"\n                    class=\"mt-2\"\n                ></v-checkbox>\n            </v-card-text>\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn @click=\"showRebootDialog = false\">Cancel</v-btn>\n                <v-btn color=\"primary\" @click=\"reboot\">Restart</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n\n    <v-dialog v-model=\"showShutdownDialog\" max-width=\"400\">\n        <v-card>\n            <v-card-title>Shutdown System</v-card-title>\n            <v-card-text>\n                Are you sure you want to shutdown the scanner?\n                <v-checkbox \n                    v-model=\"saveConfigShutdown\" \n                    label=\"Save current configuration\"\n                    density=\"compact\"\n                    class=\"mt-2\"\n                ></v-checkbox>\n            </v-card-text>\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn @click=\"showShutdownDialog = false\">Cancel</v-btn>\n                <v-btn color=\"error\" @click=\"shutdown\">Shutdown</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            showRebootDialog: false,\n            showShutdownDialog: false,\n            saveConfigReboot: true,\n            saveConfigShutdown: true\n        }\n    },\n    methods: {\n        reboot() {\n            this.send({\n                topic: 'reboot',\n                payload: { save_config: this.saveConfigReboot }\n            });\n            this.showRebootDialog = false;\n        },\n        shutdown() {\n            this.send({\n                topic: 'shutdown',\n                payload: { save_config: this.saveConfigShutdown }\n            });\n            this.showShutdownDialog = false;\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": true,
+        "templateScope": "widget:ui",
+        "className": "",
+        "x": 160,
+        "y": 420,
+        "wires": [
+            [
+                "handle_system_action"
+            ]
+        ]
+    },
+    {
+        "id": "259be66c32036685",
+        "type": "ui-template",
+        "z": "b2a8b33c044f1cd2",
+        "group": "",
+        "page": "",
+        "ui": "cd7a210d1b23a0c9",
+        "name": "Queued tasks",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "head": "",
+        "format": "<template>\n    <Teleport to=\"#app-bar-actions\" defer>\n        <v-menu offset-y>\n            <template v-slot:activator=\"{ props }\">\n                <v-btn v-bind=\"props\" size=\"small\" variant=\"text\">\n                    <v-badge :content=\"activeTasks.length\" :model-value=\"activeTasks.length > 0\" color=\"primary\">\n                        <v-icon>mdi-format-list-checks</v-icon>\n                    </v-badge>\n                </v-btn>\n            </template>\n\n            <v-list width=\"350\">\n                <v-list-subheader>Active Tasks</v-list-subheader>\n                \n                <v-list-item v-if=\"activeTasks.length === 0\">\n                    <v-list-item-title class=\"text-grey\">No active tasks</v-list-item-title>\n                </v-list-item>\n\n                <v-list-item\n                    v-for=\"task in activeTasks\"\n                    :key=\"task.id\"\n                    :class=\"{ 'task-running': task.status === 'running' }\"\n                >\n                    <template v-slot:prepend>\n                        <v-icon :color=\"statusConfig[task.status].color\">\n                            {{ statusConfig[task.status].icon }}\n                        </v-icon>\n                    </template>\n\n                    <v-list-item-title>{{ task.name }}</v-list-item-title>\n                    \n                    <v-list-item-subtitle>\n                        <div class=\"d-flex flex-column\">\n                            <span>{{ task.status }}</span>\n                            <v-progress-linear\n                                v-if=\"task.status === 'running' && task.progress?.total\"\n                                :model-value=\"(task.progress.current / task.progress.total) * 100\"\n                                height=\"4\"\n                                class=\"mt-1\"\n                            ></v-progress-linear>\n                            <span v-if=\"task.progress?.message\" class=\"text-caption\">\n                                {{ task.progress.message }}\n                            </span>\n                        </div>\n                    </v-list-item-subtitle>\n\n                    <template v-slot:append v-if=\"task.status === 'running'\">\n                        <v-btn icon=\"mdi-close\" size=\"x-small\" variant=\"text\" @click.stop=\"cancelTask(task.id)\"></v-btn>\n                    </template>\n                </v-list-item>\n            </v-list>\n        </v-menu>\n    </Teleport>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            tasks: [],\n            pollInterval: null,\n            statusConfig: {\n                pending: { color: 'grey', icon: 'mdi-clock-outline' },\n                running: { color: 'primary', icon: 'mdi-loading' },\n                paused: { color: 'warning', icon: 'mdi-pause' }\n            }\n        }\n    },\n    computed: {\n        activeTasks() {\n            return this.tasks.filter(t => ['pending', 'running', 'paused'].includes(t.status));\n        }\n    },\n    mounted() {\n        this.fetchTasks();\n        this.pollInterval = setInterval(this.fetchTasks, 2000);\n    },\n    beforeUnmount() {\n        clearInterval(this.pollInterval);\n    },\n    methods: {\n        async fetchTasks() {\n            try {\n                const response = await fetch(`http://${window.location.hostname}:8000/latest/tasks/`);\n                if (response.ok) this.tasks = await response.json();\n            } catch (error) {\n                console.error('Failed to fetch tasks:', error);\n            }\n        },\n        async cancelTask(taskId) {\n            try {\n                const response = await fetch(`http://${window.location.hostname}:8000/latest/tasks/${taskId}`, {\n                    method: 'DELETE'\n                });\n                if (response.ok) await this.fetchTasks();\n            } catch (error) {\n                console.error('Failed to cancel task:', error);\n            }\n        }\n    }\n}\n</script>\n\n<style scoped>\n.task-running {\n    background-color: rgba(var(--v-theme-primary), 0.05);\n}\n</style>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": true,
+        "templateScope": "widget:ui",
+        "className": "",
+        "x": 160,
+        "y": 480,
+        "wires": [
+            []
+        ]
     },
     {
         "id": "shutter_slider",
@@ -663,7 +834,7 @@
         "type": "function",
         "z": "tab_main",
         "name": "Prepare Camera Settings",
-        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nconst cameraName = cameraNames[0] || 'imx519';\n\n// Convert milliseconds to microseconds\nconst shutterMs = msg.payload;\nconst shutterUs = shutterMs * 1000;\n\n// Store for use in scan creation\nglobal.set('currentShutterUs', shutterUs);\n\n// Create partial update payload\nmsg.payload = {\n    shutter: shutterUs\n};\n\n// Set the URL with required query parameter\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\n\nreturn msg;",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nconst cameraName = cameraNames[0] || 'imx519';\n\n// Convert milliseconds to microseconds\nconst shutterMs = msg.payload;\nconst shutterUs = shutterMs * 1000;\n\n// Store for use in scan creation\nglobal.set('currentShutterUs', shutterUs);\n\n// Create partial update payload\nmsg.payload = {\n    shutter: shutterUs\n};\n\n// Set the URL with required query parameter\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\nmsg.method = \"PATCH\"\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -683,7 +854,7 @@
         "type": "http request",
         "z": "tab_main",
         "name": "PATCH Camera Settings",
-        "method": "PATCH",
+        "method": "use",
         "ret": "obj",
         "paytoqs": "ignore",
         "url": "",
@@ -876,10 +1047,10 @@
         "topic": "manual_focus",
         "topicType": "str",
         "thumbLabel": "false",
-        "showTicks": "false",
-        "min": "0.5",
+        "showTicks": "always",
+        "min": "3",
         "max": "15",
-        "step": "0.5",
+        "step": "0.2",
         "className": "hide-when-disabled",
         "iconPrepend": "",
         "iconAppend": "",
@@ -888,7 +1059,7 @@
         "colorThumb": "",
         "showTextField": true,
         "x": 880,
-        "y": 220,
+        "y": 240,
         "wires": [
             [
                 "ff9851a5e690310a"
@@ -903,7 +1074,7 @@
         "name": "Min Focus",
         "label": "Min Focus",
         "tooltip": "",
-        "order": 5,
+        "order": 7,
         "width": "6",
         "height": "1",
         "passthru": false,
@@ -911,10 +1082,10 @@
         "topic": "min_focus",
         "topicType": "str",
         "thumbLabel": "false",
-        "showTicks": "false",
-        "min": "0.5",
+        "showTicks": "always",
+        "min": "3",
         "max": "15",
-        "step": "0.5",
+        "step": "0.2",
         "className": "hide-when-disabled",
         "iconPrepend": "",
         "iconAppend": "",
@@ -923,7 +1094,7 @@
         "colorThumb": "",
         "showTextField": true,
         "x": 870,
-        "y": 260,
+        "y": 280,
         "wires": [
             [
                 "34441a623f609c0a",
@@ -947,10 +1118,10 @@
         "topic": "max_focus",
         "topicType": "str",
         "thumbLabel": "false",
-        "showTicks": "false",
-        "min": "0.5",
+        "showTicks": "always",
+        "min": "3",
         "max": "15",
-        "step": "0.5",
+        "step": "0.2",
         "className": "hide-when-disabled",
         "iconPrepend": "",
         "iconAppend": "",
@@ -959,7 +1130,7 @@
         "colorThumb": "",
         "showTextField": true,
         "x": 870,
-        "y": 300,
+        "y": 320,
         "wires": [
             [
                 "34441a623f609c0a",
@@ -975,7 +1146,7 @@
         "name": "Stack Size",
         "label": "Stack Size",
         "tooltip": "",
-        "order": 7,
+        "order": 5,
         "width": "6",
         "height": "1",
         "passthru": true,
@@ -995,7 +1166,7 @@
         "colorThumb": "",
         "showTextField": true,
         "x": 870,
-        "y": 340,
+        "y": 360,
         "wires": [
             [
                 "34441a623f609c0a"
@@ -1015,7 +1186,7 @@
         "finalize": "",
         "libs": [],
         "x": 1100,
-        "y": 340,
+        "y": 320,
         "wires": [
             []
         ]
@@ -1033,7 +1204,7 @@
         "finalize": "",
         "libs": [],
         "x": 1060,
-        "y": 220,
+        "y": 280,
         "wires": [
             [
                 "b5fced6a00ef7408"
@@ -1053,7 +1224,7 @@
         "finalize": "",
         "libs": [],
         "x": 1240,
-        "y": 220,
+        "y": 280,
         "wires": [
             [
                 "c138fc77ae37523b"
@@ -1065,54 +1236,19 @@
         "type": "function",
         "z": "tab_main",
         "name": "Update Camera Focus",
-        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nconst cameraName = cameraNames[0] || 'imx519';\n\nconst focusMode = global.get('focusMode') || 'autofocus';\nconst currentSettings = cameras[cameraName]?.settings || {};\n\nconst payload = {...currentSettings};\n\nif (focusMode === 'autofocus') {\n    payload.AF = true;\n    payload.manual_focus = null;\n    payload.AF_window = null;\n} else if (focusMode === 'manual' || focusMode === 'stacking') {\n    payload.AF = false;\n    payload.manual_focus = global.get('manualFocus') || 10.0;\n}\n\nmsg.payload = payload;\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\n\nreturn msg;",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nconst cameraName = cameraNames[0] || 'imx519';\n\nconst focusMode = global.get('focusMode') || 'autofocus';\nconst currentSettings = cameras[cameraName]?.settings || {};\n\nconst payload = { ...currentSettings };\n\nif (focusMode === 'autofocus') {\n    payload.AF = true;\n    payload.manual_focus = null;\n    payload.AF_window = null;\n} else if (focusMode === 'manual' || focusMode === 'stacking') {\n    payload.AF = false;\n    payload.manual_focus = global.get('manualFocus') || 10.0;\n}\n\nmsg.payload = payload;\nmsg.method = \"PATCH\";\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\nmsg.cameraName = cameraName;\nmsg.baseUrl = baseUrl;\n\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1260,
+        "x": 1240,
         "y": 180,
         "wires": [
             [
-                "a43a3d7eb1c86638"
+                "8325ef759be28696"
             ]
-        ]
-    },
-    {
-        "id": "a43a3d7eb1c86638",
-        "type": "http request",
-        "z": "tab_main",
-        "name": "PATCH Camera Focus",
-        "method": "PUT",
-        "ret": "obj",
-        "paytoqs": "ignore",
-        "url": "",
-        "tls": "",
-        "persist": false,
-        "proxy": "",
-        "insecureHTTPParser": false,
-        "authType": "",
-        "senderr": false,
-        "headers": [
-            {
-                "keyType": "other",
-                "keyValue": "Content-Type",
-                "valueType": "other",
-                "valueValue": "application/json"
-            },
-            {
-                "keyType": "other",
-                "keyValue": "accept",
-                "valueType": "other",
-                "valueValue": "application/json"
-            }
-        ],
-        "x": 1480,
-        "y": 180,
-        "wires": [
-            []
         ]
     },
     {
@@ -1128,10 +1264,10 @@
         "finalize": "",
         "libs": [],
         "x": 250,
-        "y": 560,
+        "y": 540,
         "wires": [
             [
-                "6560ba3f7e925387"
+                "a38a4c8c01f45932"
             ]
         ]
     },
@@ -1140,7 +1276,7 @@
         "type": "function",
         "z": "tab_main",
         "name": "Prepare Motor Request",
-        "func": "const motorName = msg.topic;\n\n// Parse payload if it’s a JSON string\nif (typeof msg.payload === 'string') {\n    try {\n        msg.payload = JSON.parse(msg.payload);\n    } catch (e) {\n        node.error(\"Invalid JSON payload\", msg);\n        return null;\n    }\n}\n\nconst motorList = global.get('motorNames') || [];\n\n// Check if topic is in motor list\nif (!motorList.includes(motorName)) {\n    return null;\n}\n\nconst baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nmsg.url = `${baseUrl}/latest/motors/${motorName}/angle`;\n\nreturn msg;\n",
+        "func": "const motorName = msg.topic;\n\n// Parse payload if it’s a JSON string\nif (typeof msg.payload === 'string') {\n    try {\n        msg.payload = JSON.parse(msg.payload);\n    } catch (e) {\n        node.error(\"Invalid JSON payload\", msg);\n        return null;\n    }\n}\n\nconst motorList = global.get('motorNames') || [];\n\n// Check if topic is in motor list\nif (!motorList.includes(motorName)) {\n    return null;\n}\n\nconst baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nmsg.url = `${baseUrl}/latest/motors/${motorName}/angle`;\nmsg.method = \"PATCH\"\nreturn msg;\n",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -1160,7 +1296,7 @@
         "type": "http request",
         "z": "tab_main",
         "name": "PATCH Motor Angle",
-        "method": "PATCH",
+        "method": "use",
         "ret": "obj",
         "paytoqs": "ignore",
         "url": "",
@@ -1205,27 +1341,8 @@
         "x": 690,
         "y": 600,
         "wires": [
-            [
-                "c533acf8ac4b4d47"
-            ]
+            []
         ]
-    },
-    {
-        "id": "c533acf8ac4b4d47",
-        "type": "debug",
-        "z": "tab_main",
-        "name": "debug 3",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 600,
-        "wires": []
     },
     {
         "id": "27bc46e34f7d895a",
@@ -1273,11 +1390,11 @@
         "id": "start_scan_button",
         "type": "ui-button",
         "z": "tab_main",
-        "group": "1c267b3f55f8654c",
+        "group": "95467d067e6410a3",
         "name": "Start Scan",
         "label": "Start Scan",
-        "order": 2,
-        "width": "6",
+        "order": 8,
+        "width": 8,
         "height": "1",
         "emulateClick": false,
         "tooltip": "",
@@ -1407,15 +1524,15 @@
         "type": "function",
         "z": "tab_main",
         "name": "set default",
-        "func": "msg.payload = 3\nreturn msg",
+        "func": "\nconst stackSize = 3\n\nmsg = {}\nmsg.payload = stackSize\nglobal.set('stackSize', stackSize)\nreturn msg",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 670,
-        "y": 340,
+        "x": 690,
+        "y": 360,
         "wires": [
             [
                 "34cf7fd92ed614f9"
@@ -1439,33 +1556,6 @@
         "wires": [
             [
                 "06da97c823889239"
-            ]
-        ]
-    },
-    {
-        "id": "6560ba3f7e925387",
-        "type": "ui-template",
-        "z": "tab_main",
-        "group": "1c267b3f55f8654c",
-        "page": "",
-        "ui": "",
-        "name": "Preview with Controls",
-        "order": 1,
-        "width": "0",
-        "height": "0",
-        "format": "<template>\n    <div class=\"preview-wrapper\">\n        <div class=\"preview-container\">\n            <div class=\"image-wrapper\" :style=\"imageWrapperStyle\">\n                <img :src=\"previewUrl\" class=\"preview-image\" :style=\"imageStyle\" @load=\"onImageLoad\" ref=\"previewImage\" crossorigin=\"anonymous\" />\n                \n                <canvas v-if=\"showHeatmap && !cropMode\" ref=\"heatmapCanvas\" class=\"heatmap-overlay\"></canvas>\n                \n                <svg v-if=\"cropMode\" class=\"crop-overlay\" \n                     @mousedown=\"startCrop\" \n                     @mousemove=\"updateCrop\" \n                     @mouseup=\"endCrop\"\n                     @touchstart=\"startCrop\"\n                     @touchmove=\"updateCrop\"\n                     @touchend=\"endCrop\">\n                    <rect v-if=\"cropSize.width > 0\" \n                          :x=\"cropRect.x\" \n                          :y=\"cropRect.y\" \n                          :width=\"cropSize.width\" \n                          :height=\"cropSize.height\"\n                          fill=\"rgba(0, 148, 206, 0.2)\"\n                          stroke=\"#0094CE\"\n                          stroke-width=\"2\"\n                          stroke-dasharray=\"5,5\" />\n                    <text v-if=\"cropSize.width > 0\"\n                          :x=\"cropRect.x + 5\"\n                          :y=\"cropRect.y + 20\"\n                          fill=\"#0094CE\"\n                          font-size=\"12\">\n                        {{ Math.round((cropSize.width / imageSize.width) * 100) }}% × {{ Math.round((cropSize.height / imageSize.height) * 100) }}%\n                    </text>\n                </svg>\n            </div>\n        </div>\n        \n        <div v-if=\"!cropMode\" class=\"motor-controls\">\n            <div></div>\n            <v-btn icon=\"mdi-arrow-up-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(0, -10)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-left-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(1, -30)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-right-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(1, 30)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-down-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(0, 10)\"></v-btn>\n            <div></div>\n        </div>\n        \n        <div class=\"top-right-controls\">\n            <v-btn v-if=\"!cropMode\" class=\"light-btn\" icon=\"mdi-lightbulb\" size=\"small\" variant=\"flat\" @click=\"toggleLight\"></v-btn>\n            <v-btn v-if=\"!cropMode\" icon=\"mdi-blur\" size=\"small\" variant=\"flat\" @click=\"toggleHeatmap\" :color=\"showHeatmap ? 'primary' : ''\"></v-btn>\n            <v-btn class=\"crop-btn\" icon=\"mdi-crop\" size=\"small\" variant=\"flat\" @click=\"toggleCrop\"></v-btn>\n        </div>\n        \n        <canvas v-if=\"!cropMode\" ref=\"histogram\" class=\"histogram\"></canvas>\n    </div>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            previewUrl: '',\n            motorNames: [],\n            cropMode: false,\n            cropSize: { width: 0, height: 0 },\n            cropRect: { x: 0, y: 0 },\n            appliedCrop: { width: 0, height: 0, width_percent: 0, height_percent: 0 },\n            isDragging: false,\n            cropDrawn: false,\n            startPos: { x: 0, y: 0 },\n            imageSize: { width: 0, height: 0 },\n            histogramInterval: null,\n            showHeatmap: false\n        }\n    },\n    mounted() {\n        this.histogramInterval = setInterval(() => {\n            this.drawHistogram();\n            if (this.showHeatmap) this.drawHeatmap();\n        }, 50);\n    },\n    beforeUnmount() {\n        if (this.histogramInterval) {\n            clearInterval(this.histogramInterval);\n        }\n    },\n    computed: {\n        imageWrapperStyle() {\n            if (this.appliedCrop.width_percent > 0 && !this.cropMode) {\n                const aspectRatio = this.appliedCrop.height / this.appliedCrop.width;\n                return {\n                    width: '100%',\n                    paddingTop: (aspectRatio * 100) + '%',\n                    position: 'relative',\n                    overflow: 'hidden'\n                };\n            }\n            return { width: '100%' };\n        },\n        imageStyle() {\n            if (this.appliedCrop.width_percent > 0 && !this.cropMode) {\n                return {\n                    position: 'absolute',\n                    top: '50%',\n                    left: '50%',\n                    width: (10000 / this.appliedCrop.width_percent) + '%',\n                    transform: 'translate(-50%, -50%)'\n                };\n            }\n            return { width: '100%' };\n        }\n    },\n    methods: {\n        moveMotor(motorIndex, degrees) {\n            if (!this.motorNames[motorIndex]) return;\n            this.send({\n                topic: this.motorNames[motorIndex],\n                payload: { degrees }\n            });\n        },\n        \n        toggleLight() {\n            this.send({\n                topic: 'toggle_light',\n                payload: true\n            });\n        },\n        \n        toggleHeatmap() {\n            this.showHeatmap = !this.showHeatmap;\n            if (this.showHeatmap) {\n                this.$nextTick(() => this.drawHeatmap());\n            }\n        },\n        \n        toggleCrop() {\n            if (!this.cropMode) {\n                this.cropMode = true;\n                this.cropDrawn = false;\n                this.cropSize = { width: 0, height: 0 };\n                \n                this.$nextTick(() => {\n                    const img = this.$refs.previewImage;\n                    if (img) {\n                        this.imageSize = {\n                            width: img.clientWidth,\n                            height: img.clientHeight\n                        };\n                        this.cropSize = { width: this.imageSize.width, height: this.imageSize.height };\n                        this.cropRect = { x: 0, y: 0 };\n                    }\n                });\n            } else {\n                this.cropMode = false;\n                if (!this.cropDrawn) {\n                    this.appliedCrop = { width: 0, height: 0, width_percent: 0, height_percent: 0 };\n                    this.send({\n                        topic: 'crop_applied',\n                        payload: { width_percent: 100, height_percent: 100 }\n                    });\n                }\n                this.cropSize = { width: 0, height: 0 };\n            }\n        },\n        \n        onImageLoad(e) {\n            this.imageSize = { \n                width: e.target.clientWidth, \n                height: e.target.clientHeight \n            };\n        },\n        \n        drawHistogram() {\n            const img = this.$refs.previewImage;\n            const canvas = this.$refs.histogram;\n            if (!img || !canvas || !img.complete) return;\n            \n            const rect = canvas.getBoundingClientRect();\n            canvas.width = rect.width;\n            canvas.height = rect.height;\n            \n            const ctx = canvas.getContext('2d', { willReadFrequently: true });\n            const tempCanvas = document.createElement('canvas');\n            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });\n            \n            tempCanvas.width = img.naturalWidth;\n            tempCanvas.height = img.naturalHeight;\n            tempCtx.drawImage(img, 0, 0);\n            \n            let imageData;\n            if (this.appliedCrop.width_percent > 0) {\n                const cropWidth = (this.appliedCrop.width_percent / 100) * img.naturalWidth;\n                const cropHeight = (this.appliedCrop.height_percent / 100) * img.naturalHeight;\n                const cropX = (img.naturalWidth - cropWidth) / 2;\n                const cropY = (img.naturalHeight - cropHeight) / 2;\n                \n                imageData = tempCtx.getImageData(cropX, cropY, cropWidth, cropHeight);\n            } else {\n                imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);\n            }\n            \n            const data = imageData.data;\n            \n            const r = new Array(256).fill(0);\n            const g = new Array(256).fill(0);\n            const b = new Array(256).fill(0);\n            \n            for (let i = 0; i < data.length; i += 4) {\n                r[data[i]]++;\n                g[data[i + 1]]++;\n                b[data[i + 2]]++;\n            }\n            \n            const maxVal = Math.max(...r, ...g, ...b);\n            \n            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';\n            ctx.fillRect(0, 0, canvas.width, canvas.height);\n            \n            const drawChannel = (hist, color) => {\n                ctx.strokeStyle = color;\n                ctx.lineWidth = 1;\n                ctx.beginPath();\n                for (let i = 0; i < 256; i++) {\n                    const x = (i / 256) * canvas.width;\n                    const logVal = hist[i] > 0 ? Math.log10(hist[i] + 1) : 0;\n                    const maxLog = Math.log10(maxVal + 1);\n                    const y = canvas.height - (logVal / maxLog) * canvas.height;\n                    if (i === 0) ctx.moveTo(x, y);\n                    else ctx.lineTo(x, y);\n                }\n                ctx.stroke();\n            };\n            \n            drawChannel(r, 'rgba(255, 0, 0, 0.7)');\n            drawChannel(g, 'rgba(0, 255, 0, 0.7)');\n            drawChannel(b, 'rgba(0, 0, 255, 0.7)');\n        },\n        \n        drawHeatmap() {\n            const img = this.$refs.previewImage;\n            const canvas = this.$refs.heatmapCanvas;\n            if (!img || !canvas || !img.complete) return;\n            \n            canvas.width = img.clientWidth;\n            canvas.height = img.clientHeight;\n            \n            const ctx = canvas.getContext('2d', { willReadFrequently: true });\n            const tempCanvas = document.createElement('canvas');\n            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });\n            \n            tempCanvas.width = img.naturalWidth;\n            tempCanvas.height = img.naturalHeight;\n            tempCtx.drawImage(img, 0, 0);\n            \n            let analyzeX = 0, analyzeY = 0;\n            let analyzeWidth = img.naturalWidth;\n            let analyzeHeight = img.naturalHeight;\n            \n            if (this.appliedCrop.width_percent > 0) {\n                analyzeWidth = (this.appliedCrop.width_percent / 100) * img.naturalWidth;\n                analyzeHeight = (this.appliedCrop.height_percent / 100) * img.naturalHeight;\n                analyzeX = (img.naturalWidth - analyzeWidth) / 2;\n                analyzeY = (img.naturalHeight - analyzeHeight) / 2;\n            }\n            \n            if (analyzeWidth <= 0 || analyzeHeight <= 0) return;\n            \n            const targetCellSize = Math.min(analyzeWidth, analyzeHeight) /32;\n            const gridX = Math.max(1, Math.round(analyzeWidth / targetCellSize));\n            const gridY = Math.max(1, Math.round(analyzeHeight / targetCellSize));\n            const cellWidth = analyzeWidth / gridX;\n            const cellHeight = analyzeHeight / gridY;\n            \n            const variances = [];\n            let minVar = Infinity;\n            let maxVar = 0;\n            \n            for (let y = 0; y < gridY; y++) {\n                for (let x = 0; x < gridX; x++) {\n                    const startX = Math.floor(analyzeX + x * cellWidth);\n                    const startY = Math.floor(analyzeY + y * cellHeight);\n                    const endX = Math.floor(analyzeX + (x + 1) * cellWidth);\n                    const endY = Math.floor(analyzeY + (y + 1) * cellHeight);\n                    const w = endX - startX;\n                    const h = endY - startY;\n                    \n                    if (w <= 0 || h <= 0) continue;\n                    \n                    const imgData = tempCtx.getImageData(startX, startY, w, h);\n                    let sum = 0, sumSq = 0, count = 0;\n                    \n                    for (let i = 0; i < imgData.data.length; i += 4) {\n                        const gray = (imgData.data[i] + imgData.data[i + 1] + imgData.data[i + 2]) / 3;\n                        sum += gray;\n                        sumSq += gray * gray;\n                        count++;\n                    }\n                    \n                    const mean = sum / count;\n                    const variance = (sumSq / count) - (mean * mean);\n                    variances.push({ x, y, variance });\n                    minVar = Math.min(minVar, variance);\n                    maxVar = Math.max(maxVar, variance);\n                }\n            }\n            \n            const scaleX = canvas.width / gridX;\n            const scaleY = canvas.height / gridY;\n            \n                \n            variances.forEach(({ x, y, variance }) => {\n                const normalized = (variance - minVar) / (maxVar - minVar || 1);\n                const g = Math.floor(500 * normalized);\n                const b = Math.floor(150 * (1 - normalized));\n                \n                const alpha = 0.3+ (normalized * 0.4);\n                \n                ctx.fillStyle = `rgba(0, ${g}, ${b}, ${alpha})`;\n                ctx.fillRect(x * scaleX, y * scaleY, scaleX, scaleY);\n            });\n        },\n        \n        getEventPosition(e) {\n            const rect = e.currentTarget.getBoundingClientRect();\n            const touch = e.touches?.[0];\n            return {\n                x: (touch?.clientX || e.clientX) - rect.left,\n                y: (touch?.clientY || e.clientY) - rect.top\n            };\n        },\n        \n        startCrop(e) {\n            if (!this.cropMode) return;\n            e.preventDefault();\n            this.startPos = this.getEventPosition(e);\n            this.isDragging = true;\n        },\n        \n        updateCrop(e) {\n            if (!this.isDragging) return;\n            e.preventDefault();\n            \n            const pos = this.getEventPosition(e);\n            const width = Math.min(Math.abs(pos.x - this.startPos.x) * 2, this.imageSize.width);\n            const height = Math.min(Math.abs(pos.y - this.startPos.y) * 2, this.imageSize.height);\n            \n            this.cropSize = { width, height };\n            this.cropRect = {\n                x: (this.imageSize.width - width) / 2,\n                y: (this.imageSize.height - height) / 2\n            };\n        },\n        \n        endCrop(e) {\n            if (!this.isDragging) return;\n            e.preventDefault();\n            this.isDragging = false;\n            \n            if (this.cropSize.width === 0) return;\n            \n            const width_percent = (this.cropSize.width / this.imageSize.width) * 100;\n            const height_percent = (this.cropSize.height / this.imageSize.height) * 100;\n            \n            this.appliedCrop = {\n                width: this.cropSize.width,\n                height: this.cropSize.height,\n                width_percent,\n                height_percent\n            };\n            \n            this.cropDrawn = true;\n            \n            this.send({\n                topic: 'crop_applied',\n                payload: { width_percent, height_percent }\n            });\n            \n            this.cropMode = false;\n            this.cropSize = { width: 0, height: 0 };\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m) return;\n            if (m.cameraName) {\n                this.previewUrl = `http://${window.location.hostname}:8000/latest/cameras/${m.cameraName}/preview`;\n            }\n            if (m.motorNames) this.motorNames = m.motorNames;\n            if (m.payload === 'toggle') this.toggleCrop();\n        }\n    }\n}\n</script>\n\n<style scoped>\n.preview-wrapper {\n    position: relative;\n    width: 100%;\n    min-height: 300px;\n    pointer-events: none;\n}\n\n.preview-container {\n    position: relative;\n    width: 100%;\n    max-height: calc(100vh - 250px);\n    min-height: 300px;\n    overflow: auto;\n    pointer-events: auto;\n}\n\n.image-wrapper {\n    position: relative;\n}\n\n.preview-image {\n    display: block;\n    height: auto;\n}\n\n.heatmap-overlay {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    pointer-events: none;\n}\n\n.crop-overlay {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    cursor: crosshair;\n    touch-action: none;\n}\n\n.motor-controls {\n    position: absolute;\n    top: 12px;\n    left: 12px;\n    display: grid;\n    grid-template-columns: repeat(3, 40px);\n    grid-template-rows: repeat(3, 40px);\n    gap: 4px;\n    place-items: center;\n    z-index: 10;\n    pointer-events: auto;\n}\n\n.top-right-controls {\n    position: absolute;\n    top: 12px;\n    right: 12px;\n    display: flex;\n    gap: 8px;\n    z-index: 10;\n    pointer-events: auto;\n}\n\n.histogram {\n    position: absolute;\n    bottom: 12px;\n    right: 12px;\n    width: min(30%, 250px);\n    height: calc(min(30%, 250px) / 2);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    border-radius: 4px;\n    z-index: 10;\n    pointer-events: auto;\n}\n</style>",
-        "storeOutMessages": true,
-        "passthru": false,
-        "resendOnRefresh": false,
-        "templateScope": "local",
-        "className": "",
-        "x": 440,
-        "y": 560,
-        "wires": [
-            [
-                "51eba6094203b851",
-                "store_crop_params",
-                "27bc46e34f7d895a"
             ]
         ]
     },
@@ -1516,32 +1606,7 @@
         "y": 740,
         "wires": [
             [
-                "1b64317dfb570dd0"
-            ]
-        ]
-    },
-    {
-        "id": "1b64317dfb570dd0",
-        "type": "ui-template",
-        "z": "tab_main",
-        "group": "95467d067e6410a3",
-        "page": "",
-        "ui": "",
-        "name": "Scan Start Modal",
-        "order": 8,
-        "width": "0",
-        "height": "0",
-        "format": "<template>\n    <v-dialog v-model=\"showModal\" max-width=\"600\">\n        <v-card>\n            <v-card-title class=\"text-h5\">Start New Scan</v-card-title>\n            \n            <v-card-text>\n                <v-select\n                    v-model=\"selectedProject\"\n                    :items=\"projectOptions\"\n                    label=\"Project\"\n                    variant=\"outlined\"\n                    density=\"comfortable\"\n                    class=\"mb-4\"\n                >\n                    <template v-slot:item=\"{ props, item }\">\n                        <v-list-item v-bind=\"props\" lines=\"three\">\n                            <template v-slot:prepend v-if=\"item.value === '__new__'\">\n                                <v-icon>mdi-plus-circle</v-icon>\n                            </template>\n                            <template v-slot:subtitle v-if=\"item.raw.scanCount !== undefined\">\n                                <div>{{ item.raw.scanCount }} scan{{ item.raw.scanCount !== 1 ? 's' : '' }} • Created {{ item.raw.created }}</div>\n                                <div v-if=\"item.raw.description\" class=\"text-caption text-medium-emphasis mt-1\" style=\"white-space: normal;\">{{ item.raw.description }}</div>\n                            </template>\n                        </v-list-item>\n                    </template>\n                </v-select>\n                \n                <div v-if=\"selectedProject === '__new__'\">\n                    <v-text-field\n                        v-model=\"newProjectName\"\n                        label=\"New Project Name\"\n                        variant=\"outlined\"\n                        density=\"comfortable\"\n                        class=\"mb-4\"\n                    ></v-text-field>\n                    \n                    <v-textarea\n                        v-model=\"newProjectDescription\"\n                        label=\"Project Description (optional)\"\n                        variant=\"outlined\"\n                        density=\"comfortable\"\n                        rows=\"2\"\n                        class=\"mb-4\"\n                    ></v-textarea>\n                </div>\n                \n                <v-textarea\n                    v-model=\"scanDescription\"\n                    label=\"Scan Description (optional)\"\n                    variant=\"outlined\"\n                    density=\"comfortable\"\n                    rows=\"2\"\n                    class=\"mb-4\"\n                ></v-textarea>\n                \n                <v-divider class=\"mb-4\"></v-divider>\n                \n                <div class=\"text-subtitle-2 mb-2\">Scan Settings Summary:</div>\n                <div class=\"text-body-2\">\n                    <div>📸 Photos: {{ summary.photos }}</div>\n                    <div>⏱️ Shutter: {{ summary.shutter }}ms</div>\n                    <div>🎯 Focus: {{ summary.focusMode }}</div>\n                </div>\n            </v-card-text>\n            \n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn text @click=\"cancel\">Cancel</v-btn>\n                <v-btn color=\"primary\" variant=\"flat\" @click=\"beginScan\" :disabled=\"!canStart\">Begin Scan</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            showModal: false,\n            selectedProject: null,\n            newProjectName: '',\n            newProjectDescription: '',\n            scanDescription: '',\n            projectOptions: [],\n            summary: {\n                photos: 0,\n                shutter: 0,\n                focusMode: ''\n            }\n        }\n    },\n    computed: {\n        canStart() {\n            if (this.selectedProject === '__new__') {\n                return this.newProjectName.trim().length > 0;\n            }\n            return this.selectedProject !== null;\n        }\n    },\n    methods: {\n        cancel() {\n            this.showModal = false;\n            this.resetForm();\n        },\n        beginScan() {\n            const payload = {\n                project: this.selectedProject === '__new__' ? this.newProjectName : this.selectedProject,\n                isNewProject: this.selectedProject === '__new__',\n                projectDescription: this.newProjectDescription,\n                scanDescription: this.scanDescription\n            };\n            \n            this.send({ topic: 'begin_scan', payload });\n            this.showModal = false;\n            this.resetForm();\n        },\n        resetForm() {\n            this.selectedProject = null;\n            this.newProjectName = '';\n            this.newProjectDescription = '';\n            this.scanDescription = '';\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            this.projectOptions = [\n                { \n                    title: 'Create New Project', \n                    value: '__new__'\n                },\n                ...m.payload.projects.map(p => ({\n                    title: p.name,\n                    value: p.name,\n                    scanCount: p.scanCount,\n                    created: p.created,\n                    description: p.description || ''\n                }))\n            ];\n            \n            this.summary = m.payload.summary;\n            this.showModal = true;\n        }\n    }\n}\n</script>",
-        "storeOutMessages": true,
-        "passthru": false,
-        "resendOnRefresh": false,
-        "templateScope": "local",
-        "className": "",
-        "x": 650,
-        "y": 740,
-        "wires": [
-            [
-                "3677953ccba80ba4"
+                "6d3627e9594d19f2"
             ]
         ]
     },
@@ -1557,7 +1622,7 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 860,
+        "x": 920,
         "y": 740,
         "wires": [
             [
@@ -1581,51 +1646,13 @@
         "authType": "",
         "senderr": false,
         "headers": [],
-        "x": 1110,
-        "y": 740,
+        "x": 310,
+        "y": 840,
         "wires": [
             [
-                "80a853d7d4a90109"
+                "cc0a592b06cc827f"
             ]
         ]
-    },
-    {
-        "id": "80a853d7d4a90109",
-        "type": "function",
-        "z": "tab_main",
-        "name": "Sequential Request Handler",
-        "func": "const requests = flow.get('scanRequests');\nconst currentIndex = flow.get('scanRequestIndex');\n\nif (currentIndex >= requests.length - 1) {\n    flow.set('scanRequests', null);\n    flow.set('scanRequestIndex', null);\n    \n    if (msg.payload.project_name && msg.payload.index !== undefined) {\n        global.set('currentScan', {\n            projectName: msg.payload.project_name,\n            scanIndex: msg.payload.index,\n            taskId: msg.payload.task_id,\n            totalSteps: msg.payload.settings.points\n        });\n        \n        node.status({fill:\"green\", shape:\"dot\", text:\"Scan started\"});\n        \n        msg.payload = {\n            status: 'started',\n            scan: msg.payload\n        };\n    }\n    \n    return [msg, null];\n}\n\nconst nextIndex = currentIndex + 1;\nflow.set('scanRequestIndex', nextIndex);\n\nconst nextRequest = requests[nextIndex];\nmsg.method = nextRequest.method;\nmsg.url = nextRequest.url;\nmsg.payload = nextRequest.payload;\nmsg.headers = nextRequest.headers;\n\nreturn [null, msg];",
-        "outputs": 2,
-        "timeout": "",
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 1380,
-        "y": 740,
-        "wires": [
-            [
-                "49e64a047bcd0f04"
-            ],
-            [
-                "6c8bebf2ce65cdc9"
-            ]
-        ]
-    },
-    {
-        "id": "49e64a047bcd0f04",
-        "type": "debug",
-        "z": "tab_main",
-        "name": "Scan Started",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "x": 1590,
-        "y": 720,
-        "wires": []
     },
     {
         "id": "1d9ae1ecd3ce1b62",
@@ -1635,8 +1662,8 @@
         "links": [
             "bcb5a0e753516f08"
         ],
-        "x": 145,
-        "y": 560,
+        "x": 135,
+        "y": 540,
         "wires": [
             [
                 "06e02c4a3457c1e2"
@@ -1644,7 +1671,189 @@
         ]
     },
     {
-        "id": "707eb66256944605",
+        "id": "8325ef759be28696",
+        "type": "http request",
+        "z": "tab_main",
+        "name": "PATCH Camera Focus",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 1460,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a79688fa1497ec7f",
+        "type": "ui-template",
+        "z": "tab_main",
+        "group": "cbb9633b02aa9fa1",
+        "page": "",
+        "ui": "",
+        "name": "Scan Progress Display",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-card class=\"scan-progress-card\" elevation=\"2\">\n        <v-card-title class=\"d-flex justify-space-between align-center pb-2\">\n            <span>Scan in Progress</span>\n            <v-chip \n                :color=\"statusColor\" \n                size=\"small\"\n                prepend-icon=\"mdi-circle\"\n            >\n                {{ statusText }}\n            </v-chip>\n        </v-card-title>\n\n        <v-divider></v-divider>\n\n        <v-card-text class=\"pa-6\">\n            <div class=\"text-center mb-6\">\n                <v-progress-circular\n                    :model-value=\"progressPercent\"\n                    :size=\"180\"\n                    :width=\"12\"\n                    color=\"primary\"\n                >\n                    <div class=\"progress-text\">\n                        <div class=\"text-h4\">{{ current }}</div>\n                        <div class=\"text-caption\">of {{ total }}</div>\n                        <div class=\"text-h6 mt-1\">{{ progressPercent }}%</div>\n                    </div>\n                </v-progress-circular>\n            </div>\n\n            <v-progress-linear\n                :model-value=\"progressPercent\"\n                height=\"8\"\n                rounded\n                color=\"primary\"\n                class=\"mb-4\"\n            ></v-progress-linear>\n\n            <v-row dense class=\"mb-4\">\n                <v-col cols=\"6\">\n                    <div class=\"stat-box\">\n                        <v-icon size=\"small\" class=\"mr-1\">mdi-clock-outline</v-icon>\n                        <span class=\"text-caption\">Duration</span>\n                        <div class=\"text-h6\">{{ formattedDuration }}</div>\n                    </div>\n                </v-col>\n                <v-col cols=\"6\">\n                    <div class=\"stat-box\">\n                        <v-icon size=\"small\" class=\"mr-1\">mdi-timer-sand</v-icon>\n                        <span class=\"text-caption\">Est. Remaining</span>\n                        <div class=\"text-h6\">{{ estimatedRemaining }}</div>\n                    </div>\n                </v-col>\n            </v-row>\n\n            <v-row dense class=\"mb-3\">\n                <v-col :cols=\"status === 'running' || status === 'paused' ? 8 : 12\">\n                    <v-btn\n                        v-if=\"status === 'running'\"\n                        @click=\"pauseScan\"\n                        color=\"warning\"\n                        variant=\"flat\"\n                        block\n                        prepend-icon=\"mdi-pause\"\n                    >\n                        Pause\n                    </v-btn>\n                    <v-btn\n                        v-else-if=\"status === 'paused'\"\n                        @click=\"resumeScan\"\n                        color=\"success\"\n                        variant=\"flat\"\n                        block\n                        prepend-icon=\"mdi-play\"\n                    >\n                        Resume\n                    </v-btn>\n                </v-col>\n                <v-col :cols=\"status === 'running' || status === 'paused' ? 4 : 12\">\n                    <v-btn\n                        @click=\"cancelScan\"\n                        color=\"error\"\n                        variant=\"outlined\"\n                        block\n                        prepend-icon=\"mdi-stop\"\n                    >\n                        Cancel\n                    </v-btn>\n                </v-col>\n            </v-row>\n\n            <v-alert\n                v-if=\"systemMessage\"\n                :type=\"messageType\"\n                density=\"compact\"\n                class=\"mt-2\"\n            >\n                {{ systemMessage }}\n            </v-alert>\n\n            <div class=\"text-caption text-medium-emphasis mt-4\">\n                <div>Project: {{ projectName }}</div>\n                <div v-if=\"scanDescription\">{{ scanDescription }}</div>\n            </div>\n        </v-card-text>\n    </v-card>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            status: 'pending',\n            current: 0,\n            total: 0,\n            duration: 0,\n            systemMessage: null,\n            projectName: '',\n            scanDescription: '',\n            scanIndex: null,\n            cameraName: '',\n            pollInterval: null\n        }\n    },\n    computed: {\n        progressPercent() {\n            return this.total > 0 ? Math.round((this.current / this.total) * 100) : 0;\n        },\n        statusColor() {\n            const colors = {\n                running: 'success',\n                paused: 'warning',\n                completed: 'info',\n                failed: 'error',\n                cancelled: 'error'\n            };\n            return colors[this.status] || 'grey';\n        },\n        statusText() {\n            return this.status.charAt(0).toUpperCase() + this.status.slice(1);\n        },\n        formattedDuration() {\n            const minutes = Math.floor(this.duration / 60);\n            const seconds = Math.floor(this.duration % 60);\n            return `${minutes}:${seconds.toString().padStart(2, '0')}`;\n        },\n        estimatedRemaining() {\n            if (this.current === 0 || this.status !== 'running') return '--:--';\n            const avgTimePerPhoto = this.duration / this.current;\n            const remaining = (this.total - this.current) * avgTimePerPhoto;\n            const minutes = Math.floor(remaining / 60);\n            const seconds = Math.floor(remaining % 60);\n            return `${minutes}:${seconds.toString().padStart(2, '0')}`;\n        },\n        messageType() {\n            if (this.systemMessage?.includes('error') || this.systemMessage?.includes('failed')) {\n                return 'error';\n            }\n            if (this.systemMessage?.includes('warning')) {\n                return 'warning';\n            }\n            return 'info';\n        }\n    },\n    methods: {\n        startPolling() {\n            if (this.pollInterval) return;\n            this.pollInterval = setInterval(() => {\n                this.fetchScanStatus();\n            }, 200);\n        },\n        stopPolling() {\n            if (this.pollInterval) {\n                clearInterval(this.pollInterval);\n                this.pollInterval = null;\n            }\n        },\n        async fetchScanStatus() {\n            if (!this.scanIndex || !this.projectName) return;\n            \n            try {\n                const response = await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/status`\n                );\n                const data = await response.json();\n                \n                this.status = data.status;\n                this.current = data.current_step;\n                this.total = data.total_steps;\n                this.duration = data.duration;\n                this.systemMessage = data.system_message;\n                \n                if (['completed', 'failed', 'cancelled'].includes(this.status)) {\n                    this.stopPolling();\n                    setTimeout(() => {\n                        this.send({ topic: 'scan_ended', status: this.status });\n                    }, 3000);\n                }\n            } catch (error) {\n                console.error('Error fetching scan status:', error);\n            }\n        },\n        async pauseScan() {\n            try {\n                await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/pause`,\n                    { method: 'PATCH' }\n                );\n            } catch (error) {\n                console.error('Error pausing scan:', error);\n            }\n        },\n        async resumeScan() {\n            try {\n                await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/resume?camera_name=${this.cameraName}`,\n                    { method: 'PATCH' }\n                );\n            } catch (error) {\n                console.error('Error resuming scan:', error);\n            }\n        },\n        async cancelScan() {\n            try {\n                await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/cancel`,\n                    { method: 'PATCH' }\n                );\n            } catch (error) {\n                console.error('Error cancelling scan:', error);\n            }\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m) return;\n            \n            if (m.topic === 'scan_started') {\n                this.projectName = m.payload.projectName;\n                this.scanIndex = m.payload.scanIndex;\n                this.total = m.payload.totalSteps;\n                this.cameraName = m.payload.cameraName;\n                this.scanDescription = m.payload.description;\n                this.current = 0;\n                this.duration = 0;\n                this.status = 'running';\n                this.systemMessage = null;\n                this.startPolling();\n            }\n        }\n    },\n    beforeUnmount() {\n        this.stopPolling();\n    }\n}\n</script>\n\n<style scoped>\n.scan-progress-card {\n    width: 100%;\n}\n\n.progress-text {\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n}\n\n.stat-box {\n    text-align: center;\n    padding: 8px;\n    background: rgba(0, 0, 0, 0.02);\n    border-radius: 4px;\n}\n</style>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 880,
+        "y": 820,
+        "wires": [
+            [
+                "f56539df9c045dcd"
+            ]
+        ]
+    },
+    {
+        "id": "cc0a592b06cc827f",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Sequential Request Handler",
+        "func": "const requests = flow.get('scanRequests');\nconst currentIndex = flow.get('scanRequestIndex');\n\nif (currentIndex >= requests.length - 1) {\n    flow.set('scanRequests', null);\n    flow.set('scanRequestIndex', null);\n    \n    if (msg.payload.project_name && msg.payload.index !== undefined) {\n        const cameras = global.get('cameras') || {};\n        const cameraName = Object.keys(cameras)[0];\n        \n        const scanData = {\n            projectName: msg.payload.project_name,\n            scanIndex: msg.payload.index,\n            taskId: msg.payload.task_id,\n            totalSteps: msg.payload.settings.points,\n            cameraName: cameraName,\n            description: global.get('scanDescription') || ''\n        };\n        \n        global.set('currentScan', scanData);\n        \n        node.status({fill:\"green\", shape:\"dot\", text:\"Scan started\"});\n        \n        return [\n            { topic: 'scan_started', payload: scanData },\n            { topic: 'toggle_scan_view', payload: 'start' }\n        ];\n    }\n    \n    return [msg, null];\n}\n\nconst nextIndex = currentIndex + 1;\nflow.set('scanRequestIndex', nextIndex);\n\nconst nextRequest = requests[nextIndex];\nmsg.method = nextRequest.method;\nmsg.url = nextRequest.url;\nmsg.payload = nextRequest.payload;\nmsg.headers = nextRequest.headers;\n\nreturn [null, null, msg];",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 840,
+        "wires": [
+            [
+                "a79688fa1497ec7f"
+            ],
+            [
+                "f56539df9c045dcd"
+            ],
+            [
+                "6c8bebf2ce65cdc9"
+            ]
+        ]
+    },
+    {
+        "id": "f56539df9c045dcd",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Scan Visibility Controller",
+        "func": "if (msg.topic === 'toggle_scan_view') {\n    if (msg.payload === 'start') {\n        msg.payload = {\n            group: {\n                hide: ['Scan Settings', 'Preview'],\n                show: ['Scan Progress']\n            }\n        };\n        return msg\n    }\n}\n\nif (msg.topic === 'scan_ended') {\n    msg.payload = {\n        group: {\n            show: ['Scan Settings', 'Preview'],\n            hide: ['Scan Progress']\n        }\n    };\n\n    return msg\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1130,
+        "y": 840,
+        "wires": [
+            [
+                "2e25563d1ac1a405"
+            ]
+        ]
+    },
+    {
+        "id": "2e25563d1ac1a405",
+        "type": "ui-control",
+        "z": "tab_main",
+        "name": "UI Control - Scan Groups",
+        "ui": "cd7a210d1b23a0c9",
+        "events": "all",
+        "x": 1370,
+        "y": 840,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a38a4c8c01f45932",
+        "type": "ui-template",
+        "z": "tab_main",
+        "group": "1c267b3f55f8654c",
+        "page": "",
+        "ui": "",
+        "name": "Preview with Controls",
+        "order": 1,
+        "width": "6",
+        "height": "0",
+        "format": "<template>\n    <div class=\"preview-wrapper\">\n        <div class=\"preview-container\">\n            <div class=\"image-wrapper\" :style=\"imageWrapperStyle\">\n                <img :src=\"previewUrl\" class=\"preview-image\" :style=\"imageStyle\" @load=\"onImageLoad\" ref=\"previewImage\" crossorigin=\"anonymous\" />\n                \n                <canvas v-if=\"showHeatmap && !cropMode\" ref=\"heatmapCanvas\" class=\"heatmap-overlay\"></canvas>\n                \n                <svg v-if=\"cropMode\" class=\"crop-overlay\" \n                     @mousedown=\"startCrop\" \n                     @mousemove=\"updateCrop\" \n                     @mouseup=\"endCrop\"\n                     @touchstart=\"startCrop\"\n                     @touchmove=\"updateCrop\"\n                     @touchend=\"endCrop\">\n                    <rect v-if=\"cropSize.width > 0\" \n                          :x=\"cropRect.x\" \n                          :y=\"cropRect.y\" \n                          :width=\"cropSize.width\" \n                          :height=\"cropSize.height\"\n                          fill=\"rgba(0, 148, 206, 0.2)\"\n                          stroke=\"#0094CE\"\n                          stroke-width=\"2\"\n                          stroke-dasharray=\"5,5\" />\n                    <text v-if=\"cropSize.width > 0\"\n                          :x=\"cropRect.x + 5\"\n                          :y=\"cropRect.y + 20\"\n                          fill=\"#0094CE\"\n                          font-size=\"12\">\n                        {{ Math.round((cropSize.width / imageSize.width) * 100) }}% × {{ Math.round((cropSize.height / imageSize.height) * 100) }}%\n                    </text>\n                </svg>\n            </div>\n        </div>\n        \n        <div v-if=\"!cropMode\" class=\"motor-controls\">\n            <div></div>\n            <v-btn icon=\"mdi-arrow-up-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(0, -10)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-left-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(1, -30)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-right-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(1, 30)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-down-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(0, 10)\"></v-btn>\n            <div></div>\n        </div>\n        \n        <div class=\"top-right-controls\">\n            <v-btn v-if=\"!cropMode\" class=\"light-btn\" icon=\"mdi-lightbulb\" size=\"small\" variant=\"flat\" @click=\"toggleLight\"></v-btn>\n            <v-btn v-if=\"!cropMode\" icon=\"mdi-blur\" size=\"small\" variant=\"flat\" @click=\"toggleHeatmap\" :color=\"showHeatmap ? 'primary' : ''\"></v-btn>\n            <v-btn class=\"crop-btn\" icon=\"mdi-crop\" size=\"small\" variant=\"flat\" @click=\"toggleCrop\"></v-btn>\n        </div>\n        \n        <canvas v-if=\"!cropMode\" ref=\"histogram\" class=\"histogram\"></canvas>\n    </div>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            previewUrl: '',\n            motorNames: [],\n            cropMode: false,\n            cropSize: { width: 0, height: 0 },\n            cropRect: { x: 0, y: 0 },\n            appliedCrop: { width: 0, height: 0, width_percent: 0, height_percent: 0 },\n            isDragging: false,\n            cropDrawn: false,\n            startPos: { x: 0, y: 0 },\n            imageSize: { width: 0, height: 0 },\n            histogramInterval: null,\n            showHeatmap: false,\n            imageLoaded: false\n        }\n    },\n    mounted() {\n        this.checkImageLoaded();\n        this.histogramInterval = setInterval(() => {\n            if (this.imageLoaded) {\n                this.drawHistogram();\n                if (this.showHeatmap) this.drawHeatmap();\n            }\n        }, 50);\n    },\n    unmounted() {\n        if (this.histogramInterval) {\n            clearInterval(this.histogramInterval);\n        }\n    },\n    computed: {\n        imageWrapperStyle() {\n            if (this.appliedCrop.width_percent > 0 && !this.cropMode) {\n                const aspectRatio = this.appliedCrop.height / this.appliedCrop.width;\n                return {\n                    width: '100%',\n                    paddingTop: (aspectRatio * 100) + '%',\n                    position: 'relative',\n                    overflow: 'hidden'\n                };\n            }\n            return { width: '100%' };\n        },\n        imageStyle() {\n            if (this.appliedCrop.width_percent > 0 && !this.cropMode) {\n                return {\n                    position: 'absolute',\n                    top: '50%',\n                    left: '50%',\n                    width: (10000 / this.appliedCrop.width_percent) + '%',\n                    transform: 'translate(-50%, -50%)'\n                };\n            }\n            return { width: '100%' };\n        }\n    },\n    methods: {\n        checkImageLoaded() {\n            const img = this.$refs.previewImage;\n            if (img && img.complete && img.naturalWidth > 0) {\n                this.onImageLoad({ target: img });\n            }\n        },\n        \n        moveMotor(motorIndex, degrees) {\n            if (!this.motorNames[motorIndex]) return;\n            this.send({\n                topic: this.motorNames[motorIndex],\n                payload: { degrees }\n            });\n        },\n        \n        toggleLight() {\n            this.send({\n                topic: 'toggle_light',\n                payload: true\n            });\n        },\n        \n        toggleHeatmap() {\n            this.showHeatmap = !this.showHeatmap;\n            if (this.showHeatmap) {\n                this.$nextTick(() => this.drawHeatmap());\n            }\n        },\n        \n        toggleCrop() {\n            if (!this.cropMode) {\n                this.cropMode = true;\n                this.cropDrawn = false;\n                this.cropSize = { width: 0, height: 0 };\n                \n                this.$nextTick(() => {\n                    const img = this.$refs.previewImage;\n                    if (img) {\n                        this.imageSize = {\n                            width: img.clientWidth,\n                            height: img.clientHeight\n                        };\n                        this.cropSize = { width: this.imageSize.width, height: this.imageSize.height };\n                        this.cropRect = { x: 0, y: 0 };\n                    }\n                });\n            } else {\n                this.cropMode = false;\n                if (!this.cropDrawn) {\n                    this.appliedCrop = { width: 0, height: 0, width_percent: 0, height_percent: 0 };\n                    this.send({\n                        topic: 'crop_applied',\n                        payload: { width_percent: 100, height_percent: 100 }\n                    });\n                }\n                this.cropSize = { width: 0, height: 0 };\n            }\n        },\n        \n        onImageLoad(e) {\n            this.imageSize = { \n                width: e.target.clientWidth, \n                height: e.target.clientHeight \n            };\n            this.imageLoaded = true;\n        },\n        \n        drawHistogram() {\n            const img = this.$refs.previewImage;\n            const canvas = this.$refs.histogram;\n            if (!img || !canvas || !img.complete || !this.imageLoaded) return;\n            if (img.naturalWidth === 0 || img.naturalHeight === 0) return;\n            \n            const rect = canvas.getBoundingClientRect();\n            canvas.width = rect.width;\n            canvas.height = rect.height;\n            \n            const ctx = canvas.getContext('2d', { willReadFrequently: true });\n            const tempCanvas = document.createElement('canvas');\n            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });\n            \n            tempCanvas.width = img.naturalWidth;\n            tempCanvas.height = img.naturalHeight;\n            tempCtx.drawImage(img, 0, 0);\n            \n            let imageData;\n            if (this.appliedCrop.width_percent > 0) {\n                const cropWidth = (this.appliedCrop.width_percent / 100) * img.naturalWidth;\n                const cropHeight = (this.appliedCrop.height_percent / 100) * img.naturalHeight;\n                const cropX = (img.naturalWidth - cropWidth) / 2;\n                const cropY = (img.naturalHeight - cropHeight) / 2;\n                \n                if (cropWidth <= 0 || cropHeight <= 0) return;\n                imageData = tempCtx.getImageData(cropX, cropY, cropWidth, cropHeight);\n            } else {\n                imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);\n            }\n            \n            const data = imageData.data;\n            \n            const r = new Array(256).fill(0);\n            const g = new Array(256).fill(0);\n            const b = new Array(256).fill(0);\n            \n            for (let i = 0; i < data.length; i += 4) {\n                r[data[i]]++;\n                g[data[i + 1]]++;\n                b[data[i + 2]]++;\n            }\n            \n            const maxVal = Math.max(...r, ...g, ...b);\n            \n            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';\n            ctx.fillRect(0, 0, canvas.width, canvas.height);\n            \n            const drawChannel = (hist, color) => {\n                ctx.strokeStyle = color;\n                ctx.lineWidth = 1;\n                ctx.beginPath();\n                for (let i = 0; i < 256; i++) {\n                    const x = (i / 256) * canvas.width;\n                    const logVal = hist[i] > 0 ? Math.log10(hist[i] + 1) : 0;\n                    const maxLog = Math.log10(maxVal + 1);\n                    const y = canvas.height - (logVal / maxLog) * canvas.height;\n                    if (i === 0) ctx.moveTo(x, y);\n                    else ctx.lineTo(x, y);\n                }\n                ctx.stroke();\n            };\n            \n            drawChannel(r, 'rgba(255, 0, 0, 0.7)');\n            drawChannel(g, 'rgba(0, 255, 0, 0.7)');\n            drawChannel(b, 'rgba(0, 0, 255, 0.7)');\n        },\n        \n        drawHeatmap() {\n            const img = this.$refs.previewImage;\n            const canvas = this.$refs.heatmapCanvas;\n            if (!img || !canvas || !img.complete || !this.imageLoaded) return;\n            if (img.naturalWidth === 0 || img.naturalHeight === 0) return;\n            \n            canvas.width = img.clientWidth;\n            canvas.height = img.clientHeight;\n            \n            const ctx = canvas.getContext('2d', { willReadFrequently: true });\n            const tempCanvas = document.createElement('canvas');\n            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });\n            \n            tempCanvas.width = img.naturalWidth;\n            tempCanvas.height = img.naturalHeight;\n            tempCtx.drawImage(img, 0, 0);\n            \n            let analyzeX = 0, analyzeY = 0;\n            let analyzeWidth = img.naturalWidth;\n            let analyzeHeight = img.naturalHeight;\n            \n            if (this.appliedCrop.width_percent > 0) {\n                analyzeWidth = (this.appliedCrop.width_percent / 100) * img.naturalWidth;\n                analyzeHeight = (this.appliedCrop.height_percent / 100) * img.naturalHeight;\n                analyzeX = (img.naturalWidth - analyzeWidth) / 2;\n                analyzeY = (img.naturalHeight - analyzeHeight) / 2;\n            }\n            \n            if (analyzeWidth <= 0 || analyzeHeight <= 0) return;\n            \n            const targetCellSize = Math.min(analyzeWidth, analyzeHeight) / 32;\n            const gridX = Math.max(1, Math.round(analyzeWidth / targetCellSize));\n            const gridY = Math.max(1, Math.round(analyzeHeight / targetCellSize));\n            const cellWidth = analyzeWidth / gridX;\n            const cellHeight = analyzeHeight / gridY;\n            \n            const variances = [];\n            let minVar = Infinity;\n            let maxVar = 0;\n            \n            for (let y = 0; y < gridY; y++) {\n                for (let x = 0; x < gridX; x++) {\n                    const startX = Math.floor(analyzeX + x * cellWidth);\n                    const startY = Math.floor(analyzeY + y * cellHeight);\n                    const endX = Math.floor(analyzeX + (x + 1) * cellWidth);\n                    const endY = Math.floor(analyzeY + (y + 1) * cellHeight);\n                    const w = endX - startX;\n                    const h = endY - startY;\n                    \n                    if (w <= 0 || h <= 0) continue;\n                    \n                    const imgData = tempCtx.getImageData(startX, startY, w, h);\n                    let sum = 0, sumSq = 0, count = 0;\n                    \n                    for (let i = 0; i < imgData.data.length; i += 4) {\n                        const gray = (imgData.data[i] + imgData.data[i + 1] + imgData.data[i + 2]) / 3;\n                        sum += gray;\n                        sumSq += gray * gray;\n                        count++;\n                    }\n                    \n                    const mean = sum / count;\n                    const variance = (sumSq / count) - (mean * mean);\n                    variances.push({ x, y, variance });\n                    minVar = Math.min(minVar, variance);\n                    maxVar = Math.max(maxVar, variance);\n                }\n            }\n            \n            const scaleX = canvas.width / gridX;\n            const scaleY = canvas.height / gridY;\n            \n            variances.forEach(({ x, y, variance }) => {\n                const normalized = (variance - minVar) / (maxVar - minVar || 1);\n                \n                const r = Math.floor(255 * normalized);\n                const b = Math.floor(255 * (1 - normalized));\n                const g = 0;\n                const alpha = 0.6;\n                \n                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;\n                ctx.fillRect(x * scaleX, y * scaleY, scaleX, scaleY);\n            });\n        },\n        \n        getEventPosition(e) {\n            const rect = e.currentTarget.getBoundingClientRect();\n            const touch = e.touches?.[0];\n            return {\n                x: (touch?.clientX || e.clientX) - rect.left,\n                y: (touch?.clientY || e.clientY) - rect.top\n            };\n        },\n        \n        startCrop(e) {\n            if (!this.cropMode) return;\n            e.preventDefault();\n            this.startPos = this.getEventPosition(e);\n            this.isDragging = true;\n        },\n        \n        updateCrop(e) {\n            if (!this.isDragging) return;\n            e.preventDefault();\n            \n            const pos = this.getEventPosition(e);\n            const width = Math.min(Math.abs(pos.x - this.startPos.x) * 2, this.imageSize.width);\n            const height = Math.min(Math.abs(pos.y - this.startPos.y) * 2, this.imageSize.height);\n            \n            this.cropSize = { width, height };\n            this.cropRect = {\n                x: (this.imageSize.width - width) / 2,\n                y: (this.imageSize.height - height) / 2\n            };\n        },\n        \n        endCrop(e) {\n            if (!this.isDragging) return;\n            e.preventDefault();\n            this.isDragging = false;\n            \n            if (this.cropSize.width === 0) return;\n            \n            const width_percent = (this.cropSize.width / this.imageSize.width) * 100;\n            const height_percent = (this.cropSize.height / this.imageSize.height) * 100;\n            \n            this.appliedCrop = {\n                width: this.cropSize.width,\n                height: this.cropSize.height,\n                width_percent,\n                height_percent\n            };\n            \n            this.cropDrawn = true;\n            \n            this.send({\n                topic: 'crop_applied',\n                payload: { width_percent, height_percent }\n            });\n            \n            this.cropMode = false;\n            this.cropSize = { width: 0, height: 0 };\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m) return;\n            if (m.cameraName) {\n                this.imageLoaded = false;\n                this.previewUrl = `http://${window.location.hostname}:8000/latest/cameras/${m.cameraName}/preview`;\n                this.$nextTick(() => this.checkImageLoaded());\n            }\n            if (m.motorNames && Array.isArray(m.motorNames)) {\n                this.motorNames = m.motorNames;\n            }\n            if (m.payload === 'toggle') this.toggleCrop();\n        }\n    }\n}\n</script>\n\n<style scoped>\n.preview-wrapper {\n    position: relative;\n    width: 100%;\n    pointer-events: none;\n}\n\n.preview-container {\n    position: relative;\n    width: 100%;\n    pointer-events: auto;\n}\n\n.image-wrapper {\n    position: relative;\n    pointer-events: auto;\n}\n\n.preview-image {\n    display: block;\n    width: 100%;\n    height: auto;\n}\n\n.heatmap-overlay {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    pointer-events: none;\n}\n\n.crop-overlay {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    cursor: crosshair;\n    touch-action: none;\n}\n\n.motor-controls {\n    position: absolute;\n    top: 12px;\n    left: 12px;\n    display: grid;\n    grid-template-columns: repeat(3, 40px);\n    grid-template-rows: repeat(3, 40px);\n    gap: 4px;\n    place-items: center;\n    z-index: 10;\n    pointer-events: auto;\n}\n\n.top-right-controls {\n    position: absolute;\n    top: 12px;\n    right: 12px;\n    display: flex;\n    gap: 8px;\n    z-index: 10;\n    pointer-events: auto;\n}\n\n.histogram {\n    position: absolute;\n    bottom: 12px;\n    right: 12px;\n    width: min(30%, 250px);\n    height: calc(min(30%, 250px) / 2);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    border-radius: 4px;\n    z-index: 10;\n    pointer-events: auto;\n}\n</style>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 440,
+        "y": 540,
+        "wires": [
+            [
+                "store_crop_params",
+                "51eba6094203b851",
+                "27bc46e34f7d895a"
+            ]
+        ]
+    },
+    {
+        "id": "6d3627e9594d19f2",
+        "type": "ui-template",
+        "z": "tab_main",
+        "group": "1c267b3f55f8654c",
+        "page": "",
+        "ui": "",
+        "name": "Scan Start Modal",
+        "order": 2,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-dialog v-model=\"showModal\" max-width=\"600\">\n        <v-card>\n            <v-card-title class=\"text-h5\">Start New Scan</v-card-title>\n            \n            <v-card-text>\n                <v-select\n                    v-model=\"selectedProject\"\n                    :items=\"projectOptions\"\n                    label=\"Project\"\n                    variant=\"outlined\"\n                    density=\"comfortable\"\n                    class=\"mb-4\"\n                >\n                    <template v-slot:item=\"{ props, item }\">\n                        <v-list-item v-bind=\"props\" lines=\"three\">\n                            <template v-slot:prepend v-if=\"item.value === '__new__'\">\n                                <v-icon>mdi-plus-circle</v-icon>\n                            </template>\n                            <template v-slot:subtitle v-if=\"item.raw.scanCount !== undefined\">\n                                <div>{{ item.raw.scanCount }} scan{{ item.raw.scanCount !== 1 ? 's' : '' }}</div>\n                                <div v-if=\"item.raw.description\" class=\"text-caption\">{{ item.raw.description }}</div>\n                            </template>\n                        </v-list-item>\n                    </template>\n                </v-select>\n\n                <div v-if=\"selectedProject === '__new__'\">\n                    <v-text-field\n                        v-model=\"newProjectName\"\n                        label=\"Project Name\"\n                        variant=\"outlined\"\n                        density=\"comfortable\"\n                        class=\"mb-4\"\n                        :rules=\"[v => !!v || 'Project name is required']\"\n                    />\n                    \n                    <v-textarea\n                        v-model=\"newProjectDescription\"\n                        label=\"Project Description (optional)\"\n                        variant=\"outlined\"\n                        density=\"comfortable\"\n                        rows=\"2\"\n                        class=\"mb-4\"\n                    />\n                </div>\n\n                <v-textarea\n                    v-model=\"scanDescription\"\n                    label=\"Scan Description (optional)\"\n                    variant=\"outlined\"\n                    density=\"comfortable\"\n                    rows=\"2\"\n                    class=\"mb-4\"\n                />\n\n                <v-divider class=\"mb-4\"></v-divider>\n\n                <div class=\"text-subtitle-2 mb-2\">Scan Summary</div>\n                <div class=\"d-flex gap-4 mb-2\">\n                    <div>\n                        <div class=\"text-caption text-grey\">Photos</div>\n                        <div class=\"text-h6\">{{ summary.photos }}</div>\n                    </div>\n                    <div>\n                        <div class=\"text-caption text-grey\">Shutter Speed</div>\n                        <div class=\"text-h6\">{{ summary.shutter }}s</div>\n                    </div>\n                    <div>\n                        <div class=\"text-caption text-grey\">Focus Mode</div>\n                        <div class=\"text-h6\">{{ summary.focusMode }}</div>\n                    </div>\n                </div>\n            </v-card-text>\n\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn color=\"grey\" variant=\"text\" @click=\"cancel\">Cancel</v-btn>\n                <v-btn color=\"primary\" variant=\"flat\" @click=\"beginScan\" :disabled=\"!canStart\">Begin Scan</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            showModal: false,\n            selectedProject: null,\n            newProjectName: '',\n            newProjectDescription: '',\n            scanDescription: '',\n            projectOptions: [],\n            summary: {\n                photos: 0,\n                shutter: 0,\n                focusMode: ''\n            }\n        }\n    },\n    computed: {\n        canStart() {\n            if (this.selectedProject === '__new__') {\n                return this.newProjectName.trim().length > 0;\n            }\n            return this.selectedProject !== null;\n        }\n    },\n    methods: {\n        cancel() {\n            this.showModal = false;\n            this.resetForm();\n        },\n        beginScan() {\n            const payload = {\n                project: this.selectedProject === '__new__' ? this.newProjectName : this.selectedProject,\n                isNewProject: this.selectedProject === '__new__',\n                projectDescription: this.newProjectDescription,\n                scanDescription: this.scanDescription\n            };\n            \n            this.send({ topic: 'begin_scan', payload });\n            this.showModal = false;\n            this.resetForm();\n        },\n        resetForm() {\n            this.selectedProject = null;\n            this.newProjectName = '';\n            this.newProjectDescription = '';\n            this.scanDescription = '';\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (m.topic === 'start_scan' || m.payload === 'open_modal') {\n                this.projectOptions = [\n                    { \n                        title: 'Create New Project', \n                        value: '__new__'\n                    },\n                    ...m.payload.projects.map(p => ({\n                        title: p.name,\n                        value: p.name,\n                        scanCount: p.scanCount,\n                        created: p.created,\n                        description: p.description || ''\n                    }))\n                ];\n                \n                this.summary = m.payload.summary;\n                this.showModal = true;\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": false,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 690,
+        "y": 740,
+        "wires": [
+            [
+                "3677953ccba80ba4"
+            ]
+        ]
+    },
+    {
+        "id": "a56b50155af194d9",
+        "type": "link out",
+        "z": "e972879e9326214e",
+        "name": "link out 1",
+        "mode": "link",
+        "links": [],
+        "x": 1505,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "a62d914b7a65b2aa",
         "type": "function",
         "z": "e972879e9326214e",
         "name": "Build Camera GET",
@@ -1655,17 +1864,16 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 230,
-        "y": 60,
+        "x": 290,
+        "y": 140,
         "wires": [
             [
-                "3a7175588a07696d",
-                "814b0525d004a7a1"
+                "52f1fae2c032af1c"
             ]
         ]
     },
     {
-        "id": "3a7175588a07696d",
+        "id": "52f1fae2c032af1c",
         "type": "http request",
         "z": "e972879e9326214e",
         "name": "GET Camera Settings",
@@ -1680,17 +1888,16 @@
         "authType": "",
         "senderr": false,
         "headers": [],
-        "x": 480,
-        "y": 60,
+        "x": 500,
+        "y": 140,
         "wires": [
             [
-                "1f68a2ad5180d296",
-                "210106017e186814"
+                "d7edae136960d188"
             ]
         ]
     },
     {
-        "id": "1f68a2ad5180d296",
+        "id": "d7edae136960d188",
         "type": "ui-template",
         "z": "e972879e9326214e",
         "group": "fe4833c643ca033b",
@@ -1700,38 +1907,42 @@
         "order": 1,
         "width": "0",
         "height": "0",
-        "format": "// This is the Node-RED ui-template content for the refined camera settings\n// Replace node \"1f68a2ad5180d296\" with this template\n\n<template>\n    <v-expansion-panels>\n        <v-expansion-panel>\n            <v-expansion-panel-title>\n                <strong>Camera Settings: {{ cameraInfo.name || 'Loading...' }}</strong>\n            </v-expansion-panel-title>\n            \n            <v-expansion-panel-text>\n                <div class=\"d-flex justify-space-between align-center mb-4\">\n                    <div class=\"text-subtitle-2\">{{ cameraInfo.type || 'Unknown' }}</div>\n                    <v-chip :color=\"cameraInfo.busy ? 'warning' : 'success'\" size=\"small\">\n                        {{ cameraInfo.busy ? 'Busy' : 'Ready' }}\n                    </v-chip>\n                </div>\n                \n                <v-divider class=\"mb-4\"></v-divider>\n                \n                <div class=\"text-subtitle-2 mb-4\">Image Quality</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">JPEG Quality</span>\n                        <span class=\"text-caption\">%</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.jpeg_quality\"\n                            :min=\"50\"\n                            :max=\"100\"\n                            :step=\"5\"\n                            hide-details\n                            @update:model-value=\"updateSetting('jpeg_quality')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.jpeg_quality\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('jpeg_quality')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Saturation</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.saturation\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('saturation')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.saturation\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('saturation')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Contrast</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.contrast\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('contrast')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.contrast\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('contrast')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">White Balance</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Red Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.awbg_red\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.01\"\n                            hide-details\n                            @update:model-value=\"updateSetting('awbg_red')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.awbg_red\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('awbg_red')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Blue Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.awbg_blue\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.01\"\n                            hide-details\n                            @update:model-value=\"updateSetting('awbg_blue')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.awbg_blue\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('awbg_blue')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Exposure</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Analogue Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.gain\"\n                            :min=\"1\"\n                            :max=\"16\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('gain')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.gain\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('gain')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Advanced</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Orientation</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.orientation_flag\"\n                            :min=\"1\"\n                            :max=\"8\"\n                            :step=\"1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('orientation_flag')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.orientation_flag\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('orientation_flag')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n            </v-expansion-panel-text>\n        </v-expansion-panel>\n    </v-expansion-panels>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            cameraInfo: {\n                name: '',\n                type: '',\n                busy: false\n            },\n            settings: {\n                jpeg_quality: 75,\n                saturation: 1.0,\n                contrast: 1.0,\n                awbg_red: 1.8,\n                awbg_blue: 1.8,\n                gain: 1.0,\n                orientation_flag: 8\n            },\n            updateTimer: null\n        }\n    },\n    methods: {\n        updateSetting(key) {\n            clearTimeout(this.updateTimer);\n            this.updateTimer = setTimeout(() => {\n                this.send({\n                    topic: 'update_camera_setting',\n                    payload: {\n                        [key]: this.settings[key]\n                    }\n                });\n            }, 300);\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            // Handle camera status response (from GET /cameras/{name})\n            if (m.payload.name && m.payload.type) {\n                this.cameraInfo.name = m.payload.name;\n                this.cameraInfo.type = m.payload.type;\n                this.cameraInfo.busy = m.payload.busy || false;\n                Object.assign(this.settings, m.payload.settings);\n            } \n            // Handle settings-only response\n            else {\n                Object.assign(this.settings, m.payload);\n            }\n        }\n    }\n}\n</script>",
+        "format": "<template>\n    <v-expansion-panels>\n        <v-expansion-panel>\n            <v-expansion-panel-title>\n                <strong>Camera Settings: {{ cameraInfo.name || 'Loading...' }}</strong>\n            </v-expansion-panel-title>\n            \n            <v-expansion-panel-text>\n                <div class=\"d-flex justify-space-between align-center mb-4\">\n                    <div class=\"text-subtitle-2\">{{ cameraInfo.type || 'Unknown' }}</div>\n                    <v-chip :color=\"cameraInfo.busy ? 'warning' : 'success'\" size=\"small\">\n                        {{ cameraInfo.busy ? 'Busy' : 'Ready' }}\n                    </v-chip>\n                </div>\n                \n                <v-divider class=\"mb-4\"></v-divider>\n                \n                <div class=\"text-subtitle-2 mb-4\">Image Quality</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">JPEG Quality</span>\n                        <span class=\"text-caption\">%</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.jpeg_quality\"\n                            :min=\"50\"\n                            :max=\"100\"\n                            :step=\"5\"\n                            hide-details\n                            @update:model-value=\"updateSetting('jpeg_quality')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.jpeg_quality\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('jpeg_quality')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Saturation</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.saturation\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('saturation')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.saturation\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('saturation')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Contrast</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.contrast\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('contrast')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.contrast\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('contrast')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">White Balance</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Red Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.awbg_red\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.01\"\n                            hide-details\n                            @update:model-value=\"updateSetting('awbg_red')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.awbg_red\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('awbg_red')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Blue Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.awbg_blue\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.01\"\n                            hide-details\n                            @update:model-value=\"updateSetting('awbg_blue')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.awbg_blue\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('awbg_blue')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Exposure</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Analogue Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.gain\"\n                            :min=\"1\"\n                            :max=\"16\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('gain')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.gain\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('gain')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Advanced</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Orientation</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.orientation_flag\"\n                            :min=\"1\"\n                            :max=\"8\"\n                            :step=\"1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('orientation_flag')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.orientation_flag\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('orientation_flag')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n            </v-expansion-panel-text>\n        </v-expansion-panel>\n    </v-expansion-panels>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            cameraInfo: {\n                name: '',\n                type: '',\n                busy: false\n            },\n            settings: {\n                jpeg_quality: 75,\n                saturation: 1.0,\n                contrast: 1.0,\n                awbg_red: 1.8,\n                awbg_blue: 1.8,\n                gain: 1.0,\n                orientation_flag: 8\n            },\n            updateTimer: null\n        }\n    },\n    methods: {\n        updateSetting(key) {\n            clearTimeout(this.updateTimer);\n            this.updateTimer = setTimeout(() => {\n                this.send({\n                    topic: 'update_camera_setting',\n                    payload: {\n                        [key]: this.settings[key]\n                    }\n                });\n            }, 300);\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (m.payload.name && m.payload.type) {\n                this.cameraInfo.name = m.payload.name;\n                this.cameraInfo.type = m.payload.type;\n                this.cameraInfo.busy = m.payload.busy || false;\n                Object.assign(this.settings, m.payload.settings);\n            } else {\n                Object.assign(this.settings, m.payload);\n            }\n        }\n    }\n}\n</script>",
         "storeOutMessages": true,
         "passthru": false,
         "resendOnRefresh": false,
         "templateScope": "local",
         "className": "",
-        "x": 710,
-        "y": 60,
+        "x": 830,
+        "y": 140,
         "wires": [
             [
-                "d6955307c01b5d85",
-                "2661117b40d2cda0"
+                "a459aaf7d46b299b"
             ]
         ]
     },
     {
-        "id": "d6955307c01b5d85",
+        "id": "a459aaf7d46b299b",
         "type": "function",
         "z": "e972879e9326214e",
         "name": "Build Camera PATCH",
         "func": "if (msg.topic !== 'update_camera_setting') return null;\n\nconst baseUrl = global.get('baseUrl');\nconst cameras = global.get('cameras') || {};\nconst cameraName = Object.keys(cameras)[0];\n\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\nmsg.method = 'PATCH';\n\nreturn msg;",
         "outputs": 1,
-        "x": 920,
-        "y": 60,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1040,
+        "y": 140,
         "wires": [
             [
-                "1c0e67daebdf1765"
+                "984901dad2e1fc7f"
             ]
         ]
     },
     {
-        "id": "1c0e67daebdf1765",
+        "id": "984901dad2e1fc7f",
         "type": "http request",
         "z": "e972879e9326214e",
         "name": "PATCH Camera Settings",
@@ -1752,34 +1963,34 @@
                 "valueValue": "application/json"
             }
         ],
-        "x": 1150,
-        "y": 60,
+        "x": 1270,
+        "y": 140,
         "wires": [
             [
-                "1b5f4d50ef6be92e"
+                "a56b50155af194d9"
             ]
         ]
     },
     {
-        "id": "21c74b657065ca05",
+        "id": "f20e71f08457b156",
         "type": "function",
         "z": "e972879e9326214e",
         "name": "Route Motor Action",
         "func": "const baseUrl = global.get('baseUrl');\nconst { motorName } = msg.payload;\n\nif (msg.topic === 'update_motor_setting') {\n    msg.url = `${baseUrl}/latest/motors/${motorName}/settings?name=${motorName}`;\n    msg.method = 'PATCH';\n    msg.payload = msg.payload.settings;\n    return [msg, null];\n}\n\nif (msg.topic === 'calibrate_motor') {\n    msg.url = `${baseUrl}/latest/motors/${motorName}/endstop-calibration`;\n    msg.method = 'PUT';\n    msg.payload = {};\n    return [null, msg];\n}\n\nreturn [null, null];",
         "outputs": 2,
-        "x": 910,
-        "y": 120,
+        "x": 1030,
+        "y": 200,
         "wires": [
             [
-                "d16fa5a8de109931"
+                "9cbd07b2be916dcc"
             ],
             [
-                "16b41a2aa00c58aa"
+                "566533660382d071"
             ]
         ]
     },
     {
-        "id": "d16fa5a8de109931",
+        "id": "9cbd07b2be916dcc",
         "type": "http request",
         "z": "e972879e9326214e",
         "name": "PATCH Motor Settings",
@@ -1800,16 +2011,16 @@
                 "valueValue": "application/json"
             }
         ],
-        "x": 1140,
-        "y": 100,
+        "x": 1260,
+        "y": 180,
         "wires": [
             [
-                "1b5f4d50ef6be92e"
+                "a56b50155af194d9"
             ]
         ]
     },
     {
-        "id": "16b41a2aa00c58aa",
+        "id": "566533660382d071",
         "type": "http request",
         "z": "e972879e9326214e",
         "name": "PUT Calibrate Motor",
@@ -1824,36 +2035,80 @@
                 "valueValue": "application/json"
             }
         ],
-        "x": 1140,
-        "y": 140,
+        "x": 1260,
+        "y": 220,
         "wires": [
             [
-                "1b5f4d50ef6be92e"
+                "a56b50155af194d9"
             ]
         ]
     },
     {
-        "id": "fetch_motor_settings",
+        "id": "f20eaa243a54bed9",
         "type": "function",
         "z": "e972879e9326214e",
-        "name": "Get All Motors",
-        "func": "const motorNames = global.get('motorNames') || [];\nconst motors = global.get('motors') || {};\n\nconst motorData = motorNames.map(name => ({\n    name,\n    settings: motors[name]?.settings || {},\n    angle: motors[name]?.angle || 0,\n    endstop: motors[name]?.endstop || null\n}));\n\nmsg.payload = motorData;\nreturn msg;",
+        "name": "Build Motors GET",
+        "func": "const baseUrl = global.get('baseUrl');\nmsg.url = `${baseUrl}/latest/motors/`;\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 240,
-        "y": 120,
+        "x": 290,
+        "y": 200,
         "wires": [
             [
-                "aba31871449f7751"
+                "482c2d3892d0568e"
             ]
         ]
     },
     {
-        "id": "aba31871449f7751",
+        "id": "482c2d3892d0568e",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "GET Motors",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 470,
+        "y": 200,
+        "wires": [
+            [
+                "75718d2bf63e4aad"
+            ]
+        ]
+    },
+    {
+        "id": "75718d2bf63e4aad",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Format Motors",
+        "func": "const motorsDict = msg.payload;\nconst motorData = Object.values(motorsDict).map(motor => ({\n    name: motor.name,\n    settings: motor.settings,\n    angle: motor.angle,\n    endstop: motor.endstop\n}));\n\nmsg.payload = motorData;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 640,
+        "y": 200,
+        "wires": [
+            [
+                "2b53b4090df8f651"
+            ]
+        ]
+    },
+    {
+        "id": "2b53b4090df8f651",
         "type": "ui-template",
         "z": "e972879e9326214e",
         "group": "fe4833c643ca033b",
@@ -1869,56 +2124,99 @@
         "resendOnRefresh": false,
         "templateScope": "local",
         "className": "",
-        "x": 700,
-        "y": 120,
+        "x": 820,
+        "y": 200,
         "wires": [
             [
-                "21c74b657065ca05"
+                "f20e71f08457b156"
             ]
         ]
     },
     {
-        "id": "de31fdeb5bb259bd",
+        "id": "e7df615a95e9bc4d",
         "type": "link in",
         "z": "e972879e9326214e",
         "name": "link in 3",
         "links": [
             "bcb5a0e753516f08",
-            "d31620673fa02e2f",
-            "1b5f4d50ef6be92e"
+            "d31620673fa02e2f"
         ],
-        "x": 45,
-        "y": 60,
+        "x": 115,
+        "y": 140,
         "wires": [
             [
-                "707eb66256944605",
-                "fetch_motor_settings",
-                "9fdd494e2fe547f3"
+                "a62d914b7a65b2aa",
+                "f20eaa243a54bed9",
+                "be25352f628b3478"
             ]
         ]
     },
     {
-        "id": "9fdd494e2fe547f3",
+        "id": "be25352f628b3478",
         "type": "function",
         "z": "e972879e9326214e",
-        "name": "Get Lights",
-        "func": "// Name: \"Get All Lights\"\nconst lightNames = global.get('lightNames') || [];\nconst lights = global.get('lights') || {};\n\nconst lightData = lightNames.map(name => ({\n    name,\n    settings: lights[name]?.settings || {}\n}));\n\nmsg.payload = lightData;\nreturn msg;",
+        "name": "Build Lights GET",
+        "func": "const baseUrl = global.get('baseUrl');\nmsg.url = `${baseUrl}/latest/lights/`;\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 230,
-        "y": 180,
+        "x": 290,
+        "y": 260,
         "wires": [
             [
-                "42b571490354ccd5"
+                "97cf9cbe16e3cbdb"
             ]
         ]
     },
     {
-        "id": "42b571490354ccd5",
+        "id": "97cf9cbe16e3cbdb",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "GET Lights",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 470,
+        "y": 260,
+        "wires": [
+            [
+                "26299174aeff58a2"
+            ]
+        ]
+    },
+    {
+        "id": "26299174aeff58a2",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Format Lights",
+        "func": "const lightsDict = msg.payload;\nconst lightData = Object.values(lightsDict).map(light => ({\n    name: light.name,\n    settings: light.settings\n}));\n\nmsg.payload = lightData;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 640,
+        "y": 260,
+        "wires": [
+            [
+                "9693db3dc52f7acb"
+            ]
+        ]
+    },
+    {
+        "id": "9693db3dc52f7acb",
         "type": "ui-template",
         "z": "e972879e9326214e",
         "group": "fe4833c643ca033b",
@@ -1934,16 +2232,16 @@
         "resendOnRefresh": false,
         "templateScope": "local",
         "className": "",
-        "x": 700,
-        "y": 180,
+        "x": 820,
+        "y": 260,
         "wires": [
             [
-                "904c122a91502650"
+                "cd7a0370e8b4e056"
             ]
         ]
     },
     {
-        "id": "904c122a91502650",
+        "id": "cd7a0370e8b4e056",
         "type": "function",
         "z": "e972879e9326214e",
         "name": "Route Light Action",
@@ -1954,16 +2252,16 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 910,
-        "y": 180,
+        "x": 1030,
+        "y": 260,
         "wires": [
             [
-                "8bce48a638cd41f2"
+                "f62dd89576c05364"
             ]
         ]
     },
     {
-        "id": "8bce48a638cd41f2",
+        "id": "f62dd89576c05364",
         "type": "http request",
         "z": "e972879e9326214e",
         "name": "PATCH Light Settings",
@@ -1991,274 +2289,11 @@
                 "valueValue": "application/json"
             }
         ],
-        "x": 1140,
-        "y": 180,
+        "x": 1260,
+        "y": 260,
         "wires": [
             [
-                "1b5f4d50ef6be92e"
-            ]
-        ]
-    },
-    {
-        "id": "handle_system_action",
-        "type": "function",
-        "z": "e972879e9326214e",
-        "name": "Build System Request",
-        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst action = msg.topic;\nconst saveConfig = msg.payload.save_config;\n\nif (action === 'reboot') {\n    msg.url = `${baseUrl}/latest/device/reboot?save_config=${saveConfig}`;\n    msg.method = 'POST';\n} else if (action === 'shutdown') {\n    msg.url = `${baseUrl}/latest/device/shutdown?save_config=${saveConfig}`;\n    msg.method = 'POST';\n} else {\n    return null;\n}\n\nmsg.payload = {};\nreturn msg;",
-        "outputs": 1,
-        "timeout": "",
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 480,
-        "y": 380,
-        "wires": [
-            [
-                "execute_system_action",
-                "42bd30fd70ae6796"
-            ]
-        ]
-    },
-    {
-        "id": "execute_system_action",
-        "type": "http request",
-        "z": "e972879e9326214e",
-        "name": "POST System Action",
-        "method": "use",
-        "ret": "obj",
-        "url": "",
-        "headers": [
-            {
-                "keyType": "other",
-                "keyValue": "accept",
-                "valueType": "other",
-                "valueValue": "application/json"
-            }
-        ],
-        "x": 710,
-        "y": 380,
-        "wires": [
-            []
-        ]
-    },
-    {
-        "id": "42bd30fd70ae6796",
-        "type": "debug",
-        "z": "e972879e9326214e",
-        "name": "debug 4",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 680,
-        "y": 420,
-        "wires": []
-    },
-    {
-        "id": "system_controls_template",
-        "type": "ui-template",
-        "z": "e972879e9326214e",
-        "group": "",
-        "page": "",
-        "ui": "cd7a210d1b23a0c9",
-        "name": "System Controls",
-        "order": 0,
-        "width": 0,
-        "height": 0,
-        "head": "",
-        "format": "<template>\n    <div class=\"system-controls\">\n        <v-btn \n            icon=\"mdi-restart\" \n            size=\"small\" \n            variant=\"text\"\n            @click=\"showRebootDialog = true\"\n            title=\"Restart System\"\n        ></v-btn>\n        <v-btn \n            icon=\"mdi-power\" \n            size=\"small\" \n            variant=\"text\"\n            @click=\"showShutdownDialog = true\"\n            title=\"Shutdown System\"\n        ></v-btn>\n    </div>\n\n    <v-dialog v-model=\"showRebootDialog\" max-width=\"400\">\n        <v-card>\n            <v-card-title>Restart System</v-card-title>\n            <v-card-text>\n                Are you sure you want to restart the scanner?\n                <v-checkbox \n                    v-model=\"saveConfigReboot\" \n                    label=\"Save current configuration\"\n                    density=\"compact\"\n                    class=\"mt-2\"\n                ></v-checkbox>\n            </v-card-text>\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn @click=\"showRebootDialog = false\">Cancel</v-btn>\n                <v-btn color=\"primary\" @click=\"reboot\">Restart</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n\n    <v-dialog v-model=\"showShutdownDialog\" max-width=\"400\">\n        <v-card>\n            <v-card-title>Shutdown System</v-card-title>\n            <v-card-text>\n                Are you sure you want to shutdown the scanner?\n                <v-checkbox \n                    v-model=\"saveConfigShutdown\" \n                    label=\"Save current configuration\"\n                    density=\"compact\"\n                    class=\"mt-2\"\n                ></v-checkbox>\n            </v-card-text>\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn @click=\"showShutdownDialog = false\">Cancel</v-btn>\n                <v-btn color=\"error\" @click=\"shutdown\">Shutdown</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            showRebootDialog: false,\n            showShutdownDialog: false,\n            saveConfigReboot: true,\n            saveConfigShutdown: true\n        }\n    },\n    methods: {\n        reboot() {\n            this.send({\n                topic: 'reboot',\n                payload: { save_config: this.saveConfigReboot }\n            });\n            this.showRebootDialog = false;\n        },\n        shutdown() {\n            this.send({\n                topic: 'shutdown',\n                payload: { save_config: this.saveConfigShutdown }\n            });\n            this.showShutdownDialog = false;\n        }\n    }\n}\n</script>\n\n<style>\n.system-controls {\n    position: fixed;\n    top: 8px;\n    right: 60px;\n    z-index: 9999;\n    display: flex;\n    gap: 4px;\n}\n</style>",
-        "storeOutMessages": true,
-        "passthru": false,
-        "resendOnRefresh": false,
-        "templateScope": "widget:ui",
-        "className": "",
-        "x": 260,
-        "y": 380,
-        "wires": [
-            [
-                "handle_system_action"
-            ]
-        ]
-    },
-    {
-        "id": "210106017e186814",
-        "type": "debug",
-        "z": "e972879e9326214e",
-        "name": "debug 1",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 680,
-        "y": 280,
-        "wires": []
-    },
-    {
-        "id": "814b0525d004a7a1",
-        "type": "debug",
-        "z": "e972879e9326214e",
-        "name": "debug 2",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 460,
-        "y": 280,
-        "wires": []
-    },
-    {
-        "id": "2661117b40d2cda0",
-        "type": "debug",
-        "z": "e972879e9326214e",
-        "name": "debug 5",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 920,
-        "y": 280,
-        "wires": []
-    },
-    {
-        "id": "1b5f4d50ef6be92e",
-        "type": "link out",
-        "z": "e972879e9326214e",
-        "name": "apply settings",
-        "mode": "link",
-        "links": [
-            "de31fdeb5bb259bd"
-        ],
-        "x": 1405,
-        "y": 60,
-        "wires": []
-    },
-    {
-        "id": "fetch_all_projects",
-        "type": "http request",
-        "z": "2ce6b211177c83ac",
-        "name": "GET Projects",
-        "method": "GET",
-        "ret": "obj",
-        "url": "http://localhost:8000/latest/projects/",
-        "x": 270,
-        "y": 40,
-        "wires": [
-            [
-                "format_projects_data"
-            ]
-        ]
-    },
-    {
-        "id": "format_projects_data",
-        "type": "function",
-        "z": "2ce6b211177c83ac",
-        "name": "Format Projects",
-        "func": "const projects = msg.payload || {};\n\nconst projectList = Object.entries(projects).map(([name, data]) => {\n    const scans = data.scans || {};\n    const scanList = Object.values(scans);\n    \n    return {\n        name,\n        description: data.description || '',\n        created: data.created,\n        scanCount: scanList.length,\n        totalPhotos: scanList.reduce((sum, s) => sum + (s.settings?.points || 0), 0),\n        scans: scanList.map(s => ({\n            index: s.index,\n            description: s.description || '',\n            status: s.status,\n            created: s.created,\n            duration: s.duration || 0,\n            points: s.settings?.points || 0,\n            shutter: s.camera_settings?.shutter || 0,\n            pathMethod: s.settings?.path_method || '',\n            imageFormat: s.settings?.image_format || '',\n            jpegQuality: s.camera_settings?.jpeg_quality || 0,\n            cropWidth: s.camera_settings?.crop_width || 0,\n            cropHeight: s.camera_settings?.crop_height || 0\n        }))\n    };\n});\n\nmsg.payload = projectList;\nreturn msg;",
-        "outputs": 1,
-        "timeout": "",
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 480,
-        "y": 40,
-        "wires": [
-            [
-                "files_template"
-            ]
-        ]
-    },
-    {
-        "id": "files_template",
-        "type": "ui-template",
-        "z": "2ce6b211177c83ac",
-        "group": "7449d1c690545ca6",
-        "page": "",
-        "ui": "",
-        "name": "Files Explorer",
-        "order": 1,
-        "width": "12",
-        "height": "12",
-        "format": "<template>\n    <v-container fluid>\n        <v-row>\n            <v-col cols=\"12\" md=\"4\">\n                <v-card>\n                    <v-card-title class=\"d-flex justify-space-between align-center\">\n                        <span>Projects</span>\n                        <v-btn icon=\"mdi-plus\" size=\"small\" @click=\"showNewProjectDialog = true\"></v-btn>\n                    </v-card-title>\n\n                    <v-card-text v-if=\"projects.length === 0\" class=\"text-center text-medium-emphasis\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-folder-open-outline</v-icon>\n                        <div>No projects yet</div>\n                        <div class=\"text-caption\">Create one to get started</div>\n                    </v-card-text>\n\n                    <v-list v-else>\n                        <v-list-item v-for=\"project in projects\" :key=\"project.name\"\n                            :active=\"selectedProject?.name === project.name\" @click=\"selectProject(project)\"\n                            lines=\"two\">\n                            <v-list-item-title>{{ project.name }}</v-list-item-title>\n                            <v-list-item-subtitle>\n                                <v-chip size=\"x-small\" class=\"mr-1\">{{ project.scanCount }} scans</v-chip>\n                                {{ new Date(project.created).toLocaleDateString() }}\n                            </v-list-item-subtitle>\n                            <v-list-item-subtitle v-if=\"project.description\" class=\"text-caption mt-1\">\n                                {{ project.description }}\n                            </v-list-item-subtitle>\n\n                            <template v-slot:append>\n                                <div class=\"d-flex ga-1\">\n                                    <v-btn icon=\"mdi-cloud-upload\" size=\"small\" variant=\"text\" disabled></v-btn>\n                                    <v-btn icon=\"mdi-download\" size=\"small\" variant=\"text\"\n                                        @click.stop=\"downloadProject(project.name)\"></v-btn>\n                                    <v-btn icon=\"mdi-delete\" size=\"small\" variant=\"text\" color=\"error\"\n                                        @click.stop=\"confirmDeleteProject(project.name)\"></v-btn>\n                                </div>\n                            </template>\n                        </v-list-item>\n                    </v-list>\n                </v-card>\n            </v-col>\n\n            <v-col cols=\"12\" md=\"8\">\n                <v-card>\n                    <v-card-text v-if=\"!selectedProject\" class=\"text-center text-medium-emphasis py-16\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-cube-scan</v-icon>\n                        <div>Select a project to view scans</div>\n                    </v-card-text>\n\n                    <v-card-text v-else-if=\"selectedProject.scans.length === 0\"\n                        class=\"text-center text-medium-emphasis py-16\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-camera-off</v-icon>\n                        <div>No scans in this project</div>\n                    </v-card-text>\n\n                    <v-list v-else>\n                        <v-list-item v-for=\"scan in selectedProject.scans\" :key=\"scan.index\" :ripple=\"false\">\n                            <template v-slot:prepend>\n                                <v-avatar :color=\"getStatusColor(scan.status)\" size=\"40\">\n                                    <v-icon>{{ getStatusIcon(scan.status) }}</v-icon>\n                                </v-avatar>\n                            </template>\n\n                            <v-list-item-title>\n                                Scan #{{ scan.index }}\n                                <v-chip :color=\"getStatusColor(scan.status)\" size=\"x-small\" class=\"ml-2\">\n                                    {{ scan.status }}\n                                </v-chip>\n                            </v-list-item-title>\n\n                            <v-list-item-subtitle v-if=\"scan.description\">\n                                {{ scan.description }}\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption mt-1\">\n                                {{ scan.points }} photos • {{ scan.pathMethod }} • {{ scan.imageFormat }}\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption\">\n                                Shutter: {{ (scan.shutter / 1000).toFixed(1) }}ms • Quality: {{ scan.jpegQuality\n                                }}%<span v-if=\"scan.cropWidth > 0 || scan.cropHeight > 0\"> • Crop: {{ scan.cropWidth }}%×{{ scan.cropHeight }}%</span>\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption\">\n                                {{ formatDuration(scan.duration) }} • {{ new Date(scan.created).toLocaleString() }}\n                            </v-list-item-subtitle>\n\n                            <template v-slot:append>\n                                <div class=\"d-flex ga-1\">\n                                    <v-btn icon=\"mdi-cloud-upload\" size=\"small\" variant=\"text\" disabled></v-btn>\n                                    <v-btn icon=\"mdi-download\" size=\"small\" variant=\"text\"\n                                        @click.stop=\"downloadScan(selectedProject.name, scan.index)\"\n                                        :title=\"`Download scan #${scan.index}`\"></v-btn>\n                                    <v-btn icon=\"mdi-delete\" size=\"small\" variant=\"text\" color=\"error\"\n                                        @click.stop=\"handleDeleteScan(selectedProject.name, scan.index)\"></v-btn>\n                                </div>\n                            </template>\n                        </v-list-item>\n                    </v-list>\n                </v-card>\n            </v-col>\n        </v-row>\n\n        <v-dialog v-model=\"showNewProjectDialog\" max-width=\"500\">\n            <v-card>\n                <v-card-title>New Project</v-card-title>\n                <v-card-text>\n                    <v-text-field v-model=\"newProjectName\" label=\"Project Name\" variant=\"outlined\" density=\"comfortable\"\n                        class=\"mb-4\"></v-text-field>\n                    <v-textarea v-model=\"newProjectDescription\" label=\"Description (optional)\" variant=\"outlined\"\n                        density=\"comfortable\" rows=\"2\"></v-textarea>\n                </v-card-text>\n                <v-card-actions>\n                    <v-spacer></v-spacer>\n                    <v-btn @click=\"showNewProjectDialog = false\">Cancel</v-btn>\n                    <v-btn color=\"primary\" @click=\"createProject\" :disabled=\"!newProjectName.trim()\">Create</v-btn>\n                </v-card-actions>\n            </v-card>\n        </v-dialog>\n\n        <v-dialog v-model=\"showDeleteDialog\" max-width=\"400\">\n            <v-card>\n                <v-card-title>Confirm Delete</v-card-title>\n                <v-card-text>\n                    {{ deleteMessage }}\n                </v-card-text>\n                <v-card-actions>\n                    <v-spacer></v-spacer>\n                    <v-btn @click=\"showDeleteDialog = false\">Cancel</v-btn>\n                    <v-btn color=\"error\" @click=\"executeDelete\">Delete</v-btn>\n                </v-card-actions>\n            </v-card>\n        </v-dialog>\n    </v-container>\n</template>\n\n<script>\n    export default {\n    data() {\n        return {\n            projects: [],\n            selectedProject: null,\n            showNewProjectDialog: false,\n            newProjectName: '',\n            newProjectDescription: '',\n            showDeleteDialog: false,\n            deleteMessage: '',\n            deleteAction: null,\n            apiUrl: `http://${window.location.hostname}:8000`\n        }\n    },\n    methods: {\n        selectProject(project) {\n            this.selectedProject = project;\n        },\n        \n        getStatusColor(status) {\n            const colors = {\n                completed: 'success',\n                running: 'primary',\n                failed: 'error',\n                cancelled: 'warning',\n                paused: 'info'\n            };\n            return colors[status] || 'grey';\n        },\n        \n        getStatusIcon(status) {\n            const icons = {\n                completed: 'mdi-check',\n                running: 'mdi-loading',\n                failed: 'mdi-alert-circle',\n                cancelled: 'mdi-cancel',\n                paused: 'mdi-pause'\n            };\n            return icons[status] || 'mdi-help';\n        },\n        \n        formatDuration(seconds) {\n            if (!seconds) return '0s';\n            const mins = Math.floor(seconds / 60);\n            const secs = Math.floor(seconds % 60);\n            return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;\n        },\n        \n        createProject() {\n            this.send({\n                topic: 'create_project',\n                payload: {\n                    name: this.newProjectName,\n                    description: this.newProjectDescription\n                }\n            });\n            this.showNewProjectDialog = false;\n            this.newProjectName = '';\n            this.newProjectDescription = '';\n        },\n        \n        downloadProject(projectName) {\n            window.open(`${this.apiUrl}/latest/projects/${encodeURIComponent(projectName)}/zip`, '_blank');\n        },\n        \n       \n        downloadScan(projectName, scanIndex) {\n            const params = new URLSearchParams();\n            params.append('scan_indices', scanIndex);\n            window.open(`${this.apiUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/zip?${params.toString()}`, '_blank');\n        },\n        \n        confirmDeleteProject(projectName) {\n            this.deleteMessage = `Delete project \"${projectName}\" and all its scans?`;\n            this.deleteAction = () => {\n                this.send({\n                    topic: 'delete_project',\n                    payload: projectName\n                });\n            };\n            this.showDeleteDialog = true;\n        },\n        \n        handleDeleteScan(projectName, scanIndex) {\n            // Send immediate debug message\n            this.send({\n                topic: 'debug',\n                payload: { \n                    action: 'delete_button_clicked',\n                    projectName, \n                    scanIndex \n                }\n            });\n            \n            this.deleteMessage = `Delete scan #${scanIndex} from \"${projectName}\"?`;\n            this.deleteAction = () => {\n                this.send({\n                    topic: 'delete_scan',\n                    payload: { projectName, scanIndex }\n                });\n            };\n            this.showDeleteDialog = true;\n        },\n        \n        executeDelete() {\n            if (this.deleteAction) {\n                this.deleteAction();\n            }\n            this.showDeleteDialog = false;\n            this.deleteAction = null;\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (Array.isArray(m.payload)) {\n                this.projects = m.payload;\n                if (this.selectedProject) {\n                    this.selectedProject = this.projects.find(p => p.name === this.selectedProject.name);\n                }\n            }\n        }\n    }\n}\n</script>",
-        "storeOutMessages": true,
-        "passthru": false,
-        "resendOnRefresh": true,
-        "templateScope": "local",
-        "className": "",
-        "x": 680,
-        "y": 40,
-        "wires": [
-            [
-                "handle_file_actions"
-            ]
-        ]
-    },
-    {
-        "id": "handle_file_actions",
-        "type": "function",
-        "z": "2ce6b211177c83ac",
-        "name": "Handle Actions",
-        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst topic = msg.topic;\n\nif (topic === 'create_project') {\n    msg.url = `${baseUrl}/latest/projects/${msg.payload.name}?project_description=${encodeURIComponent(msg.payload.description || '')}`;\n    msg.method = 'POST';\n    msg.payload = {};\n    return [msg, null];\n}\n\nif (topic === 'delete_project') {\n    msg.url = `${baseUrl}/latest/projects/${msg.payload}`;\n    msg.method = 'DELETE';\n    return [msg, null];\n}\n\nif (topic === 'delete_scan') {\n    const { projectName, scanIndex } = msg.payload;\n    msg.url = `${baseUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/${scanIndex}`;\n    msg.method = 'DELETE';\n    return [msg, null];\n}\n\nif (topic === 'create_project') {\n    msg.url = `${baseUrl}/latest/projects/${msg.payload.name}?project_description=${encodeURIComponent(msg.payload.description || '')}`;\n    msg.method = 'POST';\n    msg.payload = {};\n    return [msg, null];\n}\n\nreturn [null, null];",
-        "outputs": 2,
-        "timeout": "",
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 890,
-        "y": 40,
-        "wires": [
-            [
-                "execute_action"
-            ],
-            []
-        ]
-    },
-    {
-        "id": "execute_action",
-        "type": "http request",
-        "z": "2ce6b211177c83ac",
-        "name": "Execute Action",
-        "method": "use",
-        "ret": "obj",
-        "url": "",
-        "x": 1080,
-        "y": 40,
-        "wires": [
-            [
-                "reload_projects"
-            ]
-        ]
-    },
-    {
-        "id": "reload_projects",
-        "type": "function",
-        "z": "2ce6b211177c83ac",
-        "name": "Trigger Reload",
-        "func": "return { payload: true };",
-        "outputs": 1,
-        "x": 1080,
-        "y": 100,
-        "wires": [
-            [
-                "fetch_all_projects"
+                "a56b50155af194d9"
             ]
         ]
     },
@@ -2271,11 +2306,124 @@
             "bcb5a0e753516f08",
             "d31620673fa02e2f"
         ],
-        "x": 145,
-        "y": 40,
+        "x": 25,
+        "y": 120,
         "wires": [
             [
-                "fetch_all_projects"
+                "fb79c3341f0d6689"
+            ]
+        ]
+    },
+    {
+        "id": "6a1d0a613e0396d9",
+        "type": "function",
+        "z": "2ce6b211177c83ac",
+        "name": "Format Projects",
+        "func": "const projects = msg.payload || {};\n\nconst projectList = Object.entries(projects).map(([name, data]) => {\n    const scans = data.scans || {};\n    const scanList = Object.values(scans);\n    \n    return {\n        name,\n        description: data.description || '',\n        created: data.created,\n        scanCount: scanList.length,\n        totalPhotos: scanList.reduce((sum, s) => sum + (s.settings?.points || 0), 0),\n        scans: scanList.map(s => ({\n            index: s.index,\n            description: s.description || '',\n            status: s.status,\n            created: s.created,\n            duration: s.duration || 0,\n            points: s.settings?.points || 0,\n            shutter: s.camera_settings?.shutter || 0,\n            pathMethod: s.settings?.path_method || '',\n            imageFormat: s.settings?.image_format || '',\n            jpegQuality: s.camera_settings?.jpeg_quality || 0,\n            cropWidth: s.camera_settings?.crop_width || 0,\n            cropHeight: s.camera_settings?.crop_height || 0,\n            focusStacks: s.settings?.focus_stacks || 1\n        }))\n    };\n});\n\nmsg.payload = projectList;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 120,
+        "wires": [
+            [
+                "e5e642b100ad7b10"
+            ]
+        ]
+    },
+    {
+        "id": "e5e642b100ad7b10",
+        "type": "ui-template",
+        "z": "2ce6b211177c83ac",
+        "group": "7449d1c690545ca6",
+        "page": "",
+        "ui": "",
+        "name": "Files Explorer",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-container fluid>\n        <v-row>\n            <v-col cols=\"12\" md=\"4\">\n                <v-card>\n                    <v-card-title class=\"d-flex justify-space-between align-center\">\n                        <span>Projects</span>\n                        <v-btn icon=\"mdi-plus\" size=\"small\" @click=\"showNewProjectDialog = true\"></v-btn>\n                    </v-card-title>\n\n                    <v-card-text v-if=\"projects.length === 0\" class=\"text-center text-medium-emphasis\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-folder-open-outline</v-icon>\n                        <div>No projects yet</div>\n                        <div class=\"text-caption\">Create one to get started</div>\n                    </v-card-text>\n\n                    <v-list v-else>\n                        <v-list-item v-for=\"project in projects\" :key=\"project.name\"\n                            :active=\"selectedProject?.name === project.name\" @click=\"selectProject(project)\"\n                            lines=\"two\">\n                            <v-list-item-title>{{ project.name }}</v-list-item-title>\n                            <v-list-item-subtitle>\n                                <v-chip size=\"x-small\" class=\"mr-1\">{{ project.scanCount }} scans</v-chip>\n                                {{ new Date(project.created).toLocaleDateString() }}\n                            </v-list-item-subtitle>\n                            <v-list-item-subtitle v-if=\"project.description\" class=\"text-caption mt-1\">\n                                {{ project.description }}\n                            </v-list-item-subtitle>\n\n                            <template v-slot:append>\n                                <div class=\"d-flex ga-1\">\n                                    <v-btn icon=\"mdi-cloud-upload\" size=\"small\" variant=\"text\" disabled></v-btn>\n                                    <v-btn icon=\"mdi-download\" size=\"small\" variant=\"text\"\n                                        @click.stop=\"downloadProject(project.name)\"></v-btn>\n                                    <v-btn icon=\"mdi-delete\" size=\"small\" variant=\"text\" color=\"error\"\n                                        @click.stop=\"confirmDeleteProject(project.name)\"></v-btn>\n                                </div>\n                            </template>\n                        </v-list-item>\n                    </v-list>\n                </v-card>\n            </v-col>\n\n            <v-col cols=\"12\" md=\"8\">\n                <v-card>\n                    <v-card-text v-if=\"!selectedProject\" class=\"text-center text-medium-emphasis py-16\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-cube-scan</v-icon>\n                        <div>Select a project to view scans</div>\n                    </v-card-text>\n\n                    <v-card-text v-else-if=\"selectedProject.scans.length === 0\"\n                        class=\"text-center text-medium-emphasis py-16\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-camera-off</v-icon>\n                        <div>No scans in this project</div>\n                    </v-card-text>\n\n                    <v-list v-else>\n                        <v-list-item v-for=\"scan in selectedProject.scans\" :key=\"scan.index\" :ripple=\"false\">\n                            <template v-slot:prepend>\n                                <v-avatar :color=\"getStatusColor(scan.status)\" size=\"40\">\n                                    <v-icon>{{ getStatusIcon(scan.status) }}</v-icon>\n                                </v-avatar>\n                            </template>\n\n                            <v-list-item-title>\n                                Scan #{{ scan.index }}\n                                <v-chip :color=\"getStatusColor(scan.status)\" size=\"x-small\" class=\"ml-2\">\n                                    {{ scan.status }}\n                                </v-chip>\n                                <v-chip v-if=\"scan.focusStacks > 1\" size=\"x-small\" class=\"ml-1\" color=\"blue\">\n                                    {{ scan.focusStacks }} stack\n                                </v-chip>\n                            </v-list-item-title>\n\n                            <v-list-item-subtitle v-if=\"scan.description\">\n                                {{ scan.description }}\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption mt-1\">\n                                {{ scan.points }} photos • {{ scan.pathMethod }} • {{ scan.imageFormat }}\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption\">\n                                Shutter: {{ (scan.shutter / 1000).toFixed(1) }}ms • Quality: {{ scan.jpegQuality\n                                }}%<span v-if=\"scan.cropWidth > 0 || scan.cropHeight > 0\"> • Crop: {{ scan.cropWidth }}%×{{ scan.cropHeight }}%</span>\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption\">\n                                {{ formatDuration(scan.duration) }} • {{ new Date(scan.created).toLocaleString() }}\n                            </v-list-item-subtitle>\n\n                            <template v-slot:append>\n                                <div class=\"d-flex ga-1\">\n                                    <v-btn v-if=\"scan.focusStacks > 1\" \n                                        icon=\"mdi-layers-triple\" \n                                        size=\"small\" \n                                        variant=\"text\" \n                                        color=\"blue\"\n                                        @click.stop=\"stackScan(selectedProject.name, scan.index)\"\n                                        :title=\"`Stack ${scan.focusStacks} focus images`\"></v-btn>\n                                    <v-btn icon=\"mdi-cloud-upload\" size=\"small\" variant=\"text\" disabled></v-btn>\n                                    <v-btn icon=\"mdi-download\" size=\"small\" variant=\"text\"\n                                        @click.stop=\"downloadScan(selectedProject.name, scan.index)\"\n                                        :title=\"`Download scan #${scan.index}`\"></v-btn>\n                                    <v-btn icon=\"mdi-delete\" size=\"small\" variant=\"text\" color=\"error\"\n                                        @click.stop=\"handleDeleteScan(selectedProject.name, scan.index)\"></v-btn>\n                                </div>\n                            </template>\n                        </v-list-item>\n                    </v-list>\n                </v-card>\n            </v-col>\n        </v-row>\n\n        <v-dialog v-model=\"showNewProjectDialog\" max-width=\"500\">\n            <v-card>\n                <v-card-title>New Project</v-card-title>\n                <v-card-text>\n                    <v-text-field v-model=\"newProjectName\" label=\"Project Name\" variant=\"outlined\" density=\"comfortable\"\n                        class=\"mb-4\"></v-text-field>\n                    <v-textarea v-model=\"newProjectDescription\" label=\"Description (optional)\" variant=\"outlined\"\n                        density=\"comfortable\" rows=\"2\"></v-textarea>\n                </v-card-text>\n                <v-card-actions>\n                    <v-spacer></v-spacer>\n                    <v-btn @click=\"showNewProjectDialog = false\">Cancel</v-btn>\n                    <v-btn color=\"primary\" @click=\"createProject\" :disabled=\"!newProjectName.trim()\">Create</v-btn>\n                </v-card-actions>\n            </v-card>\n        </v-dialog>\n\n        <v-dialog v-model=\"showDeleteDialog\" max-width=\"400\">\n            <v-card>\n                <v-card-title>Confirm Delete</v-card-title>\n                <v-card-text>\n                    {{ deleteMessage }}\n                </v-card-text>\n                <v-card-actions>\n                    <v-spacer></v-spacer>\n                    <v-btn @click=\"showDeleteDialog = false\">Cancel</v-btn>\n                    <v-btn color=\"error\" @click=\"executeDelete\">Delete</v-btn>\n                </v-card-actions>\n            </v-card>\n        </v-dialog>\n\n        <v-snackbar v-model=\"showSnackbar\" :timeout=\"3000\" :color=\"snackbarColor\">\n            {{ snackbarMessage }}\n        </v-snackbar>\n    </v-container>\n</template>\n\n<script>\n    export default {\n    data() {\n        return {\n            projects: [],\n            selectedProject: null,\n            showNewProjectDialog: false,\n            newProjectName: '',\n            newProjectDescription: '',\n            showDeleteDialog: false,\n            showSnackbar: false,\n            snackbarMessage: '',\n            snackbarColor: 'success',\n            deleteMessage: '',\n            deleteAction: null,\n            apiUrl: `http://${window.location.hostname}:8000`\n        }\n    },\n    methods: {\n        selectProject(project) {\n            this.selectedProject = project;\n        },\n        \n        getStatusColor(status) {\n            const colors = {\n                completed: 'success',\n                running: 'primary',\n                failed: 'error',\n                cancelled: 'warning',\n                paused: 'info'\n            };\n            return colors[status] || 'grey';\n        },\n        \n        getStatusIcon(status) {\n            const icons = {\n                completed: 'mdi-check',\n                running: 'mdi-loading',\n                failed: 'mdi-alert-circle',\n                cancelled: 'mdi-cancel',\n                paused: 'mdi-pause'\n            };\n            return icons[status] || 'mdi-help';\n        },\n        \n        formatDuration(seconds) {\n            if (!seconds) return '0s';\n            const mins = Math.floor(seconds / 60);\n            const secs = Math.floor(seconds % 60);\n            return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;\n        },\n        \n        createProject() {\n            this.send({\n                topic: 'create_project',\n                payload: {\n                    name: this.newProjectName,\n                    description: this.newProjectDescription\n                }\n            });\n            this.showNewProjectDialog = false;\n            this.newProjectName = '';\n            this.newProjectDescription = '';\n        },\n        \n        downloadProject(projectName) {\n            window.open(`${this.apiUrl}/latest/projects/${encodeURIComponent(projectName)}/zip`, '_blank');\n        },\n        \n       \n        downloadScan(projectName, scanIndex) {\n            const params = new URLSearchParams();\n            params.append('scan_indices', scanIndex);\n            window.open(`${this.apiUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/zip?${params.toString()}`, '_blank');\n        },\n        \n        stackScan(projectName, scanIndex) {\n            this.send({\n                topic: 'stack_scan',\n                payload: { projectName, scanIndex }\n            });\n            this.snackbarMessage = `Starting focus stacking for scan #${scanIndex}...`;\n            this.snackbarColor = 'info';\n            this.showSnackbar = true;\n        },\n        \n        confirmDeleteProject(projectName) {\n            this.deleteMessage = `Delete project \"${projectName}\" and all its scans?`;\n            this.deleteAction = () => {\n                this.send({\n                    topic: 'delete_project',\n                    payload: projectName\n                });\n            };\n            this.showDeleteDialog = true;\n        },\n        \n        handleDeleteScan(projectName, scanIndex) {\n            this.send({\n                topic: 'debug',\n                payload: { \n                    action: 'delete_button_clicked',\n                    projectName, \n                    scanIndex \n                }\n            });\n            \n            this.deleteMessage = `Delete scan #${scanIndex} from \"${projectName}\"?`;\n            this.deleteAction = () => {\n                this.send({\n                    topic: 'delete_scan',\n                    payload: { projectName, scanIndex }\n                });\n            };\n            this.showDeleteDialog = true;\n        },\n        \n        executeDelete() {\n            if (this.deleteAction) {\n                this.deleteAction();\n            }\n            this.showDeleteDialog = false;\n            this.deleteAction = null;\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (Array.isArray(m.payload)) {\n                this.projects = m.payload;\n                if (this.selectedProject) {\n                    this.selectedProject = this.projects.find(p => p.name === this.selectedProject.name);\n                }\n            }\n            \n            // Handle stacking feedback\n            if (m.topic === 'stack_started') {\n                this.snackbarMessage = `Focus stacking started for scan #${m.payload.scanIndex}`;\n                this.snackbarColor = 'success';\n                this.showSnackbar = true;\n            }\n            \n            if (m.topic === 'stack_error') {\n                this.snackbarMessage = `Error: ${m.payload.error}`;\n                this.snackbarColor = 'error';\n                this.showSnackbar = true;\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 480,
+        "y": 120,
+        "wires": [
+            [
+                "06a3f95dba256542"
+            ]
+        ]
+    },
+    {
+        "id": "06a3f95dba256542",
+        "type": "function",
+        "z": "2ce6b211177c83ac",
+        "name": "Handle Actions",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst topic = msg.topic;\n\nif (topic === 'create_project') {\n    msg.url = `${baseUrl}/latest/projects/${msg.payload.name}?project_description=${encodeURIComponent(msg.payload.description || '')}`;\n    msg.method = 'POST';\n    msg.payload = {};\n    return [msg, null];\n}\n\nif (topic === 'delete_scan') {\n    const { projectName, scanIndex } = msg.payload;\n    msg.url = `${baseUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/${scanIndex}`;\n    msg.method = 'DELETE';\n    return [msg, null];\n}\n\nif (topic === 'delete_scan') {\n    const { projectName, scanIndex } = msg.payload;\n    msg.url = `${baseUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/?scan_index=${scanIndex}`;\n    msg.method = 'DELETE';\n    return [msg, null];\n}\n\nif (topic === 'stack_scan') {\n    const { projectName, scanIndex } = msg.payload;\n    msg.url = `${baseUrl}/latest/tasks/focus_stacking_task`;\n    msg.method = 'POST';\n    msg.payload = {\n        args: [projectName, scanIndex]\n    };\n    msg.headers = {\n        'Content-Type': 'application/json'\n    };\n    return [msg, null];\n}\n\nreturn [null, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 120,
+        "wires": [
+            [
+                "121d6e5eacbfe953"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "121d6e5eacbfe953",
+        "type": "http request",
+        "z": "2ce6b211177c83ac",
+        "name": "Execute Action",
+        "method": "use",
+        "ret": "obj",
+        "url": "",
+        "x": 840,
+        "y": 120,
+        "wires": [
+            [
+                "7e0306e6dc47939a"
+            ]
+        ]
+    },
+    {
+        "id": "fb79c3341f0d6689",
+        "type": "http request",
+        "z": "2ce6b211177c83ac",
+        "name": "GET Projects",
+        "method": "GET",
+        "ret": "obj",
+        "url": "http://localhost:8000/latest/projects/",
+        "x": 130,
+        "y": 120,
+        "wires": [
+            [
+                "6a1d0a613e0396d9"
+            ]
+        ]
+    },
+    {
+        "id": "7e0306e6dc47939a",
+        "type": "function",
+        "z": "2ce6b211177c83ac",
+        "name": "Trigger Reload",
+        "func": "return { payload: true };",
+        "outputs": 1,
+        "x": 1020,
+        "y": 120,
+        "wires": [
+            [
+                "fb79c3341f0d6689"
             ]
         ]
     },
@@ -2301,13 +2449,5 @@
         "wires": [
             []
         ]
-    },
-    {
-        "id": "ce6e284eb774aeb4",
-        "type": "global-config",
-        "env": [],
-        "modules": {
-            "@flowfuse/node-red-dashboard": "1.28.0"
-        }
     }
 ]
