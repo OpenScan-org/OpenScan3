@@ -10,8 +10,8 @@ import logging
 from openscan.controllers.settings import Settings
 from openscan.models.light import Light, LightConfig
 
-from . import gpio
-from .interfaces import SwitchableHardware, create_controller_registry
+from openscan.controllers.hardware import gpio
+from openscan.controllers.hardware.interfaces import SwitchableHardware, create_controller_registry
 
 logger = logging.getLogger(__name__)
 

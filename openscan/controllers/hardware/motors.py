@@ -18,11 +18,11 @@ import math
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from .interfaces import StatefulHardware, create_controller_registry
+from openscan.controllers.hardware.interfaces import StatefulHardware, create_controller_registry
 from openscan.config.motor import MotorConfig
 from openscan.models.motor import Motor
 from openscan.controllers.hardware import gpio
-from ..settings import Settings
+from openscan.controllers.settings import Settings
 from openscan.models.paths import PolarPoint3D, PathMethod
 
 
