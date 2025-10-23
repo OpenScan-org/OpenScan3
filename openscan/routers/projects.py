@@ -99,6 +99,15 @@ async def add_scan_with_description(project_name: str,
 
 
 
+@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
+async def get_scan(project_name: str, scan_index: int):
+    """Get Scan by project and index"""
+    try:
+        project_manager = get_project_manager()
+        return project_manager.get_scan_by_index(project_name, scan_index)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.delete("/{project_name}/{scan_index}/", response_model=bool)
 async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
@@ -130,7 +139,7 @@ async def delete_project(project_name: str):
 
     return project_manager.delete_project(project)
 
-@router.delete("/{project_name}/scans/{scan_index}", response_model=bool)
+@router.delete("/{project_name}/scans/", response_model=bool)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project"""
     project_manager = get_project_manager()
@@ -307,11 +316,14 @@ async def download_project(project_name: str):
 @router.get("/{project_name}/scans/zip")
 async def download_scans(project_name: str, scan_indices: List[int] = Query(None)):
     """Download selected scans from a project as a ZIP file stream
+
     This endpoint streams selected scans from a project as a ZIP file.
     If no scan indices are provided, all scans will be included.
+
     Args:
         project_name: Name of the project
         scan_indices: List of scan indices to include in the ZIP file
+
     Returns:
         StreamingResponse: ZIP file stream
     """
