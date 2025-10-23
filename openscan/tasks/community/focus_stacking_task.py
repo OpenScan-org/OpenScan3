@@ -11,8 +11,8 @@ import logging
 from pathlib import Path
 from typing import AsyncGenerator
 
-from app.controllers.services.tasks.base_task import BaseTask
-from app.models.task import TaskProgress
+from openscan.controllers.services.tasks.base_task import BaseTask
+from openscan.models.task import TaskProgress
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class FocusStackingTask(BaseTask):
         Yields:
             TaskProgress updates
         """
-        from app.controllers.services.projects import get_project_manager
+        from openscan.controllers.services.projects import get_project_manager
 
         logger.info(f"Starting focus stacking for project '{project_name}', scan {scan_index}")
 
@@ -138,12 +138,12 @@ class FocusStackingTask(BaseTask):
 
     def _find_batches(self, scan_dir: str) -> dict:
         """Find image batches (blocking I/O)."""
-        from app.utils.photos.stacking import find_image_batches
+        from openscan.utils.photos.stacking import find_image_batches
         return find_image_batches(scan_dir)
 
     def _calibrate_stacker(self, scan_dir: str, num_batches: int):
         """Calibrate the stacker (blocking CPU work)."""
-        from app.utils.photos.stacking import FocusStacker
+        from openscan.utils.photos.stacking import FocusStacker
         stacker = FocusStacker(downscale=0.25, jpeg_quality=90)
         stacker.calibrate_from_directory(scan_dir, num_batches=num_batches)
         return stacker
