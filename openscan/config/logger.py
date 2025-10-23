@@ -11,14 +11,16 @@ def _resolve_logs_dir() -> str:
 
     Precedence:
     1) OPENSCAN_LOG_DIR env var
-    2) ~/.openscan3/logs
+    2) /var/log/openscan3
     3) ./logs (cwd)
     """
     env_dir = os.getenv("OPENSCAN_LOG_DIR")
     if env_dir:
         return env_dir
-    home_dir = Path.home() / ".openscan3" / "logs"
-    return str(home_dir)
+    log_dir = Path("/var/log/openscan3")
+    if log_dir.exists():
+        return str(log_dir)
+    return "./logs"
 
 
 DEFAULT_LOGS_PATH = _resolve_logs_dir()
