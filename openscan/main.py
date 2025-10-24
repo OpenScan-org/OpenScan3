@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from openscan.config.logger import setup_logging, load_settings_json
+from openscan.config.logger import setup_logging
+from openscan.utils.settings import load_settings_json
 
 from openscan.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks, develop
 from openscan.controllers import device as device_controller
@@ -24,7 +25,7 @@ async def lifespan(app: FastAPI):
     task_manager = get_task_manager()
 
     # Load firmware settings controlling task autodiscovery (with precedence and packaged defaults)
-    autodiscovery_settings = load_settings_json("openscan_firmware.json") or {}
+    autodiscovery_settings = load_settings_json("openscan_firmware.json", subdirectory="firmware") or {}
 
     if autodiscovery_settings.get("task_autodiscovery_enabled", True):
         namespaces = autodiscovery_settings.get(

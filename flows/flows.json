@@ -2449,5 +2449,13 @@
         "wires": [
             []
         ]
+    },
+    {
+        "id": "50b55c688bd1fe30",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "@flowfuse/node-red-dashboard": "1.28.0"
+        }
     }
 ]

@@ -39,7 +39,11 @@ from openscan.controllers.hardware.endstops import EndstopController
 from openscan.controllers.hardware.gpio import cleanup_all_pins
 
 from openscan.controllers.services.projects import get_project_manager
-from openscan.config.logger import load_settings_json, find_settings_file
+from openscan.utils.settings import (
+    resolve_settings_dir,
+    resolve_settings_file,
+    iter_settings_dirs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,28 +59,10 @@ _scanner_device = ScannerDevice(
     initialized=False,
 )
 
-def _select_settings_dir() -> Path:
-    """Select a writable settings directory by precedence.
-
-    Precedence:
-    1) OPENSCAN_SETTINGS_DIR (env var)
-    2) /etc/openscan3/
-    3) ./settings/
-    """
-    env_dir = os.getenv("OPENSCAN_SETTINGS_DIR")
-    if env_dir:
-        return Path(env_dir)
-    etc_dir = Path("/etc/openscan3")
-    if etc_dir.exists():
-        return etc_dir
-    return Path("./settings")
-
-
 # Path to device configuration file (persisted)
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent
-SETTINGS_DIR = _select_settings_dir()
-DEVICE_CONFIG_FILE = SETTINGS_DIR / "device_config.json"
-DEFAULT_CAMERA_SETTINGS_FILE = SETTINGS_DIR / "default_camera_settings.json"
+SETTINGS_DIR = resolve_settings_dir("device")
+DEVICE_CONFIG_FILE = resolve_settings_file("device", "device_config.json")
 
 
 def load_device_config(config_file=None) -> dict:
@@ -422,29 +408,8 @@ def get_available_configs():
                 except Exception:
                     configs.append({"filename": file.name, "path": str(file)})
 
-    # Precedence directories: env -> /etc/openscan3 -> ./settings
-    for d in [Path(p) for p in (os.getenv("OPENSCAN_SETTINGS_DIR") or "").split(":") if p] + [Path("/etc/openscan3"), Path("./settings")]:
-        _append_from_dir(d)
-
-    # Packaged defaults
-    try:
-        pkg_dir = resources.files("openscan.resources.settings")
-        for file in pkg_dir.iterdir():
-            if file.name.endswith(".json"):
-                try:
-                    with file.open("r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    configs.append({
-                        "filename": file.name,
-                        "path": f"package://openscan.resources.settings/{file.name}",
-                        "name": data.get("name", "Unknown"),
-                        "model": data.get("model", "Unknown"),
-                        "shield": data.get("shield", "Unknown")
-                    })
-                except Exception:
-                    configs.append({"filename": file.name, "path": f"package://openscan.resources.settings/{file.name}"})
-    except Exception:
-        logger.debug("Packaged settings not available.")
+    for dir_path in iter_settings_dirs("device"):
+        _append_from_dir(dir_path)
 
     return configs
 

@@ -8,6 +8,8 @@ import shutil
 from openscan.models.scanner import ScannerDevice
 from openscan.controllers import device
 
+from openscan.utils.settings import resolve_settings_dir
+
 router = APIRouter(
     prefix="/device",
     tags=["device"],
@@ -51,7 +53,7 @@ async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequ
             temp_path = temp_file.name
 
         # Save to settings directory with a meaningful name
-        settings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings")
+        settings_dir = resolve_settings_dir("device")
         os.makedirs(settings_dir, exist_ok=True)
 
         filename = f"{filename.config_file}.json"

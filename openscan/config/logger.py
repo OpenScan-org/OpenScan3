@@ -5,6 +5,12 @@ import os
 from importlib import resources
 from pathlib import Path
 
+from openscan.utils.settings import (
+    resolve_settings_dir,
+    resolve_settings_file,
+    load_settings_json as load_settings_json_from_utils,
+)
+
 
 def _resolve_logs_dir() -> str:
     """Resolve a writable logs directory with precedence.
@@ -24,56 +30,18 @@ def _resolve_logs_dir() -> str:
 
 
 DEFAULT_LOGS_PATH = _resolve_logs_dir()
-
-
-def _settings_dirs_precedence() -> list[str]:
-    """Return list of settings directories in precedence order (not including packaged defaults)."""
-    dirs: list[str] = []
-    env_dir = os.getenv("OPENSCAN_SETTINGS_DIR")
-    if env_dir:
-        dirs.append(env_dir)
-    dirs.append("/etc/openscan3")
-    dirs.append("./settings")
-    return dirs
-
-
-def find_settings_file(filename: str) -> str | None:
+def get_settings_file(filename: str) -> str | None:
     """Find a settings file according to precedence directories.
 
     Returns an absolute path if found, else None.
     """
-    for d in _settings_dirs_precedence():
-        candidate = Path(d) / filename
-        if candidate.exists():
-            return str(candidate)
-    return None
+    candidate = resolve_settings_file("logging", filename)
+    return str(candidate) if candidate.exists() else None
 
 
 def load_settings_json(filename: str) -> dict | None:
-    """Load a JSON settings file from precedence or packaged defaults.
-
-    Attempt order:
-    - OPENSCAN_SETTINGS_DIR
-    - /etc/openscan3/
-    - ./settings/
-    - packaged defaults (openscan.resources.settings)
-    """
-    path = find_settings_file(filename)
-    if path:
-        try:
-            return json.loads(Path(path).read_text())
-        except Exception:
-            logging.getLogger(__name__).exception("Failed reading settings from %s", path)
-
-    # packaged defaults
-    try:
-        pkg = resources.files("openscan.resources.settings").joinpath(filename)
-        if pkg.is_file():
-            with pkg.open("r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception:
-        logging.getLogger(__name__).exception("Failed reading packaged default for %s", filename)
-    return None
+    """Load a JSON settings file from precedence."""
+    return load_settings_json_from_utils(filename, subdirectory="logging")
 
 
 def _sanitize_logging_config(config: dict) -> dict:
