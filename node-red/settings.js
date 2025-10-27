@@ -1,5 +1,5 @@
 module.exports = {
-    flowFile: "/opt/openscan3/node-red/node-red.json",
+    flowFile: "/opt/openscan3/node-red/flows.json",
     uiPort: process.env.PORT || 1880,
     uiHost: "127.0.0.1",
     // Serve the editor at /nodered so root can redirect to /dashboard safely
