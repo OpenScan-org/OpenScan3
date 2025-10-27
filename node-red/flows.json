@@ -1,0 +1,2461 @@
+[
+    {
+        "id": "b2a8b33c044f1cd2",
+        "type": "tab",
+        "label": "Welcome",
+        "disabled": false,
+        "info": "Device initialization"
+    },
+    {
+        "id": "tab_main",
+        "type": "tab",
+        "label": "Scan",
+        "disabled": false,
+        "info": "Scan Tab"
+    },
+    {
+        "id": "e972879e9326214e",
+        "type": "tab",
+        "label": "Settings",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "2ce6b211177c83ac",
+        "type": "tab",
+        "label": "Files",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "4f742f0f2fc66498",
+        "type": "tab",
+        "label": "Documentation",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "cd7a210d1b23a0c9",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "fixed",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "6ad432c6b93eca65",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#0094CE",
+            "bgPage": "#eeeeee",
+            "groupBg": "#ffffff",
+            "groupOutline": "#cccccc"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "6d83e6d26505be0c",
+        "type": "ui-page",
+        "name": "Scan",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "/scan",
+        "icon": "cube-scan",
+        "layout": "grid",
+        "theme": "6ad432c6b93eca65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 2,
+        "className": "",
+        "visible": true,
+        "disabled": false
+    },
+    {
+        "id": "95467d067e6410a3",
+        "type": "ui-group",
+        "name": "Scan Settings",
+        "page": "6d83e6d26505be0c",
+        "width": "5",
+        "height": 1,
+        "order": 1,
+        "showTitle": false,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "8c3264ab3ca542c4",
+        "type": "ui-page",
+        "name": "Settings",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "/settings",
+        "icon": "cog",
+        "layout": "grid",
+        "theme": "6ad432c6b93eca65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 4,
+        "className": "",
+        "visible": true,
+        "disabled": "false"
+    },
+    {
+        "id": "fe4833c643ca033b",
+        "type": "ui-group",
+        "name": "Group 2",
+        "page": "8c3264ab3ca542c4",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": false,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "eb2d8d4bf8b1b99e",
+        "type": "ui-link",
+        "name": "Patreon",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "https://www.patreon.com/OpenScan",
+        "icon": "gift",
+        "order": 6,
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "1c267b3f55f8654c",
+        "type": "ui-group",
+        "name": "Preview",
+        "page": "6d83e6d26505be0c",
+        "width": "5",
+        "height": "2",
+        "order": 2,
+        "showTitle": false,
+        "className": "preview-max-height",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "f39dc1d9d8f61c78",
+        "type": "ui-link",
+        "name": "Discord",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "https://discord.gg/gpaKWPpWtG",
+        "icon": "lightbulb-group",
+        "order": 7,
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "8b62e4cd29a1d0cc",
+        "type": "ui-page",
+        "name": "Documentation",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "/documentation",
+        "icon": "book-open-page-variant",
+        "layout": "grid",
+        "theme": "6ad432c6b93eca65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 5,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "1e5a891c9b357156",
+        "type": "ui-spacer",
+        "group": "fe4833c643ca033b",
+        "name": "spacer",
+        "tooltip": "",
+        "order": 4,
+        "width": 1,
+        "height": 1,
+        "className": ""
+    },
+    {
+        "id": "8649fbb96031727d",
+        "type": "ui-page",
+        "name": "Files",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "/files",
+        "icon": "file-arrow-up-down-outline",
+        "layout": "grid",
+        "theme": "6ad432c6b93eca65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 3,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "7449d1c690545ca6",
+        "type": "ui-group",
+        "name": "Group 4",
+        "page": "8649fbb96031727d",
+        "width": "12",
+        "height": 1,
+        "order": 1,
+        "showTitle": false,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "doc_group",
+        "type": "ui-group",
+        "name": "API Documentation",
+        "page": "8b62e4cd29a1d0cc",
+        "width": 12,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "welcome_page",
+        "type": "ui-page",
+        "name": "Welcome",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "/",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "6ad432c6b93eca65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "visible": true,
+        "disabled": false
+    },
+    {
+        "id": "welcome_group",
+        "type": "ui-group",
+        "name": "Device Setup",
+        "page": "welcome_page",
+        "width": 12,
+        "height": 1,
+        "order": 1,
+        "showTitle": false,
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "cbb9633b02aa9fa1",
+        "type": "ui-group",
+        "name": "Scan Progress",
+        "page": "6d83e6d26505be0c",
+        "width": 12,
+        "height": 1,
+        "order": 3,
+        "showTitle": false,
+        "className": "",
+        "visible": "false",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "9cfdc423d02b0e36",
+        "type": "ui-page",
+        "name": "old",
+        "ui": "cd7a210d1b23a0c9",
+        "path": "/old",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "6ad432c6b93eca65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 8,
+        "className": "",
+        "visible": "false",
+        "disabled": "false"
+    },
+    {
+        "id": "767c16795f96de37",
+        "type": "ui-group",
+        "name": "Group 8",
+        "page": "9cfdc423d02b0e36",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "ba29b2ed1c599e6b",
+        "type": "ui-spacer",
+        "group": "767c16795f96de37",
+        "name": "spacer",
+        "tooltip": "",
+        "order": 1,
+        "width": 1,
+        "height": 1,
+        "className": ""
+    },
+    {
+        "id": "a0dfd410d0551a55",
+        "type": "ui-template",
+        "z": "b2a8b33c044f1cd2",
+        "group": "",
+        "page": "",
+        "ui": "cd7a210d1b23a0c9",
+        "name": "Global Styles",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "head": "",
+        "format": "<script>\n(function() {\n    const externalLinks = [\n        'https://www.patreon.com/OpenScan',\n        'https://discord.gg/gpaKWPpWtG'\n    ];\n    \n    externalLinks.forEach(url => {\n        const link = document.querySelector(`a[href=\"${url}\"]`);\n        if (link) {\n            link.setAttribute('target', '_blank');\n            link.setAttribute('rel', 'noopener noreferrer');\n        }\n    });\n})();\n</script>\n\n<style>\n.hide-when-disabled:has(.v-input--disabled) {\n    display: none !important;\n}\n\n</style>",
+        "storeOutMessages": true,
+        "passthru": true,
+        "resendOnRefresh": true,
+        "templateScope": "widget:ui",
+        "className": "",
+        "x": 150,
+        "y": 360,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "45854bde7f715b4a",
+        "type": "ui-control",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Page Control",
+        "ui": "cd7a210d1b23a0c9",
+        "events": "all",
+        "x": 1090,
+        "y": 160,
+        "wires": [
+            [
+                "d31620673fa02e2f"
+            ]
+        ]
+    },
+    {
+        "id": "5fd7d852b81e4abb",
+        "type": "inject",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Check on Startup",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "retryCount",
+                "v": "0",
+                "vt": "num"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.5,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 170,
+        "y": 120,
+        "wires": [
+            [
+                "92d24c24a27a0147",
+                "639dd19402f28600"
+            ]
+        ]
+    },
+    {
+        "id": "92d24c24a27a0147",
+        "type": "http request",
+        "z": "b2a8b33c044f1cd2",
+        "name": "GET Device Info",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8000/latest/device/info",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 380,
+        "y": 120,
+        "wires": [
+            [
+                "b7cf26536c65da62"
+            ]
+        ]
+    },
+    {
+        "id": "b7cf26536c65da62",
+        "type": "function",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Handle Error & Retry",
+        "func": "if (msg.statusCode === \"ECONNREFUSED\") {\n    msg.retryCount = (msg.retryCount || 0) + 1;\n    node.warn(`Device info request failed (attempt ${msg.retryCount}). Retrying in 2 seconds...`);\n    return [null, msg];\n}\n\nif (msg.statusCode && msg.statusCode >= 200 && msg.statusCode < 300) {\n    return [msg, null];\n}\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 580,
+        "y": 120,
+        "wires": [
+            [
+                "d714e35821e459eb",
+                "8fa646aa8efbc63a",
+                "bcb5a0e753516f08"
+            ],
+            [
+                "7146546c937f0b2c"
+            ]
+        ]
+    },
+    {
+        "id": "7146546c937f0b2c",
+        "type": "delay",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Wait 2s",
+        "pauseType": "delay",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 380,
+        "y": 180,
+        "wires": [
+            [
+                "92d24c24a27a0147"
+            ]
+        ]
+    },
+    {
+        "id": "d714e35821e459eb",
+        "type": "function",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Check Configuration",
+        "func": "const device = msg.payload;\n\nif (device.model === null) {\n    msg.payload = {\n        pages: {\n            show: ['Welcome'],\n            hide: ['Scan', 'Files', 'Settings', 'Documentation']\n        }\n    };\n} else {\n    msg.payload = {\n        pages: {\n            hide: ['Welcome'],\n            show: ['Scan', 'Files', 'Settings', 'Documentation']\n        },\n        groups:{\n            show: ['Scan Settings', 'Preview'],\n            hide: ['Scan Progress']\n        }\n    };\n    \n    setTimeout(() => {\n        node.send({payload: 'Scan'});\n    }, 100);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 840,
+        "y": 160,
+        "wires": [
+            [
+                "45854bde7f715b4a"
+            ]
+        ]
+    },
+    {
+        "id": "8fa646aa8efbc63a",
+        "type": "function",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Store Device Config",
+        "func": "const motors = msg.payload.motors || {};\nconst cameras = msg.payload.cameras || {};\nconst lights = msg.payload.lights || {};\n\nglobal.set('deviceInfo', msg.payload);\nglobal.set('motorNames', Object.keys(motors));\nglobal.set('motors', motors);\nglobal.set('cameraNames', Object.keys(cameras));\nglobal.set('cameras', cameras);\nglobal.set('lightNames', Object.keys(lights));\nglobal.set('lights', lights);\nglobal.set('baseUrl', 'http://localhost:8000');\n\nreturn null;",
+        "outputs": 0,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 840,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "639dd19402f28600",
+        "type": "ui-template",
+        "z": "b2a8b33c044f1cd2",
+        "group": "welcome_group",
+        "page": "",
+        "ui": "",
+        "name": "Welcome UI",
+        "order": 1,
+        "width": "12",
+        "height": "10",
+        "format": "<template>\n    <v-container fluid class=\"fill-height\">\n        <v-row align=\"center\" justify=\"center\">\n            <v-col cols=\"12\" md=\"8\" lg=\"6\">\n                <v-card elevation=\"8\">\n                    <v-card-title class=\"text-h4 text-center pa-6\">\n                        <v-icon size=\"48\" color=\"primary\" class=\"mr-2\">mdi-view-360</v-icon>\n                        Welcome to OpenScan\n                    </v-card-title>\n                    \n                    <v-divider></v-divider>\n                    \n                    <v-card-text class=\"pa-6\">\n                        <p class=\"text-h6 mb-4\">Let's set up your scanner</p>\n                        <p class=\"text-body-1 mb-6\">Select your device configuration to get started:</p>\n                        \n                        <v-select\n                            v-model=\"selectedConfig\"\n                            :items=\"configOptions\"\n                            label=\"Device Configuration\"\n                            variant=\"outlined\"\n                            density=\"comfortable\"\n                            :loading=\"loading\"\n                            prepend-inner-icon=\"mdi-cog\"\n                        >\n                            <template v-slot:item=\"{ props, item }\">\n                                <v-list-item v-bind=\"props\">\n                                    <template v-slot:subtitle v-if=\"item.raw.subtitle\">\n                                        {{ item.raw.subtitle }}\n                                    </template>\n                                </v-list-item>\n                            </template>\n                        </v-select>\n                        \n                        <v-alert v-if=\"error\" type=\"error\" class=\"mt-4\">\n                            {{ error }}\n                        </v-alert>\n                        \n                        <v-alert v-if=\"initializing\" type=\"info\" class=\"mt-4\">\n                            <v-progress-circular indeterminate size=\"20\" class=\"mr-2\"></v-progress-circular>\n                            {{ initMessage }}\n                        </v-alert>\n                    </v-card-text>\n                    \n                    <v-card-actions class=\"pa-6 pt-0\">\n                        <v-spacer></v-spacer>\n                        <v-btn\n                            color=\"primary\"\n                            size=\"large\"\n                            variant=\"flat\"\n                            :disabled=\"!selectedConfig || loading || initializing\"\n                            @click=\"initializeDevice\"\n                        >\n                            Initialize Scanner\n                            <v-icon end>mdi-arrow-right</v-icon>\n                        </v-btn>\n                    </v-card-actions>\n                </v-card>\n                \n                <v-card elevation=\"2\" class=\"mt-4\">\n                    <v-card-text>\n                        <p class=\"text-body-2 text-center\">\n                            <v-icon size=\"small\" class=\"mr-1\">mdi-information</v-icon>\n                            Don't see your device? Check the \n                            <a href=\"https://github.com/OpenScan-org/OpenScan3\" target=\"_blank\">documentation</a>\n                            for help adding custom configurations.\n                        </p>\n                    </v-card-text>\n                </v-card>\n            </v-col>\n        </v-row>\n    </v-container>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            selectedConfig: null,\n            configOptions: [],\n            loading: false,\n            initializing: false,\n            initMessage: 'Initializing hardware...',\n            error: null,\n            apiUrl: `http://${window.location.hostname}:8000`\n        }\n    },\n    mounted() {\n        this.fetchConfigs();\n    },\n    methods: {\n        async fetchConfigs() {\n            this.loading = true;\n            try {\n                const res = await fetch(`${this.apiUrl}/latest/device/configurations`);\n                if (!res.ok) throw new Error(`HTTP ${res.status}`);\n                \n                const data = await res.json();\n                const validConfigs = data.configs.filter(c => c.model && c.model !== 'Unknown');\n                \n                this.configOptions = validConfigs.map(c => ({\n                    title: c.name,\n                    value: c.filename,\n                    subtitle: `${c.model} • ${c.shield}`\n                }));\n                \n                if (this.configOptions.length === 0) {\n                    this.error = 'No valid device configurations found';\n                }\n            } catch (err) {\n                this.error = `Failed to load configurations: ${err.message}`;\n            } finally {\n                this.loading = false;\n            }\n        },\n        \n        async initializeDevice() {\n            if (!this.selectedConfig) return;\n            \n            this.initializing = true;\n            this.error = null;\n            \n            try {\n                this.initMessage = 'Setting configuration...';\n                \n                const setRes = await fetch(`${this.apiUrl}/latest/device/configurations/current`, {\n                    method: 'PUT',\n                    headers: { 'Content-Type': 'application/json' },\n                    body: JSON.stringify({ config_file: this.selectedConfig })\n                });\n                \n                if (!setRes.ok) {\n                    const error = await setRes.text();\n                    throw new Error(`Failed to set config: ${error}`);\n                }\n                \n                this.initMessage = 'Initializing hardware... This may take a moment.';\n                \n                const initRes = await fetch(`${this.apiUrl}/latest/device/configurations/current/initialize?detect_cameras=true`, {\n                    method: 'POST',\n                    headers: { 'Content-Type': 'application/json' },\n                    body: JSON.stringify({})\n                });\n                \n                if (!initRes.ok) {\n                    const error = await initRes.text();\n                    throw new Error(`Failed to initialize: ${error}`);\n                }\n                \n                this.initMessage = 'Success! Redirecting...';\n                this.send({ topic: 'init_complete' });\n                \n            } catch (err) {\n                this.error = `Initialization failed: ${err.message}`;\n                this.initializing = false;\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 370,
+        "y": 240,
+        "wires": [
+            [
+                "a562b04fc08ca823"
+            ]
+        ]
+    },
+    {
+        "id": "a562b04fc08ca823",
+        "type": "function",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Navigate to Scan",
+        "func": "if (msg.topic === 'init_complete') {\n    msg.payload = {\n        pages: {\n            hide: ['Welcome', 'Scan Progress'],\n            show: ['Scan', 'Scan Settings', 'Preview', 'Files', 'Settings', 'Documentation']\n        }\n    };\n    \n    setTimeout(() => {\n        node.send({payload: 'Scan'});\n    }, 500);\n    \n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 240,
+        "wires": [
+            [
+                "45854bde7f715b4a"
+            ]
+        ]
+    },
+    {
+        "id": "bcb5a0e753516f08",
+        "type": "link out",
+        "z": "b2a8b33c044f1cd2",
+        "name": "device settings",
+        "mode": "link",
+        "links": [
+            "1d9ae1ecd3ce1b62",
+            "781010eccfc12506",
+            "e9ac796932d7acbe",
+            "0bde9e56b4a48751",
+            "e7df615a95e9bc4d"
+        ],
+        "x": 755,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "d31620673fa02e2f",
+        "type": "link out",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Page Control",
+        "mode": "link",
+        "links": [
+            "0bde9e56b4a48751",
+            "e7df615a95e9bc4d"
+        ],
+        "x": 1235,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "handle_system_action",
+        "type": "function",
+        "z": "b2a8b33c044f1cd2",
+        "name": "Build System Request",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst action = msg.topic;\nconst saveConfig = msg.payload.save_config;\n\nif (action === 'reboot') {\n    msg.url = `${baseUrl}/latest/device/reboot?save_config=${saveConfig}`;\n    msg.method = 'POST';\n} else if (action === 'shutdown') {\n    msg.url = `${baseUrl}/latest/device/shutdown?save_config=${saveConfig}`;\n    msg.method = 'POST';\n} else {\n    return null;\n}\n\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 420,
+        "wires": [
+            [
+                "execute_system_action"
+            ]
+        ]
+    },
+    {
+        "id": "execute_system_action",
+        "type": "http request",
+        "z": "b2a8b33c044f1cd2",
+        "name": "POST System Action",
+        "method": "use",
+        "ret": "obj",
+        "url": "",
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 590,
+        "y": 420,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6b7b0ae54d831284",
+        "type": "ui-template",
+        "z": "b2a8b33c044f1cd2",
+        "group": "",
+        "page": "",
+        "ui": "cd7a210d1b23a0c9",
+        "name": "System Controls",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "head": "",
+        "format": "<template>\n    <Teleport to=\"#app-bar-actions\" :disabled=\"false\" defer>\n        <div class=\"d-flex ga-1\">\n            <v-btn \n                icon=\"mdi-restart\" \n                size=\"small\" \n                variant=\"text\"\n                @click=\"showRebootDialog = true\"\n                title=\"Restart System\"\n            ></v-btn>\n            <v-btn \n                icon=\"mdi-power\" \n                size=\"small\" \n                variant=\"text\"\n                @click=\"showShutdownDialog = true\"\n                title=\"Shutdown System\"\n            ></v-btn>\n        </div>\n    </Teleport>\n\n    <v-dialog v-model=\"showRebootDialog\" max-width=\"400\">\n        <v-card>\n            <v-card-title>Restart System</v-card-title>\n            <v-card-text>\n                Are you sure you want to restart the scanner?\n                <v-checkbox \n                    v-model=\"saveConfigReboot\" \n                    label=\"Save current configuration\"\n                    density=\"compact\"\n                    class=\"mt-2\"\n                ></v-checkbox>\n            </v-card-text>\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn @click=\"showRebootDialog = false\">Cancel</v-btn>\n                <v-btn color=\"primary\" @click=\"reboot\">Restart</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n\n    <v-dialog v-model=\"showShutdownDialog\" max-width=\"400\">\n        <v-card>\n            <v-card-title>Shutdown System</v-card-title>\n            <v-card-text>\n                Are you sure you want to shutdown the scanner?\n                <v-checkbox \n                    v-model=\"saveConfigShutdown\" \n                    label=\"Save current configuration\"\n                    density=\"compact\"\n                    class=\"mt-2\"\n                ></v-checkbox>\n            </v-card-text>\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn @click=\"showShutdownDialog = false\">Cancel</v-btn>\n                <v-btn color=\"error\" @click=\"shutdown\">Shutdown</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            showRebootDialog: false,\n            showShutdownDialog: false,\n            saveConfigReboot: true,\n            saveConfigShutdown: true\n        }\n    },\n    methods: {\n        reboot() {\n            this.send({\n                topic: 'reboot',\n                payload: { save_config: this.saveConfigReboot }\n            });\n            this.showRebootDialog = false;\n        },\n        shutdown() {\n            this.send({\n                topic: 'shutdown',\n                payload: { save_config: this.saveConfigShutdown }\n            });\n            this.showShutdownDialog = false;\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": true,
+        "templateScope": "widget:ui",
+        "className": "",
+        "x": 160,
+        "y": 420,
+        "wires": [
+            [
+                "handle_system_action"
+            ]
+        ]
+    },
+    {
+        "id": "259be66c32036685",
+        "type": "ui-template",
+        "z": "b2a8b33c044f1cd2",
+        "group": "",
+        "page": "",
+        "ui": "cd7a210d1b23a0c9",
+        "name": "Queued tasks",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "head": "",
+        "format": "<template>\n    <Teleport to=\"#app-bar-actions\" defer>\n        <v-menu offset-y>\n            <template v-slot:activator=\"{ props }\">\n                <v-btn v-bind=\"props\" size=\"small\" variant=\"text\">\n                    <v-badge :content=\"activeTasks.length\" :model-value=\"activeTasks.length > 0\" color=\"primary\">\n                        <v-icon>mdi-format-list-checks</v-icon>\n                    </v-badge>\n                </v-btn>\n            </template>\n\n            <v-list width=\"350\">\n                <v-list-subheader>Active Tasks</v-list-subheader>\n                \n                <v-list-item v-if=\"activeTasks.length === 0\">\n                    <v-list-item-title class=\"text-grey\">No active tasks</v-list-item-title>\n                </v-list-item>\n\n                <v-list-item\n                    v-for=\"task in activeTasks\"\n                    :key=\"task.id\"\n                    :class=\"{ 'task-running': task.status === 'running' }\"\n                >\n                    <template v-slot:prepend>\n                        <v-icon :color=\"statusConfig[task.status].color\">\n                            {{ statusConfig[task.status].icon }}\n                        </v-icon>\n                    </template>\n\n                    <v-list-item-title>{{ task.name }}</v-list-item-title>\n                    \n                    <v-list-item-subtitle>\n                        <div class=\"d-flex flex-column\">\n                            <span>{{ task.status }}</span>\n                            <v-progress-linear\n                                v-if=\"task.status === 'running' && task.progress?.total\"\n                                :model-value=\"(task.progress.current / task.progress.total) * 100\"\n                                height=\"4\"\n                                class=\"mt-1\"\n                            ></v-progress-linear>\n                            <span v-if=\"task.progress?.message\" class=\"text-caption\">\n                                {{ task.progress.message }}\n                            </span>\n                        </div>\n                    </v-list-item-subtitle>\n\n                    <template v-slot:append v-if=\"task.status === 'running'\">\n                        <v-btn icon=\"mdi-close\" size=\"x-small\" variant=\"text\" @click.stop=\"cancelTask(task.id)\"></v-btn>\n                    </template>\n                </v-list-item>\n            </v-list>\n        </v-menu>\n    </Teleport>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            tasks: [],\n            pollInterval: null,\n            statusConfig: {\n                pending: { color: 'grey', icon: 'mdi-clock-outline' },\n                running: { color: 'primary', icon: 'mdi-loading' },\n                paused: { color: 'warning', icon: 'mdi-pause' }\n            }\n        }\n    },\n    computed: {\n        activeTasks() {\n            return this.tasks.filter(t => ['pending', 'running', 'paused'].includes(t.status));\n        }\n    },\n    mounted() {\n        this.fetchTasks();\n        this.pollInterval = setInterval(this.fetchTasks, 2000);\n    },\n    beforeUnmount() {\n        clearInterval(this.pollInterval);\n    },\n    methods: {\n        async fetchTasks() {\n            try {\n                const response = await fetch(`http://${window.location.hostname}:8000/latest/tasks/`);\n                if (response.ok) this.tasks = await response.json();\n            } catch (error) {\n                console.error('Failed to fetch tasks:', error);\n            }\n        },\n        async cancelTask(taskId) {\n            try {\n                const response = await fetch(`http://${window.location.hostname}:8000/latest/tasks/${taskId}`, {\n                    method: 'DELETE'\n                });\n                if (response.ok) await this.fetchTasks();\n            } catch (error) {\n                console.error('Failed to cancel task:', error);\n            }\n        }\n    }\n}\n</script>\n\n<style scoped>\n.task-running {\n    background-color: rgba(var(--v-theme-primary), 0.05);\n}\n</style>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": true,
+        "templateScope": "widget:ui",
+        "className": "",
+        "x": 160,
+        "y": 480,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "shutter_slider",
+        "type": "ui-slider",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Shutter Speed",
+        "label": "Shutter (ms)",
+        "tooltip": "",
+        "order": 1,
+        "width": "6",
+        "height": "1",
+        "passthru": true,
+        "outs": "all",
+        "topic": "shutter",
+        "topicType": "str",
+        "thumbLabel": "false",
+        "showTicks": "false",
+        "min": "1",
+        "max": "200",
+        "step": "1",
+        "className": "",
+        "iconPrepend": "",
+        "iconAppend": "",
+        "color": "",
+        "colorTrack": "",
+        "colorThumb": "",
+        "showTextField": true,
+        "x": 460,
+        "y": 60,
+        "wires": [
+            [
+                "99ae037cb276d15f"
+            ]
+        ]
+    },
+    {
+        "id": "eceb4abc3ec9c1c3",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Prepare Camera Settings",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nconst cameraName = cameraNames[0] || 'imx519';\n\n// Convert milliseconds to microseconds\nconst shutterMs = msg.payload;\nconst shutterUs = shutterMs * 1000;\n\n// Store for use in scan creation\nglobal.set('currentShutterUs', shutterUs);\n\n// Create partial update payload\nmsg.payload = {\n    shutter: shutterUs\n};\n\n// Set the URL with required query parameter\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\nmsg.method = \"PATCH\"\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 900,
+        "y": 60,
+        "wires": [
+            [
+                "a628271d740fd3b1"
+            ]
+        ]
+    },
+    {
+        "id": "a628271d740fd3b1",
+        "type": "http request",
+        "z": "tab_main",
+        "name": "PATCH Camera Settings",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 1170,
+        "y": 60,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "99ae037cb276d15f",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Rate Limit (Keep Last)",
+        "func": "const RATE_LIMIT_MS = 300;\n\n// Get context variables\nlet lastSent = context.get('lastSent') || 0;\nlet pendingMsg = context.get('pendingMsg');\nlet timer = context.get('timer');\n\nconst now = Date.now();\nconst timeSinceLastSent = now - lastSent;\n\n// Clear any existing timer\nif (timer) {\n    clearTimeout(timer);\n    context.set('timer', null);\n}\n\n// If enough time has passed, send immediately\nif (timeSinceLastSent >= RATE_LIMIT_MS) {\n    context.set('lastSent', now);\n    context.set('pendingMsg', null);\n    return msg;\n}\n\n// Otherwise, store this message and schedule it\ncontext.set('pendingMsg', msg);\n\nconst delay = RATE_LIMIT_MS - timeSinceLastSent;\ntimer = setTimeout(() => {\n    const stored = context.get('pendingMsg');\n    if (stored) {\n        context.set('lastSent', Date.now());\n        context.set('pendingMsg', null);\n        node.send(stored);\n    }\n    context.set('timer', null);\n}, delay);\n\ncontext.set('timer', timer);\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 60,
+        "wires": [
+            [
+                "eceb4abc3ec9c1c3"
+            ]
+        ]
+    },
+    {
+        "id": "photo_count_slider",
+        "type": "ui-slider",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Photo Count",
+        "label": "Photos",
+        "tooltip": "",
+        "order": 2,
+        "width": "6",
+        "height": "1",
+        "passthru": true,
+        "outs": "all",
+        "topic": "points",
+        "topicType": "str",
+        "thumbLabel": "false",
+        "showTicks": "false",
+        "min": "5",
+        "max": "400",
+        "step": "5",
+        "className": "",
+        "iconPrepend": "",
+        "iconAppend": "",
+        "color": "",
+        "colorTrack": "",
+        "colorThumb": "",
+        "showTextField": true,
+        "x": 450,
+        "y": 100,
+        "wires": [
+            [
+                "store_photo_count"
+            ]
+        ]
+    },
+    {
+        "id": "store_photo_count",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Store Photo Count",
+        "func": "global.set('photoCount', msg.payload);\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 670,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "06da97c823889239",
+        "type": "ui-dropdown",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Focus Mode",
+        "label": "Focus Mode",
+        "tooltip": "",
+        "order": 3,
+        "width": "6",
+        "height": "1",
+        "passthru": true,
+        "multiple": false,
+        "chips": true,
+        "clearable": false,
+        "options": [
+            {
+                "label": "Autofocus",
+                "value": "autofocus",
+                "type": "str"
+            },
+            {
+                "label": "Manual Focus",
+                "value": "manual",
+                "type": "str"
+            },
+            {
+                "label": "Focus Stacking",
+                "value": "stacking",
+                "type": "str"
+            }
+        ],
+        "payload": "",
+        "topic": "focus_mode",
+        "topicType": "str",
+        "className": "",
+        "typeIsComboBox": false,
+        "msgTrigger": "onChange",
+        "x": 450,
+        "y": 180,
+        "wires": [
+            [
+                "e6592dbcdba144ec"
+            ]
+        ]
+    },
+    {
+        "id": "e6592dbcdba144ec",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Handle Focus Mode",
+        "func": "const mode = msg.payload;\nglobal.set('focusMode', mode);\n\nnode.status({fill:\"blue\", shape:\"dot\", text:`Mode: ${mode}`});\n\n// Control slider visibility via enabled property\nconst manualMsg = { enabled: mode === 'manual' };\nconst stackingMsg = { enabled: mode === 'stacking' };\n\nreturn [msg, manualMsg, stackingMsg];",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 640,
+        "y": 180,
+        "wires": [
+            [
+                "c138fc77ae37523b"
+            ],
+            [
+                "5f2e89e85426d823"
+            ],
+            [
+                "6b7cbe505516483a",
+                "04a0aadb828e11dd",
+                "34cf7fd92ed614f9"
+            ]
+        ]
+    },
+    {
+        "id": "5f2e89e85426d823",
+        "type": "ui-slider",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Manual Focus",
+        "label": "Focus",
+        "tooltip": "",
+        "order": 4,
+        "width": "6",
+        "height": "1",
+        "passthru": true,
+        "outs": "all",
+        "topic": "manual_focus",
+        "topicType": "str",
+        "thumbLabel": "false",
+        "showTicks": "always",
+        "min": "3",
+        "max": "15",
+        "step": "0.2",
+        "className": "hide-when-disabled",
+        "iconPrepend": "",
+        "iconAppend": "",
+        "color": "",
+        "colorTrack": "",
+        "colorThumb": "",
+        "showTextField": true,
+        "x": 880,
+        "y": 240,
+        "wires": [
+            [
+                "ff9851a5e690310a"
+            ]
+        ]
+    },
+    {
+        "id": "6b7cbe505516483a",
+        "type": "ui-slider",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Min Focus",
+        "label": "Min Focus",
+        "tooltip": "",
+        "order": 7,
+        "width": "6",
+        "height": "1",
+        "passthru": false,
+        "outs": "all",
+        "topic": "min_focus",
+        "topicType": "str",
+        "thumbLabel": "false",
+        "showTicks": "always",
+        "min": "3",
+        "max": "15",
+        "step": "0.2",
+        "className": "hide-when-disabled",
+        "iconPrepend": "",
+        "iconAppend": "",
+        "color": "",
+        "colorTrack": "",
+        "colorThumb": "",
+        "showTextField": true,
+        "x": 870,
+        "y": 280,
+        "wires": [
+            [
+                "34441a623f609c0a",
+                "ff9851a5e690310a"
+            ]
+        ]
+    },
+    {
+        "id": "04a0aadb828e11dd",
+        "type": "ui-slider",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Max Focus",
+        "label": "Max Focus",
+        "tooltip": "",
+        "order": 6,
+        "width": "6",
+        "height": "1",
+        "passthru": false,
+        "outs": "all",
+        "topic": "max_focus",
+        "topicType": "str",
+        "thumbLabel": "false",
+        "showTicks": "always",
+        "min": "3",
+        "max": "15",
+        "step": "0.2",
+        "className": "hide-when-disabled",
+        "iconPrepend": "",
+        "iconAppend": "",
+        "color": "",
+        "colorTrack": "",
+        "colorThumb": "",
+        "showTextField": true,
+        "x": 870,
+        "y": 320,
+        "wires": [
+            [
+                "34441a623f609c0a",
+                "ff9851a5e690310a"
+            ]
+        ]
+    },
+    {
+        "id": "34cf7fd92ed614f9",
+        "type": "ui-slider",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Stack Size",
+        "label": "Stack Size",
+        "tooltip": "",
+        "order": 5,
+        "width": "6",
+        "height": "1",
+        "passthru": true,
+        "outs": "all",
+        "topic": "stack_size",
+        "topicType": "str",
+        "thumbLabel": "false",
+        "showTicks": "false",
+        "min": "2",
+        "max": "20",
+        "step": "1",
+        "className": "hide-when-disabled",
+        "iconPrepend": "",
+        "iconAppend": "",
+        "color": "",
+        "colorTrack": "",
+        "colorThumb": "",
+        "showTextField": true,
+        "x": 870,
+        "y": 360,
+        "wires": [
+            [
+                "34441a623f609c0a"
+            ]
+        ]
+    },
+    {
+        "id": "34441a623f609c0a",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Store Stacking Params",
+        "func": "const topic = msg.topic;\nconst value = msg.payload;\n\nif (topic === 'min_focus') {\n    global.set('minFocus', value);\n} else if (topic === 'max_focus') {\n    global.set('maxFocus', value);\n} else if (topic === 'stack_size') {\n    global.set('stackSize', value);\n}\n\nnode.status({fill:\"green\", shape:\"dot\", text:`${topic}: ${value}`});\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1100,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ff9851a5e690310a",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Rate Limit",
+        "func": "const RATE_LIMIT_MS = 300;\n\nlet lastSent = context.get('lastSent') || 0;\nlet pendingMsg = context.get('pendingMsg');\nlet timer = context.get('timer');\n\nconst now = Date.now();\nconst timeSinceLastSent = now - lastSent;\n\nif (timer) {\n    clearTimeout(timer);\n    context.set('timer', null);\n}\n\nif (timeSinceLastSent >= RATE_LIMIT_MS) {\n    context.set('lastSent', now);\n    context.set('pendingMsg', null);\n    return msg;\n}\n\ncontext.set('pendingMsg', msg);\n\nconst delay = RATE_LIMIT_MS - timeSinceLastSent;\ntimer = setTimeout(() => {\n    const stored = context.get('pendingMsg');\n    if (stored) {\n        context.set('lastSent', Date.now());\n        context.set('pendingMsg', null);\n        node.send(stored);\n    }\n    context.set('timer', null);\n}, delay);\n\ncontext.set('timer', timer);\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1060,
+        "y": 280,
+        "wires": [
+            [
+                "b5fced6a00ef7408"
+            ]
+        ]
+    },
+    {
+        "id": "b5fced6a00ef7408",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Store Manual Focus",
+        "func": "const focusMode = global.get('focusMode');\nif (focusMode === 'manual' || focusMode === 'stacking' ) {\n    global.set('manualFocus', msg.payload);\n    node.status({fill:\"green\", shape:\"dot\", text:`Focus: ${msg.payload}`});\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1240,
+        "y": 280,
+        "wires": [
+            [
+                "c138fc77ae37523b"
+            ]
+        ]
+    },
+    {
+        "id": "c138fc77ae37523b",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Update Camera Focus",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nconst cameraName = cameraNames[0] || 'imx519';\n\nconst focusMode = global.get('focusMode') || 'autofocus';\nconst currentSettings = cameras[cameraName]?.settings || {};\n\nconst payload = { ...currentSettings };\n\nif (focusMode === 'autofocus') {\n    payload.AF = true;\n    payload.manual_focus = null;\n    payload.AF_window = null;\n} else if (focusMode === 'manual' || focusMode === 'stacking') {\n    payload.AF = false;\n    payload.manual_focus = global.get('manualFocus') || 10.0;\n}\n\nmsg.payload = payload;\nmsg.method = \"PATCH\";\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\nmsg.cameraName = cameraName;\nmsg.baseUrl = baseUrl;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1240,
+        "y": 180,
+        "wires": [
+            [
+                "8325ef759be28696"
+            ]
+        ]
+    },
+    {
+        "id": "06e02c4a3457c1e2",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Set Names",
+        "func": "const cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nmsg.cameraName = cameraNames[0] || 'imx519';\n\nconst motorNames = global.get('motorNames') || [];\nmsg.motorNames = motorNames;\n\n\nconst lightNames = global.get('lightNames')[0]\nmsg.lightNames = lightNames;\n\n\nreturn msg;\n\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 250,
+        "y": 540,
+        "wires": [
+            [
+                "a38a4c8c01f45932"
+            ]
+        ]
+    },
+    {
+        "id": "51eba6094203b851",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Prepare Motor Request",
+        "func": "const motorName = msg.topic;\n\n// Parse payload if it’s a JSON string\nif (typeof msg.payload === 'string') {\n    try {\n        msg.payload = JSON.parse(msg.payload);\n    } catch (e) {\n        node.error(\"Invalid JSON payload\", msg);\n        return null;\n    }\n}\n\nconst motorList = global.get('motorNames') || [];\n\n// Check if topic is in motor list\nif (!motorList.includes(motorName)) {\n    return null;\n}\n\nconst baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nmsg.url = `${baseUrl}/latest/motors/${motorName}/angle`;\nmsg.method = \"PATCH\"\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 690,
+        "y": 560,
+        "wires": [
+            [
+                "445e11d37a094f43"
+            ]
+        ]
+    },
+    {
+        "id": "445e11d37a094f43",
+        "type": "http request",
+        "z": "tab_main",
+        "name": "PATCH Motor Angle",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 940,
+        "y": 560,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "store_crop_params",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Store Crop Parameters",
+        "func": "if (msg.topic === 'crop_applied') {\n    const crop = msg.payload;\n    \n    global.set('cropParams', {\n        x: crop.x_percent,\n        y: crop.y_percent,\n        width: crop.width_percent,\n        height: crop.height_percent\n    });\n    \n    node.status({\n        fill: \"green\", \n        shape: \"dot\", \n        text: `${Math.round(crop.width_percent)}% × ${Math.round(crop.height_percent)}%`\n    });\n    \n    msg.payload = {\n        class: 'green',\n        msg: `Crop applied: ${Math.round(crop.width_percent)}% × ${Math.round(crop.height_percent)}%`\n    };\n    \n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 690,
+        "y": 600,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "27bc46e34f7d895a",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Build Light Toggle Request",
+        "func": "const lightNames = global.get('lightNames') || [];\nconst lightName = lightNames[0];\n\nif (!lightName) {\n    node.error('No lights configured');\n    return null;\n}\n\nif (msg.topic != \"toggle_light\"){\n    return null\n}\n\nconst baseUrl = global.get('baseUrl');\nmsg.url = `${baseUrl}/latest/lights/${lightName}/toggle`;\nmsg.method = 'PATCH';\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 520,
+        "wires": [
+            [
+                "51bc5e4efaa6fa55"
+            ]
+        ]
+    },
+    {
+        "id": "51bc5e4efaa6fa55",
+        "type": "http request",
+        "z": "tab_main",
+        "name": "PATCH Toggle Light",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 940,
+        "y": 520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "start_scan_button",
+        "type": "ui-button",
+        "z": "tab_main",
+        "group": "95467d067e6410a3",
+        "name": "Start Scan",
+        "label": "Start Scan",
+        "order": 8,
+        "width": 8,
+        "height": "1",
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "className": "",
+        "icon": "play",
+        "iconPosition": "left",
+        "payload": "open_modal",
+        "payloadType": "str",
+        "topic": "start_scan",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 90,
+        "y": 740,
+        "wires": [
+            [
+                "01ce92867fcd4af2"
+            ]
+        ]
+    },
+    {
+        "id": "781010eccfc12506",
+        "type": "link in",
+        "z": "tab_main",
+        "name": "link in 1",
+        "links": [
+            "bcb5a0e753516f08"
+        ],
+        "x": 145,
+        "y": 60,
+        "wires": [
+            [
+                "22c9f4bcc174a555",
+                "7fa6a8a5096f60e8",
+                "a668c91328c01035"
+            ]
+        ]
+    },
+    {
+        "id": "22c9f4bcc174a555",
+        "type": "function",
+        "z": "tab_main",
+        "name": "get Settings",
+        "func": "const cameras = msg.payload.cameras || {};\nconst cameraNames = Object.keys(cameras);\nconst shutterUs = cameras[cameraNames[0]]?.settings?.shutter || 50000;\nconst shutterMs = shutterUs / 1000;\nmsg.payload = shutterMs;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 270,
+        "y": 60,
+        "wires": [
+            [
+                "shutter_slider"
+            ]
+        ]
+    },
+    {
+        "id": "7fa6a8a5096f60e8",
+        "type": "function",
+        "z": "tab_main",
+        "name": "set default",
+        "func": "msg.payload = 5\nreturn msg",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 270,
+        "y": 100,
+        "wires": [
+            [
+                "photo_count_slider"
+            ]
+        ]
+    },
+    {
+        "id": "abed4b43ad49e890",
+        "type": "function",
+        "z": "tab_main",
+        "name": "get Settings",
+        "func": "const cameras = msg.payload.cameras || {};\nconst cameraNames = Object.keys(cameras);\nconst manual_focus = cameras[cameraNames[0]]?.settings?.manual_focus;\nmsg.payload = manual_focus;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 670,
+        "y": 240,
+        "wires": [
+            [
+                "5f2e89e85426d823"
+            ]
+        ]
+    },
+    {
+        "id": "e9ac796932d7acbe",
+        "type": "link in",
+        "z": "tab_main",
+        "name": "link in 2",
+        "links": [
+            "bcb5a0e753516f08"
+        ],
+        "x": 555,
+        "y": 240,
+        "wires": [
+            [
+                "abed4b43ad49e890",
+                "b3a1277bdbd2355d"
+            ]
+        ]
+    },
+    {
+        "id": "b3a1277bdbd2355d",
+        "type": "function",
+        "z": "tab_main",
+        "name": "set default",
+        "func": "\nconst stackSize = 3\n\nmsg = {}\nmsg.payload = stackSize\nglobal.set('stackSize', stackSize)\nreturn msg",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 690,
+        "y": 360,
+        "wires": [
+            [
+                "34cf7fd92ed614f9"
+            ]
+        ]
+    },
+    {
+        "id": "a668c91328c01035",
+        "type": "function",
+        "z": "tab_main",
+        "name": "set default",
+        "func": "msg.payload = \"autofocus\"\nreturn msg",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 270,
+        "y": 180,
+        "wires": [
+            [
+                "06da97c823889239"
+            ]
+        ]
+    },
+    {
+        "id": "01ce92867fcd4af2",
+        "type": "http request",
+        "z": "tab_main",
+        "name": "GET Projects",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8000/latest/projects/",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 250,
+        "y": 740,
+        "wires": [
+            [
+                "3bf0df3193eed8cc"
+            ]
+        ]
+    },
+    {
+        "id": "3bf0df3193eed8cc",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Prepare Modal Data",
+        "func": "const projects = msg.payload || {};\n\nconst photoCount = global.get('photoCount') || 130;\nconst focusMode = global.get('focusMode') || 'autofocus';\nconst cameras = global.get('cameras') || {};\nconst cameraNames = Object.keys(cameras);\nconst cameraName = cameraNames[0];\nconst shutterMs = (cameras[cameraName]?.settings?.shutter || 50000) / 1000;\n\nconst projectList = Object.entries(projects).map(([name, data]) => {\n    const scanCount = Object.keys(data.scans || {}).length;\n    const created = new Date(data.created).toLocaleDateString();\n    const description = data.description || '';\n    \n    return {\n        name: name,\n        scanCount: scanCount,\n        created: created,\n        description: description\n    };\n});\n\nmsg.payload = {\n    projects: projectList,\n    summary: {\n        photos: photoCount,\n        shutter: shutterMs,\n        focusMode: focusMode\n    }\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 740,
+        "wires": [
+            [
+                "6d3627e9594d19f2"
+            ]
+        ]
+    },
+    {
+        "id": "3677953ccba80ba4",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Unified Scan Handler",
+        "func": "if (msg.topic !== 'begin_scan') return null;\n\nconst data = msg.payload;\nconst baseUrl = global.get('baseUrl');\nconst cameras = global.get('cameras') || {};\nconst cameraName = Object.keys(cameras)[0];\n\nglobal.set('currentProjectName', data.project);\nglobal.set('scanDescription', data.scanDescription);\n\nlet cameraSettings = {...cameras[cameraName]?.settings};\nconst shutterOverride = global.get('currentShutterUs');\nif (shutterOverride !== undefined) {\n    cameraSettings.shutter = shutterOverride;\n}\n\nconst photoCount = global.get('photoCount') || 130;\nconst focusMode = global.get('focusMode') || 'autofocus';\nconst cropParams = global.get('cropParams');\n\nconst scanSettings = {\n    path_method: 'fibonacci',\n    points: photoCount,\n    image_format: 'jpeg',\n    optimize_path: true\n};\n\nif (focusMode === 'stacking') {\n    scanSettings.focus_stacks = global.get('stackSize') || 3;\n    scanSettings.focus_range = [\n        global.get('minFocus') || 10.0,\n        global.get('maxFocus') || 15.0\n    ];\n}\n\nif (cropParams?.width && cropParams?.height) {\n    cameraSettings.crop_width = Math.round(100 - cropParams.width);\n    cameraSettings.crop_height = Math.round(100 - cropParams.height);\n}\n\nconst requests = [];\n\nif (data.isNewProject) {\n    requests.push({\n        method: 'POST',\n        url: `${baseUrl}/latest/projects/${data.project}?project_description=${encodeURIComponent(data.projectDescription || '')}`,\n        payload: {},\n        headers: [{\n            keyType: 'other',\n            keyValue: 'accept',\n            valueType: 'other',\n            valueValue: 'application/json'\n        }]\n    });\n}\n\nif (cropParams?.width && cropParams?.height) {\n    requests.push({\n        method: 'PATCH',\n        url: `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`,\n        payload: cameraSettings,\n        headers: [\n            {\n                keyType: 'other',\n                keyValue: 'Content-Type',\n                valueType: 'other',\n                valueValue: 'application/json'\n            },\n            {\n                keyType: 'other',\n                keyValue: 'accept',\n                valueType: 'other',\n                valueValue: 'application/json'\n            }\n        ]\n    });\n}\n\nrequests.push({\n    method: 'POST',\n    url: `${baseUrl}/latest/projects/${data.project}/scan?camera_name=${cameraName}&scan_description=${encodeURIComponent(data.scanDescription)}`,\n    payload: scanSettings,\n    headers: [\n        {\n            keyType: 'other',\n            keyValue: 'Content-Type',\n            valueType: 'other',\n            valueValue: 'application/json'\n        },\n        {\n            keyType: 'other',\n            keyValue: 'accept',\n            valueType: 'other',\n            valueValue: 'application/json'\n        }\n    ]\n});\n\nflow.set('scanRequests', requests);\nflow.set('scanRequestIndex', 0);\n\nconst firstRequest = requests[0];\nmsg.method = firstRequest.method;\nmsg.url = firstRequest.url;\nmsg.payload = firstRequest.payload;\nmsg.headers = firstRequest.headers;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 920,
+        "y": 740,
+        "wires": [
+            [
+                "6c8bebf2ce65cdc9"
+            ]
+        ]
+    },
+    {
+        "id": "6c8bebf2ce65cdc9",
+        "type": "http request",
+        "z": "tab_main",
+        "name": "Sequential HTTP Request",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 310,
+        "y": 840,
+        "wires": [
+            [
+                "cc0a592b06cc827f"
+            ]
+        ]
+    },
+    {
+        "id": "1d9ae1ecd3ce1b62",
+        "type": "link in",
+        "z": "tab_main",
+        "name": "link in 5",
+        "links": [
+            "bcb5a0e753516f08"
+        ],
+        "x": 135,
+        "y": 540,
+        "wires": [
+            [
+                "06e02c4a3457c1e2"
+            ]
+        ]
+    },
+    {
+        "id": "8325ef759be28696",
+        "type": "http request",
+        "z": "tab_main",
+        "name": "PATCH Camera Focus",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 1460,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a79688fa1497ec7f",
+        "type": "ui-template",
+        "z": "tab_main",
+        "group": "cbb9633b02aa9fa1",
+        "page": "",
+        "ui": "",
+        "name": "Scan Progress Display",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-card class=\"scan-progress-card\" elevation=\"2\">\n        <v-card-title class=\"d-flex justify-space-between align-center pb-2\">\n            <span>Scan in Progress</span>\n            <v-chip \n                :color=\"statusColor\" \n                size=\"small\"\n                prepend-icon=\"mdi-circle\"\n            >\n                {{ statusText }}\n            </v-chip>\n        </v-card-title>\n\n        <v-divider></v-divider>\n\n        <v-card-text class=\"pa-6\">\n            <div class=\"text-center mb-6\">\n                <v-progress-circular\n                    :model-value=\"progressPercent\"\n                    :size=\"180\"\n                    :width=\"12\"\n                    color=\"primary\"\n                >\n                    <div class=\"progress-text\">\n                        <div class=\"text-h4\">{{ current }}</div>\n                        <div class=\"text-caption\">of {{ total }}</div>\n                        <div class=\"text-h6 mt-1\">{{ progressPercent }}%</div>\n                    </div>\n                </v-progress-circular>\n            </div>\n\n            <v-progress-linear\n                :model-value=\"progressPercent\"\n                height=\"8\"\n                rounded\n                color=\"primary\"\n                class=\"mb-4\"\n            ></v-progress-linear>\n\n            <v-row dense class=\"mb-4\">\n                <v-col cols=\"6\">\n                    <div class=\"stat-box\">\n                        <v-icon size=\"small\" class=\"mr-1\">mdi-clock-outline</v-icon>\n                        <span class=\"text-caption\">Duration</span>\n                        <div class=\"text-h6\">{{ formattedDuration }}</div>\n                    </div>\n                </v-col>\n                <v-col cols=\"6\">\n                    <div class=\"stat-box\">\n                        <v-icon size=\"small\" class=\"mr-1\">mdi-timer-sand</v-icon>\n                        <span class=\"text-caption\">Est. Remaining</span>\n                        <div class=\"text-h6\">{{ estimatedRemaining }}</div>\n                    </div>\n                </v-col>\n            </v-row>\n\n            <v-row dense class=\"mb-3\">\n                <v-col :cols=\"status === 'running' || status === 'paused' ? 8 : 12\">\n                    <v-btn\n                        v-if=\"status === 'running'\"\n                        @click=\"pauseScan\"\n                        color=\"warning\"\n                        variant=\"flat\"\n                        block\n                        prepend-icon=\"mdi-pause\"\n                    >\n                        Pause\n                    </v-btn>\n                    <v-btn\n                        v-else-if=\"status === 'paused'\"\n                        @click=\"resumeScan\"\n                        color=\"success\"\n                        variant=\"flat\"\n                        block\n                        prepend-icon=\"mdi-play\"\n                    >\n                        Resume\n                    </v-btn>\n                </v-col>\n                <v-col :cols=\"status === 'running' || status === 'paused' ? 4 : 12\">\n                    <v-btn\n                        @click=\"cancelScan\"\n                        color=\"error\"\n                        variant=\"outlined\"\n                        block\n                        prepend-icon=\"mdi-stop\"\n                    >\n                        Cancel\n                    </v-btn>\n                </v-col>\n            </v-row>\n\n            <v-alert\n                v-if=\"systemMessage\"\n                :type=\"messageType\"\n                density=\"compact\"\n                class=\"mt-2\"\n            >\n                {{ systemMessage }}\n            </v-alert>\n\n            <div class=\"text-caption text-medium-emphasis mt-4\">\n                <div>Project: {{ projectName }}</div>\n                <div v-if=\"scanDescription\">{{ scanDescription }}</div>\n            </div>\n        </v-card-text>\n    </v-card>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            status: 'pending',\n            current: 0,\n            total: 0,\n            duration: 0,\n            systemMessage: null,\n            projectName: '',\n            scanDescription: '',\n            scanIndex: null,\n            cameraName: '',\n            pollInterval: null\n        }\n    },\n    computed: {\n        progressPercent() {\n            return this.total > 0 ? Math.round((this.current / this.total) * 100) : 0;\n        },\n        statusColor() {\n            const colors = {\n                running: 'success',\n                paused: 'warning',\n                completed: 'info',\n                failed: 'error',\n                cancelled: 'error'\n            };\n            return colors[this.status] || 'grey';\n        },\n        statusText() {\n            return this.status.charAt(0).toUpperCase() + this.status.slice(1);\n        },\n        formattedDuration() {\n            const minutes = Math.floor(this.duration / 60);\n            const seconds = Math.floor(this.duration % 60);\n            return `${minutes}:${seconds.toString().padStart(2, '0')}`;\n        },\n        estimatedRemaining() {\n            if (this.current === 0 || this.status !== 'running') return '--:--';\n            const avgTimePerPhoto = this.duration / this.current;\n            const remaining = (this.total - this.current) * avgTimePerPhoto;\n            const minutes = Math.floor(remaining / 60);\n            const seconds = Math.floor(remaining % 60);\n            return `${minutes}:${seconds.toString().padStart(2, '0')}`;\n        },\n        messageType() {\n            if (this.systemMessage?.includes('error') || this.systemMessage?.includes('failed')) {\n                return 'error';\n            }\n            if (this.systemMessage?.includes('warning')) {\n                return 'warning';\n            }\n            return 'info';\n        }\n    },\n    methods: {\n        startPolling() {\n            if (this.pollInterval) return;\n            this.pollInterval = setInterval(() => {\n                this.fetchScanStatus();\n            }, 200);\n        },\n        stopPolling() {\n            if (this.pollInterval) {\n                clearInterval(this.pollInterval);\n                this.pollInterval = null;\n            }\n        },\n        async fetchScanStatus() {\n            if (!this.scanIndex || !this.projectName) return;\n            \n            try {\n                const response = await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/status`\n                );\n                const data = await response.json();\n                \n                this.status = data.status;\n                this.current = data.current_step;\n                this.total = data.total_steps;\n                this.duration = data.duration;\n                this.systemMessage = data.system_message;\n                \n                if (['completed', 'failed', 'cancelled'].includes(this.status)) {\n                    this.stopPolling();\n                    setTimeout(() => {\n                        this.send({ topic: 'scan_ended', status: this.status });\n                    }, 3000);\n                }\n            } catch (error) {\n                console.error('Error fetching scan status:', error);\n            }\n        },\n        async pauseScan() {\n            try {\n                await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/pause`,\n                    { method: 'PATCH' }\n                );\n            } catch (error) {\n                console.error('Error pausing scan:', error);\n            }\n        },\n        async resumeScan() {\n            try {\n                await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/resume?camera_name=${this.cameraName}`,\n                    { method: 'PATCH' }\n                );\n            } catch (error) {\n                console.error('Error resuming scan:', error);\n            }\n        },\n        async cancelScan() {\n            try {\n                await fetch(\n                    `http://${window.location.hostname}:8000/latest/projects/${this.projectName}/scans/${this.scanIndex}/cancel`,\n                    { method: 'PATCH' }\n                );\n            } catch (error) {\n                console.error('Error cancelling scan:', error);\n            }\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m) return;\n            \n            if (m.topic === 'scan_started') {\n                this.projectName = m.payload.projectName;\n                this.scanIndex = m.payload.scanIndex;\n                this.total = m.payload.totalSteps;\n                this.cameraName = m.payload.cameraName;\n                this.scanDescription = m.payload.description;\n                this.current = 0;\n                this.duration = 0;\n                this.status = 'running';\n                this.systemMessage = null;\n                this.startPolling();\n            }\n        }\n    },\n    beforeUnmount() {\n        this.stopPolling();\n    }\n}\n</script>\n\n<style scoped>\n.scan-progress-card {\n    width: 100%;\n}\n\n.progress-text {\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n}\n\n.stat-box {\n    text-align: center;\n    padding: 8px;\n    background: rgba(0, 0, 0, 0.02);\n    border-radius: 4px;\n}\n</style>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 880,
+        "y": 820,
+        "wires": [
+            [
+                "f56539df9c045dcd"
+            ]
+        ]
+    },
+    {
+        "id": "cc0a592b06cc827f",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Sequential Request Handler",
+        "func": "const requests = flow.get('scanRequests');\nconst currentIndex = flow.get('scanRequestIndex');\n\nif (currentIndex >= requests.length - 1) {\n    flow.set('scanRequests', null);\n    flow.set('scanRequestIndex', null);\n    \n    if (msg.payload.project_name && msg.payload.index !== undefined) {\n        const cameras = global.get('cameras') || {};\n        const cameraName = Object.keys(cameras)[0];\n        \n        const scanData = {\n            projectName: msg.payload.project_name,\n            scanIndex: msg.payload.index,\n            taskId: msg.payload.task_id,\n            totalSteps: msg.payload.settings.points,\n            cameraName: cameraName,\n            description: global.get('scanDescription') || ''\n        };\n        \n        global.set('currentScan', scanData);\n        \n        node.status({fill:\"green\", shape:\"dot\", text:\"Scan started\"});\n        \n        return [\n            { topic: 'scan_started', payload: scanData },\n            { topic: 'toggle_scan_view', payload: 'start' }\n        ];\n    }\n    \n    return [msg, null];\n}\n\nconst nextIndex = currentIndex + 1;\nflow.set('scanRequestIndex', nextIndex);\n\nconst nextRequest = requests[nextIndex];\nmsg.method = nextRequest.method;\nmsg.url = nextRequest.url;\nmsg.payload = nextRequest.payload;\nmsg.headers = nextRequest.headers;\n\nreturn [null, null, msg];",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 840,
+        "wires": [
+            [
+                "a79688fa1497ec7f"
+            ],
+            [
+                "f56539df9c045dcd"
+            ],
+            [
+                "6c8bebf2ce65cdc9"
+            ]
+        ]
+    },
+    {
+        "id": "f56539df9c045dcd",
+        "type": "function",
+        "z": "tab_main",
+        "name": "Scan Visibility Controller",
+        "func": "if (msg.topic === 'toggle_scan_view') {\n    if (msg.payload === 'start') {\n        msg.payload = {\n            group: {\n                hide: ['Scan Settings', 'Preview'],\n                show: ['Scan Progress']\n            }\n        };\n        return msg\n    }\n}\n\nif (msg.topic === 'scan_ended') {\n    msg.payload = {\n        group: {\n            show: ['Scan Settings', 'Preview'],\n            hide: ['Scan Progress']\n        }\n    };\n\n    return msg\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1130,
+        "y": 840,
+        "wires": [
+            [
+                "2e25563d1ac1a405"
+            ]
+        ]
+    },
+    {
+        "id": "2e25563d1ac1a405",
+        "type": "ui-control",
+        "z": "tab_main",
+        "name": "UI Control - Scan Groups",
+        "ui": "cd7a210d1b23a0c9",
+        "events": "all",
+        "x": 1370,
+        "y": 840,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a38a4c8c01f45932",
+        "type": "ui-template",
+        "z": "tab_main",
+        "group": "1c267b3f55f8654c",
+        "page": "",
+        "ui": "",
+        "name": "Preview with Controls",
+        "order": 1,
+        "width": "6",
+        "height": "0",
+        "format": "<template>\n    <div class=\"preview-wrapper\">\n        <div class=\"preview-container\">\n            <div class=\"image-wrapper\" :style=\"imageWrapperStyle\">\n                <img :src=\"previewUrl\" class=\"preview-image\" :style=\"imageStyle\" @load=\"onImageLoad\" ref=\"previewImage\" crossorigin=\"anonymous\" />\n                \n                <canvas v-if=\"showHeatmap && !cropMode\" ref=\"heatmapCanvas\" class=\"heatmap-overlay\"></canvas>\n                \n                <svg v-if=\"cropMode\" class=\"crop-overlay\" \n                     @mousedown=\"startCrop\" \n                     @mousemove=\"updateCrop\" \n                     @mouseup=\"endCrop\"\n                     @touchstart=\"startCrop\"\n                     @touchmove=\"updateCrop\"\n                     @touchend=\"endCrop\">\n                    <rect v-if=\"cropSize.width > 0\" \n                          :x=\"cropRect.x\" \n                          :y=\"cropRect.y\" \n                          :width=\"cropSize.width\" \n                          :height=\"cropSize.height\"\n                          fill=\"rgba(0, 148, 206, 0.2)\"\n                          stroke=\"#0094CE\"\n                          stroke-width=\"2\"\n                          stroke-dasharray=\"5,5\" />\n                    <text v-if=\"cropSize.width > 0\"\n                          :x=\"cropRect.x + 5\"\n                          :y=\"cropRect.y + 20\"\n                          fill=\"#0094CE\"\n                          font-size=\"12\">\n                        {{ Math.round((cropSize.width / imageSize.width) * 100) }}% × {{ Math.round((cropSize.height / imageSize.height) * 100) }}%\n                    </text>\n                </svg>\n            </div>\n        </div>\n        \n        <div v-if=\"!cropMode\" class=\"motor-controls\">\n            <div></div>\n            <v-btn icon=\"mdi-arrow-up-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(0, -10)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-left-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(1, -30)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-right-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(1, 30)\"></v-btn>\n            <div></div>\n            <v-btn icon=\"mdi-arrow-down-bold\" size=\"small\" variant=\"flat\" @click=\"moveMotor(0, 10)\"></v-btn>\n            <div></div>\n        </div>\n        \n        <div class=\"top-right-controls\">\n            <v-btn v-if=\"!cropMode\" class=\"light-btn\" icon=\"mdi-lightbulb\" size=\"small\" variant=\"flat\" @click=\"toggleLight\"></v-btn>\n            <v-btn v-if=\"!cropMode\" icon=\"mdi-blur\" size=\"small\" variant=\"flat\" @click=\"toggleHeatmap\" :color=\"showHeatmap ? 'primary' : ''\"></v-btn>\n            <v-btn class=\"crop-btn\" icon=\"mdi-crop\" size=\"small\" variant=\"flat\" @click=\"toggleCrop\"></v-btn>\n        </div>\n        \n        <canvas v-if=\"!cropMode\" ref=\"histogram\" class=\"histogram\"></canvas>\n    </div>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            previewUrl: '',\n            motorNames: [],\n            cropMode: false,\n            cropSize: { width: 0, height: 0 },\n            cropRect: { x: 0, y: 0 },\n            appliedCrop: { width: 0, height: 0, width_percent: 0, height_percent: 0 },\n            isDragging: false,\n            cropDrawn: false,\n            startPos: { x: 0, y: 0 },\n            imageSize: { width: 0, height: 0 },\n            histogramInterval: null,\n            showHeatmap: false,\n            imageLoaded: false\n        }\n    },\n    mounted() {\n        this.checkImageLoaded();\n        this.histogramInterval = setInterval(() => {\n            if (this.imageLoaded) {\n                this.drawHistogram();\n                if (this.showHeatmap) this.drawHeatmap();\n            }\n        }, 50);\n    },\n    unmounted() {\n        if (this.histogramInterval) {\n            clearInterval(this.histogramInterval);\n        }\n    },\n    computed: {\n        imageWrapperStyle() {\n            if (this.appliedCrop.width_percent > 0 && !this.cropMode) {\n                const aspectRatio = this.appliedCrop.height / this.appliedCrop.width;\n                return {\n                    width: '100%',\n                    paddingTop: (aspectRatio * 100) + '%',\n                    position: 'relative',\n                    overflow: 'hidden'\n                };\n            }\n            return { width: '100%' };\n        },\n        imageStyle() {\n            if (this.appliedCrop.width_percent > 0 && !this.cropMode) {\n                return {\n                    position: 'absolute',\n                    top: '50%',\n                    left: '50%',\n                    width: (10000 / this.appliedCrop.width_percent) + '%',\n                    transform: 'translate(-50%, -50%)'\n                };\n            }\n            return { width: '100%' };\n        }\n    },\n    methods: {\n        checkImageLoaded() {\n            const img = this.$refs.previewImage;\n            if (img && img.complete && img.naturalWidth > 0) {\n                this.onImageLoad({ target: img });\n            }\n        },\n        \n        moveMotor(motorIndex, degrees) {\n            if (!this.motorNames[motorIndex]) return;\n            this.send({\n                topic: this.motorNames[motorIndex],\n                payload: { degrees }\n            });\n        },\n        \n        toggleLight() {\n            this.send({\n                topic: 'toggle_light',\n                payload: true\n            });\n        },\n        \n        toggleHeatmap() {\n            this.showHeatmap = !this.showHeatmap;\n            if (this.showHeatmap) {\n                this.$nextTick(() => this.drawHeatmap());\n            }\n        },\n        \n        toggleCrop() {\n            if (!this.cropMode) {\n                this.cropMode = true;\n                this.cropDrawn = false;\n                this.cropSize = { width: 0, height: 0 };\n                \n                this.$nextTick(() => {\n                    const img = this.$refs.previewImage;\n                    if (img) {\n                        this.imageSize = {\n                            width: img.clientWidth,\n                            height: img.clientHeight\n                        };\n                        this.cropSize = { width: this.imageSize.width, height: this.imageSize.height };\n                        this.cropRect = { x: 0, y: 0 };\n                    }\n                });\n            } else {\n                this.cropMode = false;\n                if (!this.cropDrawn) {\n                    this.appliedCrop = { width: 0, height: 0, width_percent: 0, height_percent: 0 };\n                    this.send({\n                        topic: 'crop_applied',\n                        payload: { width_percent: 100, height_percent: 100 }\n                    });\n                }\n                this.cropSize = { width: 0, height: 0 };\n            }\n        },\n        \n        onImageLoad(e) {\n            this.imageSize = { \n                width: e.target.clientWidth, \n                height: e.target.clientHeight \n            };\n            this.imageLoaded = true;\n        },\n        \n        drawHistogram() {\n            const img = this.$refs.previewImage;\n            const canvas = this.$refs.histogram;\n            if (!img || !canvas || !img.complete || !this.imageLoaded) return;\n            if (img.naturalWidth === 0 || img.naturalHeight === 0) return;\n            \n            const rect = canvas.getBoundingClientRect();\n            canvas.width = rect.width;\n            canvas.height = rect.height;\n            \n            const ctx = canvas.getContext('2d', { willReadFrequently: true });\n            const tempCanvas = document.createElement('canvas');\n            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });\n            \n            tempCanvas.width = img.naturalWidth;\n            tempCanvas.height = img.naturalHeight;\n            tempCtx.drawImage(img, 0, 0);\n            \n            let imageData;\n            if (this.appliedCrop.width_percent > 0) {\n                const cropWidth = (this.appliedCrop.width_percent / 100) * img.naturalWidth;\n                const cropHeight = (this.appliedCrop.height_percent / 100) * img.naturalHeight;\n                const cropX = (img.naturalWidth - cropWidth) / 2;\n                const cropY = (img.naturalHeight - cropHeight) / 2;\n                \n                if (cropWidth <= 0 || cropHeight <= 0) return;\n                imageData = tempCtx.getImageData(cropX, cropY, cropWidth, cropHeight);\n            } else {\n                imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);\n            }\n            \n            const data = imageData.data;\n            \n            const r = new Array(256).fill(0);\n            const g = new Array(256).fill(0);\n            const b = new Array(256).fill(0);\n            \n            for (let i = 0; i < data.length; i += 4) {\n                r[data[i]]++;\n                g[data[i + 1]]++;\n                b[data[i + 2]]++;\n            }\n            \n            const maxVal = Math.max(...r, ...g, ...b);\n            \n            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';\n            ctx.fillRect(0, 0, canvas.width, canvas.height);\n            \n            const drawChannel = (hist, color) => {\n                ctx.strokeStyle = color;\n                ctx.lineWidth = 1;\n                ctx.beginPath();\n                for (let i = 0; i < 256; i++) {\n                    const x = (i / 256) * canvas.width;\n                    const logVal = hist[i] > 0 ? Math.log10(hist[i] + 1) : 0;\n                    const maxLog = Math.log10(maxVal + 1);\n                    const y = canvas.height - (logVal / maxLog) * canvas.height;\n                    if (i === 0) ctx.moveTo(x, y);\n                    else ctx.lineTo(x, y);\n                }\n                ctx.stroke();\n            };\n            \n            drawChannel(r, 'rgba(255, 0, 0, 0.7)');\n            drawChannel(g, 'rgba(0, 255, 0, 0.7)');\n            drawChannel(b, 'rgba(0, 0, 255, 0.7)');\n        },\n        \n        drawHeatmap() {\n            const img = this.$refs.previewImage;\n            const canvas = this.$refs.heatmapCanvas;\n            if (!img || !canvas || !img.complete || !this.imageLoaded) return;\n            if (img.naturalWidth === 0 || img.naturalHeight === 0) return;\n            \n            canvas.width = img.clientWidth;\n            canvas.height = img.clientHeight;\n            \n            const ctx = canvas.getContext('2d', { willReadFrequently: true });\n            const tempCanvas = document.createElement('canvas');\n            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });\n            \n            tempCanvas.width = img.naturalWidth;\n            tempCanvas.height = img.naturalHeight;\n            tempCtx.drawImage(img, 0, 0);\n            \n            let analyzeX = 0, analyzeY = 0;\n            let analyzeWidth = img.naturalWidth;\n            let analyzeHeight = img.naturalHeight;\n            \n            if (this.appliedCrop.width_percent > 0) {\n                analyzeWidth = (this.appliedCrop.width_percent / 100) * img.naturalWidth;\n                analyzeHeight = (this.appliedCrop.height_percent / 100) * img.naturalHeight;\n                analyzeX = (img.naturalWidth - analyzeWidth) / 2;\n                analyzeY = (img.naturalHeight - analyzeHeight) / 2;\n            }\n            \n            if (analyzeWidth <= 0 || analyzeHeight <= 0) return;\n            \n            const targetCellSize = Math.min(analyzeWidth, analyzeHeight) / 32;\n            const gridX = Math.max(1, Math.round(analyzeWidth / targetCellSize));\n            const gridY = Math.max(1, Math.round(analyzeHeight / targetCellSize));\n            const cellWidth = analyzeWidth / gridX;\n            const cellHeight = analyzeHeight / gridY;\n            \n            const variances = [];\n            let minVar = Infinity;\n            let maxVar = 0;\n            \n            for (let y = 0; y < gridY; y++) {\n                for (let x = 0; x < gridX; x++) {\n                    const startX = Math.floor(analyzeX + x * cellWidth);\n                    const startY = Math.floor(analyzeY + y * cellHeight);\n                    const endX = Math.floor(analyzeX + (x + 1) * cellWidth);\n                    const endY = Math.floor(analyzeY + (y + 1) * cellHeight);\n                    const w = endX - startX;\n                    const h = endY - startY;\n                    \n                    if (w <= 0 || h <= 0) continue;\n                    \n                    const imgData = tempCtx.getImageData(startX, startY, w, h);\n                    let sum = 0, sumSq = 0, count = 0;\n                    \n                    for (let i = 0; i < imgData.data.length; i += 4) {\n                        const gray = (imgData.data[i] + imgData.data[i + 1] + imgData.data[i + 2]) / 3;\n                        sum += gray;\n                        sumSq += gray * gray;\n                        count++;\n                    }\n                    \n                    const mean = sum / count;\n                    const variance = (sumSq / count) - (mean * mean);\n                    variances.push({ x, y, variance });\n                    minVar = Math.min(minVar, variance);\n                    maxVar = Math.max(maxVar, variance);\n                }\n            }\n            \n            const scaleX = canvas.width / gridX;\n            const scaleY = canvas.height / gridY;\n            \n            variances.forEach(({ x, y, variance }) => {\n                const normalized = (variance - minVar) / (maxVar - minVar || 1);\n                \n                const r = Math.floor(255 * normalized);\n                const b = Math.floor(255 * (1 - normalized));\n                const g = 0;\n                const alpha = 0.6;\n                \n                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;\n                ctx.fillRect(x * scaleX, y * scaleY, scaleX, scaleY);\n            });\n        },\n        \n        getEventPosition(e) {\n            const rect = e.currentTarget.getBoundingClientRect();\n            const touch = e.touches?.[0];\n            return {\n                x: (touch?.clientX || e.clientX) - rect.left,\n                y: (touch?.clientY || e.clientY) - rect.top\n            };\n        },\n        \n        startCrop(e) {\n            if (!this.cropMode) return;\n            e.preventDefault();\n            this.startPos = this.getEventPosition(e);\n            this.isDragging = true;\n        },\n        \n        updateCrop(e) {\n            if (!this.isDragging) return;\n            e.preventDefault();\n            \n            const pos = this.getEventPosition(e);\n            const width = Math.min(Math.abs(pos.x - this.startPos.x) * 2, this.imageSize.width);\n            const height = Math.min(Math.abs(pos.y - this.startPos.y) * 2, this.imageSize.height);\n            \n            this.cropSize = { width, height };\n            this.cropRect = {\n                x: (this.imageSize.width - width) / 2,\n                y: (this.imageSize.height - height) / 2\n            };\n        },\n        \n        endCrop(e) {\n            if (!this.isDragging) return;\n            e.preventDefault();\n            this.isDragging = false;\n            \n            if (this.cropSize.width === 0) return;\n            \n            const width_percent = (this.cropSize.width / this.imageSize.width) * 100;\n            const height_percent = (this.cropSize.height / this.imageSize.height) * 100;\n            \n            this.appliedCrop = {\n                width: this.cropSize.width,\n                height: this.cropSize.height,\n                width_percent,\n                height_percent\n            };\n            \n            this.cropDrawn = true;\n            \n            this.send({\n                topic: 'crop_applied',\n                payload: { width_percent, height_percent }\n            });\n            \n            this.cropMode = false;\n            this.cropSize = { width: 0, height: 0 };\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m) return;\n            if (m.cameraName) {\n                this.imageLoaded = false;\n                this.previewUrl = `http://${window.location.hostname}:8000/latest/cameras/${m.cameraName}/preview`;\n                this.$nextTick(() => this.checkImageLoaded());\n            }\n            if (m.motorNames && Array.isArray(m.motorNames)) {\n                this.motorNames = m.motorNames;\n            }\n            if (m.payload === 'toggle') this.toggleCrop();\n        }\n    }\n}\n</script>\n\n<style scoped>\n.preview-wrapper {\n    position: relative;\n    width: 100%;\n    pointer-events: none;\n}\n\n.preview-container {\n    position: relative;\n    width: 100%;\n    pointer-events: auto;\n}\n\n.image-wrapper {\n    position: relative;\n    pointer-events: auto;\n}\n\n.preview-image {\n    display: block;\n    width: 100%;\n    height: auto;\n}\n\n.heatmap-overlay {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    pointer-events: none;\n}\n\n.crop-overlay {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    cursor: crosshair;\n    touch-action: none;\n}\n\n.motor-controls {\n    position: absolute;\n    top: 12px;\n    left: 12px;\n    display: grid;\n    grid-template-columns: repeat(3, 40px);\n    grid-template-rows: repeat(3, 40px);\n    gap: 4px;\n    place-items: center;\n    z-index: 10;\n    pointer-events: auto;\n}\n\n.top-right-controls {\n    position: absolute;\n    top: 12px;\n    right: 12px;\n    display: flex;\n    gap: 8px;\n    z-index: 10;\n    pointer-events: auto;\n}\n\n.histogram {\n    position: absolute;\n    bottom: 12px;\n    right: 12px;\n    width: min(30%, 250px);\n    height: calc(min(30%, 250px) / 2);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    border-radius: 4px;\n    z-index: 10;\n    pointer-events: auto;\n}\n</style>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 440,
+        "y": 540,
+        "wires": [
+            [
+                "store_crop_params",
+                "51eba6094203b851",
+                "27bc46e34f7d895a"
+            ]
+        ]
+    },
+    {
+        "id": "6d3627e9594d19f2",
+        "type": "ui-template",
+        "z": "tab_main",
+        "group": "1c267b3f55f8654c",
+        "page": "",
+        "ui": "",
+        "name": "Scan Start Modal",
+        "order": 2,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-dialog v-model=\"showModal\" max-width=\"600\">\n        <v-card>\n            <v-card-title class=\"text-h5\">Start New Scan</v-card-title>\n            \n            <v-card-text>\n                <v-select\n                    v-model=\"selectedProject\"\n                    :items=\"projectOptions\"\n                    label=\"Project\"\n                    variant=\"outlined\"\n                    density=\"comfortable\"\n                    class=\"mb-4\"\n                >\n                    <template v-slot:item=\"{ props, item }\">\n                        <v-list-item v-bind=\"props\" lines=\"three\">\n                            <template v-slot:prepend v-if=\"item.value === '__new__'\">\n                                <v-icon>mdi-plus-circle</v-icon>\n                            </template>\n                            <template v-slot:subtitle v-if=\"item.raw.scanCount !== undefined\">\n                                <div>{{ item.raw.scanCount }} scan{{ item.raw.scanCount !== 1 ? 's' : '' }}</div>\n                                <div v-if=\"item.raw.description\" class=\"text-caption\">{{ item.raw.description }}</div>\n                            </template>\n                        </v-list-item>\n                    </template>\n                </v-select>\n\n                <div v-if=\"selectedProject === '__new__'\">\n                    <v-text-field\n                        v-model=\"newProjectName\"\n                        label=\"Project Name\"\n                        variant=\"outlined\"\n                        density=\"comfortable\"\n                        class=\"mb-4\"\n                        :rules=\"[v => !!v || 'Project name is required']\"\n                    />\n                    \n                    <v-textarea\n                        v-model=\"newProjectDescription\"\n                        label=\"Project Description (optional)\"\n                        variant=\"outlined\"\n                        density=\"comfortable\"\n                        rows=\"2\"\n                        class=\"mb-4\"\n                    />\n                </div>\n\n                <v-textarea\n                    v-model=\"scanDescription\"\n                    label=\"Scan Description (optional)\"\n                    variant=\"outlined\"\n                    density=\"comfortable\"\n                    rows=\"2\"\n                    class=\"mb-4\"\n                />\n\n                <v-divider class=\"mb-4\"></v-divider>\n\n                <div class=\"text-subtitle-2 mb-2\">Scan Summary</div>\n                <div class=\"d-flex gap-4 mb-2\">\n                    <div>\n                        <div class=\"text-caption text-grey\">Photos</div>\n                        <div class=\"text-h6\">{{ summary.photos }}</div>\n                    </div>\n                    <div>\n                        <div class=\"text-caption text-grey\">Shutter Speed</div>\n                        <div class=\"text-h6\">{{ summary.shutter }}s</div>\n                    </div>\n                    <div>\n                        <div class=\"text-caption text-grey\">Focus Mode</div>\n                        <div class=\"text-h6\">{{ summary.focusMode }}</div>\n                    </div>\n                </div>\n            </v-card-text>\n\n            <v-card-actions>\n                <v-spacer></v-spacer>\n                <v-btn color=\"grey\" variant=\"text\" @click=\"cancel\">Cancel</v-btn>\n                <v-btn color=\"primary\" variant=\"flat\" @click=\"beginScan\" :disabled=\"!canStart\">Begin Scan</v-btn>\n            </v-card-actions>\n        </v-card>\n    </v-dialog>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            showModal: false,\n            selectedProject: null,\n            newProjectName: '',\n            newProjectDescription: '',\n            scanDescription: '',\n            projectOptions: [],\n            summary: {\n                photos: 0,\n                shutter: 0,\n                focusMode: ''\n            }\n        }\n    },\n    computed: {\n        canStart() {\n            if (this.selectedProject === '__new__') {\n                return this.newProjectName.trim().length > 0;\n            }\n            return this.selectedProject !== null;\n        }\n    },\n    methods: {\n        cancel() {\n            this.showModal = false;\n            this.resetForm();\n        },\n        beginScan() {\n            const payload = {\n                project: this.selectedProject === '__new__' ? this.newProjectName : this.selectedProject,\n                isNewProject: this.selectedProject === '__new__',\n                projectDescription: this.newProjectDescription,\n                scanDescription: this.scanDescription\n            };\n            \n            this.send({ topic: 'begin_scan', payload });\n            this.showModal = false;\n            this.resetForm();\n        },\n        resetForm() {\n            this.selectedProject = null;\n            this.newProjectName = '';\n            this.newProjectDescription = '';\n            this.scanDescription = '';\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (m.topic === 'start_scan' || m.payload === 'open_modal') {\n                this.projectOptions = [\n                    { \n                        title: 'Create New Project', \n                        value: '__new__'\n                    },\n                    ...m.payload.projects.map(p => ({\n                        title: p.name,\n                        value: p.name,\n                        scanCount: p.scanCount,\n                        created: p.created,\n                        description: p.description || ''\n                    }))\n                ];\n                \n                this.summary = m.payload.summary;\n                this.showModal = true;\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": false,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 690,
+        "y": 740,
+        "wires": [
+            [
+                "3677953ccba80ba4"
+            ]
+        ]
+    },
+    {
+        "id": "a56b50155af194d9",
+        "type": "link out",
+        "z": "e972879e9326214e",
+        "name": "link out 1",
+        "mode": "link",
+        "links": [],
+        "x": 1505,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "a62d914b7a65b2aa",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Build Camera GET",
+        "func": "const baseUrl = global.get('baseUrl');\nconst cameras = global.get('cameras') || {};\nconst cameraName = Object.keys(cameras)[0];\n\nif (!cameraName) return null;\n\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 140,
+        "wires": [
+            [
+                "52f1fae2c032af1c"
+            ]
+        ]
+    },
+    {
+        "id": "52f1fae2c032af1c",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "GET Camera Settings",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 500,
+        "y": 140,
+        "wires": [
+            [
+                "d7edae136960d188"
+            ]
+        ]
+    },
+    {
+        "id": "d7edae136960d188",
+        "type": "ui-template",
+        "z": "e972879e9326214e",
+        "group": "fe4833c643ca033b",
+        "page": "",
+        "ui": "",
+        "name": "Camera Settings",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-expansion-panels>\n        <v-expansion-panel>\n            <v-expansion-panel-title>\n                <strong>Camera Settings: {{ cameraInfo.name || 'Loading...' }}</strong>\n            </v-expansion-panel-title>\n            \n            <v-expansion-panel-text>\n                <div class=\"d-flex justify-space-between align-center mb-4\">\n                    <div class=\"text-subtitle-2\">{{ cameraInfo.type || 'Unknown' }}</div>\n                    <v-chip :color=\"cameraInfo.busy ? 'warning' : 'success'\" size=\"small\">\n                        {{ cameraInfo.busy ? 'Busy' : 'Ready' }}\n                    </v-chip>\n                </div>\n                \n                <v-divider class=\"mb-4\"></v-divider>\n                \n                <div class=\"text-subtitle-2 mb-4\">Image Quality</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">JPEG Quality</span>\n                        <span class=\"text-caption\">%</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.jpeg_quality\"\n                            :min=\"50\"\n                            :max=\"100\"\n                            :step=\"5\"\n                            hide-details\n                            @update:model-value=\"updateSetting('jpeg_quality')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.jpeg_quality\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('jpeg_quality')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Saturation</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.saturation\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('saturation')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.saturation\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('saturation')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Contrast</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.contrast\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('contrast')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.contrast\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('contrast')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">White Balance</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Red Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.awbg_red\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.01\"\n                            hide-details\n                            @update:model-value=\"updateSetting('awbg_red')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.awbg_red\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('awbg_red')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Blue Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.awbg_blue\"\n                            :min=\"0\"\n                            :max=\"32\"\n                            :step=\"0.01\"\n                            hide-details\n                            @update:model-value=\"updateSetting('awbg_blue')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.awbg_blue\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('awbg_blue')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Exposure</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Analogue Gain</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.gain\"\n                            :min=\"1\"\n                            :max=\"16\"\n                            :step=\"0.1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('gain')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.gain\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('gain')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Advanced</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Orientation</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"settings.orientation_flag\"\n                            :min=\"1\"\n                            :max=\"8\"\n                            :step=\"1\"\n                            hide-details\n                            @update:model-value=\"updateSetting('orientation_flag')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"settings.orientation_flag\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateSetting('orientation_flag')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n            </v-expansion-panel-text>\n        </v-expansion-panel>\n    </v-expansion-panels>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            cameraInfo: {\n                name: '',\n                type: '',\n                busy: false\n            },\n            settings: {\n                jpeg_quality: 75,\n                saturation: 1.0,\n                contrast: 1.0,\n                awbg_red: 1.8,\n                awbg_blue: 1.8,\n                gain: 1.0,\n                orientation_flag: 8\n            },\n            updateTimer: null\n        }\n    },\n    methods: {\n        updateSetting(key) {\n            clearTimeout(this.updateTimer);\n            this.updateTimer = setTimeout(() => {\n                this.send({\n                    topic: 'update_camera_setting',\n                    payload: {\n                        [key]: this.settings[key]\n                    }\n                });\n            }, 300);\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (m.payload.name && m.payload.type) {\n                this.cameraInfo.name = m.payload.name;\n                this.cameraInfo.type = m.payload.type;\n                this.cameraInfo.busy = m.payload.busy || false;\n                Object.assign(this.settings, m.payload.settings);\n            } else {\n                Object.assign(this.settings, m.payload);\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 830,
+        "y": 140,
+        "wires": [
+            [
+                "a459aaf7d46b299b"
+            ]
+        ]
+    },
+    {
+        "id": "a459aaf7d46b299b",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Build Camera PATCH",
+        "func": "if (msg.topic !== 'update_camera_setting') return null;\n\nconst baseUrl = global.get('baseUrl');\nconst cameras = global.get('cameras') || {};\nconst cameraName = Object.keys(cameras)[0];\n\nmsg.url = `${baseUrl}/latest/cameras/${cameraName}/settings?name=${cameraName}`;\nmsg.method = 'PATCH';\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1040,
+        "y": 140,
+        "wires": [
+            [
+                "984901dad2e1fc7f"
+            ]
+        ]
+    },
+    {
+        "id": "984901dad2e1fc7f",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "PATCH Camera Settings",
+        "method": "use",
+        "ret": "obj",
+        "url": "",
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 1270,
+        "y": 140,
+        "wires": [
+            [
+                "a56b50155af194d9"
+            ]
+        ]
+    },
+    {
+        "id": "f20e71f08457b156",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Route Motor Action",
+        "func": "const baseUrl = global.get('baseUrl');\nconst { motorName } = msg.payload;\n\nif (msg.topic === 'update_motor_setting') {\n    msg.url = `${baseUrl}/latest/motors/${motorName}/settings?name=${motorName}`;\n    msg.method = 'PATCH';\n    msg.payload = msg.payload.settings;\n    return [msg, null];\n}\n\nif (msg.topic === 'calibrate_motor') {\n    msg.url = `${baseUrl}/latest/motors/${motorName}/endstop-calibration`;\n    msg.method = 'PUT';\n    msg.payload = {};\n    return [null, msg];\n}\n\nreturn [null, null];",
+        "outputs": 2,
+        "x": 1030,
+        "y": 200,
+        "wires": [
+            [
+                "9cbd07b2be916dcc"
+            ],
+            [
+                "566533660382d071"
+            ]
+        ]
+    },
+    {
+        "id": "9cbd07b2be916dcc",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "PATCH Motor Settings",
+        "method": "use",
+        "ret": "obj",
+        "url": "",
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 1260,
+        "y": 180,
+        "wires": [
+            [
+                "a56b50155af194d9"
+            ]
+        ]
+    },
+    {
+        "id": "566533660382d071",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "PUT Calibrate Motor",
+        "method": "use",
+        "ret": "obj",
+        "url": "",
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 1260,
+        "y": 220,
+        "wires": [
+            [
+                "a56b50155af194d9"
+            ]
+        ]
+    },
+    {
+        "id": "f20eaa243a54bed9",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Build Motors GET",
+        "func": "const baseUrl = global.get('baseUrl');\nmsg.url = `${baseUrl}/latest/motors/`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 200,
+        "wires": [
+            [
+                "482c2d3892d0568e"
+            ]
+        ]
+    },
+    {
+        "id": "482c2d3892d0568e",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "GET Motors",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 470,
+        "y": 200,
+        "wires": [
+            [
+                "75718d2bf63e4aad"
+            ]
+        ]
+    },
+    {
+        "id": "75718d2bf63e4aad",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Format Motors",
+        "func": "const motorsDict = msg.payload;\nconst motorData = Object.values(motorsDict).map(motor => ({\n    name: motor.name,\n    settings: motor.settings,\n    angle: motor.angle,\n    endstop: motor.endstop\n}));\n\nmsg.payload = motorData;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 640,
+        "y": 200,
+        "wires": [
+            [
+                "2b53b4090df8f651"
+            ]
+        ]
+    },
+    {
+        "id": "2b53b4090df8f651",
+        "type": "ui-template",
+        "z": "e972879e9326214e",
+        "group": "fe4833c643ca033b",
+        "page": "",
+        "ui": "",
+        "name": "Motor Settings",
+        "order": 2,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-expansion-panels>\n        <v-expansion-panel v-for=\"motor in motors\" :key=\"motor.name\">\n            <v-expansion-panel-title>\n                <div class=\"d-flex justify-space-between align-center w-100\">\n                    <span><strong>Motor settings: {{ motor.name }}</strong></span>\n                    <v-btn \n                        v-if=\"motor.endstop !== null\"\n                        size=\"x-small\" \n                        variant=\"tonal\"\n                        prepend-icon=\"mdi-home\"\n                        @click.stop=\"calibrateMotor(motor.name)\"\n                        :loading=\"motor.calibrating\"\n                    >\n                        Find Home\n                    </v-btn>\n                </div>\n            </v-expansion-panel-title>\n            \n            <v-expansion-panel-text>\n                <div class=\"text-subtitle-2 mb-4\">Hardware Configuration</div>\n                \n                <div class=\"d-flex ga-2 mb-4\">\n                    <v-text-field\n                        v-model.number=\"motor.settings.direction_pin\"\n                        label=\"Direction Pin\"\n                        type=\"number\"\n                        variant=\"outlined\"\n                        density=\"compact\"\n                        hide-details\n                        @update:model-value=\"updateMotor(motor.name, 'direction_pin')\"\n                    ></v-text-field>\n                    <v-text-field\n                        v-model.number=\"motor.settings.enable_pin\"\n                        label=\"Enable Pin\"\n                        type=\"number\"\n                        variant=\"outlined\"\n                        density=\"compact\"\n                        hide-details\n                        @update:model-value=\"updateMotor(motor.name, 'enable_pin')\"\n                    ></v-text-field>\n                    <v-text-field\n                        v-model.number=\"motor.settings.step_pin\"\n                        label=\"Step Pin\"\n                        type=\"number\"\n                        variant=\"outlined\"\n                        density=\"compact\"\n                        hide-details\n                        @update:model-value=\"updateMotor(motor.name, 'step_pin')\"\n                    ></v-text-field>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Direction</span>\n                        <v-btn-toggle \n                            v-model=\"motor.settings.direction\" \n                            mandatory \n                            density=\"compact\"\n                            @update:model-value=\"updateMotor(motor.name, 'direction')\"\n                        >\n                            <v-btn :value=\"1\" size=\"small\">Forward (1)</v-btn>\n                            <v-btn :value=\"-1\" size=\"small\">Reverse (-1)</v-btn>\n                        </v-btn-toggle>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Steps per Rotation</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"motor.settings.steps_per_rotation\"\n                            :min=\"1000\"\n                            :max=\"100000\"\n                            :step=\"1\"\n                            hide-details\n                            @update:model-value=\"updateMotor(motor.name, 'steps_per_rotation')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"motor.settings.steps_per_rotation\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateMotor(motor.name, 'steps_per_rotation')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Motion Settings</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Max Speed</span>\n                        <span class=\"text-caption\">steps/s</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"motor.settings.max_speed\"\n                            :min=\"1\"\n                            :max=\"7500\"\n                            :step=\"100\"\n                            hide-details\n                            @update:model-value=\"updateMotor(motor.name, 'max_speed')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"motor.settings.max_speed\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateMotor(motor.name, 'max_speed')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Acceleration</span>\n                        <span class=\"text-caption\">steps/s²</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"motor.settings.acceleration\"\n                            :min=\"1000\"\n                            :max=\"80000\"\n                            :step=\"1000\"\n                            hide-details\n                            @update:model-value=\"updateMotor(motor.name, 'acceleration')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"motor.settings.acceleration\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateMotor(motor.name, 'acceleration')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Angle Limits</div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Min Angle</span>\n                        <span class=\"text-caption\">degrees</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"motor.settings.min_angle\"\n                            :min=\"0\"\n                            :max=\"360\"\n                            :step=\"5\"\n                            hide-details\n                            @update:model-value=\"updateMotor(motor.name, 'min_angle')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"motor.settings.min_angle\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateMotor(motor.name, 'min_angle')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n                \n                <div class=\"mb-6\">\n                    <div class=\"d-flex justify-space-between align-center mb-2\">\n                        <span class=\"text-body-2\">Max Angle</span>\n                        <span class=\"text-caption\">degrees</span>\n                    </div>\n                    <div class=\"d-flex ga-2 align-center\">\n                        <v-slider\n                            v-model=\"motor.settings.max_angle\"\n                            :min=\"0\"\n                            :max=\"360\"\n                            :step=\"5\"\n                            hide-details\n                            @update:model-value=\"updateMotor(motor.name, 'max_angle')\"\n                        ></v-slider>\n                        <v-text-field\n                            v-model.number=\"motor.settings.max_angle\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 100px\"\n                            @update:model-value=\"updateMotor(motor.name, 'max_angle')\"\n                        ></v-text-field>\n                    </div>\n                </div>\n            </v-expansion-panel-text>\n        </v-expansion-panel>\n    </v-expansion-panels>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            motors: [],\n            updateTimer: null\n        }\n    },\n    methods: {\n        updateMotor(motorName, setting) {\n            clearTimeout(this.updateTimer);\n            this.updateTimer = setTimeout(() => {\n                const motor = this.motors.find(m => m.name === motorName);\n                if (!motor) return;\n                \n                this.send({\n                    topic: 'update_motor_setting',\n                    payload: {\n                        motorName,\n                        settings: {\n                            [setting]: motor.settings[setting]\n                        }\n                    }\n                });\n            }, 300);\n        },\n        \n        calibrateMotor(motorName) {\n            const motor = this.motors.find(m => m.name === motorName);\n            if (motor) motor.calibrating = true;\n            \n            this.send({\n                topic: 'calibrate_motor',\n                payload: { motorName }\n            });\n            \n            setTimeout(() => {\n                if (motor) motor.calibrating = false;\n            }, 3000);\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (Array.isArray(m.payload)) {\n                this.motors = m.payload.map(motor => ({\n                    ...motor,\n                    calibrating: false\n                }));\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 820,
+        "y": 200,
+        "wires": [
+            [
+                "f20e71f08457b156"
+            ]
+        ]
+    },
+    {
+        "id": "e7df615a95e9bc4d",
+        "type": "link in",
+        "z": "e972879e9326214e",
+        "name": "link in 3",
+        "links": [
+            "bcb5a0e753516f08",
+            "d31620673fa02e2f"
+        ],
+        "x": 115,
+        "y": 140,
+        "wires": [
+            [
+                "a62d914b7a65b2aa",
+                "f20eaa243a54bed9",
+                "be25352f628b3478"
+            ]
+        ]
+    },
+    {
+        "id": "be25352f628b3478",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Build Lights GET",
+        "func": "const baseUrl = global.get('baseUrl');\nmsg.url = `${baseUrl}/latest/lights/`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 260,
+        "wires": [
+            [
+                "97cf9cbe16e3cbdb"
+            ]
+        ]
+    },
+    {
+        "id": "97cf9cbe16e3cbdb",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "GET Lights",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 470,
+        "y": 260,
+        "wires": [
+            [
+                "26299174aeff58a2"
+            ]
+        ]
+    },
+    {
+        "id": "26299174aeff58a2",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Format Lights",
+        "func": "const lightsDict = msg.payload;\nconst lightData = Object.values(lightsDict).map(light => ({\n    name: light.name,\n    settings: light.settings\n}));\n\nmsg.payload = lightData;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 640,
+        "y": 260,
+        "wires": [
+            [
+                "9693db3dc52f7acb"
+            ]
+        ]
+    },
+    {
+        "id": "9693db3dc52f7acb",
+        "type": "ui-template",
+        "z": "e972879e9326214e",
+        "group": "fe4833c643ca033b",
+        "page": "",
+        "ui": "",
+        "name": "Light Settings",
+        "order": 3,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-expansion-panels>\n        <v-expansion-panel v-for=\"light in lights\" :key=\"light.name\">\n            <v-expansion-panel-title>\n                <strong>Light settings: {{ light.name }}</strong>\n            </v-expansion-panel-title>\n            \n            <v-expansion-panel-text>\n                <div class=\"text-subtitle-2 mb-4\">Hardware Configuration</div>\n                \n                <div v-if=\"light.settings.pin !== null && light.settings.pin !== undefined\" class=\"mb-4\">\n                    <v-text-field\n                        v-model.number=\"light.settings.pin\"\n                        label=\"Pin\"\n                        type=\"number\"\n                        variant=\"outlined\"\n                        density=\"compact\"\n                        hide-details\n                        @update:model-value=\"updateLight(light.name, 'pin')\"\n                    ></v-text-field>\n                </div>\n                \n                <div v-if=\"light.settings.pins && Array.isArray(light.settings.pins)\" class=\"mb-4\">\n                    <div class=\"text-body-2 mb-2\">Pins</div>\n                    <div class=\"d-flex ga-2 flex-wrap\">\n                        <v-text-field\n                            v-for=\"(pin, index) in light.settings.pins\"\n                            :key=\"index\"\n                            v-model.number=\"light.settings.pins[index]\"\n                            :label=\"`Pin ${index + 1}`\"\n                            type=\"number\"\n                            variant=\"outlined\"\n                            density=\"compact\"\n                            hide-details\n                            style=\"max-width: 120px\"\n                            @update:model-value=\"updateLight(light.name, 'pins')\"\n                        ></v-text-field>\n                        <v-btn \n                            icon=\"mdi-plus\" \n                            size=\"small\" \n                            variant=\"tonal\"\n                            @click=\"addPin(light.name)\"\n                        ></v-btn>\n                        <v-btn \n                            v-if=\"light.settings.pins.length > 1\"\n                            icon=\"mdi-minus\" \n                            size=\"small\" \n                            variant=\"tonal\"\n                            @click=\"removePin(light.name)\"\n                        ></v-btn>\n                    </div>\n                </div>\n                \n                <v-divider class=\"my-4\"></v-divider>\n                <div class=\"text-subtitle-2 mb-4\">Control Mode</div>\n                \n                <v-switch\n                    v-model=\"light.settings.pwm\"\n                    label=\"PWM Mode\"\n                    color=\"primary\"\n                    hide-details\n                    @update:model-value=\"updateLight(light.name, 'pwm')\"\n                ></v-switch>\n                <div class=\"text-caption text-medium-emphasis mt-1\">\n                    Enable PWM for brightness control\n                </div>\n            </v-expansion-panel-text>\n        </v-expansion-panel>\n    </v-expansion-panels>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            lights: [],\n            updateTimer: null\n        }\n    },\n    methods: {\n        updateLight(lightName, setting) {\n            clearTimeout(this.updateTimer);\n            this.updateTimer = setTimeout(() => {\n                const light = this.lights.find(l => l.name === lightName);\n                if (!light) return;\n                \n                this.send({\n                    topic: 'update_light_setting',\n                    payload: {\n                        lightName,\n                        settings: {\n                            [setting]: light.settings[setting]\n                        }\n                    }\n                });\n            }, 300);\n        },\n        \n        addPin(lightName) {\n            const light = this.lights.find(l => l.name === lightName);\n            if (!light || !light.settings.pins) return;\n            \n            light.settings.pins.push(0);\n            this.updateLight(lightName, 'pins');\n        },\n        \n        removePin(lightName) {\n            const light = this.lights.find(l => l.name === lightName);\n            if (!light || !light.settings.pins || light.settings.pins.length <= 1) return;\n            \n            light.settings.pins.pop();\n            this.updateLight(lightName, 'pins');\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (Array.isArray(m.payload)) {\n                this.lights = m.payload;\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 820,
+        "y": 260,
+        "wires": [
+            [
+                "cd7a0370e8b4e056"
+            ]
+        ]
+    },
+    {
+        "id": "cd7a0370e8b4e056",
+        "type": "function",
+        "z": "e972879e9326214e",
+        "name": "Route Light Action",
+        "func": "const baseUrl = global.get('baseUrl');\nconst { lightName } = msg.payload;\n\nif (msg.topic === 'update_light_setting') {\n    msg.url = `${baseUrl}/latest/lights/${lightName}/settings?name=${lightName}`;\n    msg.method = 'PATCH';\n    msg.payload = msg.payload.settings;\n    return msg;\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1030,
+        "y": 260,
+        "wires": [
+            [
+                "f62dd89576c05364"
+            ]
+        ]
+    },
+    {
+        "id": "f62dd89576c05364",
+        "type": "http request",
+        "z": "e972879e9326214e",
+        "name": "PATCH Light Settings",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "other",
+                "keyValue": "accept",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 1260,
+        "y": 260,
+        "wires": [
+            [
+                "a56b50155af194d9"
+            ]
+        ]
+    },
+    {
+        "id": "0bde9e56b4a48751",
+        "type": "link in",
+        "z": "2ce6b211177c83ac",
+        "name": "link in 4",
+        "links": [
+            "bcb5a0e753516f08",
+            "d31620673fa02e2f"
+        ],
+        "x": 25,
+        "y": 120,
+        "wires": [
+            [
+                "fb79c3341f0d6689"
+            ]
+        ]
+    },
+    {
+        "id": "6a1d0a613e0396d9",
+        "type": "function",
+        "z": "2ce6b211177c83ac",
+        "name": "Format Projects",
+        "func": "const projects = msg.payload || {};\n\nconst projectList = Object.entries(projects).map(([name, data]) => {\n    const scans = data.scans || {};\n    const scanList = Object.values(scans);\n    \n    return {\n        name,\n        description: data.description || '',\n        created: data.created,\n        scanCount: scanList.length,\n        totalPhotos: scanList.reduce((sum, s) => sum + (s.settings?.points || 0), 0),\n        scans: scanList.map(s => ({\n            index: s.index,\n            description: s.description || '',\n            status: s.status,\n            created: s.created,\n            duration: s.duration || 0,\n            points: s.settings?.points || 0,\n            shutter: s.camera_settings?.shutter || 0,\n            pathMethod: s.settings?.path_method || '',\n            imageFormat: s.settings?.image_format || '',\n            jpegQuality: s.camera_settings?.jpeg_quality || 0,\n            cropWidth: s.camera_settings?.crop_width || 0,\n            cropHeight: s.camera_settings?.crop_height || 0,\n            focusStacks: s.settings?.focus_stacks || 1\n        }))\n    };\n});\n\nmsg.payload = projectList;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 120,
+        "wires": [
+            [
+                "e5e642b100ad7b10"
+            ]
+        ]
+    },
+    {
+        "id": "e5e642b100ad7b10",
+        "type": "ui-template",
+        "z": "2ce6b211177c83ac",
+        "group": "7449d1c690545ca6",
+        "page": "",
+        "ui": "",
+        "name": "Files Explorer",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <v-container fluid>\n        <v-row>\n            <v-col cols=\"12\" md=\"4\">\n                <v-card>\n                    <v-card-title class=\"d-flex justify-space-between align-center\">\n                        <span>Projects</span>\n                        <v-btn icon=\"mdi-plus\" size=\"small\" @click=\"showNewProjectDialog = true\"></v-btn>\n                    </v-card-title>\n\n                    <v-card-text v-if=\"projects.length === 0\" class=\"text-center text-medium-emphasis\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-folder-open-outline</v-icon>\n                        <div>No projects yet</div>\n                        <div class=\"text-caption\">Create one to get started</div>\n                    </v-card-text>\n\n                    <v-list v-else>\n                        <v-list-item v-for=\"project in projects\" :key=\"project.name\"\n                            :active=\"selectedProject?.name === project.name\" @click=\"selectProject(project)\"\n                            lines=\"two\">\n                            <v-list-item-title>{{ project.name }}</v-list-item-title>\n                            <v-list-item-subtitle>\n                                <v-chip size=\"x-small\" class=\"mr-1\">{{ project.scanCount }} scans</v-chip>\n                                {{ new Date(project.created).toLocaleDateString() }}\n                            </v-list-item-subtitle>\n                            <v-list-item-subtitle v-if=\"project.description\" class=\"text-caption mt-1\">\n                                {{ project.description }}\n                            </v-list-item-subtitle>\n\n                            <template v-slot:append>\n                                <div class=\"d-flex ga-1\">\n                                    <v-btn icon=\"mdi-cloud-upload\" size=\"small\" variant=\"text\" disabled></v-btn>\n                                    <v-btn icon=\"mdi-download\" size=\"small\" variant=\"text\"\n                                        @click.stop=\"downloadProject(project.name)\"></v-btn>\n                                    <v-btn icon=\"mdi-delete\" size=\"small\" variant=\"text\" color=\"error\"\n                                        @click.stop=\"confirmDeleteProject(project.name)\"></v-btn>\n                                </div>\n                            </template>\n                        </v-list-item>\n                    </v-list>\n                </v-card>\n            </v-col>\n\n            <v-col cols=\"12\" md=\"8\">\n                <v-card>\n                    <v-card-text v-if=\"!selectedProject\" class=\"text-center text-medium-emphasis py-16\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-cube-scan</v-icon>\n                        <div>Select a project to view scans</div>\n                    </v-card-text>\n\n                    <v-card-text v-else-if=\"selectedProject.scans.length === 0\"\n                        class=\"text-center text-medium-emphasis py-16\">\n                        <v-icon size=\"64\" class=\"mb-4\">mdi-camera-off</v-icon>\n                        <div>No scans in this project</div>\n                    </v-card-text>\n\n                    <v-list v-else>\n                        <v-list-item v-for=\"scan in selectedProject.scans\" :key=\"scan.index\" :ripple=\"false\">\n                            <template v-slot:prepend>\n                                <v-avatar :color=\"getStatusColor(scan.status)\" size=\"40\">\n                                    <v-icon>{{ getStatusIcon(scan.status) }}</v-icon>\n                                </v-avatar>\n                            </template>\n\n                            <v-list-item-title>\n                                Scan #{{ scan.index }}\n                                <v-chip :color=\"getStatusColor(scan.status)\" size=\"x-small\" class=\"ml-2\">\n                                    {{ scan.status }}\n                                </v-chip>\n                                <v-chip v-if=\"scan.focusStacks > 1\" size=\"x-small\" class=\"ml-1\" color=\"blue\">\n                                    {{ scan.focusStacks }} stack\n                                </v-chip>\n                            </v-list-item-title>\n\n                            <v-list-item-subtitle v-if=\"scan.description\">\n                                {{ scan.description }}\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption mt-1\">\n                                {{ scan.points }} photos • {{ scan.pathMethod }} • {{ scan.imageFormat }}\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption\">\n                                Shutter: {{ (scan.shutter / 1000).toFixed(1) }}ms • Quality: {{ scan.jpegQuality\n                                }}%<span v-if=\"scan.cropWidth > 0 || scan.cropHeight > 0\"> • Crop: {{ scan.cropWidth }}%×{{ scan.cropHeight }}%</span>\n                            </v-list-item-subtitle>\n\n                            <v-list-item-subtitle class=\"text-caption\">\n                                {{ formatDuration(scan.duration) }} • {{ new Date(scan.created).toLocaleString() }}\n                            </v-list-item-subtitle>\n\n                            <template v-slot:append>\n                                <div class=\"d-flex ga-1\">\n                                    <v-btn v-if=\"scan.focusStacks > 1\" \n                                        icon=\"mdi-layers-triple\" \n                                        size=\"small\" \n                                        variant=\"text\" \n                                        color=\"blue\"\n                                        @click.stop=\"stackScan(selectedProject.name, scan.index)\"\n                                        :title=\"`Stack ${scan.focusStacks} focus images`\"></v-btn>\n                                    <v-btn icon=\"mdi-cloud-upload\" size=\"small\" variant=\"text\" disabled></v-btn>\n                                    <v-btn icon=\"mdi-download\" size=\"small\" variant=\"text\"\n                                        @click.stop=\"downloadScan(selectedProject.name, scan.index)\"\n                                        :title=\"`Download scan #${scan.index}`\"></v-btn>\n                                    <v-btn icon=\"mdi-delete\" size=\"small\" variant=\"text\" color=\"error\"\n                                        @click.stop=\"handleDeleteScan(selectedProject.name, scan.index)\"></v-btn>\n                                </div>\n                            </template>\n                        </v-list-item>\n                    </v-list>\n                </v-card>\n            </v-col>\n        </v-row>\n\n        <v-dialog v-model=\"showNewProjectDialog\" max-width=\"500\">\n            <v-card>\n                <v-card-title>New Project</v-card-title>\n                <v-card-text>\n                    <v-text-field v-model=\"newProjectName\" label=\"Project Name\" variant=\"outlined\" density=\"comfortable\"\n                        class=\"mb-4\"></v-text-field>\n                    <v-textarea v-model=\"newProjectDescription\" label=\"Description (optional)\" variant=\"outlined\"\n                        density=\"comfortable\" rows=\"2\"></v-textarea>\n                </v-card-text>\n                <v-card-actions>\n                    <v-spacer></v-spacer>\n                    <v-btn @click=\"showNewProjectDialog = false\">Cancel</v-btn>\n                    <v-btn color=\"primary\" @click=\"createProject\" :disabled=\"!newProjectName.trim()\">Create</v-btn>\n                </v-card-actions>\n            </v-card>\n        </v-dialog>\n\n        <v-dialog v-model=\"showDeleteDialog\" max-width=\"400\">\n            <v-card>\n                <v-card-title>Confirm Delete</v-card-title>\n                <v-card-text>\n                    {{ deleteMessage }}\n                </v-card-text>\n                <v-card-actions>\n                    <v-spacer></v-spacer>\n                    <v-btn @click=\"showDeleteDialog = false\">Cancel</v-btn>\n                    <v-btn color=\"error\" @click=\"executeDelete\">Delete</v-btn>\n                </v-card-actions>\n            </v-card>\n        </v-dialog>\n\n        <v-snackbar v-model=\"showSnackbar\" :timeout=\"3000\" :color=\"snackbarColor\">\n            {{ snackbarMessage }}\n        </v-snackbar>\n    </v-container>\n</template>\n\n<script>\n    export default {\n    data() {\n        return {\n            projects: [],\n            selectedProject: null,\n            showNewProjectDialog: false,\n            newProjectName: '',\n            newProjectDescription: '',\n            showDeleteDialog: false,\n            showSnackbar: false,\n            snackbarMessage: '',\n            snackbarColor: 'success',\n            deleteMessage: '',\n            deleteAction: null,\n            apiUrl: `http://${window.location.hostname}:8000`\n        }\n    },\n    methods: {\n        selectProject(project) {\n            this.selectedProject = project;\n        },\n        \n        getStatusColor(status) {\n            const colors = {\n                completed: 'success',\n                running: 'primary',\n                failed: 'error',\n                cancelled: 'warning',\n                paused: 'info'\n            };\n            return colors[status] || 'grey';\n        },\n        \n        getStatusIcon(status) {\n            const icons = {\n                completed: 'mdi-check',\n                running: 'mdi-loading',\n                failed: 'mdi-alert-circle',\n                cancelled: 'mdi-cancel',\n                paused: 'mdi-pause'\n            };\n            return icons[status] || 'mdi-help';\n        },\n        \n        formatDuration(seconds) {\n            if (!seconds) return '0s';\n            const mins = Math.floor(seconds / 60);\n            const secs = Math.floor(seconds % 60);\n            return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;\n        },\n        \n        createProject() {\n            this.send({\n                topic: 'create_project',\n                payload: {\n                    name: this.newProjectName,\n                    description: this.newProjectDescription\n                }\n            });\n            this.showNewProjectDialog = false;\n            this.newProjectName = '';\n            this.newProjectDescription = '';\n        },\n        \n        downloadProject(projectName) {\n            window.open(`${this.apiUrl}/latest/projects/${encodeURIComponent(projectName)}/zip`, '_blank');\n        },\n        \n       \n        downloadScan(projectName, scanIndex) {\n            const params = new URLSearchParams();\n            params.append('scan_indices', scanIndex);\n            window.open(`${this.apiUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/zip?${params.toString()}`, '_blank');\n        },\n        \n        stackScan(projectName, scanIndex) {\n            this.send({\n                topic: 'stack_scan',\n                payload: { projectName, scanIndex }\n            });\n            this.snackbarMessage = `Starting focus stacking for scan #${scanIndex}...`;\n            this.snackbarColor = 'info';\n            this.showSnackbar = true;\n        },\n        \n        confirmDeleteProject(projectName) {\n            this.deleteMessage = `Delete project \"${projectName}\" and all its scans?`;\n            this.deleteAction = () => {\n                this.send({\n                    topic: 'delete_project',\n                    payload: projectName\n                });\n            };\n            this.showDeleteDialog = true;\n        },\n        \n        handleDeleteScan(projectName, scanIndex) {\n            this.send({\n                topic: 'debug',\n                payload: { \n                    action: 'delete_button_clicked',\n                    projectName, \n                    scanIndex \n                }\n            });\n            \n            this.deleteMessage = `Delete scan #${scanIndex} from \"${projectName}\"?`;\n            this.deleteAction = () => {\n                this.send({\n                    topic: 'delete_scan',\n                    payload: { projectName, scanIndex }\n                });\n            };\n            this.showDeleteDialog = true;\n        },\n        \n        executeDelete() {\n            if (this.deleteAction) {\n                this.deleteAction();\n            }\n            this.showDeleteDialog = false;\n            this.deleteAction = null;\n        }\n    },\n    watch: {\n        msg(m) {\n            if (!m?.payload) return;\n            \n            if (Array.isArray(m.payload)) {\n                this.projects = m.payload;\n                if (this.selectedProject) {\n                    this.selectedProject = this.projects.find(p => p.name === this.selectedProject.name);\n                }\n            }\n            \n            // Handle stacking feedback\n            if (m.topic === 'stack_started') {\n                this.snackbarMessage = `Focus stacking started for scan #${m.payload.scanIndex}`;\n                this.snackbarColor = 'success';\n                this.showSnackbar = true;\n            }\n            \n            if (m.topic === 'stack_error') {\n                this.snackbarMessage = `Error: ${m.payload.error}`;\n                this.snackbarColor = 'error';\n                this.showSnackbar = true;\n            }\n        }\n    }\n}\n</script>",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 480,
+        "y": 120,
+        "wires": [
+            [
+                "06a3f95dba256542"
+            ]
+        ]
+    },
+    {
+        "id": "06a3f95dba256542",
+        "type": "function",
+        "z": "2ce6b211177c83ac",
+        "name": "Handle Actions",
+        "func": "const baseUrl = global.get('baseUrl') || 'http://localhost:8000';\nconst topic = msg.topic;\n\nif (topic === 'create_project') {\n    msg.url = `${baseUrl}/latest/projects/${msg.payload.name}?project_description=${encodeURIComponent(msg.payload.description || '')}`;\n    msg.method = 'POST';\n    msg.payload = {};\n    return [msg, null];\n}\n\nif (topic === 'delete_scan') {\n    const { projectName, scanIndex } = msg.payload;\n    msg.url = `${baseUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/${scanIndex}`;\n    msg.method = 'DELETE';\n    return [msg, null];\n}\n\nif (topic === 'delete_scan') {\n    const { projectName, scanIndex } = msg.payload;\n    msg.url = `${baseUrl}/latest/projects/${encodeURIComponent(projectName)}/scans/?scan_index=${scanIndex}`;\n    msg.method = 'DELETE';\n    return [msg, null];\n}\n\nif (topic === 'stack_scan') {\n    const { projectName, scanIndex } = msg.payload;\n    msg.url = `${baseUrl}/latest/tasks/focus_stacking_task`;\n    msg.method = 'POST';\n    msg.payload = {\n        args: [projectName, scanIndex]\n    };\n    msg.headers = {\n        'Content-Type': 'application/json'\n    };\n    return [msg, null];\n}\n\nreturn [null, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 120,
+        "wires": [
+            [
+                "121d6e5eacbfe953"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "121d6e5eacbfe953",
+        "type": "http request",
+        "z": "2ce6b211177c83ac",
+        "name": "Execute Action",
+        "method": "use",
+        "ret": "obj",
+        "url": "",
+        "x": 840,
+        "y": 120,
+        "wires": [
+            [
+                "7e0306e6dc47939a"
+            ]
+        ]
+    },
+    {
+        "id": "fb79c3341f0d6689",
+        "type": "http request",
+        "z": "2ce6b211177c83ac",
+        "name": "GET Projects",
+        "method": "GET",
+        "ret": "obj",
+        "url": "http://localhost:8000/latest/projects/",
+        "x": 130,
+        "y": 120,
+        "wires": [
+            [
+                "6a1d0a613e0396d9"
+            ]
+        ]
+    },
+    {
+        "id": "7e0306e6dc47939a",
+        "type": "function",
+        "z": "2ce6b211177c83ac",
+        "name": "Trigger Reload",
+        "func": "return { payload: true };",
+        "outputs": 1,
+        "x": 1020,
+        "y": 120,
+        "wires": [
+            [
+                "fb79c3341f0d6689"
+            ]
+        ]
+    },
+    {
+        "id": "d65abeba47aacc21",
+        "type": "ui-template",
+        "z": "4f742f0f2fc66498",
+        "group": "doc_group",
+        "page": "",
+        "ui": "",
+        "name": "Documentation Content",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "format": "<template>\n    <div style=\"padding: 16px;\">\n        <v-card class=\"mb-4\">\n            <v-card-title class=\"d-flex justify-space-between align-center\">\n                <span>OpenScan API Documentation</span>\n                <v-chip \n                    :color=\"apiOnline ? 'success' : 'error'\" \n                    size=\"small\"\n                    prepend-icon=\"mdi-circle\"\n                >\n                    {{ apiOnline ? 'Online' : 'Offline' }}\n                </v-chip>\n            </v-card-title>\n            <v-card-text>\n                <p class=\"mb-4\">The OpenScan backend provides a REST API for controlling the scanner hardware and managing scan projects.</p>\n                \n                <v-btn \n                    @click=\"openDocs\"\n                    color=\"primary\" \n                    variant=\"flat\"\n                    prepend-icon=\"mdi-api\"\n                    class=\"mb-2\"\n                    :disabled=\"!apiOnline\"\n                >\n                    Open API Documentation\n                </v-btn>\n                \n                <div class=\"text-caption\">{{ apiUrl }}/latest/docs</div>\n            </v-card-text>\n        </v-card>\n        \n        <v-card class=\"mb-4\">\n            <v-card-title class=\"d-flex justify-space-between align-center\">\n                <span>Live Logs</span>\n                <div class=\"d-flex ga-2\">\n                    <v-btn \n                        color=\"primary\" \n                        variant=\"flat\"\n                        size=\"small\"\n                        @click=\"downloadArchive\" \n                        prepend-icon=\"mdi-download\"\n                    >\n                        Download Logs\n                    </v-btn>\n                    <v-btn-toggle v-model=\"logsActive\" mandatory density=\"compact\">\n                        <v-btn icon=\"mdi-play\" size=\"small\" :value=\"true\" @click=\"startLogs\"></v-btn>\n                        <v-btn icon=\"mdi-stop\" size=\"small\" :value=\"false\" @click=\"stopLogs\"></v-btn>\n                    </v-btn-toggle>\n                </div>\n            </v-card-title>\n            <v-card-text>\n                <div ref=\"logsContainer\" class=\"logs-container\">\n                    <pre class=\"logs-content\">{{ logs }}</pre>\n                </div>\n                <div class=\"d-flex justify-space-between align-center mt-2\">\n                    <v-chip size=\"small\" :color=\"logsActive ? 'success' : 'grey'\">\n                        {{ logsActive ? 'Streaming' : 'Stopped' }}\n                    </v-chip>\n                    <v-btn size=\"small\" variant=\"text\" @click=\"clearLogs\" prepend-icon=\"mdi-delete\">\n                        Clear\n                    </v-btn>\n                </div>\n            </v-card-text>\n        </v-card>\n        \n        <v-card>\n            <v-card-title>External Resources</v-card-title>\n            <v-card-text>\n                <v-btn \n                    @click=\"openLink('https://www.openscan.eu/')\"\n                    variant=\"text\"\n                    prepend-icon=\"mdi-web\"\n                    class=\"mb-2\"\n                    block\n                >\n                    OpenScan Website\n                </v-btn>\n                \n                <v-btn \n                    @click=\"openLink('https://github.com/OpenScan-org/OpenScan3/tree/develop')\"\n                    variant=\"text\"\n                    prepend-icon=\"mdi-github\"\n                    class=\"mb-2\"\n                    block\n                >\n                    GitHub Repository\n                </v-btn>\n                \n                <v-btn \n                    @click=\"openLink('https://discord.gg/gpaKWPpWtG')\"\n                    variant=\"text\"\n                    prepend-icon=\"mdi-forum\"\n                    class=\"mb-2\"\n                    block\n                >\n                    Discord Community\n                </v-btn>\n                \n                <v-btn \n                    @click=\"openLink('https://www.patreon.com/OpenScan')\"\n                    variant=\"text\"\n                    prepend-icon=\"mdi-heart\"\n                    block\n                >\n                    Support on Patreon\n                </v-btn>\n            </v-card-text>\n        </v-card>\n    </div>\n</template>\n\n<script>\nexport default {\n    data() {\n        return {\n            apiOnline: false,\n            apiUrl: `http://${window.location.hostname}:8000`,\n            logs: 'Waiting for logs...\\n',\n            logsActive: true,\n            reader: null,\n            abortController: null\n        }\n    },\n    mounted() {\n        this.checkApi();\n        setInterval(this.checkApi, 10000);\n        this.startLogs();\n    },\n    beforeUnmount() {\n        this.stopLogs();\n    },\n    methods: {\n        async checkApi() {\n            try {\n                const res = await fetch(`${this.apiUrl}/latest/`);\n                this.apiOnline = res.ok;\n            } catch {\n                this.apiOnline = false;\n            }\n        },\n        openDocs() {\n            window.open(`${this.apiUrl}/latest/docs`, '_blank');\n        },\n        openLink(url) {\n            window.open(url, '_blank');\n        },\n        async startLogs() {\n            if (this.reader) return;\n            \n            this.logsActive = true;\n            this.abortController = new AbortController();\n            \n            try {\n                const response = await fetch(\n                    `${this.apiUrl}/latest/logs/tail?format=text&lines=100&follow=true&poll_interval=30`,\n                    { signal: this.abortController.signal }\n                );\n                \n                this.reader = response.body.getReader();\n                const decoder = new TextDecoder();\n                \n                while (true) {\n                    const { done, value } = await this.reader.read();\n                    if (done) break;\n                    \n                    const text = decoder.decode(value, { stream: true });\n                    this.logs += text;\n                    \n                    this.$nextTick(() => {\n                        const container = this.$refs.logsContainer;\n                        if (container) {\n                            container.scrollTop = container.scrollHeight;\n                        }\n                    });\n                }\n            } catch (err) {\n                if (err.name !== 'AbortError') {\n                    this.logs += `\\nError: ${err.message}\\n`;\n                }\n            } finally {\n                this.reader = null;\n            }\n        },\n        stopLogs() {\n            this.logsActive = false;\n            if (this.abortController) {\n                this.abortController.abort();\n                this.abortController = null;\n            }\n            this.reader = null;\n        },\n        clearLogs() {\n            this.logs = '';\n        },\n        downloadArchive() {\n            window.open(`${this.apiUrl}/latest/logs/archive`, '_blank');\n        }\n    }\n}\n</script>\n\n<style scoped>\n.logs-container {\n    background-color: #1e1e1e;\n    border-radius: 4px;\n    height: 400px;\n    overflow-y: auto;\n    font-family: 'Courier New', monospace;\n}\n\n.logs-content {\n    color: #d4d4d4;\n    font-size: 12px;\n    line-height: 1.4;\n    margin: 0;\n    padding: 12px;\n    white-space: pre-wrap;\n    word-wrap: break-word;\n}\n</style>",
+        "storeOutMessages": false,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 350,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "50b55c688bd1fe30",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "@flowfuse/node-red-dashboard": "1.28.0"
+        }
+    }
+]

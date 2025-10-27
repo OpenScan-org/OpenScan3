@@ -6,8 +6,8 @@ import shutil
 import pytest
 import pytest_asyncio
 
-from app.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
-from app.models.task import TaskStatus, Task, TaskProgress
+from openscan.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
+from openscan.models.task import TaskStatus, Task, TaskProgress
 
 # Mark all tests in this module as asyncio tests
 pytestmark = pytest.mark.asyncio
@@ -34,7 +34,7 @@ async def task_manager_fixture():
     # Discover demo/example tasks via autodiscovery
     tm.autodiscover_tasks(
         namespaces=[
-            "app.controllers.services.tasks",
+            "openscan.controllers.services.tasks",
         ],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager", "example_tasks"},

@@ -28,7 +28,7 @@ or patch your own image: https://github.com/esto-openscan/OpenScan3-image-patche
 #### Accessing OpenScan3
 
 *   **Hostname:** `openscan3-alpha`
-*   **Web Interface:** Currently there is only API documentation available. Open a web browser on a device on the same network and navigate to `http://openscan3-alpha:8000/docs` or to `http://openscan3-alpha:8000/latest/docs` for a cleaner overview of API-Endpoints
+*   **Web Interface:** API documentation is available per version. Open a web browser on a device on the same network and navigate to `http://openscan3-alpha:8000/v1.0/docs` or to `http://openscan3-alpha:8000/latest/docs`. You can list available versions at `http://openscan3-alpha:8000/versions`.
 *   **SSH (if enabled):** `ssh pi@openscan3-alpha` (Password: `raspberry`)
 
 #### First Steps After Boot
@@ -39,7 +39,7 @@ There are two ways to load a configuration:
 
 **Method 1: Using the API (Recommended)**
 
-1.  Navigate to the API documentation (usually accessible via a link like `/docs` or `/redoc` on the web interface, so `http://openscan3-alpha:8000/latest/docs`).
+1.  Navigate to the API documentation at `http://openscan3-alpha:8000/latest/docs`.
 3.  Find the **Device** Section and the **PUT** endpoint `/latest/device/configurations/current`.
 4.  Use the "Try it out" feature.
 5.  In the **Request body**, enter the name of the configuration file you want to load. For example, for an OpenScan Mini with a Greenshield, use:
@@ -48,16 +48,16 @@ There are two ways to load a configuration:
       "config_file": "default_mini_greenshield.json"
     }
     ```
-    *(You can find available default configuration files in the `/home/pi/OpenScan3/app/config/hardware_configurations` directory on the Raspberry Pi)*
+    *(You can find available default configuration files via the settings search precedence below; a simple place is the local `settings/` folder in your checkout.)*
 6.  Execute the request. If successful, you should receive a `200 OK` response, and the hardware corresponding to the configuration should initialize.
 
 **Method 2: Manual File Copy**
 
 1.  Connect to your Raspberry Pi via SSH: `ssh pi@openscan3-alpha` (Password: `raspberry`).
 2.  Navigate to the OpenScan3 directory: `cd /home/pi/OpenScan3/`
-3.  List the available default configurations: `ls settings/`
+3.  List the available default configurations in your active settings directory (see precedence below): `ls settings/`
 4.  Choose the configuration file that matches your hardware (e.g., `default_mini_greenshield.json`).
-5.  Copy the chosen configuration file to `device_config.json` in the main OpenScan3 directory:
+5.  Copy the chosen configuration file to `device_config.json` in your active settings directory:
     ```bash
     cp settings/default_mini_greenshield.json device_config.json
     ```
@@ -114,10 +114,14 @@ source .venv/bin/activate
 ```
 
 
-5. Install the necessary pip packages
+5. Install the package (editable install) and dependencies
 
 ```sh
-pip install -r requirements.txt
+# Using pip (editable):
+pip install -e .
+
+# Alternatively with uv (fast installer):
+# uv pip install -e .
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
@@ -125,23 +129,10 @@ pip install -r requirements.txt
 <!-- USAGE EXAMPLES -->
 #### Start OpenScan3
 
-Activate your virtual environment and run the main script.
+After activating the virtual environment, you can start the service as a module:
 
-To start the api backend run:
 ```sh
-export PYTHONPATH=$(pwd)
-python app/main.py
-```
-
-Now the api should be accessible from `http://local_ip:8000`
-
-To access an api documentation go to `http://local_ip:8000/docs`
-
-Follow the first steps after boot in the previous section.
-
-After reboot or logout be sure to activate your virtual environment again and set the correct paths:
-```sh
-cd OpenScan3/ && source .venv/bin/activate && export PYTHONPATH=$(pwd)
+python -m openscan serve --host 0.0.0.0 --port 8000
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>

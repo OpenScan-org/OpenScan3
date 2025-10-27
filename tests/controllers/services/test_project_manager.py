@@ -5,11 +5,11 @@ from pathlib import Path
 from datetime import datetime
 from unittest.mock import MagicMock
 
-from app.controllers.services.projects import ProjectManager
-from app.models.project import Project
-from app.models.scan import Scan
-from app.config.scan import ScanSetting
-from app.config.camera import CameraSettings
+from openscan.controllers.services.projects import ProjectManager
+from openscan.models.project import Project
+from openscan.models.scan import Scan
+from openscan.config.scan import ScanSetting
+from openscan.config.camera import CameraSettings
 
 
 # --- Test Cases for ProjectManager ---

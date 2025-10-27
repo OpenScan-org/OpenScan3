@@ -64,7 +64,7 @@ def _install_fake_hw_modules(monkeypatch):
 def _import_device(monkeypatch):
     _install_fake_hw_modules(monkeypatch)
     import importlib
-    device = importlib.import_module("app.controllers.device")
+    device = importlib.import_module("openscan.controllers.device")
     return device
 
 
@@ -86,13 +86,13 @@ def test_save_device_config_writes_json(tmp_path, monkeypatch,
     monkeypatch.setattr(device, "DEVICE_CONFIG_FILE", tmp_file)
 
     # Build a minimal ScannerDevice model with settings
-    from app.models.scanner import ScannerDevice
-    from app.models.camera import Camera, CameraType
-    from app.models.motor import Motor
-    from app.models.light import Light
-    from app.config.camera import CameraSettings
-    from app.config.motor import MotorConfig
-    from app.config.light import LightConfig
+    from openscan.models.scanner import ScannerDevice
+    from openscan.models.camera import Camera, CameraType
+    from openscan.models.motor import Motor
+    from openscan.models.light import Light
+    from openscan.config.camera import CameraSettings
+    from openscan.config.motor import MotorConfig
+    from openscan.config.light import LightConfig
 
     cam = Camera(name="cam1", type=CameraType.PICAMERA2, path="/dev/video0", settings=CameraSettings(shutter=123))
     motor = motor_model_instance
@@ -140,7 +140,7 @@ def test_get_device_info_uses_controller_status(monkeypatch):
     monkeypatch.setattr(device, "get_all_light_controllers", lambda: {"ring": DummyCtrl("ring")})
 
     # also provide a simple _scanner_device for name/model/shield fields
-    from app.models.scanner import ScannerDevice
+    from openscan.models.scanner import ScannerDevice
     dev = ScannerDevice(name="X", model=None, shield=None, cameras={}, motors={}, lights={}, endstops={}, initialized=True)
     monkeypatch.setattr(device, "_scanner_device", dev, raising=True)
 
@@ -191,49 +191,37 @@ def test_reboot_and_shutdown_call_system(monkeypatch):
     assert any("shutdown" in c for c in sys_calls)
 
 
-def test_get_available_configs_lists_jsons(monkeypatch):
+def test_get_available_configs_lists_jsons(monkeypatch, tmp_path):
     device = _import_device(monkeypatch)
 
-    # simulate settings dir exists
-    def fake_exists(path):
-        return True
+    settings_dir = tmp_path / "settings"
+    settings_dir.mkdir()
 
-    files = ["a.json", "b.txt", "c.json"]
+    valid = settings_dir / "a.json"
+    invalid = settings_dir / "c.json"
+    ignored = settings_dir / "b.txt"
 
-    def fake_listdir(path):
-        return files
+    valid.write_text(json.dumps({"name": "DevA", "model": "M1", "shield": "S1"}))
+    invalid.write_text("{invalid}")
+    ignored.write_text("not json")
 
-    # map file_path -> content
-    file_contents = {
-        # valid json
-        str(Path("/fake/settings") / "a.json"): json.dumps({"name": "DevA", "model": "M1", "shield": "S1"}),
-        # invalid json (will fall back)
-        str(Path("/fake/settings") / "c.json"): "{invalid}",
-    }
+    monkeypatch.setenv("OPENSCAN_SETTINGS_DIR", str(settings_dir))
 
-    def fake_join(*parts):
-        # emulate the join used in device.get_available_configs
-        return str(Path("/fake/settings") / parts[-1])
+    class _EmptyPackage:
+        def iterdir(self):
+            return []
 
-    # fake open that reads from our map
-    def fake_open(path, mode="r", *args, **kwargs):
-        data = file_contents.get(str(path))
-        if data is None:
-            raise FileNotFoundError(str(path))
-        return io.StringIO(data)
-
-    monkeypatch.setattr(device.os.path, "exists", fake_exists)
-    monkeypatch.setattr(device.os, "listdir", fake_listdir)
-    monkeypatch.setattr(device.os.path, "join", fake_join)
-    monkeypatch.setattr("builtins.open", fake_open)
+    monkeypatch.setattr(device.resources, "files", lambda *_: _EmptyPackage())
 
     configs = device.get_available_configs()
-    # Only json files should be considered
-    assert len(configs) == 2
-    # One with parsed metadata
-    assert any(c.get("filename") == "a.json" and c.get("name") == "DevA" for c in configs)
-    # One fallback without parsed metadata
-    assert any(c.get("filename") == "c.json" and "name" not in c for c in configs)
+    local_configs = [c for c in configs if c.get("path", "").startswith(str(settings_dir))]
+
+    assert len(local_configs) == 2
+
+    indexed = {c["filename"]: c for c in local_configs}
+
+    assert indexed["a.json"].get("name") == "DevA"
+    assert "name" not in indexed["c.json"]
 
 
 def test_cleanup_and_exit_calls_cleanup(monkeypatch):
