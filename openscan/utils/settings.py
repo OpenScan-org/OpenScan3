@@ -27,11 +27,16 @@ def resolve_settings_dir(subdirectory: str | None = None) -> Path:
         Path: Resolved directory path (the directory may not exist yet).
     """
     env_dir = os.getenv("OPENSCAN_SETTINGS_DIR")
-    if env_dir:
-        paths = [p for p in (part.strip() for part in env_dir.split(":")) if p]
-        if paths:
-            base = Path(paths[0])
-            return base / subdirectory if subdirectory else base
+    if env_dir and env_dir.strip():
+        base = Path(env_dir.strip()).expanduser()
+        if subdirectory:
+            candidate = base / subdirectory
+            if candidate.exists():
+                return candidate
+            if base.exists():
+                return base
+            return candidate
+        return base
 
     etc_base = Path("/etc/openscan3")
     etc_candidate = etc_base / subdirectory if subdirectory else etc_base
@@ -76,39 +81,3 @@ def load_settings_json(filename: str, subdirectory: str | None = None) -> dict[s
     except Exception:
         LOGGER.exception("Failed to read settings JSON from %s", candidate)
         return None
-
-
-def iter_settings_dirs(subdirectory: str | None = None, *, existing_only: bool = True) -> list[Path]:
-    """Return settings directories in precedence order.
-
-    Args:
-        subdirectory: Optional subdirectory name to append.
-        existing_only: If True, skip directories that do not exist.
-
-    Returns:
-        List of Path objects ordered by precedence.
-    """
-
-    resolved: list[Path] = []
-    seen: set[Path] = set()
-
-    def _add_candidate(base_path: Path) -> None:
-        candidate = base_path / subdirectory if subdirectory else base_path
-        if existing_only and not candidate.exists():
-            return
-        if candidate not in seen:
-            resolved.append(candidate)
-            seen.add(candidate)
-
-    env_dir = os.getenv("OPENSCAN_SETTINGS_DIR")
-    if env_dir:
-        for raw in env_dir.split(":"):
-            raw = raw.strip()
-            if not raw:
-                continue
-            _add_candidate(Path(raw))
-
-    for base in (Path("/etc/openscan3"), Path("./settings")):
-        _add_candidate(base)
-
-    return resolved

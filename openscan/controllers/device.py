@@ -42,7 +42,6 @@ from openscan.controllers.services.projects import get_project_manager
 from openscan.utils.settings import (
     resolve_settings_dir,
     resolve_settings_file,
-    iter_settings_dirs,
 )
 
 logger = logging.getLogger(__name__)
@@ -391,25 +390,27 @@ def get_available_configs():
     """
     configs: list[dict] = []
 
-    def _append_from_dir(dir_path: Path):
-        if not dir_path.exists():
-            return
-        for file in dir_path.iterdir():
-            if file.suffix == ".json":
-                try:
-                    data = json.loads(file.read_text())
-                    configs.append({
-                        "filename": file.name,
-                        "path": str(file),
-                        "name": data.get("name", "Unknown"),
-                        "model": data.get("model", "Unknown"),
-                        "shield": data.get("shield", "Unknown")
-                    })
-                except Exception:
-                    configs.append({"filename": file.name, "path": str(file)})
+    settings_dir = resolve_settings_dir("device")
+    if not settings_dir.exists():
+        fallback_dir = resolve_settings_dir()
+        if fallback_dir.exists():
+            settings_dir = fallback_dir
+        else:
+            return configs
 
-    for dir_path in iter_settings_dirs("device"):
-        _append_from_dir(dir_path)
+    for file in settings_dir.iterdir():
+        if file.suffix == ".json":
+            try:
+                data = json.loads(file.read_text())
+                configs.append({
+                    "filename": file.name,
+                    "path": str(file),
+                    "name": data.get("name", "Unknown"),
+                    "model": data.get("model", "Unknown"),
+                    "shield": data.get("shield", "Unknown")
+                })
+            except Exception:
+                configs.append({"filename": file.name, "path": str(file)})
 
     return configs
 
