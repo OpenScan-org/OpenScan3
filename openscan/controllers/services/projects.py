@@ -78,6 +78,7 @@ def get_project(projects_path: str, project_name: str) -> Project:
         path=project_path,
         created=project_data.get("created"),
         uploaded=project_data.get("uploaded", False),
+        cloud_project_name=project_data.get("cloud_project_name"),
         scans=scans,
         description=project_data.get("description")
     )
@@ -263,6 +264,38 @@ class ProjectManager:
     def get_all_projects(self) -> dict[str, Project]:
         """Get all projects as a dictionary of project name to a project object"""
         return self._projects
+
+    def mark_uploaded(
+        self,
+        project_name: str,
+        uploaded: bool = True,
+        cloud_project_name: str | None = None,
+    ) -> Project:
+        """Set the uploaded flag for a project and persist the change.
+
+        Args:
+            project_name: Name of the project to update.
+            uploaded: New uploaded state (defaults to True).
+            cloud_project_name: Optional remote project identifier to store.
+
+        Returns:
+            Updated Project instance.
+
+        Raises:
+            ValueError: If the project does not exist.
+        """
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        project.uploaded = uploaded
+        if cloud_project_name is not None:
+            project.cloud_project_name = cloud_project_name
+        elif not uploaded:
+            project.cloud_project_name = None
+        save_project(project)
+        return project
 
 
     def add_project(self, name: str, project_description=None) -> Project:

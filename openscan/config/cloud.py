@@ -1,12 +1,98 @@
-from dataclasses import dataclass
+"""Helpers and model for managing cloud service configuration."""
+
+from __future__ import annotations
+
+import os
+from typing import Mapping
+
+from pydantic import BaseModel, Field, HttpUrl
 
 
-@dataclass
-class CloudSettings:
-    user: str
-    password: str
-    key: str
+DEFAULT_CLOUD_HOST = "http://openscanfeedback.dnsuser.de:1334"
+DEFAULT_SPLIT_SIZE = 200_000_000
 
-    host: str
 
-    split_size: int = 200000000 #200MB is the maximum part size (total zip file can be up to 2GB)
+class CloudSettings(BaseModel):
+    """Settings that describe how to talk to the OpenScan cloud backend."""
+
+    user: str = Field(..., description="HTTP basic auth username for the cloud API.")
+    password: str = Field(..., description="HTTP basic auth password for the cloud API.")
+    token: str = Field(..., description="API token identifying the device or user.")
+    host: HttpUrl = Field(..., description="Base URL of the cloud service.")
+    split_size: int = Field(
+        DEFAULT_SPLIT_SIZE,
+        ge=1,
+        description=(
+            "Maximum upload part size in bytes. The cloud currently accepts up to 200 MB per chunk."
+        ),
+    )
+
+
+class CloudConfigurationError(RuntimeError):
+    """Raised when cloud settings are not configured but required."""
+
+
+_active_cloud_settings: CloudSettings | None = None
+
+
+def set_cloud_settings(settings: CloudSettings | None) -> None:
+    """Register the active cloud settings for the running application."""
+
+    global _active_cloud_settings
+    _active_cloud_settings = settings
+
+
+def get_cloud_settings() -> CloudSettings:
+    """Return the active cloud settings or raise if they are missing."""
+
+    if _active_cloud_settings is None:
+        raise CloudConfigurationError(
+            "Cloud settings have not been initialized. Call set_cloud_settings() during startup."
+        )
+    return _active_cloud_settings
+
+
+def load_cloud_settings_from_env(env: Mapping[str, str] | None = None) -> CloudSettings | None:
+    """Create cloud settings from environment variables.
+
+    Args:
+        env: Optional mapping to read values from, defaults to ``os.environ``.
+
+    Returns:
+        CloudSettings instance when required variables are present, otherwise ``None``.
+    """
+
+    source = env or os.environ
+
+    user = source.get("OPENSCANCLOUD_USER", "").strip()
+    password = source.get("OPENSCANCLOUD_PASSWORD", "").strip()
+    token = source.get("OPENSCANCLOUD_TOKEN", "").strip()
+
+    if not (user and password and token):
+        return None
+
+    host = source.get("OPENSCANCLOUD_HOST", DEFAULT_CLOUD_HOST).strip() or DEFAULT_CLOUD_HOST
+    split_size_raw = source.get("OPENSCANCLOUD_SPLIT_SIZE")
+
+    try:
+        split_size = int(split_size_raw) if split_size_raw else DEFAULT_SPLIT_SIZE
+    except ValueError:  # pragma: no cover - defensive conversion guard
+        split_size = DEFAULT_SPLIT_SIZE
+
+    return CloudSettings(
+        user=user,
+        password=password,
+        token=token,
+        host=host,
+        split_size=split_size,
+    )
+
+
+def mask_secret(value: str | None) -> str:
+    """Return a masked representation for secrets in logs."""
+
+    if not value:
+        return "(empty)"
+    if len(value) <= 4:
+        return "***"
+    return f"***{value[-4:]}"

@@ -3,12 +3,16 @@ import re
 from pydantic import BaseModel, field_validator
 from typing import ClassVar, Optional
 
+from pydantic import BaseModel, field_validator
+
 from openscan.models.scan import Scan
 
 import pathlib
 
 
 class Project(BaseModel):
+    """Represents a scan project stored on disk and optionally mirrored in the cloud."""
+
     name: str
     path: str
 
@@ -18,6 +22,7 @@ class Project(BaseModel):
 
     description: Optional[str] = None
     uploaded: bool = False
+    cloud_project_name: Optional[str] = None
 
 
     # Constants for Validation

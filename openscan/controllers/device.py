@@ -27,7 +27,15 @@ from openscan.config.camera import CameraSettings
 from openscan.config.motor import MotorConfig
 from openscan.config.light import LightConfig
 from openscan.config.endstop import EndstopConfig
-from openscan.config.cloud import CloudSettings
+from openscan.config.cloud import (
+    load_cloud_settings_from_env,
+    set_cloud_settings,
+    mask_secret,
+)
+from openscan.controllers.services.cloud_settings import (
+    load_persistent_cloud_settings,
+    set_active_source,
+)
 
 from openscan.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers, \
     remove_camera_controller
@@ -314,12 +322,31 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
         logger.debug(f"Loaded light {light_name} with settings: {light.settings}")
 
     # Cloud settings
-    cloud = CloudSettings(
-        "openscan",
-        "free",
-        os.getenv("OPENSCANCLOUD_KEY"),
-        "http://openscanfeedback.dnsuser.de:1334",
-    )
+    persistent_settings = load_persistent_cloud_settings()
+    if persistent_settings:
+        set_cloud_settings(persistent_settings)
+        set_active_source("persistent")
+        logger.info(
+            "Cloud service configured from persisted settings for host %s (user %s).",
+            persistent_settings.host,
+            mask_secret(persistent_settings.user),
+        )
+    else:
+        cloud_settings = load_cloud_settings_from_env()
+        if cloud_settings:
+            set_cloud_settings(cloud_settings)
+            set_active_source("environment")
+            logger.info(
+                "Cloud service configured from environment for host %s (user %s).",
+                cloud_settings.host,
+                mask_secret(cloud_settings.user),
+            )
+        else:
+            set_cloud_settings(None)
+            set_active_source(None)
+            logger.warning(
+                "Cloud service not configured. Set OPENSCANCLOUD_USER, OPENSCANCLOUD_PASSWORD and OPENSCANCLOUD_TOKEN to enable uploads."
+            )
 
     # Initialize controllers
     for name, camera in camera_objects.items():
