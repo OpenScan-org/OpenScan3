@@ -1,15 +1,23 @@
-import pytest
-import os
+import asyncio
+import io
 import json
-from pathlib import Path
+import os
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock
 
-from openscan.controllers.services.projects import ProjectManager
-from openscan.models.project import Project
-from openscan.models.scan import Scan
-from openscan.config.scan import ScanSetting
+import pytest
+
+from openscan.controllers.services.projects import (
+    ProjectManager,
+    _write_json_atomic,
+    save_project,
+)
 from openscan.config.camera import CameraSettings
+from openscan.config.scan import ScanSetting
+from openscan.models.camera import PhotoData
+from openscan.models.paths import PolarPoint3D
+from openscan.models.scan import Scan, ScanMetadata
 
 
 # --- Test Cases for ProjectManager ---
@@ -126,19 +134,14 @@ async def test_pm_init_loads_existing_project(project_manager: ProjectManager,
 # @pytest.fixture
 # def mock_camera_controller() -> MagicMock:
 #     """Fixture for a mocked CameraController."""
-#     controller = MagicMock()
-#     controller.name = "mock_camera_controller"
-#     controller.camera.name = "mock_camera"
-#     # Simulate the structure that add_scan_to_project expects
-#     controller.settings = MagicMock()
-#     controller.settings.model = CameraSettings(shutter=400)
-#     return controller
 
 
 @pytest.mark.asyncio
-async def test_pm_add_scan_to_project(project_manager: ProjectManager,
-                                      mock_camera_controller: MagicMock,
-                                      sample_scan_settings: ScanSetting):
+async def test_pm_add_scan_to_project(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+):
     """Test adding a new scan to an existing project."""
     project_name = "ProjectForScanning"
     project_manager.add_project(name=project_name) # Synchronous call
