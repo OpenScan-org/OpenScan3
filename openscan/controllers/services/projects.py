@@ -26,8 +26,9 @@ from typing import Optional
 import aiofiles
 import pathlib
 from tempfile import TemporaryFile
+import tempfile
 from typing import IO
-from zipfile import ZipFile
+from zipfile import ZipFile, BadZipFile
 import json
 import os
 import shutil
@@ -78,6 +79,8 @@ def get_project(projects_path: str, project_name: str) -> Project:
         path=project_path,
         created=project_data.get("created"),
         uploaded=project_data.get("uploaded", False),
+        cloud_project_name=project_data.get("cloud_project_name"),
+        downloaded=project_data.get("downloaded", False),
         scans=scans,
         description=project_data.get("description")
     )
@@ -96,28 +99,45 @@ def delete_project(project: Project) -> bool:
 
 
 async def _save_scan_json_async(projects_path: str, scan: Scan) -> None:
-    """Save a scan to a separate JSON file in the scan directory"""
-    # Create a new folder if necessary
-    scan_folder_path = os.path.join(projects_path, f"scan{scan.index:02d}")
-    os.makedirs(scan_folder_path, exist_ok=True)
-
+    """Save a scan to a separate JSON file in the scan directory."""
     scan_json_data = scan.model_dump_json(indent=2)
-
-    scan_file_path = os.path.join(scan_folder_path, "scan.json")
-    async with aiofiles.open(scan_file_path, "w") as f:
-        await f.write(scan_json_data)
+    await asyncio.to_thread(
+        _write_json_atomic,
+        _build_scan_file_path(projects_path, scan.index),
+        scan_json_data,
+    )
 
 
 def _save_scan_json(projects_path: str, scan: Scan) -> None:
     """Synchronously save a scan to a separate JSON file in the scan directory."""
-    scan_folder_path = os.path.join(projects_path, f"scan{scan.index:02d}")
-    os.makedirs(scan_folder_path, exist_ok=True)
-
     scan_json_data = scan.model_dump_json(indent=2)
+    scan_file_path = _build_scan_file_path(projects_path, scan.index)
+    _write_json_atomic(scan_file_path, scan_json_data)
 
-    scan_file_path = os.path.join(scan_folder_path, "scan.json")
-    with open(scan_file_path, "w") as f:
-        f.write(scan_json_data)
+
+def _build_scan_file_path(projects_path: str, scan_index: int) -> str:
+    """Return the full path to the scan.json for a given scan index."""
+    scan_folder_path = os.path.join(projects_path, f"scan{scan_index:02d}")
+    os.makedirs(scan_folder_path, exist_ok=True)
+    return os.path.join(scan_folder_path, "scan.json")
+
+
+def _write_json_atomic(file_path: str, payload: str) -> None:
+    """Write JSON payload to file atomically using a temporary file."""
+    directory = os.path.dirname(file_path)
+    os.makedirs(directory, exist_ok=True)
+
+    fd, temp_path = tempfile.mkstemp(dir=directory, prefix=".tmp_", suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as temp_file:
+            temp_file.write(payload)
+        os.replace(temp_path, file_path)
+    except Exception:
+        try:
+            os.remove(temp_path)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def _load_scan_json(project_path: str, project_name: str, scan_index: int) -> Scan:
@@ -140,9 +160,6 @@ def save_project(project: Project):
     """Save the project metadata to openscan_project.json and each scan to its individual file."""
     project_json_path = os.path.join(project.path, "openscan_project.json")
 
-    # Create project directory if it doesn't exist (e.g., for a new project)
-    os.makedirs(project.path, exist_ok=True)
-
     # Prepare the main project data for openscan_project.json
     # Exclude 'scans' as we'll handle its summary representation manually.
     project_main_data = project.model_dump(mode='json', exclude={'scans'})
@@ -157,9 +174,8 @@ def save_project(project: Project):
 
     project_main_data['scans'] = scans_summary
 
-    # Write the main project data to openscan_project.json
-    with open(project_json_path, "w") as f:
-        json.dump(project_main_data, f, indent=2)
+    os.makedirs(project.path, exist_ok=True)
+    _write_json_atomic(project_json_path, json.dumps(project_main_data, indent=2))
 
     # Save each scan to its individual JSON file using the refactored _save_scan_json
     for scan in project.scans.values():
@@ -263,6 +279,122 @@ class ProjectManager:
     def get_all_projects(self) -> dict[str, Project]:
         """Get all projects as a dictionary of project name to a project object"""
         return self._projects
+
+    def mark_uploaded(
+        self,
+        project_name: str,
+        uploaded: bool = True,
+        cloud_project_name: str | None = None,
+    ) -> Project:
+        """Set the uploaded flag for a project and persist the change.
+
+        Args:
+            project_name: Name of the project to update.
+            uploaded: New uploaded state (defaults to True).
+            cloud_project_name: Optional remote project identifier to store.
+
+        Returns:
+            Updated Project instance.
+
+        Raises:
+            ValueError: If the project does not exist.
+        """
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        project.uploaded = uploaded
+        if cloud_project_name is not None:
+            project.cloud_project_name = cloud_project_name
+        elif not uploaded:
+            project.cloud_project_name = None
+        save_project(project)
+        return project
+        
+    def mark_downloaded(self, project_name: str, downloaded: bool = True) -> Project:
+        """Set the downloaded flag for a project and persist the change.
+
+        Args:
+            project_name: Name of the project to update.
+            downloaded: New downloaded state (defaults to True).
+
+        Returns:
+            Updated Project instance.
+
+        Raises:
+            ValueError: If the project does not exist.
+        """
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        project.downloaded = downloaded
+        save_project(project)
+        logger.info("Set downloaded=%s for project %s", downloaded, project_name)
+        return project
+
+    def add_download(self, project_name: str, archive_path: str) -> Project:
+        """Install a reconstruction archive into the project's ``model/`` directory.
+
+        Args:
+            project_name: Name of the project that should receive the model.
+            archive_path: Path to the ZIP archive that should be unpacked.
+
+        Returns:
+            Updated project instance with ``downloaded`` set to ``True``.
+
+        Raises:
+            ValueError: If the project does not exist or the archive is invalid.
+            FileNotFoundError: If the archive does not exist.
+        """
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        archive = pathlib.Path(archive_path)
+        if not archive.exists():
+            raise FileNotFoundError(f"Archive not found: {archive}")
+        if archive.is_dir():
+            raise ValueError(f"Archive path must point to a file: {archive}")
+
+        model_dir = pathlib.Path(project.path) / "model"
+
+        if project.downloaded:
+            logger.warning(
+                "Overwriting previously downloaded model for project %s", project_name
+            )
+
+        try:
+            with ZipFile(archive, "r") as zip_file:
+                for member in zip_file.namelist():
+                    member_path = pathlib.Path(member)
+                    if member_path.is_absolute() or ".." in member_path.parts:
+                        raise ValueError(
+                            f"Archive contains unsupported path entry: {member}"
+                        )
+
+                if model_dir.exists():
+                    contents = list(model_dir.iterdir())
+                    if contents:
+                        logger.warning(
+                            "Clearing existing contents of model/ for project %s",
+                            project_name,
+                        )
+                    shutil.rmtree(model_dir)
+
+                model_dir.mkdir(parents=True, exist_ok=True)
+                zip_file.extractall(model_dir)
+        except BadZipFile as exc:
+            raise ValueError(f"Invalid zip archive: {archive}") from exc
+
+        logger.info(
+            "Installed reconstruction archive %s into %s", archive, model_dir
+        )
+
+        return self.mark_downloaded(project_name, True)
 
 
     def add_project(self, name: str, project_description=None) -> Project:
@@ -415,10 +547,18 @@ class ProjectManager:
         return photo_dir, photo_filename
 
     async def save_scan_state(self, scan: Scan) -> None:
-        """Asynchronously saves the state of a single scan to its JSON file."""
-        project = get_project(self._path,scan.project_name)
+        """Persist the latest scan state without reloading the project from disk."""
+        project = self.get_project_by_name(scan.project_name)
+        if project is None:
+            # Fall back to loading from disk to avoid data loss in exceptional cases.
+            project = get_project(self._path, scan.project_name)
+            self._projects[scan.project_name] = project
+
+        scan_id = f"scan{scan.index:02d}"
+        project.scans[scan_id] = scan
+
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, save_project, project)
+        await loop.run_in_executor(None, _save_scan_json, project.path, scan)
 
 
     def get_scan_by_index(self, project_name: str, scan_index: int) -> Optional[Scan]:

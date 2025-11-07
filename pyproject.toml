@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.24"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "openscan3"
-version = "0.1.0"
+version = "0.2.0-alpha"
 description = "OpenScan3 - Raspberry Pi based photogrammetry scanner (FastAPI-based application)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ license = { file = "LICENSE" }
 authors = [
   { name = "OpenScan3 Contributors" }
 ]
-keywords = ["photogrammetry", "raspberry-pi", "fastapi", "3d", "scanner"]
+keywords = ["openscan", "photogrammetry", "raspberry-pi", "fastapi", "3d", "scanner"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
@@ -20,7 +20,6 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
 ]
 
-# Dependencies migrated from requirements.txt (runtime only; test/dev will be added later as extras)
 dependencies = [
   "rpi.gpio==0.7.1",
   "fastapi==0.115.6",
@@ -45,6 +44,12 @@ dependencies = [
   "pydantic_core==2.33.1",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest==8.3.5",
+  "pytest-asyncio==0.26.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/OpenScan-org/OpenScan3"
 Issues = "https://github.com/OpenScan-org/OpenScan3/issues"
@@ -53,17 +58,23 @@ Issues = "https://github.com/OpenScan-org/OpenScan3/issues"
 openscan = "openscan.cli:main"
 openscan3 = "openscan.cli:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["openscan"]
+[tool.setuptools]
+include-package-data = true
 
-# Ensure packaged defaults (JSON) are included in the wheel
-[tool.hatch.build.targets.wheel.package-data]
-"openscan.resources.settings" = ["*.json"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["openscan*"]
 
-[tool.hatch.build.targets.sdist]
-include = [
-  "openscan/**",
-  "README.md",
-  "LICENSE",
-  "requirements.txt",
+[tool.setuptools.package-data]
+"openscan" = ["**/*.json"]
+
+[tool.setuptools.data-files]
+"openscan/settings/device" = [
+  "settings/device/*.json",
+]
+"openscan/settings/firmware" = [
+  "settings/firmware/*.json",
+]
+"openscan/settings/logging" = [
+  "settings/logging/*.json",
 ]

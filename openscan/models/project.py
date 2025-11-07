@@ -1,7 +1,8 @@
 from datetime import datetime
 import re
-from pydantic import BaseModel, field_validator
 from typing import ClassVar, Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 from openscan.models.scan import Scan
 
@@ -9,15 +10,36 @@ import pathlib
 
 
 class Project(BaseModel):
-    name: str
-    path: str
+    """Represents a scan project stored on disk and optionally processed in the cloud."""
 
-    created: datetime
+    name: str = Field(
+        description="Name of the project."
+    )
+    path: str = Field(
+        description="Path to the project directory."
+    )
 
-    scans: dict[str, Scan]
+    created: datetime = Field(
+        description="Creation timestamp of the project."
+    )
 
-    description: Optional[str] = None
-    uploaded: bool = False
+    scans: dict[str, Scan] = Field(
+        description="Scans associated with the project."
+    )
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Description of the project."
+    )
+    uploaded: bool = Field(
+        default=False,
+        description="Whether the model has been uploaded to the cloud."
+    )
+    cloud_project_name: Optional[str] = None
+    downloaded: bool = Field(
+        default=False,
+        description="Whether the model has been downloaded from the cloud."
+    )
 
 
     # Constants for Validation

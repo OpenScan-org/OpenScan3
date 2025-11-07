@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from openscan.config.logger import setup_logging
 from openscan.utils.settings import load_settings_json
 
-from openscan.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks, develop
+from openscan.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks, develop, cloud
 from openscan.controllers import device as device_controller
 
 
@@ -107,12 +107,13 @@ BASE_ROUTERS = [
     tasks.router,
     develop.router,
     paths.router,
+    cloud.router,
 ]
 
 # Router mapping per API version. Extend per version to diverge.
 # Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.1": BASE_ROUTERS,
+    "0.2": BASE_ROUTERS,
 }
 
 
@@ -152,6 +153,7 @@ def make_version_app(version: str) -> FastAPI:
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
     "0.1",
+    "0.2",
 ]
 LATEST = SUPPORTED_VERSIONS[-1]
 
