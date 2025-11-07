@@ -28,7 +28,7 @@ import pathlib
 from tempfile import TemporaryFile
 import tempfile
 from typing import IO
-from zipfile import ZipFile
+from zipfile import ZipFile, BadZipFile
 import json
 import os
 import shutil
@@ -80,6 +80,7 @@ def get_project(projects_path: str, project_name: str) -> Project:
         created=project_data.get("created"),
         uploaded=project_data.get("uploaded", False),
         cloud_project_name=project_data.get("cloud_project_name"),
+        downloaded=project_data.get("downloaded", False),
         scans=scans,
         description=project_data.get("description")
     )
@@ -310,6 +311,90 @@ class ProjectManager:
             project.cloud_project_name = None
         save_project(project)
         return project
+        
+    def mark_downloaded(self, project_name: str, downloaded: bool = True) -> Project:
+        """Set the downloaded flag for a project and persist the change.
+
+        Args:
+            project_name: Name of the project to update.
+            downloaded: New downloaded state (defaults to True).
+
+        Returns:
+            Updated Project instance.
+
+        Raises:
+            ValueError: If the project does not exist.
+        """
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        project.downloaded = downloaded
+        save_project(project)
+        logger.info("Set downloaded=%s for project %s", downloaded, project_name)
+        return project
+
+    def add_download(self, project_name: str, archive_path: str) -> Project:
+        """Install a reconstruction archive into the project's ``model/`` directory.
+
+        Args:
+            project_name: Name of the project that should receive the model.
+            archive_path: Path to the ZIP archive that should be unpacked.
+
+        Returns:
+            Updated project instance with ``downloaded`` set to ``True``.
+
+        Raises:
+            ValueError: If the project does not exist or the archive is invalid.
+            FileNotFoundError: If the archive does not exist.
+        """
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        archive = pathlib.Path(archive_path)
+        if not archive.exists():
+            raise FileNotFoundError(f"Archive not found: {archive}")
+        if archive.is_dir():
+            raise ValueError(f"Archive path must point to a file: {archive}")
+
+        model_dir = pathlib.Path(project.path) / "model"
+
+        if project.downloaded:
+            logger.warning(
+                "Overwriting previously downloaded model for project %s", project_name
+            )
+
+        try:
+            with ZipFile(archive, "r") as zip_file:
+                for member in zip_file.namelist():
+                    member_path = pathlib.Path(member)
+                    if member_path.is_absolute() or ".." in member_path.parts:
+                        raise ValueError(
+                            f"Archive contains unsupported path entry: {member}"
+                        )
+
+                if model_dir.exists():
+                    contents = list(model_dir.iterdir())
+                    if contents:
+                        logger.warning(
+                            "Clearing existing contents of model/ for project %s",
+                            project_name,
+                        )
+                    shutil.rmtree(model_dir)
+
+                model_dir.mkdir(parents=True, exist_ok=True)
+                zip_file.extractall(model_dir)
+        except BadZipFile as exc:
+            raise ValueError(f"Invalid zip archive: {archive}") from exc
+
+        logger.info(
+            "Installed reconstruction archive %s into %s", archive, model_dir
+        )
+
+        return self.mark_downloaded(project_name, True)
 
 
     def add_project(self, name: str, project_description=None) -> Project:

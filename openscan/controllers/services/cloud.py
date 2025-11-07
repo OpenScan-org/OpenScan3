@@ -40,6 +40,16 @@ class CloudUploadResult:
     start_response: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class CloudDownloadResult:
+    """Summary returned after downloading a reconstructed archive from the cloud."""
+
+    project: str
+    archive_size_bytes: int
+    bytes_downloaded: int
+    download_info: dict[str, Any]
+
+
 def _require_cloud_settings() -> CloudSettings:
     """Retrieve configured cloud settings or raise a service error."""
 
@@ -293,6 +303,61 @@ async def upload_project(
         "cloud_upload_task",
         project_name,
         token=token,
+    )
+    return task
+
+
+async def download_project(
+    project_name: str,
+    *,
+    project_manager: ProjectManager | None = None,
+    token: str | None = None,
+    remote_project: str | None = None,
+):
+    """Schedule a download task for a reconstructed project archive.
+
+    Args:
+        project_name: Local project name whose reconstruction should be downloaded.
+        project_manager: Optional project manager used to resolve the project.
+        token: Optional cloud token override forwarded to the task.
+        remote_project: Optional explicit remote project name, defaults to the stored cloud name.
+
+    Returns:
+        Task: The TaskManager model describing the scheduled download.
+
+    Raises:
+        CloudServiceError: If prerequisites are missing or a download is already running.
+    """
+
+    _require_cloud_settings()
+    manager = project_manager or get_project_manager()
+    project = manager.get_project_by_name(project_name)
+    if project is None:
+        raise CloudServiceError(f"Project '{project_name}' not found")
+
+    remote_name = remote_project or project.cloud_project_name
+    if not remote_name:
+        raise CloudServiceError(
+            "No remote project reference stored. Upload the project before downloading."
+        )
+
+    task_manager = get_task_manager()
+    for task in task_manager.get_all_tasks_info():
+        if (
+            task.task_type == "cloud_download_task"
+            and task.run_args
+            and task.run_args[0] == project_name
+            and task.status in {TaskStatus.PENDING, TaskStatus.RUNNING}
+        ):
+            raise CloudServiceError(
+                "A download for this project is already in progress. Wait for completion or cancel it."
+            )
+
+    task = await task_manager.create_and_run_task(
+        "cloud_download_task",
+        project_name,
+        token=token,
+        remote_project=remote_name,
     )
     return task
 

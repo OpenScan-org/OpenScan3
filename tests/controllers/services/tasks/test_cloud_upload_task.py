@@ -15,7 +15,7 @@ from openscan.controllers.services.cloud import (
     _build_project_archive,
     _count_project_photos,
 )
-from openscan.controllers.services.tasks.core.cloud_upload_task import CloudUploadTask
+from openscan.controllers.services.tasks.core.cloud_task import CloudUploadTask
 from openscan.models.project import Project
 from openscan.models.task import Task
 
@@ -36,26 +36,26 @@ def _patch_cloud_dependencies(
 
     settings = SimpleNamespace(split_size=split_size)
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._require_cloud_settings",
+        "openscan.controllers.services.tasks.core.cloud_task._require_cloud_settings",
         lambda: settings,
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task.get_project_manager",
+        "openscan.controllers.services.tasks.core.cloud_task.get_project_manager",
         lambda: project_manager,
     )
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._generate_remote_project_name",
+        "openscan.controllers.services.tasks.core.cloud_task._generate_remote_project_name",
         lambda _name: remote_project,
     )
 
     fake_archive = io.BytesIO(b"archive-bytes")
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._build_project_archive",
+        "openscan.controllers.services.tasks.core.cloud_task._build_project_archive",
         lambda _project: (fake_archive, archive_size),
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._count_project_photos",
+        "openscan.controllers.services.tasks.core.cloud_task._count_project_photos",
         lambda _project: photo_count,
     )
 
@@ -67,20 +67,20 @@ def _patch_cloud_dependencies(
         return {"ulink": links}
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._create_project",
+        "openscan.controllers.services.tasks.core.cloud_task._create_project",
         fake_create_project,
     )
 
     start_calls: list[tuple[Any, ...]] = []
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._start_project",
+        "openscan.controllers.services.tasks.core.cloud_task._start_project",
         lambda *args: start_calls.append(args) or {"status": "started"},
     )
 
     payloads = chunk_payloads or [b"part1", b"part2"]
     parts = [io.BytesIO(data) for data in payloads]
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._iter_chunks",
+        "openscan.controllers.services.tasks.core.cloud_task._iter_chunks",
         lambda *_: iter(parts),
     )
 
@@ -93,7 +93,7 @@ def _patch_cloud_dependencies(
             upload_side_effect(data, link)
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_upload_task._upload_file",
+        "openscan.controllers.services.tasks.core.cloud_task._upload_file",
         fake_upload_file,
     )
 

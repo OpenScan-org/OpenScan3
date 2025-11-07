@@ -113,6 +113,25 @@ async def upload_project_to_cloud(project_name: str, token_override: Optional[st
     return task
 
 
+@router.post("/{project_name}/download", response_model=Task)
+async def download_project_from_cloud(
+    project_name: str,
+    token_override: Optional[str] = None,
+    remote_project: Optional[str] = None,
+) -> Task:
+    """Schedule an asynchronous cloud download for a project's reconstruction."""
+
+    try:
+        task = await cloud.download_project(
+            project_name,
+            token=token_override,
+            remote_project=remote_project,
+        )
+    except cloud.CloudServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return task
+
+
 @router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
 async def get_scan(project_name: str, scan_index: int):
     """Get Scan by project and index"""
