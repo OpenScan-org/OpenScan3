@@ -145,7 +145,11 @@ def _build_settings_response() -> CloudSettingsResponse:
 
 @router.get("/status", response_model=CloudStatusResponse)
 async def get_cloud_status() -> CloudStatusResponse:
-    """Return aggregated status information for the cloud backend."""
+    """Return aggregated status information for the cloud backend.
+
+    Returns:
+        CloudStatusResponse: A response object containing the status of the cloud backend
+    """
 
     status = token_info = queue_estimate = None
     messages: list[str] = []
@@ -185,14 +189,25 @@ async def get_cloud_status() -> CloudStatusResponse:
 
 @router.get("/settings", response_model=CloudSettingsResponse)
 async def get_cloud_settings() -> CloudSettingsResponse:
-    """Return the masked active cloud configuration."""
+    """Return the masked active cloud configuration.
+
+    Returns:
+        CloudSettingsResponse: A response object containing the masked active cloud configuration
+    """
 
     return _build_settings_response()
 
 
 @router.post("/settings", response_model=CloudSettingsResponse)
 async def update_cloud_settings(new_settings: CloudSettings) -> CloudSettingsResponse:
-    """Persist and activate new cloud settings."""
+    """Persist and activate new cloud settings.
+
+    Args:
+        new_settings: The new cloud settings to persist and activate
+
+    Returns:
+        CloudSettingsResponse: A response object containing the masked active cloud configuration
+    """
 
     set_cloud_settings(new_settings)
     await asyncio.to_thread(save_persistent_cloud_settings, new_settings)
@@ -202,7 +217,11 @@ async def update_cloud_settings(new_settings: CloudSettings) -> CloudSettingsRes
 
 @router.get("/projects", response_model=list[CloudProjectStatus])
 async def list_cloud_projects() -> list[CloudProjectStatus]:
-    """Return all local projects enriched with cloud metadata."""
+    """Return all local projects enriched with cloud metadata.
+
+    Returns:
+        list[CloudProjectStatus]: A list of cloud project status objects
+    """
 
     project_manager = get_project_manager()
     tasks_by_project = _collect_tasks_by_project()
@@ -215,7 +234,14 @@ async def list_cloud_projects() -> list[CloudProjectStatus]:
 
 @router.get("/projects/{project_name}", response_model=CloudProjectStatus)
 async def get_cloud_project(project_name: str) -> CloudProjectStatus:
-    """Return cloud details for a single local project."""
+    """Return cloud details for a single local project.
+
+    Args:
+        project_name: The name of the project to get the cloud details for
+
+    Returns:
+        CloudProjectStatus: A response object containing the cloud project status
+    """
 
     project_manager = get_project_manager()
     project = project_manager.get_project_by_name(project_name)
@@ -228,7 +254,14 @@ async def get_cloud_project(project_name: str) -> CloudProjectStatus:
 
 @router.delete("/projects/{project_name}")
 async def reset_cloud_project(project_name: str) -> dict[str, Any]:
-    """Reset the remote project and clear the local linkage."""
+    """Reset the remote project and clear the local linkage.
+
+    Args:
+        project_name: The name of the project to reset the remote project for
+
+    Returns:
+        dict[str, Any]: A response object containing the result of the reset operation
+    """
 
     project_manager = get_project_manager()
     project = project_manager.get_project_by_name(project_name)

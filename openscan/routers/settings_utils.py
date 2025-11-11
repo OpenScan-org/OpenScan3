@@ -1,5 +1,5 @@
-from typing import Any, Callable, Dict, Generic, Type, TypeVar
-from fastapi import APIRouter, Body, HTTPException, Depends
+from typing import Any, Callable, Dict, Type, TypeVar
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 
 T = TypeVar('T', bound=BaseModel)
@@ -9,8 +9,8 @@ def create_settings_endpoints(
         router: APIRouter,
         resource_name: str,
         get_controller: Callable[[str], Any],
-        settings_model: Type[BaseModel]
-):
+        settings_model: Type[T]
+) -> Dict[str, Callable[..., Any]]:
     """
     Create standardized settings endpoints for a resource.
 
@@ -21,16 +21,24 @@ def create_settings_endpoints(
         settings_model: Pydantic model for the settings
     """
 
-    @router.get(f"/{{{resource_name}}}/settings")
-    async def get_settings(name: str):
+    @router.get(f"/{{{resource_name}}}/settings", response_model=settings_model)
+    async def get_settings(name: str) -> T:
         """Get settings for a specific resource"""
         controller = get_controller(name)
         return controller.settings.model
 
 
-    @router.put(f"/{{{resource_name}}}/settings")
-    async def replace_settings(name: str, settings: settings_model):
-        """Replace all settings for a specific resource"""
+    @router.put(f"/{{{resource_name}}}/settings", response_model=settings_model)
+    async def replace_settings(name: str, settings: T) -> T:
+        """Replace all settings for a specific resource
+
+        Args:
+            name: The name of the resource to replace settings for
+            settings: The new settings for the resource
+
+        Returns:
+            The updated settings for the resource
+        """
         controller = get_controller(name)
         try:
             controller.settings.replace(settings)
@@ -39,9 +47,20 @@ def create_settings_endpoints(
             raise HTTPException(status_code=422, detail=str(e))
 
 
-    @router.patch(f"/{{{resource_name}}}/settings")
-    async def update_settings(name: str, settings: Dict[str, Any] = Body(..., examples=[{"some_setting": 123}])):
-        """Update one or more specific settings for a resource"""
+    @router.patch(f"/{{{resource_name}}}/settings", response_model=settings_model)
+    async def update_settings(
+            name: str,
+            settings: Dict[str, Any] = Body(..., examples=[{"some_setting": 123}])
+    ) -> T:
+        """Update one or more specific settings for a resource
+
+        Args:
+            name: The name of the resource to update settings for
+            settings: A dictionary of settings to update
+
+        Returns:
+            The updated settings for the resource
+        """
         controller = get_controller(name)
         try:
             controller.settings.update(**settings)

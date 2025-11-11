@@ -9,19 +9,7 @@ from contextlib import asynccontextmanager
 from openscan.config.logger import setup_logging
 from openscan.utils.settings import load_settings_json
 
-from openscan.routers import (
-    cameras,
-    motors,
-    projects,
-    gpio,
-    paths,
-    openscan,
-    lights,
-    device,
-    tasks,
-    develop,
-    cloud,
-)
+from openscan.routers import cameras, motors, projects, gpio, openscan, lights, device, tasks, develop, cloud
 from openscan.controllers import device as device_controller
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
@@ -151,17 +139,25 @@ BASE_ROUTERS = [
     device.router,
     tasks.router,
     develop.router,
-    paths.router,
     cloud.router,
 ]
 
 # Router mapping per API version. Extend per version to diverge.
+# Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.2": BASE_ROUTERS,
+    "0.3": BASE_ROUTERS,
 }
 
 
 def make_version_app(version: str) -> FastAPI:
+    """Create a versioned FastAPI sub-application.
+
+    Args:
+        version: Semantic version string like "1.0".
+
+    Returns:
+        Configured FastAPI sub-app with routers and per-version docs.
+    """
     sub = FastAPI(
         title=f"OpenScan3 API v{version}",
         version=version,
@@ -182,6 +178,7 @@ def make_version_app(version: str) -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Include routers for this version (no extra prefixes; mount path provides version prefix)
     for r in ROUTERS_BY_VERSION.get(version, BASE_ROUTERS):
         sub.include_router(r)
 
@@ -190,8 +187,7 @@ def make_version_app(version: str) -> FastAPI:
 
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
-    "0.1",
-    "0.2",
+    "0.3",
 ]
 LATEST = SUPPORTED_VERSIONS[-1]
 

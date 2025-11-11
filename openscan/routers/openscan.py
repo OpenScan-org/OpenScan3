@@ -4,8 +4,7 @@ from fastapi.responses import StreamingResponse
 
 from typing import Tuple
 
-from openscan.models.paths import PathMethod, PolarPoint3D
-from openscan.controllers.hardware.motors import move_to_point
+from openscan import __version__
 from openscan.controllers.device import get_scanner_model
 from typing import AsyncGenerator
 from starlette.responses import FileResponse
@@ -24,18 +23,12 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-
 @router.get("/")
 async def get_software_info():
     """Get information about the scanner software"""
     return {"model": get_scanner_model(),
-            "firmware": "-"}
+            "firmware_version": __version__}
 
-
-@router.put("/scanner-position")
-async def move_to_position(point: PolarPoint3D):
-    """Move Rotor and Turntable to a polar point"""
-    await move_to_point(point)
 
 
 # -------------------------
