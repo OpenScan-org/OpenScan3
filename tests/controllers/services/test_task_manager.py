@@ -746,9 +746,19 @@ async def test_exclusive_tasks_respect_fifo_order(task_manager_fixture: TaskMana
     tm = task_manager_fixture
     completion_log = []
 
-    # 1. Start a long-running task to block the queue
-    blocker_task = await tm.create_and_run_task("hello_world_async_task", total_steps=2)
-    await asyncio.sleep(0.1)  # Ensure it's running
+    # 1. Start a controllable task to block the queue
+    blocker_event = asyncio.Event()
+    blocker_task = await tm.create_and_run_task(
+        "hello_world_async_task",
+        wait_for_event=blocker_event,
+    )
+
+    for _ in range(50):
+        if tm.get_task_info(blocker_task.id).status == TaskStatus.RUNNING:
+            break
+        await asyncio.sleep(0.01)
+    else:
+        pytest.fail("Blocker task did not reach RUNNING state in time")
 
     # 2. Queue two exclusive tasks. They should both become PENDING.
     exclusive_task_A = await tm.create_and_run_task("exclusive_demo_task", duration=0.21)
@@ -760,6 +770,7 @@ async def test_exclusive_tasks_respect_fifo_order(task_manager_fixture: TaskMana
     assert tm.get_task_info(exclusive_task_B.id).status == TaskStatus.PENDING
 
     # 3. Wait for the initial blocker task to complete
+    blocker_event.set()
     await wait_for_task_completion(tm, blocker_task.id, timeout=10)
 
     # 4. Immediately after, Task A should start. Task B should still be pending.
