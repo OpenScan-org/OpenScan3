@@ -132,14 +132,16 @@ async def download_project_from_cloud(
     return task
 
 
-@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
-async def get_scan(project_name: str, scan_index: int):
-    """Get Scan by project and index"""
-    try:
-        project_manager = get_project_manager()
-        return project_manager.get_scan_by_index(project_name, scan_index)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+###############################
+
+#@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
+#async def get_scan(project_name: str, scan_index: int):
+#    """Get Scan by project and index"""
+#    try:
+#        project_manager = get_project_manager()
+#        return project_manager.get_scan_by_index(project_name, scan_index)
+#    except Exception as e:
+#        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{project_name}/{scan_index}/", response_model=bool)
