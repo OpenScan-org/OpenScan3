@@ -49,6 +49,10 @@ from pydantic import ValidationError
 from pydantic_core import PydanticSerializationError
 
 from openscan.controllers.services.tasks.base_task import BaseTask
+from openscan.controllers.services.tasks.task_events import (
+    task_event_publisher,
+    TaskEventType,
+)
 from openscan.models.task import Task, TaskStatus, TaskProgress
 
 logger = logging.getLogger(__name__)
@@ -348,6 +352,7 @@ class TaskManager:
 
         self._tasks[task_model.id] = task_model
         self._save_task_state(task_model)  # Persist immediately on creation
+        await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
 
         # Scheduling Decision Point:
         # A new non-exclusive task must be queued if an exclusive task is already pending.
@@ -372,6 +377,7 @@ class TaskManager:
         task_model.status = TaskStatus.RUNNING  # Set to running before async task creation
         task_model.started_at = datetime.now()
         self._save_task_state(task_model)  # Persist the RUNNING state immediately
+        asyncio.create_task(task_event_publisher.publish(task_model, TaskEventType.UPDATE))
 
         if task_model.is_exclusive:
             self._active_exclusive_task_id = task_model.id
@@ -421,6 +427,7 @@ class TaskManager:
                         # Update progress. It's now required that tasks yield `TaskProgress` objects.
                         task_model.progress = progress_update
                         self._save_task_state(task_model)  # Persist progress immediately
+                        await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
 
                     if task_model.status not in [TaskStatus.CANCELLED, TaskStatus.ERROR]:
                         task_model.status = TaskStatus.COMPLETED
@@ -465,6 +472,8 @@ class TaskManager:
                 self._active_exclusive_task_id = None
 
             asyncio.create_task(self._try_run_pending_tasks())  # Non-blocking attempt to run next task
+
+        await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
 
     async def _try_run_pending_tasks(self) -> None:
         """Attempts to run tasks from the pending queue if conditions allow."""
@@ -536,6 +545,7 @@ class TaskManager:
             task_model.status = TaskStatus.CANCELLED
             task_model.error = "Task was cancelled by user."
             self._save_task_state(task_model)
+            await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
             # Note: completed_at will be set in _run_wrapper
             return task_model
 
@@ -554,6 +564,7 @@ class TaskManager:
                 task_model.error = "Task was cancelled by user."
                 task_model.completed_at = datetime.now()
                 self._save_task_state(task_model)  # Persist cancellation of pending task
+                await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
                 found_and_removed_from_queue = True
                 # Do not re-add this task to the queue
             else:
@@ -604,6 +615,7 @@ class TaskManager:
         logger.info(f"Task {task_model.name} ({task_id}) has been paused.")
         task_model.progress.message = "Task paused."
         self._save_task_state(task_model)
+        await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
         return task_model
 
     async def resume_task(self, task_id: str) -> Task | None:
@@ -636,6 +648,7 @@ class TaskManager:
         logger.info(f"Task {task_model.name} ({task_id}) has been resumed.")
         task_model.progress.message = "Task resumed."
         self._save_task_state(task_model)
+        await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
         return task_model
 
     async def restart_task(self, task_id: str) -> Task | None:
@@ -670,6 +683,7 @@ class TaskManager:
         task_model.progress = TaskProgress()  # Resets progress
 
         self._save_task_state(task_model)  # Persist the reset state before queuing
+        await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
 
         # A new task instance is required to re-run the logic
         task_class = self._task_registry[task_model.name]
