@@ -573,17 +573,17 @@ class ProjectManager:
         """
         try:
             project = self._projects[project_name]
-
-            # Check if scan exists
-            scan_id = f"scan{scan_index:02d}"
-            if scan_id not in project.scans:
-                logger.error(f"Scan {scan_id} does not exist in project {project_name}")
-                return None
-
-            return project.scans[scan_id]
-        except Exception as e:
-            logger.error(f"Error getting scan: {e}", exc_info=True)
+        except KeyError:
+            logger.error("Project %s not found", project_name)
             return None
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            logger.error("Scan %s not found in project %s", scan_id, project_name)
+            return None
+
+        return scan
 
     def delete_scan(self, scan: Scan) -> bool:
         """Delete a scan from a project

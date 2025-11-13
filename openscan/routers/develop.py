@@ -10,11 +10,21 @@ from fastapi import APIRouter, HTTPException, status, Response, Query
 from openscan.controllers.services.tasks.task_manager import get_task_manager
 from openscan.models.task import TaskStatus, Task
 
+from openscan.models.paths import PolarPoint3D
+from openscan.controllers.hardware.motors import move_to_point
+
+from openscan.utils.paths import paths
+
 router = APIRouter(
     prefix="/develop",
     tags=["develop"],
     responses={404: {"description": "Not found"}},
 )
+
+@router.put("/scanner-position")
+async def move_to_position(point: PolarPoint3D):
+    """Move Rotor and Turntable to a polar point"""
+    await move_to_point(point)
 
 
 @router.get("/crop_image", summary="Run crop task and return visualization image", response_class=Response)
@@ -65,3 +75,9 @@ async def hello_world_async(total_steps: int, delay: float):
     # Updated to explicit task_name with required _task suffix
     task = await task_manager.create_and_run_task("hello_world_async_task", total_steps=total_steps, delay=delay)
     return task
+
+
+@router.get("/{method}", response_model=list[paths.CartesianPoint3D])
+async def get_path(method: paths.PathMethod, points: int):
+    """Get a list of coordinates by path method and number of points"""
+    return paths.get_path(method, points)

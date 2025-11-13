@@ -47,8 +47,9 @@ async def test_cloud_download_task_success(monkeypatch, project_manager, tmp_pat
     archive_path.write_bytes(b"zip-bytes")
     expected_size = archive_path.stat().st_size
 
-    async def fake_download(self, dlink: str):  # noqa: ANN001
+    async def fake_download(self, dlink: str, download_info: dict):  # noqa: ANN001
         assert dlink == "https://download/link"
+        assert download_info == {"dlink": "https://download/link", "status": "finished"}
         return archive_path, archive_path.stat().st_size, archive_path.stat().st_size
 
     download_calls: list[tuple[str, str]] = []
@@ -139,10 +140,11 @@ async def test_cloud_download_task_cancel(monkeypatch, project_manager, tmp_path
     archive_path = tmp_path / "archive.zip"
     archive_path.write_bytes(b"zip-bytes")
 
-    async def slow_download(self, dlink: str):  # noqa: ANN001
+    async def slow_download(self, dlink: str, download_info: dict):  # noqa: ANN001
         await asyncio.sleep(0.05)
         if self.is_cancelled():
             raise CloudServiceError("Download cancelled")
+        assert download_info == {"dlink": "https://download/link", "status": "finished"}
         return archive_path, archive_path.stat().st_size, archive_path.stat().st_size
 
     monkeypatch.setattr(

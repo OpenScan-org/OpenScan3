@@ -170,7 +170,8 @@ def get_device_info():
         "shield": _scanner_device.shield,
         "cameras": {name: controller.get_status() for name, controller in get_all_camera_controllers().items()},
         "motors": {name: controller.get_status() for name, controller in get_all_motor_controllers().items()},
-        "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()}
+        "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()},
+        "initialized": _scanner_device.initialized
     }
 
 

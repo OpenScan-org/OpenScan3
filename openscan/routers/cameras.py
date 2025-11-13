@@ -28,7 +28,11 @@ class CameraStatusResponse(BaseModel):
 
 @router.get("/", response_model=dict[str, CameraStatusResponse])
 async def get_cameras():
-    """Get all cameras with their current status"""
+    """Get all cameras with their current status
+
+    Returns:
+        dict[str, CameraStatusResponse]: A dictionary of camera name to a camera status object
+    """
     return {
         name: controller.get_status()
         for name, controller in  get_all_camera_controllers().items()
@@ -37,7 +41,14 @@ async def get_cameras():
 
 @router.get("/{camera_name}", response_model=CameraStatusResponse)
 async def get_camera(camera_name: str):
-    """Get a camera with its current status"""
+    """Get a camera with its current status
+
+    Args:
+        camera_name: The name of the camera to get the status of
+
+    Returns:
+        CameraStatusResponse: A response object containing the status of the camera
+    """
     try:
         return get_camera_controller(camera_name).get_status()
     except ValueError as e:
@@ -46,7 +57,14 @@ async def get_camera(camera_name: str):
 
 @router.get("/{camera_name}/preview")
 async def get_preview(camera_name: str):
-    """Get a camera preview stream in lower resolution"""
+    """Get a camera preview stream in lower resolution
+
+    Args:
+        camera_name: The name of the camera to get the preview stream from
+
+    Returns:
+        StreamingResponse: A streaming response containing the preview stream
+    """
     controller = get_camera_controller(camera_name)
 
     async def generate():
@@ -73,7 +91,14 @@ async def get_preview(camera_name: str):
 
 @router.get("/{camera_name}/photo")
 async def get_photo(camera_name: str):
-    """Get a camera photo"""
+    """Get a camera photo
+
+    Args:
+        camera_name: The name of the camera to get the photo from
+
+    Returns:
+        Response: A response containing the photo
+    """
     controller = get_camera_controller(camera_name)
     try:
         if not controller.is_busy():
@@ -84,7 +109,14 @@ async def get_photo(camera_name: str):
 
 @router.post("/{camera_name}/restart")
 async def restart_camera(camera_name: str):
-    """Restart a camera"""
+    """Restart a camera
+
+    Args:
+        camera_name: The name of the camera to restart
+
+    Returns:
+        Response: A response containing the status code
+    """
     controller = get_camera_controller(camera_name)
     controller.restart_camera()
     return Response(status_code=200)

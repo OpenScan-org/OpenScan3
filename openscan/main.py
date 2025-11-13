@@ -9,11 +9,15 @@ from contextlib import asynccontextmanager
 from openscan.config.logger import setup_logging
 from openscan.utils.settings import load_settings_json
 
-from openscan.routers import cameras, motors, projects, gpio, paths, openscan, lights, device, tasks, develop, cloud
+from openscan.routers import cameras, motors, projects, gpio, openscan, lights, device, tasks, develop, cloud
 from openscan.controllers import device as device_controller
 
-
 from openscan.controllers.services.tasks.task_manager import get_task_manager
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -75,11 +79,38 @@ async def lifespan(app: FastAPI):
     # Now that tasks are registered, restore any persisted tasks
     task_manager.restore_tasks_from_persistence()
 
-    yield # application runs here
+    yield  # application runs here
 
     # Code to run on shutdown
     device_controller.cleanup_and_exit()
     logging.shutdown()
+
+
+class PrivateNetworkAccessMiddleware(BaseHTTPMiddleware):
+    """Handle Chrome's Private Network Access preflight requests."""
+
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin", "*")
+        # Handle OPTIONS preflight
+        if request.method == "OPTIONS":
+            return Response(
+                status_code=204,
+                headers={
+                    "Access-Control-Allow-Private-Network": "true",
+                    "Access-Control-Allow-Origin": origin,
+                    "Access-Control-Allow-Methods": "*",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Credentials": "true",
+                },
+            )
+        # Handle actual request
+        response = await call_next(request)
+        # Always add PNA header to all responses
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+
+        return response
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -91,6 +122,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(PrivateNetworkAccessMiddleware)
 
 # Create versioned sub-apps and mount them under /vX.Y and /latest
 # Root app intentionally has no docs; each sub-app exposes its own docs.
@@ -106,14 +139,13 @@ BASE_ROUTERS = [
     device.router,
     tasks.router,
     develop.router,
-    paths.router,
     cloud.router,
 ]
 
 # Router mapping per API version. Extend per version to diverge.
 # Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.2": BASE_ROUTERS,
+    "0.3": BASE_ROUTERS,
 }
 
 
@@ -134,7 +166,10 @@ def make_version_app(version: str) -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-    # Apply middleware for mounted sub-apps
+    # Add PNA middleware first
+    sub.add_middleware(PrivateNetworkAccessMiddleware)
+
+    # Then CORS
     sub.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -152,8 +187,7 @@ def make_version_app(version: str) -> FastAPI:
 
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
-    "0.1",
-    "0.2",
+    "0.3",
 ]
 LATEST = SUPPORTED_VERSIONS[-1]
 
@@ -167,6 +201,7 @@ app.mount("/latest", make_version_app(LATEST))
 def list_versions():
     """List available API versions and the current latest alias."""
     return {"versions": [f"v{v}" for v in SUPPORTED_VERSIONS], "latest": f"v{LATEST}"}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

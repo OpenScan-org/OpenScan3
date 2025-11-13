@@ -17,6 +17,9 @@ router = APIRouter(
 async def get_all_tasks():
     """
     Retrieve a list of all tasks known to the task manager.
+
+    Returns:
+        List[Task]: A list of all tasks known to the task manager.
     """
     task_manager = get_task_manager()
     return task_manager.get_all_tasks_info()
@@ -26,6 +29,12 @@ async def get_all_tasks():
 async def get_task_status(task_id: str):
     """
     Retrieve the status and details of a specific task.
+
+    Args:
+        task_id: The ID of the task to retrieve.
+
+    Returns:
+        Task: The task object with its status and details.
     """
     task_manager = get_task_manager()
     task = task_manager.get_task_info(task_id)
@@ -38,6 +47,12 @@ async def get_task_status(task_id: str):
 async def cancel_task(task_id: str):
     """
     Request cancellation of a running task.
+
+    Args:
+        task_id: The ID of the task to cancel.
+
+    Returns:
+        Task: The task object with its status and details.
     """
     task_manager = get_task_manager()
     task = await task_manager.cancel_task(task_id)
@@ -51,7 +66,11 @@ async def pause_task(task_id: str):
     """
     Pauses a running task.
 
-    - **task_id**: The ID of the task to pause.
+    Args:
+        task_id: The ID of the task to pause.
+
+    Returns:
+        Task: The task object with its status and details.
     """
     task_manager = get_task_manager()
     task = await task_manager.pause_task(task_id)
@@ -67,7 +86,11 @@ async def resume_task(task_id: str):
     """
     Resumes a paused task.
 
-    - **task_id**: The ID of the task to resume.
+    Args:
+        task_id: The ID of the task to resume.
+
+    Returns:
+        Task: The task object with its status and details.
     """
     task_manager = get_task_manager()
     task = await task_manager.resume_task(task_id)

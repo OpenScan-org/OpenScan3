@@ -1,8 +1,10 @@
-"""Top-level package for OpenScan3 Python distribution.
-
-This package acts as a wrapper during Phase 1 to provide CLI and module
-entry points without moving the existing application code yet.
-"""
+"""Top-level package for OpenScan3 Python distribution."""
 
 __all__ = []
-__version__ = "0.1.0"
+
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("openscan3")  # read from pyproject.toml
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"  # fallback for development

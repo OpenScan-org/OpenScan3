@@ -9,6 +9,9 @@ from openscan.models.scanner import ScannerDevice
 from openscan.controllers import device
 
 from openscan.utils.settings import resolve_settings_dir
+from openscan.routers.cameras import CameraStatusResponse
+from openscan.routers.motors import MotorStatusResponse
+from openscan.routers.lights import LightStatusResponse
 
 router = APIRouter(
     prefix="/device",
@@ -20,14 +23,33 @@ router = APIRouter(
 class DeviceConfigRequest(BaseModel):
     config_file: str
 
+class DeviceStatusResponse(BaseModel):
+    name: str
+    model: str
+    shield: str
+    cameras: dict[str, CameraStatusResponse]
+    motors: dict[str, MotorStatusResponse]
+    lights: dict[str, LightStatusResponse]
+    initialized: bool
 
-@router.get("/info")
+class DeviceControlResponse(BaseModel):
+    success: bool
+    message: str
+    status: DeviceStatusResponse
+
+
+@router.get("/info", response_model=DeviceStatusResponse)
 async def get_device_info():
-    """Get information about the device"""
-    return device.get_device_info()
+    """Get information about the device
+
+    Returns:
+        dict: A dictionary containing information about the device
+    """
+    info = device.get_device_info()
+    return DeviceStatusResponse.model_validate(info)
 
 
-@router.get("/configurations")
+@router.get("/configurations", response_model=dict[str, list[str]])
 async def list_config_files():
     """List all available device configuration files"""
     try:
@@ -37,12 +59,19 @@ async def list_config_files():
         raise HTTPException(status_code=500, detail=f"Error listing configuration files: {str(e)}")
 
 
-@router.post("/configurations/")
+@router.post("/configurations/", response_model=DeviceControlResponse)
 async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequest):
     """Add a device configuration from a JSON object
 
     This endpoint accepts a JSON object with the device configuration,
     validates it and saves it to a file.
+
+    Args:
+        config_data: The device configuration to add
+        filename: The filename to save the configuration as
+
+    Returns:
+        dict: A dictionary containing the status of the operation
     """
     try:
         # Create a temporary file to save the configuration
@@ -62,26 +91,44 @@ async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequ
         # Move the temporary file to the target path
         shutil.move(temp_path, target_path)
 
-        return {"success": True,
-                "message": "Configuration saved successfully",
-                }
+        return DeviceControlResponse(
+            success=True,
+            message="Configuration saved successfully",
+            status=DeviceStatusResponse.model_validate(device.get_device_info())
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
 
 
-@router.patch("/configurations/current")
+@router.patch("/configurations/current", response_model=DeviceControlResponse)
 async def save_device_config():
+    """Save the current device configuration to a file
+
+    This endpoint saves the current device configuration to device_config.json.
+
+    Returns:
+        dict: A dictionary containing the status of the operation
+    """
     if device.save_device_config():
-        return {"status": "success",
-                "message": "Configuration saved successfully",
-                "info": device.get_device_info()}
+        return DeviceControlResponse(
+            success=True,
+            message="Configuration saved successfully",
+            status=DeviceStatusResponse.model_validate(device.get_device_info())
+        )
     else:
         raise HTTPException(status_code=500, detail="Failed to save device configuration")
 
-@router.put("/configurations/current")
+@router.put("/configurations/current", response_model=DeviceControlResponse)
 async def set_config_file(config_data: DeviceConfigRequest):
-    """Set the device configuration from a file"""
+    """Set the device configuration from a file and initialize hardware
+
+    Args:
+        config_data: The device configuration to set
+
+    Returns:
+        dict: A dictionary containing the status of the operation
+    """
     try:
         # Get available configs
         available_configs = device.get_available_configs()
@@ -112,7 +159,11 @@ async def set_config_file(config_data: DeviceConfigRequest):
 
         # Set device config
         if device.set_device_config(config_file):
-            return {"status": "success", "info": device.get_device_info()}
+            return DeviceControlResponse(
+                success=True,
+                message="Configuration loaded successfully",
+                status=DeviceStatusResponse.model_validate(device.get_device_info())
+            )
         else:
             raise HTTPException(status_code=500, detail="Failed to load device configuration")
 
@@ -123,23 +174,46 @@ async def set_config_file(config_data: DeviceConfigRequest):
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
 
 
-@router.post("/configurations/current/initialize")
+@router.post("/configurations/current/initialize", response_model=DeviceControlResponse)
 async def reinitialize_hardware(detect_cameras: bool = False):
-    """Reinitialize hardware components"""
+    """Reinitialize hardware components
+
+    This can be used in case of a hardware failure or to reload the hardware components.
+
+    Args:
+        detect_cameras: Whether to detect cameras
+
+    Returns:
+        dict: A dictionary containing the status of the operation
+    """
     try:
         device.initialize(detect_cameras=detect_cameras)
-        return {"status": "success", "info": device.get_device_info()}
+        return DeviceControlResponse(
+            success=True,
+            message="Hardware reinitialized successfully",
+            status=DeviceStatusResponse.model_validate(device.get_device_info())
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reloading hardware: {str(e)}")
 
 
-@router.post("/reboot")
+@router.post("/reboot", response_model=bool)
 def reboot(save_config: bool = False):
-    """Reboot system"""
+    """Reboot system and optionally save config.
+
+    Args:
+        save_config: Whether to save the current configuration before rebooting
+    """
     device.reboot(save_config)
+    return True
 
 
-@router.post("/shutdown")
-def shutdown(save_config: bool = False):
-    """Shutdown system"""
+@router.post("/shutdown", response_model=bool)
+def shutdown(save_config: bool = False) -> None:
+    """Shutdown system and optionally save config.
+
+    Args:
+        save_config: Whether to save the current configuration before shutting down
+    """
     device.shutdown(save_config)
+    return True

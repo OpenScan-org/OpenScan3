@@ -93,6 +93,8 @@ def test_new_project(client: TestClient, project_manager: ProjectManager):
     assert os.path.isdir(project_path)
     assert os.path.isfile(os.path.join(project_path, "openscan_project.json"))
 
+    client.delete(f"/latest/projects/{project_name}")
+
 
 def test_new_project_conflict(client: TestClient, test_project: Project):
     """
