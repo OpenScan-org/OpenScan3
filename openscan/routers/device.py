@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 import os
 import json
 import tempfile
@@ -45,11 +45,22 @@ async def get_device_info():
     Returns:
         dict: A dictionary containing information about the device
     """
-    info = device.get_device_info()
-    return DeviceStatusResponse.model_validate(info)
+    try:
+        info = device.get_device_info()
+        return DeviceStatusResponse.model_validate(info)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Device configuration is not loaded.",
+                "errors": exc.errors(),
+            },
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting device info: {str(e)}")
 
 
-@router.get("/configurations", response_model=dict[str, list[str]])
+@router.get("/configurations")
 async def list_config_files():
     """List all available device configuration files"""
     try:
