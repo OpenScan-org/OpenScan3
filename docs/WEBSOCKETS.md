@@ -100,6 +100,35 @@ Key points:
 - `changed` is optional and, when present, lists dotted paths that triggered the broadcast (e.g., busy state changes, settings updates).
 - Clients can optimistically patch existing state using `changed`, or simply replace their local cache with the provided snapshot.
 
+## Event Publishers in the Controllers
+
+### Tasks
+`TaskManager` emits `task.update` messages whenever events occur. Internally it calls `TaskEventPublisher.publish`, which forwards the `Task` Pydantic model into the `tasks` namespace (@openscan/controllers/services/tasks/task_events.py#23-35).
+
+### Device
+Hardware controllers trigger `DeviceEventPublisher.publish_status` via helpers in `openscan.controllers.services.device_events`. The publisher resolves the latest device snapshot and places it on the `device` namespace. Two integration points are used consistently:
+  1. `schedule_device_status_broadcast(changed=...)` – queued after settings changes so subscribers receive structured updates.
+  2. `notify_busy_change(component, name)` – invoked inside `_set_busy` helpers so toggling hardware activity immediately propagates to clients.
+
+Example (motor controller):
+
+```python
+from openscan.controllers.services.device_events import (
+    notify_busy_change,
+    schedule_device_status_broadcast,
+)
+
+def _on_settings_change(self, settings: MotorConfig) -> None:
+    self._apply_settings_to_hardware(settings)
+    schedule_device_status_broadcast([f"motors.{self.model.name}.settings"])
+
+def _execute_movement(...):
+    self._current_steps = abs(step_count)
+    notify_busy_change("motors", self.model.name)
+```
+
+This pattern appears in cameras, motors, and lights. Each controller focuses on domain logic while delegating WebSocket broadcasts to the shared helpers.
+
 ## Client Integration Notes
 
 - Browsers: use the native [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) API.
@@ -114,20 +143,9 @@ Key points:
 - Ensure broadcast order respects FIFO semantics (especially for exclusive tasks).
 - Add regression tests that start a task, expect at least `task.update` events for status transitions, and verify connection cleanup.
 - Add coverage for hardware-triggered events (settings updates, busy toggles, initial device snapshot after boot).
-- Current coverage: `tests/routers/test_websocket_router.py` verifies that published task events reach connected clients; device tests are planned.
+- Current coverage: `tests/routers/test_websocket_router.py` ensures both task and device broadcasts reach connected WebSocket clients.
 
-## Implementation Checklist
-
-- [x] Create `WebSocketHub` to track connections per namespace and broadcast events.
-- [x] Add `/ws/tasks` endpoint that wires into the hub.
-- [x] Introduce a task event publisher that the `TaskManager` can call.
-- [x] Emit events for lifecycle hooks (creation, progress, completion, cancellation, errors).
-- [x] Add `/ws/device` endpoint for device status updates.
-- [x] Introduce a device event publisher and hook it into relevant controller callbacks (settings, busy state, initialization).
-- [ ] Extend automated tests to cover device event broadcasts.
-- [x] Document final API details and provide example client snippets.
-
-## Example Client (Python)
+## Example Task Client (Python)
 
 ```python
 import asyncio
@@ -168,3 +186,4 @@ async def listen_to_device():
 
 if __name__ == "__main__":
     asyncio.run(listen_to_device())
+```

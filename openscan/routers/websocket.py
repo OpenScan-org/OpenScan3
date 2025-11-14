@@ -7,12 +7,14 @@ channels: one for TaskManager events and another for device status updates.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any, Dict, Set
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 router = APIRouter(prefix="/ws", tags=["websockets"])
 
+logger = logging.getLogger(__name__)
 
 class WebSocketHub:
     """Track active WebSockets per namespace and handle broadcasts."""
@@ -24,6 +26,7 @@ class WebSocketHub:
         """Accept the connection and add it to the namespace pool."""
         await websocket.accept()
         self._connections.setdefault(namespace, set()).add(websocket)
+        logger.debug(f"Registered WebSocket for namespace {namespace}")
 
     def unregister(self, namespace: str, websocket: WebSocket) -> None:
         """Remove a WebSocket from the given namespace pool."""
@@ -35,6 +38,8 @@ class WebSocketHub:
         if not namespace_connections:
             self._connections.pop(namespace, None)
 
+        logger.debug(f"Unregistered WebSocket for namespace {namespace}")
+
     async def broadcast_json(self, namespace: str, message: dict[str, Any]) -> None:
         """Send a JSON message to all clients registered for a namespace."""
         connections = list(self._connections.get(namespace, ()))
@@ -45,7 +50,8 @@ class WebSocketHub:
         for connection in connections:
             try:
                 await connection.send_json(message)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to send message to WebSocket: {e}")
                 stale_connections.append(connection)
 
         for stale in stale_connections:
