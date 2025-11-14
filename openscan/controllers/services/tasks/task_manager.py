@@ -471,7 +471,15 @@ class TaskManager:
             if task_model.is_exclusive and self._active_exclusive_task_id == task_instance.id:
                 self._active_exclusive_task_id = None
 
-            asyncio.create_task(self._try_run_pending_tasks())  # Non-blocking attempt to run next task
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                logger.debug(
+                    "No running event loop; skipping scheduling of pending tasks after %s.",
+                    task_model.id,
+                )
+            else:
+                loop.create_task(self._try_run_pending_tasks())  # Non-blocking attempt to run next task
 
         await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
 
@@ -756,7 +764,7 @@ class TaskManager:
             """Return True if any path segment of module_name is in ignore_modules.
 
             This allows ignoring entire subtrees such as the 'examples' package
-            (e.g., '...\.examples\.*'). We keep support for matching the last
+            (e.g., '...\\.examples\\.*'). We keep support for matching the last
             component as well.
             """
             segments = module_name.split('.')
