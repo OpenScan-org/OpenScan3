@@ -20,7 +20,17 @@ There are two ways to get started on a Raspberry Pi: flash a ready-made image or
 
 ## Install OpenScan Image (Recommended)
 
-Images will be published soon. Until then, use the [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/OpenScan3-pi-gen) to build a customized image:
+Download the image from here: https://openscan.eu/pages/resources-downloads
+
+Choose the image according to your camera variant:
+
+- Generic (PiCamera)
+- Arducam IMX519
+- Arducam Hawkeye
+
+Warning: Choosing the wrong image may result in permanent damage to your camera.
+
+You can also use [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/OpenScan3-pi-gen) to build a customized image:
 
 - Clone the repository with submodules: `git clone --recurse-submodules https://github.com/esto-openscan/OpenScan3-pi-gen.git`
 - Pick a camera configuration (for example `./build-all.sh generic` for the generic variant)
@@ -31,7 +41,7 @@ Refer to the [user guide](https://github.com/esto-openscan/OpenScan3-pi-gen/blob
 #### Accessing OpenScan3
 
 *   **Default Hostname:** `openscan3-alpha` (or `openscan3-alpha.local` if mDNS is enabled)
-*   **UI (Node-RED):** `http://openscan3-alpha/` (Node-RED admin interface is available at `http://openscan3-alpha/nodered`)
+*   **UI (Node-RED):** http://openscan3-alpha/ (Node-RED admin interface is available at http://openscan3-alpha/nodered)
 *   **API documentation:** http://openscan3-alpha:8000/latest/docs (list versions at http://openscan3-alpha:8000/versions).
 
 

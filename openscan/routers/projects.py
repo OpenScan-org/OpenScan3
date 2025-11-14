@@ -8,6 +8,8 @@ import asyncio
 import os
 import json
 from datetime import datetime
+import logging
+
 
 from openscan.controllers.hardware.cameras.camera import get_all_camera_controllers, get_camera_controller
 from openscan.controllers.services import projects, cloud
@@ -26,6 +28,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+logger = logging.getLogger(__name__)
 
 class DeleteResponse(BaseModel):
     success: bool
@@ -156,24 +159,6 @@ async def download_project_from_cloud(
     return task
 
 
-@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
-async def get_scan(project_name: str, scan_index: int):
-    """Get Scan by project and index
-
-    Args:
-        project_name: The name of the project
-        scan_index: The index of the scan to get
-
-    Returns:
-        Scan: The scan object
-    """
-    project_manager = get_project_manager()
-
-    scan = project_manager.get_scan_by_index(project_name, scan_index)
-    if scan is None:
-        raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
-    return scan
-
 @router.delete("/{project_name}/{scan_index}/", response_model=DeleteResponse)
 async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
     """Delete photos from a scan in a project
@@ -250,7 +235,7 @@ async def delete_scan(project_name: str, scan_index: int):
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
 
-@router.get("/{project_name}/scans/{scan_index}/status", response_model=Task)
+@router.get("/{project_name}/scans/{scan_index:int}/status", response_model=Task)
 async def get_scan_status(project_name: str, scan_index: int):
     """Get the current task for a scan
 
@@ -279,7 +264,7 @@ async def get_scan_status(project_name: str, scan_index: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/{project_name}/scans/{scan_index}/pause", response_model=Task)
+@router.patch("/{project_name}/scans/{scan_index:int}/pause", response_model=Task)
 async def pause_scan(project_name: str, scan_index: int) -> Task:
     """Pause a running scan and return the updated Task
 
@@ -302,7 +287,7 @@ async def pause_scan(project_name: str, scan_index: int) -> Task:
     return task
 
 
-@router.patch("/{project_name}/scans/{scan_index}/resume", response_model=Task)
+@router.patch("/{project_name}/scans/{scan_index:int}/resume", response_model=Task)
 async def resume_scan(project_name: str, scan_index: int, camera_name: str) -> Task:
     """Resume a paused, cancelled or failed scan and return the resulting Task
 
@@ -345,7 +330,7 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str) -> T
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/{project_name}/scans/{scan_index}/cancel", response_model=Task)
+@router.patch("/{project_name}/scans/{scan_index:int}/cancel", response_model=Task)
 async def cancel_scan(project_name: str, scan_index: int) -> Task:
     """Cancel a running scan and return the resulting Task
 
@@ -469,13 +454,13 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
                 try:
                     scan = project_manager.get_scan_by_index(project_name, scan_index)
                     if not scan:
-                        print(f"Scan with index {scan_index} not found")
+                        logger.error(f"Scan with index {scan_index} not found")
                         continue
                     scan_dir = os.path.join(project.path, f"scan{scan_index:02d}")
                     if os.path.exists(scan_dir):
                         zs.add_path(scan_dir, f"scan{scan_index:02d}")
                 except Exception as e:
-                    print(e)
+                    logger.error(f"Failed to add scan {scan_index} to zip: {e}")
                     continue
         else:
             filename = f"{project_name}_all_scans.zip"
@@ -497,14 +482,22 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
         )
         return response
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+        raise HTTPException(status_code=404, detail=f"")
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{project_name}/scans/{scan_index}", response_model=Scan)
+@router.get("/{project_name}/scans/{scan_index:int}", response_model=Scan)
 async def get_scan(project_name: str, scan_index: int):
-    """Get Scan by project and index"""
+    """Get Scan by project and index
+
+    Args:
+        project_name: The name of the project
+        scan_index: The index of the scan
+
+    Returns:
+        Scan: The scan object
+    """
     try:
         project_manager = get_project_manager()
         return project_manager.get_scan_by_index(project_name, scan_index)

@@ -11,5 +11,5 @@ module.exports = {
     httpNodeAuth: null,
     httpStaticAuth: null,
     editorTheme: {},
-    functionGlobalContext: {}
+    functionGlobalContext: {os: require('os') }
 };
