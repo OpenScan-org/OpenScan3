@@ -1,0 +1,46 @@
+{
+    "name": "Mini v2.1",
+    "model": "mini",
+    "shield": "blackshield",
+    "cameras": {},
+    "motors": {
+        "rotor": {
+            "direction_pin": 23,
+            "enable_pin": 22,
+            "step_pin": 27,
+            "acceleration": 10000,
+            "max_speed": 5000,
+            "direction": -1,
+            "steps_per_rotation": 10240,
+            "min_angle": 0,
+            "max_angle": 145
+        },
+        "turntable": {
+            "direction_pin": 6,
+            "enable_pin": 22,
+            "step_pin": 16,
+            "acceleration": 10000,
+            "max_speed": 5000,
+            "direction": 1,
+            "steps_per_rotation": 800
+        }
+    },
+    "endstops": {
+        "rotor-endstop": {
+            "name": "rotor-endstop",
+            "settings": {
+                "pin": 17,
+                "angular_position": 145,
+                "motor_name": "rotor",
+                "pull_up": true,
+                "bounce_time": 0.005
+            }
+        }
+    },
+    "lights": {
+      "Blackshield Ringlight": {
+           "pins": [24,26],
+           "pwm": false
+      }
+    }
+}

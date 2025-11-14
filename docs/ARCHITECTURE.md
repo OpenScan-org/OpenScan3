@@ -18,31 +18,30 @@ The architecture follows in generally the MVC (Model-View-Controller) pattern sl
 ## FastAPI Application Structure
 
 1. **Routers**
-   - Routers in `app/routers` handle incoming API requests.
+   - Routers in `openscan/routers` handle incoming API requests.
 
 2. **Controllers**
-   - Controllers in `app/controllers` implement the business logic.
-   - Settings are managed at runtime within `app/controllers/settings.py`
-   - (TODO: Detection and initialization of hardware will be managed by the Device Controller within `app/controllers/hardware/device.py`, which is also capable of managing configuration profiles)
-
+   - Controllers in `openscan/controllers` implement the business logic.
+   - Settings are managed at runtime within `openscan/controllers/settings.py`
+   - (TODO: Detection and initialization of hardware will be managed by the Device Controller within `openscan/controllers/hardware/device.py`, which is also capable of managing configuration profiles)
    2.1. **Hardware Controllers**
-      - Located in `app/controllers/hardware` control the hardware components of the scanner.
+      - Located in `openscan/controllers/hardware` control the hardware components of the scanner.
       - Abstracts the hardware details from the application logic.
       - Supports multiple hardware configurations.
       - Hardware is divided into three categories: stateful hardware (like motors and cameras), switchable hardware (like lights), and event hardware (like buttons and simple sensors).
-         - HardwareControllers inherit from the according HardwareInterface class in `app/controllers/hardware/interfaces.py`.
-         - HardwareControllers instantiate the settings manager in `app/controllers/settings.py` to manage and update settings.
+         - HardwareControllers inherit from the according HardwareInterface class in `openscan/controllers/hardware/interfaces.py`.
+         - HardwareControllers instantiate the settings manager in `openscan/controllers/settings.py` to manage and update settings.
 
    2.2. **Service Controllers**
-      - Controllers in `app/controllers/services` handle the business logic of the scanner.
+      - Controllers in `openscan/controllers/services` handle the business logic of the scanner.
       - Examples: Managing scan projects and scan procedures.
 
-3. **Configuration Management**
+{{ ... }}
    - Located in `app/config`.
    - Manages settings for different components.
 
 4. **Models and Data Structures**
-   - Defined in `app/models`.
+   - Defined in `openscan/models`.
    - Represents the data entities and their relationships.
 
 
@@ -53,3 +52,87 @@ The architecture follows in generally the MVC (Model-View-Controller) pattern sl
 - Controllers interact with the hardware abstraction layer to perform operations on the scanner.
 
 This architecture is designed to be modular and extensible, allowing for easy integration of new hardware components and features.
+
+## Background Task System
+
+OpenScan3 uses a centralized background task system to coordinate long-running and/or hardware-critical operations such as scanning, cropping, and demo/example jobs.
+
+- The task system is implemented under `openscan/controllers/services/tasks/`.
+- The central orchestrator is `TaskManager` (`openscan/controllers/services/tasks/task_manager.py`).
+- Tasks are classes that inherit from `BaseTask` and declare an explicit, snake_case `task_name` ending with `_task` (e.g., `scan_task`).
+- Tasks are auto-discovered at startup using settings in `settings/openscan_firmware.json`.
+
+### Startup Flow
+
+During application startup (see `openscan/main.py` in the FastAPI lifespan handler):
+
+1. Logging and device initialization are performed.
+2. The firmware settings file `settings/openscan_firmware.json` is read.
+3. `TaskManager.autodiscover_tasks()` is invoked with the configured namespaces, subpackage handling, ignore list, and safety options.
+4. If `task_categories_enabled` is true, a fail-fast check validates that required core tasks (e.g., `scan_task`, `crop_task`) are present. Missing tasks raise a `RuntimeError` and abort startup.
+5. After successful registration, `TaskManager.restore_tasks_from_persistence()` is called to recover previously persisted tasks.
+
+### Task Discovery and Structure
+
+Tasks are organized in the following locations:
+
+- Core (production) tasks: `openscan/controllers/services/tasks/core/`
+  - e.g., `core/scan_task.py` (exclusive, async generator), `core/crop_task.py` (blocking, non-exclusive)
+- Example/demo tasks: `openscan/controllers/services/tasks/examples/`
+  - e.g., `examples/demo_examples.py` with `hello_world_async_task` etc.
+- Community tasks: `openscan/tasks/community/`
+
+Modules can opt-out from autodiscovery by setting a module-level flag `__openscan_autodiscover__ = False`. A global ignore list can also be configured in the settings file.
+
+### Concurrency & Scheduling
+
+The `TaskManager` enforces the following semantics:
+
+- Non-exclusive tasks can run in parallel up to a fixed limit (`MAX_CONCURRENT_NON_EXCLUSIVE_TASKS`).
+- Exclusive tasks require sole access and will prevent other tasks from starting; they are queued if necessary.
+- Blocking tasks (`is_blocking = True`) run in a thread pool and do not count against the async concurrency limit. Exclusive semantics still apply.
+- Scheduling decisions are encapsulated in `TaskManager._can_run_task` and the internal queueing logic.
+
+### Service Layer for Scans
+
+The deprecated `ScanManager` was replaced by a stateless service layer in `openscan/controllers/services/scans.py`:
+
+- `start_scan(project_manager, scan, camera_controller, start_from_step=0)` creates and runs a `scan_task` via the `TaskManager`.
+- `pause_scan(scan)`, `resume_scan(scan)`, `cancel_scan(scan)` delegate task lifecycle operations to the `TaskManager`.
+
+Routers (`openscan/routers/`) call this service layer (e.g., in `projects.py`), avoiding direct import-time coupling to task modules.
+
+### Configuration
+
+Autodiscovery is configured in `settings/openscan_firmware.json`. Relevant keys:
+
+- `task_autodiscovery_enabled`: Toggle for discovery at startup.
+- `task_autodiscovery_namespaces`: Python package roots to scan (e.g., `openscan.controllers.services.tasks`, `openscan.tasks.community`).
+- `task_autodiscovery_ignore_modules`: Module base names to skip (e.g., `base_task`, `task_manager`, optionally `example_tasks`).
+- `task_autodiscovery_safe_mode`: Skip modules that fail to import and log warnings instead of aborting.
+- `task_autodiscovery_override_on_conflict`: Whether to overwrite an already-registered `task_name`.
+- `task_categories_enabled` and `task_required_core_names`: Enable categories and enforce presence of critical tasks (`scan_task`, `crop_task`).
+
+For a developer-oriented deep dive into tasks (naming, structure, examples), see `docs/TASKS.md`.
+
+## API Versioning
+
+OpenScan3 exposes versioned APIs using mounted FastAPI sub-apps.
+
+- Versions are mounted under `/vX.Y` (e.g., `/v1.0`).
+- The latest stable API is additionally mounted under `/latest`.
+- Each version has its own OpenAPI and docs endpoints:
+  - `/vX.Y/openapi.json`, `/vX.Y/docs`, `/vX.Y/redoc`
+  - `/latest/openapi.json`, `/latest/docs`, `/latest/redoc`
+- The root app provides a simple discovery endpoint at `/versions` returning the list of available versions and the current latest alias.
+
+Implementation details (see `openscan/main.py`):
+
+- The root `FastAPI` app defines the global Lifecycle (logging, hardware init, task autodiscovery) so initialization happens only once.
+- For each supported version, `make_version_app(version)` creates a sub-app and includes all routers from `openscan/routers/` without additional prefixes; the mount path provides the version prefix.
+- CORS (and other middlewares if needed) are added per sub-app so they apply within the mounted context.
+
+Client guidance:
+
+- Prefer `/latest/...` to always track the current stable API.
+- Pin to `/vX.Y/...` if you need strict compatibility.
