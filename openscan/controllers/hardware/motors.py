@@ -23,6 +23,10 @@ from openscan.config.motor import MotorConfig
 from openscan.models.motor import Motor
 from openscan.controllers.hardware import gpio
 from openscan.controllers.settings import Settings
+from openscan.controllers.services.device_events import (
+    notify_busy_change,
+    schedule_device_status_broadcast,
+)
 from openscan.models.paths import PolarPoint3D, PathMethod
 
 
@@ -43,16 +47,18 @@ class MotorController(StatefulHardware):
         self.model = motor
         self.settings = Settings(
             motor.settings,
-            on_change=self._apply_settings_to_hardware
+            on_change=self._on_settings_change
         )
         self._current_steps = 0
         self._target_angle = None
         self._stop_requested = False
         self.endstop = None
         self._apply_settings_to_hardware(self.settings.model)
-
         logger.debug(f"Motor controller for '{self.model.name}' initialized.")
 
+    def _on_settings_change(self, settings: MotorConfig) -> None:
+        self._apply_settings_to_hardware(settings)
+        schedule_device_status_broadcast([f"motors.{self.model.name}.settings"])
 
     def _apply_settings_to_hardware(self, settings: MotorConfig):
         # update model settings
@@ -340,6 +346,7 @@ class MotorController(StatefulHardware):
         Args:
             step_count: Number of steps to move"""
         self._current_steps = abs(step_count)
+        notify_busy_change("motors", self.model.name)
 
         # This function will run in a thread
         def do_movement() -> int:
@@ -437,6 +444,7 @@ class MotorController(StatefulHardware):
             # CRITICAL: Always reset busy state, even if cancelled
             self._current_steps = 0
             self._target_angle = None
+            notify_busy_change("motors", self.model.name)
 
 create_motor_controller, get_motor_controller, remove_motor_controller, _motor_registry = create_controller_registry(MotorController)
 

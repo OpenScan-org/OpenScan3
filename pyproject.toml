@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
   "rpi.gpio==0.7.1",
   "fastapi==0.115.6",
-  "uvicorn==0.34.0",
+  "uvicorn[standard]==0.34.0",
   "gphoto2==2.5.1",
   "linuxpy==0.20.0",
   "pillow==11.1.0",

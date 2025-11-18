@@ -47,6 +47,7 @@ from openscan.controllers.hardware.endstops import EndstopController
 from openscan.controllers.hardware.gpio import cleanup_all_pins
 
 from openscan.controllers.services.projects import get_project_manager
+from openscan.controllers.services.device_events import schedule_device_status_broadcast
 from openscan.utils.settings import (
     resolve_settings_dir,
     resolve_settings_file,
@@ -408,6 +409,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
     )
     logger.info("Hardware initialized.")
     logger.debug(f"Initialized ScannerDevice: {_scanner_device.model_dump(mode='json')}.")
+    schedule_device_status_broadcast()
 
 
 def get_available_configs():
