@@ -263,3 +263,39 @@ def test_build_project_archive_filters_non_jpeg(tmp_path, caplog):
     assert _count_project_photos(project) == 2
     warnings = [r for r in caplog.records if "Skipping unsupported photo" in r.message]
     assert len(warnings) == 2
+
+
+def test_build_project_archive_prefers_stacked(tmp_path):
+    project_path = tmp_path / "project"
+    scan1 = project_path / "scan01"
+    scan2 = project_path / "scan02"
+    stacked = scan1 / "stacked"
+    stacked.mkdir(parents=True)
+    scan2.mkdir(parents=True)
+
+    (scan1 / "raw_001.jpg").write_bytes(b"raw1")
+    (scan1 / "raw_002.jpg").write_bytes(b"raw2")
+    (stacked / "stacked_001.jpg").write_bytes(b"stack1")
+    (stacked / "stacked_002.jpg").write_bytes(b"stack2")
+    (scan2 / "raw_003.jpg").write_bytes(b"raw3")
+
+    project = Project(
+        name="demo",
+        path=str(project_path),
+        created=datetime.now(),
+        scans={},
+    )
+
+    archive, size = _build_project_archive(project)
+    try:
+        assert size > 0
+        with ZipFile(archive, "r") as zipf:
+            assert sorted(zipf.namelist()) == [
+                "raw_003.jpg",
+                "stacked_001.jpg",
+                "stacked_002.jpg",
+            ]
+    finally:
+        archive.close()
+
+    assert _count_project_photos(project) == 3
