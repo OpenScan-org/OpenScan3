@@ -193,7 +193,7 @@ class Picamera2Controller(CameraController):
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """This method is call on every change of settings."""
-        self._busy = True
+        self._set_busy(True)
         
         # apply all settings
         for setting, value in settings.__dict__.items():
@@ -208,7 +208,7 @@ class Picamera2Controller(CameraController):
 
         self._configure_focus(camera_mode="preview")  
 
-        self._busy = False
+        self._set_busy(False)
         logger.debug(f"Applied settings to hardware: {settings.model_dump_json()}")
 
 
@@ -349,7 +349,7 @@ class Picamera2Controller(CameraController):
         Returns:
             tuple: A tuple containing the red and blue gains.
         """
-        self._busy = True
+        self._set_busy(True)
         logger.info("Will configure automatic white balance for color correction...")
         logger.debug(
             f"Warmup frames: {warmup_frames}, Stable frames: {stable_frames}, Epsilon: {eps}, Timeout: {timeout_s}")
@@ -400,21 +400,21 @@ class Picamera2Controller(CameraController):
         self.settings.awbg_blue = best_gains[1]
         logger.info(f"AWB locked with gains: {best_gains}")
 
-        self._busy = False
+        self._set_busy(False)
 
         return float(best_gains[0]), float(best_gains[1])
 
     def restart_camera(self):
         """Restart the camera and reconfigure resolution."""
         self._picam.stop()
-        self._busy = False
+        self._set_busy(False)
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
         self._picam.start()
         logger.info(f"Picamera2 restarted.")
 
     def _capture_array(self, config):
-        self._busy = True
+        self._set_busy(True)
         self._configure_focus(camera_mode="photo")
         if self.settings.AF:
             self._picam.autofocus_cycle()
@@ -446,7 +446,7 @@ class Picamera2Controller(CameraController):
         finally:
             # Always switch back to preview focus and clear busy flag
             self._configure_focus(camera_mode="preview")
-            self._busy = False
+            self._set_busy(False)
 
 
     def capture_rgb_array(self) -> PhotoData:
@@ -496,7 +496,7 @@ class Picamera2Controller(CameraController):
 
         Returns:
             tuple[BytesIO, dict]: A tuple containing the JPEG data and metadata."""
-        self._busy = True
+        self._set_busy(True)
         self._configure_focus(camera_mode="photo")
         self._configure_cropping_for_scalercrop()
         if self.settings.AF:
@@ -527,7 +527,7 @@ class Picamera2Controller(CameraController):
 
         logger.debug(f"Captured jpeg with metadata: {cam_metadata}")
 
-        self._busy = False
+        self._set_busy(False)
 
         return self._create_artifact(jpeg_data, "jpeg", cam_metadata)
 
@@ -537,7 +537,7 @@ class Picamera2Controller(CameraController):
 
         Returns:
             tuple[BytesIO, Any]: A tuple containing the dng data and metadata."""
-        self._busy = True
+        self._set_busy(True)
         self._configure_focus(camera_mode="photo")
         self._picam.set_controls({"ScalerCrop": self._configure_cropping_for_scalercrop()})
         if self.settings.AF:
@@ -552,7 +552,7 @@ class Picamera2Controller(CameraController):
 
         logger.debug(f"Captured dng with metadata: {metadata}")
 
-        self._busy = False
+        self._set_busy(False)
 
         return self._create_artifact(dng_data, "dng", camera_metadata)
 
@@ -594,7 +594,7 @@ class Picamera2Controller(CameraController):
         Returns:
             IO[bytes]: A file-like object containing the JPEG image.
         """
-        self._busy = True
+        self._set_busy(True)
         frame = self._picam.capture_array(mode)
 
         if mode == "lores":
@@ -613,7 +613,7 @@ class Picamera2Controller(CameraController):
         frame = rotate_map.get(self.settings.orientation_flag, lambda f: f)(frame)
 
         _, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
-        self._busy = False
+        self._set_busy(False)
         return jpeg.tobytes()
 
 

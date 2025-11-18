@@ -9,7 +9,19 @@ from contextlib import asynccontextmanager
 from openscan.config.logger import setup_logging
 from openscan.utils.settings import load_settings_json
 
-from openscan.routers import cameras, motors, projects, gpio, openscan, lights, device, tasks, develop, cloud
+from openscan.routers import (
+    cameras,
+    motors,
+    projects,
+    gpio,
+    openscan,
+    lights,
+    device,
+    tasks,
+    develop,
+    cloud,
+    websocket,
+)
 from openscan.controllers import device as device_controller
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
@@ -140,6 +152,7 @@ BASE_ROUTERS = [
     tasks.router,
     develop.router,
     cloud.router,
+    websocket.router,
 ]
 
 # Router mapping per API version. Extend per version to diverge.
