@@ -3,6 +3,7 @@
 import io
 import logging
 import math
+import pathlib
 from dataclasses import dataclass
 from tempfile import TemporaryFile
 from typing import Any, BinaryIO, Iterator, Sequence
@@ -253,6 +254,67 @@ def _start_project(project_name: str, token: str | None = None) -> dict[str, Any
     )
 
 
+# Internal helpers -----------------------------------------------------------
+
+
+def _collect_project_photos(project: Project, *, log_warnings: bool = True) -> list[pathlib.Path]:
+    """Return all photos that should be part of a cloud upload.
+
+    Focus-stacked images take precedence: if a scan directory contains a
+    ``stacked/`` subfolder with JPEGs, only those images are considered for that
+    scan. Raw images remain the fallback for scans without stacked results.
+
+    Args:
+        project: Project for which photos should be collected.
+
+    Returns:
+        Sorted list of photo paths limited to allowed suffixes.
+    """
+
+    base_path = project.path_obj
+    preferred_scans: set[pathlib.Path] = set()
+    collected: list[pathlib.Path] = []
+
+    for scan_dir in sorted(base_path.glob("scan*")):
+        if not scan_dir.is_dir():
+            continue
+
+        stacked_dir = scan_dir / "stacked"
+        if not stacked_dir.is_dir():
+            continue
+
+        stacked_photos = sorted(
+            path
+            for path in stacked_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() in ALLOWED_PHOTO_SUFFIXES
+        )
+        if stacked_photos:
+            collected.extend(stacked_photos)
+            preferred_scans.add(scan_dir.resolve())
+
+    for file_path in sorted(base_path.rglob("*")):
+        if not file_path.is_file():
+            continue
+
+        suffix = file_path.suffix.lower()
+        if suffix not in ALLOWED_PHOTO_SUFFIXES:
+            if log_warnings and suffix in UNSUPPORTED_PHOTO_SUFFIXES:
+                logger.warning(
+                    "Skipping unsupported photo '%s' for cloud upload",
+                    file_path.relative_to(base_path),
+                )
+            continue
+
+        # Skip raw photos when stacked results are available for the same scan
+        if any(scan_dir in file_path.parents for scan_dir in preferred_scans):
+            continue
+
+        collected.append(file_path)
+
+    base_path_resolved = base_path.resolve()
+    return sorted(collected, key=lambda path: path.relative_to(base_path_resolved).as_posix())
+
+
 # Public API -----------------------------------------------------------------
 
 
@@ -379,19 +441,7 @@ def _build_project_archive(project: Project) -> tuple[TemporaryFile, int]:
 
     seen_names: set[str] = set()
     with ZipFile(archive, "w", compression=ZIP_DEFLATED) as zipf:
-        for file_path in sorted(base_path.rglob("*")):
-            if not file_path.is_file():
-                continue
-
-            suffix = file_path.suffix.lower()
-            if suffix not in ALLOWED_PHOTO_SUFFIXES:
-                if suffix in UNSUPPORTED_PHOTO_SUFFIXES:
-                    logger.warning(
-                        "Skipping unsupported photo '%s' for cloud upload",
-                        file_path.relative_to(base_path),
-                    )
-                continue
-
+        for file_path in _collect_project_photos(project):
             arcname = file_path.name
             if arcname in seen_names:
                 arcname = str(file_path.relative_to(base_path)).replace("/", "_")
@@ -406,12 +456,7 @@ def _build_project_archive(project: Project) -> tuple[TemporaryFile, int]:
 
 
 def _count_project_photos(project: Project) -> int:
-    base_path = project.path_obj
-    return sum(
-        1
-        for file_path in base_path.rglob("*")
-        if file_path.is_file() and file_path.suffix.lower() in ALLOWED_PHOTO_SUFFIXES
-    )
+    return len(_collect_project_photos(project, log_warnings=False))
 
 
 def _iter_chunks(file_obj: BinaryIO, chunk_size: int) -> Iterator[io.BytesIO]:
