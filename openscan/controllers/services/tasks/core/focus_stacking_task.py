@@ -17,8 +17,6 @@ from openscan.models.task import TaskProgress
 logger = logging.getLogger(__name__)
 
 
-#todo fix task priority and concurrency (currently the stacking task is blocking a new scan task)
-
 class FocusStackingTask(BaseTask):
     """Process focus stack images from a scan.
 
@@ -95,6 +93,8 @@ class FocusStackingTask(BaseTask):
         output_paths = []
 
         for idx, (position, image_paths) in enumerate(sorted(batches.items())):
+            await self.wait_for_pause()
+
             # Check for cancel
             if self.is_cancelled():
                 logger.info("Focus stacking cancelled by user")
@@ -102,7 +102,7 @@ class FocusStackingTask(BaseTask):
                 return
 
             # Stack this batch (CPU-intensive, run in executor)
-            output_path = output_dir / f"stacked_{position:03d}.jpg"
+            output_path = output_dir / f"stacked_scan{scan_index:02d}_{position:03d}.jpg"
             await loop.run_in_executor(
                 None,
                 self._stack_batch,
