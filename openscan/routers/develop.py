@@ -5,6 +5,9 @@ These may be removed or changed at any time.
 """
 
 import base64
+import time
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, status, Response, Query
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
@@ -14,6 +17,9 @@ from openscan.models.paths import PolarPoint3D
 from openscan.controllers.hardware.motors import move_to_point
 
 from openscan.utils.paths import paths
+
+
+RELOAD_TRIGGER_FILE = Path(__file__).resolve().parents[2] / ".reload-trigger"
 
 router = APIRouter(
     prefix="/develop",
@@ -25,6 +31,13 @@ router = APIRouter(
 async def move_to_position(point: PolarPoint3D):
     """Move Rotor and Turntable to a polar point"""
     await move_to_point(point)
+
+
+@router.post("/restart", status_code=status.HTTP_202_ACCEPTED)
+async def restart_application() -> dict[str, str]:
+    """Trigger a FastAPI reload by touching the sentinel file."""
+    RELOAD_TRIGGER_FILE.write_text(str(time.time()), encoding="utf-8")
+    return {"detail": "Reload triggered"}
 
 
 @router.get("/crop_image", summary="Run crop task and return visualization image", response_class=Response)
