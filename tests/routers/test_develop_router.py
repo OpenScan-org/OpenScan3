@@ -15,7 +15,8 @@ from openscan.routers import develop
 def test_restart_endpoint_updates_reload_trigger(monkeypatch, tmp_path):
     """The restart endpoint should create and update the reload sentinel file."""
     sentinel_file = tmp_path / "reload.trigger"
-    monkeypatch.setattr(develop, "RELOAD_TRIGGER_FILE", sentinel_file)
+    monkeypatch.setattr("openscan.cli.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
+    monkeypatch.setattr("openscan.routers.develop.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
 
     time_values = count(start=1)
     monkeypatch.setattr(develop.time, "time", lambda: float(next(time_values)))
@@ -78,7 +79,8 @@ def test_restart_triggers_device_initialize_on_reload(monkeypatch, tmp_path):
     """Touching the reload endpoint should trigger re-initialization after reload."""
 
     sentinel_file = tmp_path / "reload.trigger"
-    monkeypatch.setattr(develop, "RELOAD_TRIGGER_FILE", sentinel_file)
+    monkeypatch.setattr("openscan.cli.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
+    monkeypatch.setattr("openscan.routers.develop.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
 
     init_calls: list[object] = []
 
