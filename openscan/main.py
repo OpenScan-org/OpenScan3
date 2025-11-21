@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from openscan.config.logger import setup_logging
 from openscan.utils.settings import load_settings_json
+from openscan import __version__
 
 from openscan.routers import (
     cameras,
@@ -31,10 +32,20 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Code to run on startup – configure logging with precedence and packaged defaults
     setup_logging(preferred_filename="advanced_logging.json", default_level=logging.DEBUG)
+
+    logger.info(
+        "OpenScan3 service starting (package version %s, API compatibility %s, latest v%s)",
+        __version__,
+        ", ".join(f"v{v}" for v in SUPPORTED_VERSIONS),
+        LATEST,
+    )
 
     device_controller.initialize(device_controller.load_device_config())
 
@@ -159,6 +170,7 @@ BASE_ROUTERS = [
 # Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
     "0.3": BASE_ROUTERS,
+    "0.4": BASE_ROUTERS,
 }
 
 
@@ -201,6 +213,7 @@ def make_version_app(version: str) -> FastAPI:
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
     "0.3",
+    "0.4",
 ]
 LATEST = SUPPORTED_VERSIONS[-1]
 
