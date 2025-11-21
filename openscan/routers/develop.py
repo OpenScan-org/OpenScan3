@@ -5,6 +5,8 @@ These may be removed or changed at any time.
 """
 
 import base64
+import time
+
 from fastapi import APIRouter, HTTPException, status, Response, Query
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
@@ -14,6 +16,8 @@ from openscan.models.paths import PolarPoint3D
 from openscan.controllers.hardware.motors import move_to_point
 
 from openscan.utils.paths import paths
+from openscan.cli import DEFAULT_RELOAD_TRIGGER
+
 
 router = APIRouter(
     prefix="/develop",
@@ -25,6 +29,18 @@ router = APIRouter(
 async def move_to_position(point: PolarPoint3D):
     """Move Rotor and Turntable to a polar point"""
     await move_to_point(point)
+
+
+@router.post("/restart", status_code=status.HTTP_202_ACCEPTED)
+async def restart_application() -> dict[str, str]:
+    """Trigger a Firmware reload by touching the reload sentinel file.
+
+    Note: The application has to be started with the --reload-trigger option to enable this endpoint."""
+    DEFAULT_RELOAD_TRIGGER.parent.mkdir(parents=True, exist_ok=True)
+    DEFAULT_RELOAD_TRIGGER.write_text(str(time.time()), encoding="utf-8")
+    # Ensure mtime changes even on file systems with coarse-grained timestamps
+    DEFAULT_RELOAD_TRIGGER.touch()
+    return {"detail": "Reload triggered"}
 
 
 @router.get("/crop_image", summary="Run crop task and return visualization image", response_class=Response)
