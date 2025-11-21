@@ -8,9 +8,13 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Optional
 
 import uvicorn
+
+
+DEFAULT_RELOAD_TRIGGER = Path(__file__).resolve().parents[1] / ".reload-trigger"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -27,9 +31,9 @@ def _build_parser() -> argparse.ArgumentParser:
     common.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
     common.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
     common.add_argument(
-        "--reload",
+        "--reload-trigger",
         action="store_true",
-        help="Enable auto-reload (development only)",
+        help="Enable reloads driven by the project-level .reload-trigger sentinel file.",
     )
 
     parser = argparse.ArgumentParser(
@@ -59,13 +63,17 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _cmd_serve(host: str, port: int, reload: bool) -> int:
+def _cmd_serve(
+    host: str,
+    port: int,
+    reload_trigger: bool,
+) -> int:
     """Start the FastAPI app using uvicorn.
 
     Args:
         host: Host interface to bind to.
         port: TCP port to bind to.
-        reload: Whether to enable uvicorn's auto-reload.
+        reload_trigger: Whether to enable reloads via the .reload-trigger sentinel file.
 
     Returns:
         Exit status code (0 on success).
@@ -73,7 +81,20 @@ def _cmd_serve(host: str, port: int, reload: bool) -> int:
     # Import by string to avoid importing the app at CLI parse time.
     # This uses the wrapper module `openscan.main:app`, which re-exports
     # the existing FastAPI instance from `app.main` during Phase 1.
-    uvicorn.run("openscan.main:app", host=host, port=port, reload=reload)
+    reload_enabled = reload_trigger
+    reload_dirs = [str(DEFAULT_RELOAD_TRIGGER.parent)] if reload_trigger else None
+    reload_includes = [DEFAULT_RELOAD_TRIGGER.name] if reload_trigger else None
+    reload_excludes = ["*.py", "*.pyc", "*.pyi", "*.pyd", "*.pyo"] if reload_trigger else None
+
+    uvicorn.run(
+        "openscan.main:app",
+        host=host,
+        port=port,
+        reload=reload_enabled,
+        reload_dirs=reload_dirs,
+        reload_includes=reload_includes,
+        reload_excludes=reload_excludes,
+    )
     return 0
 
 
@@ -91,7 +112,11 @@ def main(argv: Optional[list[str]] = None) -> None:
     args = parser.parse_args(argv)
 
     # Execute resolved command (defaults to serving the API)
-    code = args.func(host=args.host, port=args.port, reload=args.reload)
+    code = args.func(
+        host=args.host,
+        port=args.port,
+        reload_trigger=args.reload_trigger,
+    )
 
     if code != 0:
         sys.exit(code)
