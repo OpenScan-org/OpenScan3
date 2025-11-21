@@ -15,6 +15,10 @@ from openscan.models.camera import Camera, CameraType, PhotoData
 from openscan.config.camera import CameraSettings
 from openscan.controllers.hardware.interfaces import create_controller_registry, StatefulHardware
 from openscan.controllers.settings import Settings
+from openscan.controllers.services.device_events import (
+    notify_busy_change,
+    schedule_device_status_broadcast,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +47,7 @@ class CameraController(StatefulHardware):
     def _on_settings_change(self, settings: CameraSettings):
         self.camera.settings = settings
         self._apply_settings_to_hardware(settings)
+        schedule_device_status_broadcast([f"cameras.{self.camera.name}.settings"])
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """
@@ -53,6 +58,12 @@ class CameraController(StatefulHardware):
 
     def is_busy(self):
         return self._busy
+
+    def _set_busy(self, busy: bool) -> None:
+        if self._busy == busy:
+            return
+        self._busy = busy
+        notify_busy_change("cameras", self.camera.name)
 
     def photo(self, image_format: str = "jpeg") -> PhotoData:
         """Capture a single photo with high resolution.
