@@ -10,7 +10,7 @@ class CameraSettings(BaseModel):
     awbg_blue: Optional[float] = Field(1.8, ge=0.0, le=32.0, description="Blue Gain from 0 to 32.")
     gain: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Analogue Gain from 0 to 32.")
 
-    jpeg_quality: Optional[int] = Field(75, ge=0, le=100, description="JPEG image quality from 0 to 100")
+    jpeg_quality: Optional[int] = Field(90, ge=0, le=100, description="JPEG image quality from 0 to 100")
 
     AF: Optional[bool] = Field(True, description="Enable Autofocus. This will ignore manual_focus settings.")
     AF_window: Optional[Tuple[
