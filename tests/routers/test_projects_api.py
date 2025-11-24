@@ -1,10 +1,13 @@
 """
 Tests for the projects API endpoints.
 """
-import shutil
 import os
+import shutil
+import sys
 import tempfile
-import json
+import types
+import uuid
+from datetime import datetime
 from typing import Generator
 from unittest.mock import MagicMock
 
@@ -148,3 +151,90 @@ def test_delete_project_not_found(client: TestClient):
     """
     response = client.delete("/latest/projects/non-existent-project-to-delete")
     assert response.status_code == 404
+
+
+def test_download_project_zip_streaming_headers_without_content_length(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Ensure the project ZIP endpoint streams without setting Content-Length."""
+
+    class FakeZipStream:
+        last_modified = None
+
+        def __init__(self, *_, **__):
+            self.add_calls: list[tuple[str, str]] = []
+
+        @classmethod
+        def from_path(cls, path: str):
+            instance = cls()
+            instance.source_path = path
+            return instance
+
+        def add(self, data: str, arcname: str) -> None:
+            self.add_calls.append((data, arcname))
+
+        def __iter__(self):
+            yield b"zip-data"
+
+        def __len__(self) -> int:  # pragma: no cover - should not be invoked
+            raise AssertionError("len() must not be called for streaming ZIPs")
+
+    fake_module = types.SimpleNamespace(ZipStream=FakeZipStream)
+    monkeypatch.setitem(sys.modules, "zipstream", fake_module)
+
+    project_name = f"zip-stream-test-project-{uuid.uuid4().hex[:8]}"
+    create_response = client.post(f"/latest/projects/{project_name}")
+    assert create_response.status_code == 200
+
+    response = client.get(f"/latest/projects/{project_name}/zip")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"] == f"attachment; filename={project_name}.zip"
+    assert "Content-Length" not in response.headers
+
+
+def test_download_scans_zip_streaming_handles_large_virtual_size(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Ensure scan ZIP streaming skips Content-Length even for huge virtual sizes."""
+
+    class FakeLargeZipStream:
+        last_modified = datetime(2025, 1, 1, 12, 0, 0)
+
+        def __init__(self, *, sized: bool = False, **_):
+            assert sized is True
+            self.comment: str | None = None
+            self.added_paths: list[tuple[str, str]] = []
+
+        @classmethod
+        def from_path(cls, *_: str):
+            raise AssertionError("from_path should not be used in scans ZIP test")
+
+        def add(self, data: str, arcname: str) -> None:
+            # Collect metadata inclusion
+            pass
+
+        def add_path(self, path: str, arcname: str) -> None:
+            self.added_paths.append((path, arcname))
+
+        def __iter__(self):
+            yield b"large-zip-chunk"
+
+        def __len__(self) -> int:  # pragma: no cover - should not be invoked
+            raise OverflowError("Simulated overflow for >2GB zip size")
+
+    fake_module = types.SimpleNamespace(ZipStream=FakeLargeZipStream)
+    monkeypatch.setitem(sys.modules, "zipstream", fake_module)
+
+    project_name = f"zip-stream-large-virtual-{uuid.uuid4().hex[:8]}"
+    create_response = client.post(f"/latest/projects/{project_name}")
+    assert create_response.status_code == 200
+
+    response = client.get(f"/latest/projects/{project_name}/scans/zip")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith(f"attachment; filename={project_name}")
+    assert response.headers["Last-Modified"] == str(FakeLargeZipStream.last_modified)
+    assert "Content-Length" not in response.headers
