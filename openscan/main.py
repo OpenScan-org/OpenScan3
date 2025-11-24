@@ -22,6 +22,7 @@ from openscan.routers import (
     develop,
     cloud,
     websocket,
+    focus_stacking,
 )
 from openscan.controllers import device as device_controller
 
@@ -171,6 +172,7 @@ BASE_ROUTERS = [
 ROUTERS_BY_VERSION: dict[str, list] = {
     "0.3": BASE_ROUTERS,
     "0.4": BASE_ROUTERS,
+    "0.5": BASE_ROUTERS + [focus_stacking.router],
 }
 
 
@@ -214,6 +216,7 @@ def make_version_app(version: str) -> FastAPI:
 SUPPORTED_VERSIONS = [
     "0.3",
     "0.4",
+    "0.5",
 ]
 LATEST = SUPPORTED_VERSIONS[-1]
 
