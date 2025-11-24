@@ -12,9 +12,9 @@ import logging
 from typing import Optional
 
 from openscan.controllers.hardware.cameras.camera import CameraController
-from openscan.controllers.services.projects import ProjectManager
+from openscan.controllers.services.projects import ProjectManager, get_project_manager
 from openscan.controllers.services.tasks.task_manager import get_task_manager
-from openscan.models.scan import Scan, ScanStatus
+from openscan.models.scan import Scan
 from openscan.models.task import Task, TaskStatus
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,9 @@ async def pause_scan(scan: Scan) -> Optional[Task]:
         return None
 
     task_manager = get_task_manager()
-    scan.status = ScanStatus.PAUSED
+    scan.status = TaskStatus.PAUSED
+    project_manager = get_project_manager()
+    await project_manager.save_scan_state(scan)
     return await task_manager.pause_task(scan.task_id)
 
 
@@ -111,7 +113,11 @@ async def resume_scan(scan: Scan) -> Optional[Task]:
         return None
 
     task_manager = get_task_manager()
-    return await task_manager.resume_task(scan.task_id)
+    task = await task_manager.resume_task(scan.task_id)
+    scan.status = TaskStatus.RUNNING
+    project_manager = get_project_manager()
+    await project_manager.save_scan_state(scan)
+    return task
 
 
 async def cancel_scan(scan: Scan) -> Optional[Task]:
@@ -129,5 +135,7 @@ async def cancel_scan(scan: Scan) -> Optional[Task]:
         return None
 
     task_manager = get_task_manager()
-    scan.status = ScanStatus.CANCELLED
+    scan.status = TaskStatus.CANCELLED
+    project_manager = get_project_manager()
+    await project_manager.save_scan_state(scan)
     return await task_manager.cancel_task(scan.task_id)

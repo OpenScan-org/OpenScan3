@@ -12,7 +12,7 @@ from datetime import datetime
 from openscan.config.scan import ScanSetting
 
 from openscan.models.task import Task, TaskStatus, TaskProgress
-from openscan.models.scan import Scan, ScanStatus
+from openscan.models.scan import Scan
 from openscan.models.paths import CartesianPoint3D, PolarPoint3D
 from openscan.controllers.services.tasks.task_manager import TaskManager
 from openscan.controllers.services.projects import ProjectManager
@@ -433,6 +433,64 @@ class TestScanTaskIntegration:
             
             # Verify add_photo_async was called for each photo
             assert mock_add_photo.call_count == test_points
+
+    @pytest.mark.asyncio
+    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan.controllers.hardware.motors', create=True)
+    async def test_scan_json_persistence_on_error(
+            self,
+            mock_motors: MagicMock,
+            mock_generate_scan_path: MagicMock,
+            mock_get_project_manager: MagicMock,
+            mock_get_camera_controller: MagicMock,
+            task_manager_fixture: TaskManager,
+            mock_camera_controller: MagicMock,
+            sample_scan_model: Scan,
+            sample_scan_settings: ScanSetting,
+            tmp_path,
+    ):
+        """Ensure scan.json persistence reflects TaskStatus.ERROR when capture fails."""
+        real_project_manager = ProjectManager(path=tmp_path)
+
+        mock_get_camera_controller.return_value = mock_camera_controller
+        mock_get_project_manager.return_value = real_project_manager
+
+        project = real_project_manager.add_project(
+            sample_scan_model.project_name,
+            "Test project for error persistence",
+        )
+
+        scan = real_project_manager.add_scan(
+            sample_scan_model.project_name,
+            mock_camera_controller,
+            sample_scan_settings,
+            "Test scan for error persistence",
+        )
+
+        mock_generate_scan_path.return_value = {
+            PolarPoint3D(theta=0, fi=0): 0,
+        }
+
+        mock_motors.move_to_point = AsyncMock()
+        mock_camera_controller.photo.side_effect = RuntimeError("capture failed")
+
+        with patch.object(real_project_manager, 'save_scan_state', new_callable=AsyncMock) as mock_save:
+            task_model = await task_manager_fixture.create_and_run_task(
+                "scan_task",
+                scan,
+                0,
+            )
+
+            final_task_model = await task_manager_fixture.wait_for_task(task_model.id)
+
+            assert final_task_model.status == TaskStatus.ERROR
+            mock_save.assert_awaited()
+
+            saved_scan = mock_save.await_args.args[0]
+            assert saved_scan.status == TaskStatus.ERROR
+            assert "capture failed" in saved_scan.system_message
 
     @pytest.mark.asyncio
     @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
