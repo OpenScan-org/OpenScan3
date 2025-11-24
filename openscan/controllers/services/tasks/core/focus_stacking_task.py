@@ -7,6 +7,7 @@ Up to 3 stacking tasks can run concurrently (TaskManager limit).
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import AsyncGenerator
@@ -92,12 +93,19 @@ class FocusStackingTask(BaseTask):
                 str(scan_dir),
                 num_calibration_batches
             )
+            output_dir.mkdir(exist_ok=True)
+            calibration_path = output_dir / f"calibration_scan{scan_index:02d}.json"
+            calibration_payload = {
+                "project": project_name,
+                "scan_index": scan_index,
+                "transforms": [transform.tolist() for transform in stacker.transforms],
+            }
+            calibration_path.write_text(json.dumps(calibration_payload, indent=2), encoding="utf-8")
             logger.info("Calibration complete")
 
             yield TaskProgress(current=0, total=total_batches, message="Calibration complete, starting stacking...")
 
             # Process all batches
-            output_dir.mkdir(exist_ok=True)
             output_paths = []
 
             for idx, (position, image_paths) in enumerate(sorted(batches.items())):
@@ -141,6 +149,7 @@ class FocusStackingTask(BaseTask):
                 "output_directory": str(output_dir),
                 "stacked_image_count": len(output_paths),
                 "output_paths": output_paths,
+                "calibration_path": str(calibration_path),
             }
 
             yield TaskProgress(
