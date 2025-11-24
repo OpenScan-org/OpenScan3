@@ -11,6 +11,9 @@ from openscan.models.paths import PolarPoint3D, CartesianPoint3D
 from openscan.utils.paths.paths import polar_to_cartesian
 from openscan.models.task import TaskStatus
 
+class StackingTaskStatus(BaseModel):
+    task_id: Optional[str] = None
+    status: Optional[TaskStatus] = None
 
 class Scan(BaseModel):
     """Represents a single scan session within a project."""
@@ -37,6 +40,8 @@ class Scan(BaseModel):
     #photos: list[str] = field(default_factory=list)
 
     task_id: Optional[str] = None
+
+    stacking_task_status: Optional[StackingTaskStatus] = None
 
 
 class ScanMetadata(BaseModel):

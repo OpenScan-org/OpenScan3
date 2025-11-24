@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from openscan.controllers.services.tasks.base_task import BaseTask
-from openscan.models.task import TaskProgress
+from openscan.models.scan import StackingTaskStatus
+from openscan.models.task import TaskProgress, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -53,88 +54,104 @@ class FocusStackingTask(BaseTask):
         if not scan:
             raise ValueError(f"Scan {scan_index} not found in project '{project_name}'")
 
-        # Get stacking parameters from scan settings
-        num_calibration_batches = 3
-
-        # Build paths
-        scan_dir = Path(project.path) / f"scan{scan.index:02d}"
-        output_dir = scan_dir / "stacked"
-
-        if not scan_dir.exists():
-            raise ValueError(f"Scan directory not found: {scan_dir}")
-
-        # Check for focus stack images (run in executor since it's I/O bound)
-        loop = asyncio.get_running_loop()
-        batches = await loop.run_in_executor(None, self._find_batches, str(scan_dir))
-
-        if not batches:
-            raise ValueError(f"No focus stack images found in {scan_dir}")
-
-        total_batches = len(batches)
-        logger.info(f"Found {total_batches} focus stack batches to process")
-
-        # Yield initial progress
-        yield TaskProgress(current=0, total=total_batches, message="Starting calibration...")
-
-        # Calibration phase (CPU-intensive, run in executor)
-        logger.info(f"Calibrating with {num_calibration_batches} batches...")
-        stacker = await loop.run_in_executor(
-            None,
-            self._calibrate_stacker,
-            str(scan_dir),
-            num_calibration_batches
+        scan.stacking_task_status = StackingTaskStatus(
+            task_id=self._task_model.id,
+            status=TaskStatus.RUNNING,
         )
-        logger.info("Calibration complete")
+        await project_manager.save_scan_state(scan)
 
-        yield TaskProgress(current=0, total=total_batches, message="Calibration complete, starting stacking...")
+        try:
+            # Get stacking parameters from scan settings
+            num_calibration_batches = 3
 
-        # Process all batches
-        output_dir.mkdir(exist_ok=True)
-        output_paths = []
+            # Build paths
+            scan_dir = Path(project.path) / f"scan{scan.index:02d}"
+            output_dir = scan_dir / "stacked"
 
-        for idx, (position, image_paths) in enumerate(sorted(batches.items())):
-            await self.wait_for_pause()
+            if not scan_dir.exists():
+                raise ValueError(f"Scan directory not found: {scan_dir}")
 
-            # Check for cancel
-            if self.is_cancelled():
-                logger.info("Focus stacking cancelled by user")
-                yield TaskProgress(current=idx, total=total_batches, message="Cancelled by user")
-                return
+            # Check for focus stack images (run in executor since it's I/O bound)
+            loop = asyncio.get_running_loop()
+            batches = await loop.run_in_executor(None, self._find_batches, str(scan_dir))
 
-            # Stack this batch (CPU-intensive, run in executor)
-            output_path = output_dir / f"stacked_scan{scan_index:02d}_{position:03d}.jpg"
-            await loop.run_in_executor(
+            if not batches:
+                raise ValueError(f"No focus stack images found in {scan_dir}")
+
+            total_batches = len(batches)
+            logger.info(f"Found {total_batches} focus stack batches to process")
+
+            # Yield initial progress
+            yield TaskProgress(current=0, total=total_batches, message="Starting calibration...")
+
+            # Calibration phase (CPU-intensive, run in executor)
+            logger.info(f"Calibrating with {num_calibration_batches} batches...")
+            stacker = await loop.run_in_executor(
                 None,
-                self._stack_batch,
-                stacker,
-                image_paths,
-                str(output_path)
+                self._calibrate_stacker,
+                str(scan_dir),
+                num_calibration_batches
             )
-            output_paths.append(str(output_path))
+            logger.info("Calibration complete")
 
-            logger.debug(f"Stacked batch {idx + 1}/{total_batches} (position {position})")
+            yield TaskProgress(current=0, total=total_batches, message="Calibration complete, starting stacking...")
 
-            # Yield progress update
+            # Process all batches
+            output_dir.mkdir(exist_ok=True)
+            output_paths = []
+
+            for idx, (position, image_paths) in enumerate(sorted(batches.items())):
+                await self.wait_for_pause()
+
+                # Check for cancel
+                if self.is_cancelled():
+                    logger.info("Focus stacking cancelled by user")
+                    scan.stacking_task_status.status = TaskStatus.CANCELLED
+                    await project_manager.save_scan_state(scan)
+                    yield TaskProgress(current=idx, total=total_batches, message="Cancelled by user")
+                    return
+
+                # Stack this batch (CPU-intensive, run in executor)
+                output_path = output_dir / f"stacked_scan{scan_index:02d}_{position:03d}.jpg"
+                await loop.run_in_executor(
+                    None,
+                    self._stack_batch,
+                    stacker,
+                    image_paths,
+                    str(output_path)
+                )
+                output_paths.append(str(output_path))
+
+                logger.debug(f"Stacked batch {idx + 1}/{total_batches} (position {position})")
+
+                # Yield progress update
+                yield TaskProgress(
+                    current=idx + 1,
+                    total=total_batches,
+                    message=f"Stacking batch {idx + 1} of {total_batches}"
+                )
+
+            logger.info(f"Focus stacking complete: {len(output_paths)} images created in {output_dir}")
+
+            scan.stacking_task_status.status = TaskStatus.COMPLETED
+            await project_manager.save_scan_state(scan)
+
+            # Set final result
+            self._task_model.result = {
+                "output_directory": str(output_dir),
+                "stacked_image_count": len(output_paths),
+                "output_paths": output_paths,
+            }
+
             yield TaskProgress(
-                current=idx + 1,
+                current=total_batches,
                 total=total_batches,
-                message=f"Stacking batch {idx + 1} of {total_batches}"
+                message="Focus stacking complete"
             )
-
-        logger.info(f"Focus stacking complete: {len(output_paths)} images created in {output_dir}")
-
-        # Set final result
-        self._task_model.result = {
-            "output_directory": str(output_dir),
-            "stacked_image_count": len(output_paths),
-            "output_paths": output_paths,
-        }
-
-        yield TaskProgress(
-            current=total_batches,
-            total=total_batches,
-            message="Focus stacking complete"
-        )
+        except Exception:
+            scan.stacking_task_status.status = TaskStatus.ERROR
+            await project_manager.save_scan_state(scan)
+            raise
 
     def _find_batches(self, scan_dir: str) -> dict:
         """Find image batches (blocking I/O)."""
