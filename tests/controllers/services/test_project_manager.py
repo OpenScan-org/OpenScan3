@@ -17,7 +17,8 @@ from openscan.config.camera import CameraSettings
 from openscan.config.scan import ScanSetting
 from openscan.models.camera import PhotoData
 from openscan.models.paths import PolarPoint3D
-from openscan.models.scan import Scan, ScanMetadata
+from openscan.models.scan import Scan, ScanMetadata, StackingTaskStatus
+from openscan.models.task import TaskStatus
 
 
 # --- Test Cases for ProjectManager ---
@@ -187,3 +188,43 @@ async def test_pm_add_scan_to_project(
     assert second_scan.index == 2
     project = project_manager.get_project_by_name(project_name) # Synchronous call
     assert "scan02" in project.scans
+
+
+@pytest.mark.asyncio
+async def test_pm_save_scan_state_persists_stacking_status(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+):
+    """Ensure stacking task status is written to disk and survives reload."""
+
+    project_name = "StackingProject"
+    project_manager.add_project(name=project_name)
+
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        scan_settings=sample_scan_settings,
+        camera_controller=mock_camera_controller,
+    )
+
+    scan.stacking_task_status = StackingTaskStatus(
+        task_id="stack-123",
+        status=TaskStatus.RUNNING,
+    )
+
+    await project_manager.save_scan_state(scan)
+
+    scan_json = Path(project_manager._path) / project_name / "scan01" / "scan.json"
+    with scan_json.open() as f:
+        payload = json.load(f)
+
+    assert payload["stacking_task_status"] == {
+        "task_id": "stack-123",
+        "status": TaskStatus.RUNNING.value,
+    }
+
+    reloaded_manager = ProjectManager(path=Path(project_manager._path))
+    reloaded_scan = reloaded_manager.get_scan_by_index(project_name, scan.index)
+
+    assert reloaded_scan is not None
+    assert reloaded_scan.stacking_task_status == scan.stacking_task_status
