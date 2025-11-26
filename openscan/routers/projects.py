@@ -401,14 +401,16 @@ async def download_project(project_name: str):
         zs.add(_serialize_project_for_zip(project), "project_metadata.json")
 
         # Return streaming response
+        headers = {
+            "Content-Disposition": f"attachment; filename={project_name}.zip",
+        }
+        if getattr(zs, "last_modified", None):
+            headers["Last-Modified"] = str(zs.last_modified)
+
         response = StreamingResponse(
             zs,
             media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename={project_name}.zip",
-                "Content-Length": str(len(zs)),
-                "Last-Modified": str(zs.last_modified),
-            }
+            headers=headers,
         )
 
         return response
@@ -471,14 +473,16 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
 
         zs.add(_serialize_project_for_zip(project), "project_metadata.json")
 
+        headers = {
+            "Content-Disposition": f"attachment; filename={filename}",
+        }
+        if getattr(zs, "last_modified", None):
+            headers["Last-Modified"] = str(zs.last_modified)
+
         response = StreamingResponse(
             zs,
             media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}",
-                "Content-Length": str(len(zs)),
-                "Last-Modified": str(zs.last_modified),
-            }
+            headers=headers,
         )
         return response
     except FileNotFoundError:
