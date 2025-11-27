@@ -1,0 +1,5198 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenScan3 API v0.5",
+    "version": "0.5"
+  },
+  "paths": {
+    "/cameras/": {
+      "get": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Get Cameras",
+        "description": "Get all cameras with their current status\n\nReturns:\n    dict[str, CameraStatusResponse]: A dictionary of camera name to a camera status object",
+        "operationId": "get_cameras_cameras__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/CameraStatusResponse"
+                  },
+                  "type": "object",
+                  "title": "Response Get Cameras Cameras  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}": {
+      "get": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Get Camera",
+        "description": "Get a camera with its current status\n\nArgs:\n    camera_name: The name of the camera to get the status of\n\nReturns:\n    CameraStatusResponse: A response object containing the status of the camera",
+        "operationId": "get_camera_cameras__camera_name__get",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/preview": {
+      "get": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Get Preview",
+        "description": "Get a camera preview stream in lower resolution\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "operationId": "get_preview_cameras__camera_name__preview_get",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/photo": {
+      "get": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Get Photo",
+        "description": "Get a camera photo\n\nArgs:\n    camera_name: The name of the camera to get the photo from\n\nReturns:\n    Response: A response containing the photo",
+        "operationId": "get_photo_cameras__camera_name__photo_get",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/restart": {
+      "post": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Restart Camera",
+        "description": "Restart a camera\n\nArgs:\n    camera_name: The name of the camera to restart\n\nReturns:\n    Response: A response containing the status code",
+        "operationId": "restart_camera_cameras__camera_name__restart_post",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/settings": {
+      "get": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Get Settings",
+        "description": "Get settings for a specific resource",
+        "operationId": "get_settings_cameras__camera_name__settings_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Replace Settings",
+        "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
+        "operationId": "replace_settings_cameras__camera_name__settings_put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "settings",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BaseModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Update Settings",
+        "description": "Update one or more specific settings for a resource\n\nArgs:\n    name: The name of the resource to update settings for\n    settings: A dictionary of settings to update\n\nReturns:\n    The updated settings for the resource",
+        "operationId": "update_settings_cameras__camera_name__settings_patch",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "examples": [
+                  {
+                    "some_setting": 123
+                  }
+                ],
+                "title": "Settings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motors/": {
+      "get": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Get Motors",
+        "description": "Get all motors with their current status\n\nReturns:\n    dict[str, MotorStatusResponse]: A dictionary of motor name to a motor status object",
+        "operationId": "get_motors_motors__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/MotorStatusResponse"
+                  },
+                  "type": "object",
+                  "title": "Response Get Motors Motors  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/motors/{motor_name}": {
+      "get": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Get Motor",
+        "description": "Get motor status\n\nArgs:\n    motor_name: The name of the motor to get the status of\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor",
+        "operationId": "get_motor_motors__motor_name__get",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motors/{motor_name}/angle": {
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Move Motor To Angle",
+        "description": "Move motor to absolute position\n\nArgs:\n    motor_name: The name of the motor to move\n    degrees: Number of degrees to move\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "move_motor_to_angle_motors__motor_name__angle_put",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          },
+          {
+            "name": "degrees",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "title": "Degrees"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Move Motor By Degree",
+        "description": "Move motor by degrees\n\nArgs:\n    motor_name: The name of the motor to move\n    degrees: Number of degrees to move\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "move_motor_by_degree_motors__motor_name__angle_patch",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_move_motor_by_degree_motors__motor_name__angle_patch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motors/{motor_name}/endstop-calibration": {
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Move Motor To Home Position",
+        "description": "Move motor to home position\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "move_motor_to_home_position_motors__motor_name__endstop_calibration_put",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motors/{motor_name}/settings": {
+      "get": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Get Settings",
+        "description": "Get settings for a specific resource",
+        "operationId": "get_settings_motors__motor_name__settings_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Replace Settings",
+        "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
+        "operationId": "replace_settings_motors__motor_name__settings_put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "settings",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BaseModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Update Settings",
+        "description": "Update one or more specific settings for a resource\n\nArgs:\n    name: The name of the resource to update settings for\n    settings: A dictionary of settings to update\n\nReturns:\n    The updated settings for the resource",
+        "operationId": "update_settings_motors__motor_name__settings_patch",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "examples": [
+                  {
+                    "some_setting": 123
+                  }
+                ],
+                "title": "Settings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lights/": {
+      "get": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Get Lights",
+        "description": "Get all lights with their current status\n\nReturns:\n    dict[str, LightStatusResponse]: A dictionary of light name to a light status object",
+        "operationId": "get_lights_lights__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/LightStatusResponse"
+                  },
+                  "type": "object",
+                  "title": "Response Get Lights Lights  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/lights/{light_name}": {
+      "get": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Get Light",
+        "description": "Get light status\n\nArgs:\n    light_name: The name of the light to get the status of\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light",
+        "operationId": "get_light_lights__light_name__get",
+        "parameters": [
+          {
+            "name": "light_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Light Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LightStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lights/{light_name}/turn_on": {
+      "patch": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Turn On Light",
+        "description": "Turn on light\n\nArgs:\n    light_name: The name of the light to turn on\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light after the turn on operation",
+        "operationId": "turn_on_light_lights__light_name__turn_on_patch",
+        "parameters": [
+          {
+            "name": "light_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Light Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LightStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lights/{light_name}/turn_off": {
+      "patch": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Turn Off Light",
+        "description": "Turn of light\n\nArgs:\n    light_name: The name of the light to turn off\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light after the turn off operation",
+        "operationId": "turn_off_light_lights__light_name__turn_off_patch",
+        "parameters": [
+          {
+            "name": "light_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Light Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LightStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lights/{light_name}/toggle": {
+      "patch": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Toggle Light",
+        "description": "Toggle light on or off\n\nArgs:\n    light_name: The name of the light to toggle\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light after the toggle operation",
+        "operationId": "toggle_light_lights__light_name__toggle_patch",
+        "parameters": [
+          {
+            "name": "light_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Light Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LightStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lights/{light_name}/settings": {
+      "get": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Get Settings",
+        "description": "Get settings for a specific resource",
+        "operationId": "get_settings_lights__light_name__settings_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LightConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Replace Settings",
+        "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
+        "operationId": "replace_settings_lights__light_name__settings_put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "settings",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BaseModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LightConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "lights"
+        ],
+        "summary": "Update Settings",
+        "description": "Update one or more specific settings for a resource\n\nArgs:\n    name: The name of the resource to update settings for\n    settings: A dictionary of settings to update\n\nReturns:\n    The updated settings for the resource",
+        "operationId": "update_settings_lights__light_name__settings_patch",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "examples": [
+                  {
+                    "some_setting": 123
+                  }
+                ],
+                "title": "Settings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LightConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Projects",
+        "description": "Get all projects with serialized data\n\nReturns:\n    dict[str, Project]: A dictionary of project name to a project object",
+        "operationId": "get_projects_projects__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/Project"
+                  },
+                  "type": "object",
+                  "title": "Response Get Projects Projects  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/projects/{project_name}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project",
+        "description": "Get a project\n\nArgs:\n    project_name: The name of the project to get\n\nReturns:\n    Project: The project object if found, None if not",
+        "operationId": "get_project_projects__project_name__get",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "New Project",
+        "description": "Create a new project\n\nArgs:\n    project_name: The name of the project to create\n    project_description: Optional description for the project\n\nReturns:\n    Project: The newly created project if successful, None if not",
+        "operationId": "new_project_projects__project_name__post",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "project_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "",
+              "title": "Project Description"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Delete Project",
+        "description": "Delete a project\n\nArgs:\n    project_name: The name of the project to delete\n\nReturns:\n    DeleteResponse: A response object containing the result of the deletion",
+        "operationId": "delete_project_projects__project_name__delete",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scan": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Add Scan With Description",
+        "description": "Add a new scan to a project and return the created Task\n\nArgs:\n    project_name: The name of the project to add the scan to\n    camera_name: The name of the camera to use for the scan\n    scan_settings: The settings for the scan\n    scan_description: Optional description for the scan\n\nReturns:\n    Task: The Task representing the started scan",
+        "operationId": "add_scan_with_description_projects__project_name__scan_post",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "camera_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          },
+          {
+            "name": "scan_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "",
+              "title": "Scan Description"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanSetting"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/upload": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Upload Project To Cloud",
+        "description": "Schedule an asynchronous cloud upload for a project.\n\nArgs:\n    project_name: The name of the project\n    token_override: Optional token override\n\nReturns:\n    Task: The TaskManager model describing the scheduled upload",
+        "operationId": "upload_project_to_cloud_projects__project_name__upload_post",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "token_override",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token Override"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/download": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Download Project From Cloud",
+        "description": "Schedule an asynchronous cloud download for a project's reconstruction.\n\nArgs:\n    project_name: The name of the project\n    token_override: Optional token override\n    remote_project: Optional explicit remote project name, defaults to the stored cloud name\n\nReturns:\n    Task: The TaskManager model describing the scheduled download",
+        "operationId": "download_project_from_cloud_projects__project_name__download_post",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "token_override",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token Override"
+            }
+          },
+          {
+            "name": "remote_project",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Remote Project"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/{scan_index}/": {
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Delete Photos",
+        "description": "Delete photos from a scan in a project\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan\n    photo_filenames: A list of photo filenames to delete\n\nReturns:\n    True if the photos were deleted successfully, False otherwise",
+        "operationId": "delete_photos_projects__project_name___scan_index___delete",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Photo Filenames"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/": {
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Delete Scan",
+        "description": "Delete a scan from a project\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to delete\n\nReturns:\n    DeleteResponse: Result of the deletion operation",
+        "operationId": "delete_scan_projects__project_name__scans__delete",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/status": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Scan Status",
+        "description": "Get the current task for a scan\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to get the status of\n\nReturns:\n    Task: The task representing the scan execution",
+        "operationId": "get_scan_status_projects__project_name__scans__scan_index__status_get",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/pause": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Pause Scan",
+        "description": "Pause a running scan and return the updated Task\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to pause\n\nReturns:\n    Task: The updated task state",
+        "operationId": "pause_scan_projects__project_name__scans__scan_index__pause_patch",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/resume": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Resume Scan",
+        "description": "Resume a paused, cancelled or failed scan and return the resulting Task\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to resume\n    camera_name: The name of the camera to use for the scan\n\nReturns:\n    Task: The resumed or restarted task",
+        "operationId": "resume_scan_projects__project_name__scans__scan_index__resume_patch",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          },
+          {
+            "name": "camera_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/cancel": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Cancel Scan",
+        "description": "Cancel a running scan and return the resulting Task\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to cancel\n\nReturns:\n    Task: The updated task state",
+        "operationId": "cancel_scan_projects__project_name__scans__scan_index__cancel_patch",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/zip": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Download Project",
+        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
+        "operationId": "download_project_projects__project_name__zip_get",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/zip": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Download Scans",
+        "description": "Download selected scans from a project as a ZIP file stream\n\nThis endpoint streams selected scans from a project as a ZIP file.\nIf no scan indices are provided, all scans will be included.\n\nArgs:\n    project_name: Name of the project\n    scan_indices: List of scan indices to include in the ZIP file\n\nReturns:\n    StreamingResponse: ZIP file stream",
+        "operationId": "download_scans_projects__project_name__scans_zip_get",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_indices",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "title": "Scan Indices"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Scan",
+        "description": "Get Scan by project and index\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan\n\nReturns:\n    Scan: The scan object",
+        "operationId": "get_scan_projects__project_name__scans__scan_index__get",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gpio/": {
+      "get": {
+        "tags": [
+          "gpio"
+        ],
+        "summary": "Get Pins",
+        "description": "Get all initialized GPIO pins\n\nReturns:\n    dict[str, list[int]]: A dictionary of initialized output pins and buttons",
+        "operationId": "get_pins_gpio__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object",
+                  "title": "Response Get Pins Gpio  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/gpio/{pin_id}": {
+      "get": {
+        "tags": [
+          "gpio"
+        ],
+        "summary": "Get Pin",
+        "description": "Get output value of a specific GPIO pin\n\nArgs:\n    pin_id: The ID (int) of the GPIO pin to get the value of\n\nReturns:\n    bool: The output value of the GPIO pin",
+        "operationId": "get_pin_gpio__pin_id__get",
+        "parameters": [
+          {
+            "name": "pin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Get Pin Gpio  Pin Id  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "gpio"
+        ],
+        "summary": "Set Pin",
+        "description": "Set GPIO pin output value\n\nArgs:\n    pin_id: The ID (int) of the GPIO pin to set the value of\n    status: The output value to set for the GPIO pin",
+        "operationId": "set_pin_gpio__pin_id__patch",
+        "parameters": [
+          {
+            "name": "pin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pin Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "boolean",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gpio/{pin_id}/toggle": {
+      "patch": {
+        "tags": [
+          "gpio"
+        ],
+        "summary": "Toggle Pin",
+        "description": "Toggle GPIO pin output value\n\nArgs:\n    pin_id: The ID (int) of the GPIO pin to toggle",
+        "operationId": "toggle_pin_gpio__pin_id__toggle_patch",
+        "parameters": [
+          {
+            "name": "pin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "openscan"
+        ],
+        "summary": "Get Software Info",
+        "description": "Get information about the scanner software",
+        "operationId": "get_software_info__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/logs/tail": {
+      "get": {
+        "tags": [
+          "openscan"
+        ],
+        "summary": "Tail Logs",
+        "description": "Show or follow current logs.\n\nWhen follow=false (default), returns the last N lines of the selected log.\nWhen follow=true (text mode only!), streams new lines as they are written (like `tail -f`).\n\nArgs:\n    format: \"text\" for openscan.log, \"json\" for openscan_detailed_log.json.\n    lines: Number of last lines to return initially.\n    follow: If true, stream appended log lines in text mode.\n    poll_interval: Poll interval (seconds) when following in text mode.\n\nReturns:\n    A response with the requested log content.",
+        "operationId": "tail_logs_logs_tail_get",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "text",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "lines",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 200,
+              "title": "Lines"
+            }
+          },
+          {
+            "name": "follow",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Follow"
+            }
+          },
+          {
+            "name": "poll_interval",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 1,
+              "title": "Poll Interval"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logs/archive": {
+      "get": {
+        "tags": [
+          "openscan"
+        ],
+        "summary": "Download Logs Archive",
+        "description": "Create and download a ZIP archive containing all log files.\n\nThe archive includes rotated files for both text and JSON logs, using\ndeflate compression for reasonable size to share e.g. via email.\n\nReturns:\n    FileResponse serving the generated ZIP. The temp file is deleted after send.",
+        "operationId": "download_logs_archive_logs_archive_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/device/info": {
+      "get": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Get Device Info",
+        "description": "Get information about the device\n\nReturns:\n    dict: A dictionary containing information about the device",
+        "operationId": "get_device_info_device_info_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/device/configurations": {
+      "get": {
+        "tags": [
+          "device"
+        ],
+        "summary": "List Config Files",
+        "description": "List all available device configuration files",
+        "operationId": "list_config_files_device_configurations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/device/configurations/": {
+      "post": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Add Config Json",
+        "description": "Add a device configuration from a JSON object\n\nThis endpoint accepts a JSON object with the device configuration,\nvalidates it and saves it to a file.\n\nArgs:\n    config_data: The device configuration to add\n    filename: The filename to save the configuration as\n\nReturns:\n    dict: A dictionary containing the status of the operation",
+        "operationId": "add_config_json_device_configurations__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_config_json_device_configurations__post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/device/configurations/current": {
+      "put": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Set Config File",
+        "description": "Set the device configuration from a file and initialize hardware\n\nArgs:\n    config_data: The device configuration to set\n\nReturns:\n    dict: A dictionary containing the status of the operation",
+        "operationId": "set_config_file_device_configurations_current_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Save Device Config",
+        "description": "Save the current device configuration to a file\n\nThis endpoint saves the current device configuration to device_config.json.\n\nReturns:\n    dict: A dictionary containing the status of the operation",
+        "operationId": "save_device_config_device_configurations_current_patch",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/device/configurations/current/initialize": {
+      "post": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Reinitialize Hardware",
+        "description": "Reinitialize hardware components\n\nThis can be used in case of a hardware failure or to reload the hardware components.\n\nArgs:\n    detect_cameras: Whether to detect cameras\n\nReturns:\n    dict: A dictionary containing the status of the operation",
+        "operationId": "reinitialize_hardware_device_configurations_current_initialize_post",
+        "parameters": [
+          {
+            "name": "detect_cameras",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Detect Cameras"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/device/reboot": {
+      "post": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Reboot",
+        "description": "Reboot system and optionally save config.\n\nArgs:\n    save_config: Whether to save the current configuration before rebooting",
+        "operationId": "reboot_device_reboot_post",
+        "parameters": [
+          {
+            "name": "save_config",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Save Config"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Reboot Device Reboot Post"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/device/shutdown": {
+      "post": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Shutdown",
+        "description": "Shutdown system and optionally save config.\n\nArgs:\n    save_config: Whether to save the current configuration before shutting down",
+        "operationId": "shutdown_device_shutdown_post",
+        "parameters": [
+          {
+            "name": "save_config",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Save Config"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Shutdown Device Shutdown Post"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Get All Tasks",
+        "description": "Retrieve a list of all tasks known to the task manager.\n\nReturns:\n    List[Task]: A list of all tasks known to the task manager.",
+        "operationId": "get_all_tasks_tasks__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  "type": "array",
+                  "title": "Response Get All Tasks Tasks  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Get Task Status",
+        "description": "Retrieve the status and details of a specific task.\n\nArgs:\n    task_id: The ID of the task to retrieve.\n\nReturns:\n    Task: The task object with its status and details.",
+        "operationId": "get_task_status_tasks__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Cancel Task",
+        "description": "Request cancellation of a running task.\n\nArgs:\n    task_id: The ID of the task to cancel.\n\nReturns:\n    Task: The task object with its status and details.",
+        "operationId": "cancel_task_tasks__task_id__delete",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}/pause": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Pause a Task",
+        "description": "Pauses a running task.\n\nArgs:\n    task_id: The ID of the task to pause.\n\nReturns:\n    Task: The task object with its status and details.",
+        "operationId": "pause_task_tasks__task_id__pause_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}/resume": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Resume a Task",
+        "description": "Resumes a paused task.\n\nArgs:\n    task_id: The ID of the task to resume.\n\nReturns:\n    Task: The task object with its status and details.",
+        "operationId": "resume_task_tasks__task_id__resume_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_name}": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Create Task",
+        "description": "Create and start a new background task with optional parameters.\n\nThe request body accepts:\n- **args**: List of positional arguments (e.g., `[\"project_name\", 0]`)\n- **kwargs**: Dictionary of keyword arguments (e.g., `{\"num_batches\": 5}`)\n\nArgs:\n    task_name: The name of the task to create, as registered in the TaskManager.\n    args: Positional arguments to pass to the task's run method.\n    kwargs: Keyword arguments to pass to the task's run method.\n\nReturns:\n    The created task object.\n\nExamples:\n    ```json\n    // No parameters\n    {}\n\n    // With positional args\n    {\n        \"args\": [\"MyProject\", 0]\n    }\n\n    // With keyword args\n    {\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n\n    // With both\n    {\n        \"args\": [\"MyProject\", 0],\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n    ```",
+        "operationId": "create_task_tasks__task_name__post",
+        "parameters": [
+          {
+            "name": "task_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_task_tasks__task_name__post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/develop/scanner-position": {
+      "put": {
+        "tags": [
+          "develop"
+        ],
+        "summary": "Move To Position",
+        "description": "Move Rotor and Turntable to a polar point",
+        "operationId": "move_to_position_develop_scanner_position_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolarPoint3D"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/develop/restart": {
+      "post": {
+        "tags": [
+          "develop"
+        ],
+        "summary": "Restart Application",
+        "description": "Trigger a Firmware reload by touching the reload sentinel file.\n\nNote: The application has to be started with the --reload-trigger option to enable this endpoint.",
+        "operationId": "restart_application_develop_restart_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Restart Application Develop Restart Post"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/develop/crop_image": {
+      "get": {
+        "tags": [
+          "develop"
+        ],
+        "summary": "Run crop task and return visualization image",
+        "description": "Run the crop task and return the visualization image with bounding boxes.\n\nArgs:\n    camera_name: Name of the camera controller to use.\n    threshold: Optional Canny threshold passed to the analysis (tutorial uses a trackbar). If not set, defaults inside the task.\n\nReturns:\n    Response: JPEG image showing contours, rectangles and circles as detected by the task.",
+        "operationId": "crop_image_develop_crop_image_get",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          },
+          {
+            "name": "threshold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 255,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Threshold"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/develop/hello-world-async": {
+      "post": {
+        "tags": [
+          "develop"
+        ],
+        "summary": "Hello World Async",
+        "description": "Start the async hello world demo task.",
+        "operationId": "hello_world_async_develop_hello_world_async_post",
+        "parameters": [
+          {
+            "name": "total_steps",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Total Steps"
+            }
+          },
+          {
+            "name": "delay",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "title": "Delay"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/develop/{method}": {
+      "get": {
+        "tags": [
+          "develop"
+        ],
+        "summary": "Get Path",
+        "description": "Get a list of coordinates by path method and number of points",
+        "operationId": "get_path_develop__method__get",
+        "parameters": [
+          {
+            "name": "method",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PathMethod"
+            }
+          },
+          {
+            "name": "points",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Points"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CartesianPoint3D"
+                  },
+                  "title": "Response Get Path Develop  Method  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cloud/status": {
+      "get": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Get Cloud Status",
+        "description": "Return aggregated status information for the cloud backend.\n\nReturns:\n    CloudStatusResponse: A response object containing the status of the cloud backend",
+        "operationId": "get_cloud_status_cloud_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/cloud/settings": {
+      "get": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Get Cloud Settings",
+        "description": "Return the masked active cloud configuration.\n\nReturns:\n    CloudSettingsResponse: A response object containing the masked active cloud configuration",
+        "operationId": "get_cloud_settings_cloud_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Update Cloud Settings",
+        "description": "Persist and activate new cloud settings.\n\nArgs:\n    new_settings: The new cloud settings to persist and activate\n\nReturns:\n    CloudSettingsResponse: A response object containing the masked active cloud configuration",
+        "operationId": "update_cloud_settings_cloud_settings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloudSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cloud/projects": {
+      "get": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "List Cloud Projects",
+        "description": "Return all local projects enriched with cloud metadata.\n\nReturns:\n    list[CloudProjectStatus]: A list of cloud project status objects",
+        "operationId": "list_cloud_projects_cloud_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CloudProjectStatus"
+                  },
+                  "type": "array",
+                  "title": "Response List Cloud Projects Cloud Projects Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/cloud/projects/{project_name}": {
+      "get": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Get Cloud Project",
+        "description": "Return cloud details for a single local project.\n\nArgs:\n    project_name: The name of the project to get the cloud details for\n\nReturns:\n    CloudProjectStatus: A response object containing the cloud project status",
+        "operationId": "get_cloud_project_cloud_projects__project_name__get",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudProjectStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Reset Cloud Project",
+        "description": "Reset the remote project and clear the local linkage.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
+        "operationId": "reset_cloud_project_cloud_projects__project_name__delete",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Reset Cloud Project Cloud Projects  Project Name  Delete"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/focus-stacking/start": {
+      "post": {
+        "tags": [
+          "focus_stacking"
+        ],
+        "summary": "Start Focus Stacking",
+        "description": "Start focus stacking for a scan.",
+        "operationId": "start_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_start_post",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/focus-stacking/pause": {
+      "patch": {
+        "tags": [
+          "focus_stacking"
+        ],
+        "summary": "Pause Focus Stacking",
+        "description": "Pause an active focus stacking task.",
+        "operationId": "pause_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_pause_patch",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/focus-stacking/resume": {
+      "patch": {
+        "tags": [
+          "focus_stacking"
+        ],
+        "summary": "Resume Focus Stacking",
+        "description": "Resume a paused focus stacking task.",
+        "operationId": "resume_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_resume_patch",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/focus-stacking/cancel": {
+      "patch": {
+        "tags": [
+          "focus_stacking"
+        ],
+        "summary": "Cancel Focus Stacking",
+        "description": "Cancel an active focus stacking task.",
+        "operationId": "cancel_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_cancel_patch",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BaseModel": {
+        "properties": {},
+        "type": "object",
+        "title": "BaseModel"
+      },
+      "Body_add_config_json_device_configurations__post": {
+        "properties": {
+          "config_data": {
+            "$ref": "#/components/schemas/ScannerDevice"
+          },
+          "filename": {
+            "$ref": "#/components/schemas/DeviceConfigRequest"
+          }
+        },
+        "type": "object",
+        "required": [
+          "config_data",
+          "filename"
+        ],
+        "title": "Body_add_config_json_device_configurations__post"
+      },
+      "Body_create_task_tasks__task_name__post": {
+        "properties": {
+          "args": {
+            "items": {},
+            "type": "array",
+            "title": "Args",
+            "description": "Positional arguments for the task",
+            "default": []
+          },
+          "kwargs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Kwargs",
+            "description": "Keyword arguments for the task",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "title": "Body_create_task_tasks__task_name__post"
+      },
+      "Body_move_motor_by_degree_motors__motor_name__angle_patch": {
+        "properties": {
+          "degrees": {
+            "type": "number",
+            "title": "Degrees"
+          }
+        },
+        "type": "object",
+        "required": [
+          "degrees"
+        ],
+        "title": "Body_move_motor_by_degree_motors__motor_name__angle_patch"
+      },
+      "Camera": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/CameraType"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/CameraSettings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "path",
+          "settings"
+        ],
+        "title": "Camera"
+      },
+      "CameraSettings": {
+        "properties": {
+          "shutter": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 435918849.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shutter",
+            "description": "Shutter speed in microseconds.",
+            "default": 50000
+          },
+          "saturation": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 32.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturation",
+            "description": "Image color saturation from 0 to 32",
+            "default": 1.0
+          },
+          "contrast": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 32.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast",
+            "description": "Image contrast from 0 to 32.",
+            "default": 1.0
+          },
+          "awbg_red": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 32.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awbg Red",
+            "description": "Red Gain from 0 to 32.",
+            "default": 1.8
+          },
+          "awbg_blue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 32.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awbg Blue",
+            "description": "Blue Gain from 0 to 32.",
+            "default": 1.8
+          },
+          "gain": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 32.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain",
+            "description": "Analogue Gain from 0 to 32.",
+            "default": 1.0
+          },
+          "jpeg_quality": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jpeg Quality",
+            "description": "JPEG image quality from 0 to 100",
+            "default": 90
+          },
+          "AF": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Af",
+            "description": "Enable Autofocus. This will ignore manual_focus settings.",
+            "default": true
+          },
+          "AF_window": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0.0
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Af Window",
+            "description": "Autofocus window (x,y,w,h) in pixels. (x,y) specify the position of the upper left corner of the window. This will be ignored if AF is disabled."
+          },
+          "manual_focus": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 15.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Focus",
+            "description": "Manual focus position in diopters. This is only applied if autofocus is disabled."
+          },
+          "crop_width": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Width",
+            "description": "Cropping width in percent.",
+            "default": 0
+          },
+          "crop_height": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Height",
+            "description": "Cropping on height in percent.",
+            "default": 0
+          },
+          "orientation_flag": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orientation Flag",
+            "description": "Orientation in exif flag format.For imx519 use 8.For Hawkeye in Mini use 5.",
+            "default": 8
+          },
+          "preview_resolution": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Resolution",
+            "description": "Preview resolution (x,y). Changing resolution can break cropping."
+          },
+          "photo_resolution": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Resolution",
+            "description": "Preview resolution (x,y). Changing resolution can break cropping."
+          }
+        },
+        "type": "object",
+        "title": "CameraSettings"
+      },
+      "CameraStatusResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/CameraType"
+          },
+          "busy": {
+            "type": "boolean",
+            "title": "Busy"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/CameraSettings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "busy",
+          "settings"
+        ],
+        "title": "CameraStatusResponse"
+      },
+      "CameraType": {
+        "type": "string",
+        "enum": [
+          "gphoto2",
+          "linuxpy",
+          "picamera2",
+          "external"
+        ],
+        "title": "CameraType"
+      },
+      "CartesianPoint3D": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "z": {
+            "type": "number",
+            "title": "Z"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "z"
+        ],
+        "title": "CartesianPoint3D"
+      },
+      "CloudProjectStatus": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "remote_project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Project Name"
+          },
+          "remote_info": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Info"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project"
+        ],
+        "title": "CloudProjectStatus",
+        "description": "Local project enriched with cloud metadata and related tasks."
+      },
+      "CloudSettings": {
+        "properties": {
+          "user": {
+            "type": "string",
+            "title": "User",
+            "description": "HTTP basic auth username for the cloud API."
+          },
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "HTTP basic auth password for the cloud API."
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "API token identifying the device or user."
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Host",
+            "description": "Base URL of the cloud service."
+          },
+          "split_size": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Split Size",
+            "description": "Maximum upload part size in bytes. The cloud currently accepts up to 200 MB per chunk.",
+            "default": 200000000
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "password",
+          "token",
+          "host"
+        ],
+        "title": "CloudSettings",
+        "description": "Settings that describe how to talk to the OpenScan cloud backend."
+      },
+      "CloudSettingsResponse": {
+        "properties": {
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "persisted": {
+            "type": "boolean",
+            "title": "Persisted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CloudSettingsResponse",
+        "description": "Masked cloud settings including metadata."
+      },
+      "CloudStatusResponse": {
+        "properties": {
+          "status": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "token_info": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Info"
+          },
+          "queue_estimate": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Estimate"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/CloudSettingsResponse"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings"
+        ],
+        "title": "CloudStatusResponse",
+        "description": "Aggregated view of the cloud backend status."
+      },
+      "DeleteResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "deleted": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "deleted"
+        ],
+        "title": "DeleteResponse"
+      },
+      "DeviceConfigRequest": {
+        "properties": {
+          "config_file": {
+            "type": "string",
+            "title": "Config File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "config_file"
+        ],
+        "title": "DeviceConfigRequest"
+      },
+      "DeviceControlResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeviceStatusResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "status"
+        ],
+        "title": "DeviceControlResponse"
+      },
+      "DeviceStatusResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "shield": {
+            "type": "string",
+            "title": "Shield"
+          },
+          "cameras": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CameraStatusResponse"
+            },
+            "type": "object",
+            "title": "Cameras"
+          },
+          "motors": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MotorStatusResponse"
+            },
+            "type": "object",
+            "title": "Motors"
+          },
+          "lights": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LightStatusResponse"
+            },
+            "type": "object",
+            "title": "Lights"
+          },
+          "initialized": {
+            "type": "boolean",
+            "title": "Initialized"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "model",
+          "shield",
+          "cameras",
+          "motors",
+          "lights",
+          "initialized"
+        ],
+        "title": "DeviceStatusResponse"
+      },
+      "Endstop": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndstopConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "settings"
+        ],
+        "title": "Endstop"
+      },
+      "EndstopConfig": {
+        "properties": {
+          "pin": {
+            "type": "integer",
+            "title": "Pin",
+            "description": "GPIO pin number used for the endstop"
+          },
+          "angular_position": {
+            "type": "number",
+            "title": "Angular Position",
+            "description": "Angle at which the endstop is triggered (degrees)"
+          },
+          "motor_name": {
+            "type": "string",
+            "title": "Motor Name",
+            "description": "Name of the assigned motor"
+          },
+          "pull_up": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pull Up",
+            "description": "Whether to use a pull-up resistor",
+            "default": true
+          },
+          "bounce_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bounce Time",
+            "description": "Debounce time for the button in seconds",
+            "default": 0.005
+          }
+        },
+        "type": "object",
+        "required": [
+          "pin",
+          "angular_position",
+          "motor_name"
+        ],
+        "title": "EndstopConfig",
+        "description": "Configuration for a motor endstop.\n\nArgs:\n    pin (int): GPIO pin number used for the endstop.\n    angular_position (float): Angle at which the endstop is triggered (degrees).\n    motor_name (str): Name of the assigned motor.\n    pull_up (Optional[bool]): Whether to use a pull-up resistor (default: True).\n    bounce_time (Optional[float]): Debounce time for the button in seconds (default: 0.005)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Light": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/LightConfig"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "settings"
+        ],
+        "title": "Light"
+      },
+      "LightConfig": {
+        "properties": {
+          "pin": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pin"
+          },
+          "pins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pins"
+          },
+          "pwm": {
+            "type": "boolean",
+            "title": "Pwm",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "LightConfig"
+      },
+      "LightStatusResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_on": {
+            "type": "boolean",
+            "title": "Is On"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/LightConfig"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "is_on",
+          "settings"
+        ],
+        "title": "LightStatusResponse"
+      },
+      "Motor": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MotorConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "angle": {
+            "type": "number",
+            "title": "Angle",
+            "default": 90.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "settings"
+        ],
+        "title": "Motor"
+      },
+      "MotorConfig": {
+        "properties": {
+          "direction_pin": {
+            "type": "integer",
+            "title": "Direction Pin"
+          },
+          "enable_pin": {
+            "type": "integer",
+            "title": "Enable Pin"
+          },
+          "step_pin": {
+            "type": "integer",
+            "title": "Step Pin"
+          },
+          "acceleration": {
+            "type": "integer",
+            "maximum": 80000.0,
+            "minimum": 1000.0,
+            "title": "Acceleration",
+            "description": "Acceleration in steps/s\u00b2, Limits tested on Rpi 4 2GB under full load --> time estimation within 0.5%",
+            "default": 20000
+          },
+          "max_speed": {
+            "type": "integer",
+            "maximum": 7500.0,
+            "minimum": 1.0,
+            "title": "Max Speed",
+            "description": "Steps per second, Limits tested on RPi 4 2GB under full load --> time estimation within 0.5%",
+            "default": 5000
+          },
+          "direction": {
+            "type": "integer",
+            "enum": [
+              1,
+              -1
+            ],
+            "title": "Direction",
+            "description": "Motor direction (1 or -1).",
+            "default": 1
+          },
+          "steps_per_rotation": {
+            "type": "integer",
+            "title": "Steps Per Rotation",
+            "description": "Number of steps for a full motor rotation."
+          },
+          "min_angle": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Min Angle",
+            "description": "Minimum allowed angle for the motor in degrees.",
+            "default": 0
+          },
+          "max_angle": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Max Angle",
+            "description": "Maximum allowed angle for the motor in degrees.",
+            "default": 360
+          }
+        },
+        "type": "object",
+        "required": [
+          "direction_pin",
+          "enable_pin",
+          "step_pin",
+          "steps_per_rotation"
+        ],
+        "title": "MotorConfig"
+      },
+      "MotorStatusResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "angle": {
+            "type": "number",
+            "title": "Angle"
+          },
+          "busy": {
+            "type": "boolean",
+            "title": "Busy"
+          },
+          "target_angle": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Angle"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/MotorConfig"
+          },
+          "endstop": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endstop"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "angle",
+          "busy",
+          "target_angle",
+          "settings",
+          "endstop"
+        ],
+        "title": "MotorStatusResponse"
+      },
+      "PathMethod": {
+        "type": "string",
+        "enum": [
+          "fibonacci"
+        ],
+        "title": "PathMethod"
+      },
+      "PolarPoint3D": {
+        "properties": {
+          "theta": {
+            "type": "number",
+            "title": "Theta"
+          },
+          "fi": {
+            "type": "number",
+            "title": "Fi"
+          },
+          "r": {
+            "type": "number",
+            "title": "R",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "theta",
+          "fi"
+        ],
+        "title": "PolarPoint3D"
+      },
+      "Project": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the project."
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Path to the project directory."
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created",
+            "description": "Creation timestamp of the project."
+          },
+          "scans": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Scan"
+            },
+            "type": "object",
+            "title": "Scans",
+            "description": "Scans associated with the project."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the project."
+          },
+          "uploaded": {
+            "type": "boolean",
+            "title": "Uploaded",
+            "description": "Whether the model has been uploaded to the cloud.",
+            "default": false
+          },
+          "cloud_project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Project Name"
+          },
+          "downloaded": {
+            "type": "boolean",
+            "title": "Downloaded",
+            "description": "Whether the model has been downloaded from the cloud.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "created",
+          "scans"
+        ],
+        "title": "Project",
+        "description": "Represents a scan project stored on disk and optionally processed in the cloud."
+      },
+      "Scan": {
+        "properties": {
+          "project_name": {
+            "type": "string",
+            "title": "Project Name",
+            "description": "The name of the project this scan belongs to."
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "description": "The sequential index of the scan within the project."
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created",
+            "description": "The timestamp when the scan was created."
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "The final, persistent status of the scan, mirroring the associated Task status.",
+            "default": "pending"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ScanSetting",
+            "description": "The settings used for this scan."
+          },
+          "camera_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Camera Name"
+          },
+          "camera_settings": {
+            "$ref": "#/components/schemas/CameraSettings",
+            "description": "The camera settings used for this scan."
+          },
+          "current_step": {
+            "type": "integer",
+            "title": "Current Step",
+            "default": 0
+          },
+          "system_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Message"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration",
+            "default": 0.0
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "stacking_task_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StackingTaskStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_name",
+          "index",
+          "settings",
+          "camera_settings"
+        ],
+        "title": "Scan",
+        "description": "Represents a single scan session within a project."
+      },
+      "ScanSetting": {
+        "properties": {
+          "path_method": {
+            "$ref": "#/components/schemas/PathMethod"
+          },
+          "points": {
+            "type": "integer",
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Points",
+            "description": "Number of points in scanning path.",
+            "default": 130
+          },
+          "image_format": {
+            "type": "string",
+            "enum": [
+              "jpeg",
+              "dng",
+              "rgb_array",
+              "yuv_array"
+            ],
+            "title": "Image Format"
+          },
+          "min_theta": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Min Theta",
+            "description": "Minimum theta angle in degrees for constrained paths.",
+            "default": 12.0
+          },
+          "max_theta": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Max Theta",
+            "description": "Maximum theta angle in degrees for constrained paths.",
+            "default": 125.0
+          },
+          "optimize_path": {
+            "type": "boolean",
+            "title": "Optimize Path",
+            "description": "Enable path optimization for faster scanning.",
+            "default": true
+          },
+          "optimization_algorithm": {
+            "type": "string",
+            "title": "Optimization Algorithm",
+            "description": "Path optimization algorithm to use.",
+            "default": "nearest_neighbor"
+          },
+          "focus_stacks": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Focus Stacks",
+            "description": "Number of photos with different focus per position.This ignores AF and you need to set a focus range.Focus values will then be evenly spaced between min and max.",
+            "default": 1
+          },
+          "focus_range": {
+            "prefixItems": [
+              {
+                "type": "number",
+                "maximum": 15.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "number",
+                "maximum": 15.0,
+                "minimum": 0.0
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Focus Range",
+            "description": "Minimum and maximum focus distance in diopters.",
+            "default": [
+              10.0,
+              15.0
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "path_method",
+          "image_format"
+        ],
+        "title": "ScanSetting"
+      },
+      "ScannerDevice": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScannerModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shield": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScannerShield"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cameras": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Camera"
+            },
+            "type": "object",
+            "title": "Cameras"
+          },
+          "motors": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Motor"
+            },
+            "type": "object",
+            "title": "Motors"
+          },
+          "lights": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Light"
+            },
+            "type": "object",
+            "title": "Lights"
+          },
+          "endstops": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/Endstop"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endstops"
+          },
+          "initialized": {
+            "type": "boolean",
+            "title": "Initialized"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "model",
+          "shield",
+          "cameras",
+          "motors",
+          "lights",
+          "endstops",
+          "initialized"
+        ],
+        "title": "ScannerDevice"
+      },
+      "ScannerModel": {
+        "type": "string",
+        "enum": [
+          "classic",
+          "mini"
+        ],
+        "title": "ScannerModel"
+      },
+      "ScannerShield": {
+        "type": "string",
+        "enum": [
+          "greenshield",
+          "blackshield"
+        ],
+        "title": "ScannerShield"
+      },
+      "StackingTaskStatus": {
+        "properties": {
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "StackingTaskStatus"
+      },
+      "Task": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "task_type": {
+            "type": "string",
+            "title": "Task Type"
+          },
+          "is_exclusive": {
+            "type": "boolean",
+            "title": "Is Exclusive",
+            "description": "Whether this task is exclusive and should not run concurrently",
+            "default": false
+          },
+          "is_blocking": {
+            "type": "boolean",
+            "title": "Is Blocking",
+            "description": "Whether this task is blocking and should run in a separate thread",
+            "default": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/TaskProgress"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "run_args": {
+            "items": {},
+            "type": "array",
+            "title": "Run Args",
+            "description": "Positional arguments the task was started with."
+          },
+          "run_kwargs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Run Kwargs",
+            "description": "Keyword arguments the task was started with."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "task_type"
+        ],
+        "title": "Task",
+        "description": "Represents a background task."
+      },
+      "TaskProgress": {
+        "properties": {
+          "current": {
+            "type": "number",
+            "title": "Current",
+            "description": "The current step or value of progress (e.g., files processed).",
+            "default": 0.0
+          },
+          "total": {
+            "type": "number",
+            "title": "Total",
+            "description": "The total number of steps or value for completion (e.g., total files).",
+            "default": 0.0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "TaskProgress",
+        "description": "Model for task progress."
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "paused",
+          "completed",
+          "cancelled",
+          "error",
+          "interrupted"
+        ],
+        "title": "TaskStatus",
+        "description": "Enum for task status"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

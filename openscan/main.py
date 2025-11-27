@@ -3,6 +3,7 @@ import logging
 import json
 from pathlib import Path
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -137,7 +138,14 @@ class PrivateNetworkAccessMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(
+    title="OpenScan3 API",
+    description="REST interface controlling OpenScan hardware.",
+    version=__version__,
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -209,7 +217,33 @@ def make_version_app(version: str) -> FastAPI:
     for r in ROUTERS_BY_VERSION.get(version, BASE_ROUTERS):
         sub.include_router(r)
 
+    _use_route_names_as_operation_ids(sub)
+
     return sub
+
+
+def _use_route_names_as_operation_ids(app: FastAPI) -> None:
+    """Assign each APIRoute's operation_id to its route name.
+
+    This helps with OpenAPI documentation generation and prevents names like 'deleteProjectProjectsProjectNameDelete'.
+
+    Args:
+        app: The FastAPI application whose routes should be updated.
+    """
+    seen: dict[str, int] = {}
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+
+        base_name = route.name or getattr(route.endpoint, "__name__", None)
+        if not base_name:
+            continue
+
+        count = seen.get(base_name, 0)
+        seen[base_name] = count + 1
+
+        operation_id = base_name if count == 0 else f"{base_name}_{count + 1}"
+        route.operation_id = operation_id
 
 
 # Supported API versions and latest alias

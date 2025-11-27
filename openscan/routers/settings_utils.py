@@ -21,14 +21,22 @@ def create_settings_endpoints(
         settings_model: Pydantic model for the settings
     """
 
-    @router.get(f"/{{{resource_name}}}/settings", response_model=settings_model)
+    @router.get(
+        f"/{{{resource_name}}}/settings",
+        response_model=settings_model,
+        name=f"get_{resource_name}_settings",
+    )
     async def get_settings(name: str) -> T:
         """Get settings for a specific resource"""
         controller = get_controller(name)
         return controller.settings.model
 
 
-    @router.put(f"/{{{resource_name}}}/settings", response_model=settings_model)
+    @router.put(
+        f"/{{{resource_name}}}/settings",
+        response_model=settings_model,
+        name=f"replace_{resource_name}_settings",
+    )
     async def replace_settings(name: str, settings: T) -> T:
         """Replace all settings for a specific resource
 
@@ -47,7 +55,11 @@ def create_settings_endpoints(
             raise HTTPException(status_code=422, detail=str(e))
 
 
-    @router.patch(f"/{{{resource_name}}}/settings", response_model=settings_model)
+    @router.patch(
+        f"/{{{resource_name}}}/settings",
+        response_model=settings_model,
+        name=f"update_{resource_name}_settings",
+    )
     async def update_settings(
             name: str,
             settings: Dict[str, Any] = Body(..., examples=[{"some_setting": 123}])
