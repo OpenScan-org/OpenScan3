@@ -33,10 +33,17 @@ def configure_focus_stacking_task(monkeypatch, env: dict, batches: dict[int, lis
         "_find_batches",
         lambda self, scan_dir: batches,
     )
+    first_batch = next(iter(batches.values())) if batches else []
+
+    class _FakeTransform:
+        def tolist(self):
+            return [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
+
+    fake_transforms = [_FakeTransform() for _ in first_batch]
     monkeypatch.setattr(
         FocusStackingTask,
         "_calibrate_stacker",
-        lambda self, scan_dir, num_batches: SimpleNamespace(),
+        lambda self, scan_dir, num_batches: SimpleNamespace(transforms=fake_transforms),
     )
     if stack_impl:
         monkeypatch.setattr(FocusStackingTask, "_stack_batch", stack_impl)
