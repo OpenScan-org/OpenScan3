@@ -106,6 +106,8 @@ async def add_scan_with_description(project_name: str,
         task = await scans.start_scan(project_manager, scan, camera_controller)
         return task
 
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start scan: {e}")
 
