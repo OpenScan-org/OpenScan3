@@ -132,6 +132,62 @@ async def test_pm_init_loads_existing_project(project_manager: ProjectManager,
     assert actual_scan.current_step == 10
 
 
+@pytest.mark.parametrize("initial_status", [TaskStatus.RUNNING, TaskStatus.PENDING])
+def test_pm_recovers_incomplete_scans(
+    tmp_path: Path, sample_scan_settings: ScanSetting, initial_status: TaskStatus
+):
+    project_name = "RecoverProject"
+    scan_index = 1
+
+    project_dir = tmp_path / project_name
+    project_dir.mkdir()
+    scan_dir = project_dir / f"scan{scan_index:02d}"
+    scan_dir.mkdir()
+
+    now_iso = datetime.now().isoformat()
+
+    project_payload = {
+        "name": project_name,
+        "path": str(project_dir.resolve()),
+        "created": now_iso,
+        "uploaded": False,
+        "scans": {
+            f"scan{scan_index:02d}": {
+                "index": scan_index,
+                "created": now_iso,
+            }
+        },
+    }
+    with (project_dir / "openscan_project.json").open("w") as handle:
+        json.dump(project_payload, handle, indent=2)
+
+    scan_payload = {
+        "project_name": project_name,
+        "index": scan_index,
+        "created": now_iso,
+        "status": initial_status.value,
+        "settings": sample_scan_settings.model_dump(mode="json"),
+        "camera_settings": CameraSettings().model_dump(mode="json"),
+        "current_step": 0,
+        "last_updated": now_iso,
+        "photos": [],
+    }
+    scan_file = scan_dir / "scan.json"
+    with scan_file.open("w") as handle:
+        json.dump(scan_payload, handle, indent=2)
+
+    manager = ProjectManager(path=tmp_path)
+    recovered_scan = manager.get_scan_by_index(project_name, scan_index)
+
+    assert recovered_scan is not None
+    assert recovered_scan.status == TaskStatus.INTERRUPTED
+
+    with scan_file.open() as handle:
+        persisted_payload = json.load(handle)
+
+    assert persisted_payload["status"] == TaskStatus.INTERRUPTED.value
+
+
 # @pytest.fixture
 # def mock_camera_controller() -> MagicMock:
 #     """Fixture for a mocked CameraController."""
