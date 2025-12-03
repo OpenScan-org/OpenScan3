@@ -12,7 +12,7 @@
         ],
         "summary": "Get Cameras",
         "description": "Get all cameras with their current status\n\nReturns:\n    dict[str, CameraStatusResponse]: A dictionary of camera name to a camera status object",
-        "operationId": "get_cameras_cameras__get",
+        "operationId": "get_cameras",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -41,7 +41,7 @@
         ],
         "summary": "Get Camera",
         "description": "Get a camera with its current status\n\nArgs:\n    camera_name: The name of the camera to get the status of\n\nReturns:\n    CameraStatusResponse: A response object containing the status of the camera",
-        "operationId": "get_camera_cameras__camera_name__get",
+        "operationId": "get_camera",
         "parameters": [
           {
             "name": "camera_name",
@@ -87,7 +87,7 @@
         ],
         "summary": "Get Preview",
         "description": "Get a camera preview stream in lower resolution\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
-        "operationId": "get_preview_cameras__camera_name__preview_get",
+        "operationId": "get_preview",
         "parameters": [
           {
             "name": "camera_name",
@@ -131,7 +131,7 @@
         ],
         "summary": "Get Photo",
         "description": "Get a camera photo\n\nArgs:\n    camera_name: The name of the camera to get the photo from\n\nReturns:\n    Response: A response containing the photo",
-        "operationId": "get_photo_cameras__camera_name__photo_get",
+        "operationId": "get_photo",
         "parameters": [
           {
             "name": "camera_name",
@@ -175,7 +175,7 @@
         ],
         "summary": "Restart Camera",
         "description": "Restart a camera\n\nArgs:\n    camera_name: The name of the camera to restart\n\nReturns:\n    Response: A response containing the status code",
-        "operationId": "restart_camera_cameras__camera_name__restart_post",
+        "operationId": "restart_camera",
         "parameters": [
           {
             "name": "camera_name",
@@ -212,18 +212,18 @@
         }
       }
     },
-    "/cameras/{camera_name}/settings": {
+    "/cameras/{name}/settings": {
       "get": {
         "tags": [
           "cameras"
         ],
-        "summary": "Get Settings",
+        "summary": "Get Camera Name Settings",
         "description": "Get settings for a specific resource",
-        "operationId": "get_settings_cameras__camera_name__settings_get",
+        "operationId": "get_camera_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -261,13 +261,13 @@
         "tags": [
           "cameras"
         ],
-        "summary": "Replace Settings",
+        "summary": "Replace Camera Name Settings",
         "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
-        "operationId": "replace_settings_cameras__camera_name__settings_put",
+        "operationId": "replace_camera_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -313,13 +313,13 @@
         "tags": [
           "cameras"
         ],
-        "summary": "Update Settings",
+        "summary": "Update Camera Name Settings",
         "description": "Update one or more specific settings for a resource\n\nArgs:\n    name: The name of the resource to update settings for\n    settings: A dictionary of settings to update\n\nReturns:\n    The updated settings for the resource",
-        "operationId": "update_settings_cameras__camera_name__settings_patch",
+        "operationId": "update_camera_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -378,7 +378,7 @@
         ],
         "summary": "Get Motors",
         "description": "Get all motors with their current status\n\nReturns:\n    dict[str, MotorStatusResponse]: A dictionary of motor name to a motor status object",
-        "operationId": "get_motors_motors__get",
+        "operationId": "get_motors",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -407,7 +407,7 @@
         ],
         "summary": "Get Motor",
         "description": "Get motor status\n\nArgs:\n    motor_name: The name of the motor to get the status of\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor",
-        "operationId": "get_motor_motors__motor_name__get",
+        "operationId": "get_motor",
         "parameters": [
           {
             "name": "motor_name",
@@ -453,7 +453,7 @@
         ],
         "summary": "Move Motor To Angle",
         "description": "Move motor to absolute position\n\nArgs:\n    motor_name: The name of the motor to move\n    degrees: Number of degrees to move\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
-        "operationId": "move_motor_to_angle_motors__motor_name__angle_put",
+        "operationId": "move_motor_to_angle",
         "parameters": [
           {
             "name": "motor_name",
@@ -506,7 +506,7 @@
         ],
         "summary": "Move Motor By Degree",
         "description": "Move motor by degrees\n\nArgs:\n    motor_name: The name of the motor to move\n    degrees: Number of degrees to move\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
-        "operationId": "move_motor_by_degree_motors__motor_name__angle_patch",
+        "operationId": "move_motor_by_degree",
         "parameters": [
           {
             "name": "motor_name",
@@ -562,7 +562,7 @@
         ],
         "summary": "Move Motor To Home Position",
         "description": "Move motor to home position\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
-        "operationId": "move_motor_to_home_position_motors__motor_name__endstop_calibration_put",
+        "operationId": "move_motor_to_home_position",
         "parameters": [
           {
             "name": "motor_name",
@@ -601,18 +601,18 @@
         }
       }
     },
-    "/motors/{motor_name}/settings": {
+    "/motors/{name}/settings": {
       "get": {
         "tags": [
           "motors"
         ],
-        "summary": "Get Settings",
+        "summary": "Get Motor Name Settings",
         "description": "Get settings for a specific resource",
-        "operationId": "get_settings_motors__motor_name__settings_get",
+        "operationId": "get_motor_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -650,13 +650,13 @@
         "tags": [
           "motors"
         ],
-        "summary": "Replace Settings",
+        "summary": "Replace Motor Name Settings",
         "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
-        "operationId": "replace_settings_motors__motor_name__settings_put",
+        "operationId": "replace_motor_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -702,13 +702,13 @@
         "tags": [
           "motors"
         ],
-        "summary": "Update Settings",
+        "summary": "Update Motor Name Settings",
         "description": "Update one or more specific settings for a resource\n\nArgs:\n    name: The name of the resource to update settings for\n    settings: A dictionary of settings to update\n\nReturns:\n    The updated settings for the resource",
-        "operationId": "update_settings_motors__motor_name__settings_patch",
+        "operationId": "update_motor_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -767,7 +767,7 @@
         ],
         "summary": "Get Lights",
         "description": "Get all lights with their current status\n\nReturns:\n    dict[str, LightStatusResponse]: A dictionary of light name to a light status object",
-        "operationId": "get_lights_lights__get",
+        "operationId": "get_lights",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -796,7 +796,7 @@
         ],
         "summary": "Get Light",
         "description": "Get light status\n\nArgs:\n    light_name: The name of the light to get the status of\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light",
-        "operationId": "get_light_lights__light_name__get",
+        "operationId": "get_light",
         "parameters": [
           {
             "name": "light_name",
@@ -842,7 +842,7 @@
         ],
         "summary": "Turn On Light",
         "description": "Turn on light\n\nArgs:\n    light_name: The name of the light to turn on\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light after the turn on operation",
-        "operationId": "turn_on_light_lights__light_name__turn_on_patch",
+        "operationId": "turn_on_light",
         "parameters": [
           {
             "name": "light_name",
@@ -888,7 +888,7 @@
         ],
         "summary": "Turn Off Light",
         "description": "Turn of light\n\nArgs:\n    light_name: The name of the light to turn off\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light after the turn off operation",
-        "operationId": "turn_off_light_lights__light_name__turn_off_patch",
+        "operationId": "turn_off_light",
         "parameters": [
           {
             "name": "light_name",
@@ -934,7 +934,7 @@
         ],
         "summary": "Toggle Light",
         "description": "Toggle light on or off\n\nArgs:\n    light_name: The name of the light to toggle\n\nReturns:\n    LightStatusResponse: A response object containing the status of the light after the toggle operation",
-        "operationId": "toggle_light_lights__light_name__toggle_patch",
+        "operationId": "toggle_light",
         "parameters": [
           {
             "name": "light_name",
@@ -973,18 +973,18 @@
         }
       }
     },
-    "/lights/{light_name}/settings": {
+    "/lights/{name}/settings": {
       "get": {
         "tags": [
           "lights"
         ],
-        "summary": "Get Settings",
+        "summary": "Get Light Name Settings",
         "description": "Get settings for a specific resource",
-        "operationId": "get_settings_lights__light_name__settings_get",
+        "operationId": "get_light_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -1022,13 +1022,13 @@
         "tags": [
           "lights"
         ],
-        "summary": "Replace Settings",
+        "summary": "Replace Light Name Settings",
         "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
-        "operationId": "replace_settings_lights__light_name__settings_put",
+        "operationId": "replace_light_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -1074,13 +1074,13 @@
         "tags": [
           "lights"
         ],
-        "summary": "Update Settings",
+        "summary": "Update Light Name Settings",
         "description": "Update one or more specific settings for a resource\n\nArgs:\n    name: The name of the resource to update settings for\n    settings: A dictionary of settings to update\n\nReturns:\n    The updated settings for the resource",
-        "operationId": "update_settings_lights__light_name__settings_patch",
+        "operationId": "update_light_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -1139,7 +1139,7 @@
         ],
         "summary": "Get Projects",
         "description": "Get all projects with serialized data\n\nReturns:\n    dict[str, Project]: A dictionary of project name to a project object",
-        "operationId": "get_projects_projects__get",
+        "operationId": "get_projects",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1168,7 +1168,7 @@
         ],
         "summary": "Get Project",
         "description": "Get a project\n\nArgs:\n    project_name: The name of the project to get\n\nReturns:\n    Project: The project object if found, None if not",
-        "operationId": "get_project_projects__project_name__get",
+        "operationId": "get_project",
         "parameters": [
           {
             "name": "project_name",
@@ -1212,7 +1212,7 @@
         ],
         "summary": "New Project",
         "description": "Create a new project\n\nArgs:\n    project_name: The name of the project to create\n    project_description: Optional description for the project\n\nReturns:\n    Project: The newly created project if successful, None if not",
-        "operationId": "new_project_projects__project_name__post",
+        "operationId": "new_project",
         "parameters": [
           {
             "name": "project_name",
@@ -1273,7 +1273,7 @@
         ],
         "summary": "Delete Project",
         "description": "Delete a project\n\nArgs:\n    project_name: The name of the project to delete\n\nReturns:\n    DeleteResponse: A response object containing the result of the deletion",
-        "operationId": "delete_project_projects__project_name__delete",
+        "operationId": "delete_project",
         "parameters": [
           {
             "name": "project_name",
@@ -1319,7 +1319,7 @@
         ],
         "summary": "Add Scan With Description",
         "description": "Add a new scan to a project and return the created Task\n\nArgs:\n    project_name: The name of the project to add the scan to\n    camera_name: The name of the camera to use for the scan\n    scan_settings: The settings for the scan\n    scan_description: Optional description for the scan\n\nReturns:\n    Task: The Task representing the started scan",
-        "operationId": "add_scan_with_description_projects__project_name__scan_post",
+        "operationId": "add_scan_with_description",
         "parameters": [
           {
             "name": "project_name",
@@ -1401,7 +1401,7 @@
         ],
         "summary": "Upload Project To Cloud",
         "description": "Schedule an asynchronous cloud upload for a project.\n\nArgs:\n    project_name: The name of the project\n    token_override: Optional token override\n\nReturns:\n    Task: The TaskManager model describing the scheduled upload",
-        "operationId": "upload_project_to_cloud_projects__project_name__upload_post",
+        "operationId": "upload_project_to_cloud",
         "parameters": [
           {
             "name": "project_name",
@@ -1463,7 +1463,7 @@
         ],
         "summary": "Download Project From Cloud",
         "description": "Schedule an asynchronous cloud download for a project's reconstruction.\n\nArgs:\n    project_name: The name of the project\n    token_override: Optional token override\n    remote_project: Optional explicit remote project name, defaults to the stored cloud name\n\nReturns:\n    Task: The TaskManager model describing the scheduled download",
-        "operationId": "download_project_from_cloud_projects__project_name__download_post",
+        "operationId": "download_project_from_cloud",
         "parameters": [
           {
             "name": "project_name",
@@ -1541,7 +1541,7 @@
         ],
         "summary": "Delete Photos",
         "description": "Delete photos from a scan in a project\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan\n    photo_filenames: A list of photo filenames to delete\n\nReturns:\n    True if the photos were deleted successfully, False otherwise",
-        "operationId": "delete_photos_projects__project_name___scan_index___delete",
+        "operationId": "delete_photos",
         "parameters": [
           {
             "name": "project_name",
@@ -1610,7 +1610,7 @@
         ],
         "summary": "Delete Scan",
         "description": "Delete a scan from a project\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to delete\n\nReturns:\n    DeleteResponse: Result of the deletion operation",
-        "operationId": "delete_scan_projects__project_name__scans__delete",
+        "operationId": "delete_scan",
         "parameters": [
           {
             "name": "project_name",
@@ -1665,7 +1665,7 @@
         ],
         "summary": "Get Scan Status",
         "description": "Get the current task for a scan\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to get the status of\n\nReturns:\n    Task: The task representing the scan execution",
-        "operationId": "get_scan_status_projects__project_name__scans__scan_index__status_get",
+        "operationId": "get_scan_status",
         "parameters": [
           {
             "name": "project_name",
@@ -1720,7 +1720,7 @@
         ],
         "summary": "Pause Scan",
         "description": "Pause a running scan and return the updated Task\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to pause\n\nReturns:\n    Task: The updated task state",
-        "operationId": "pause_scan_projects__project_name__scans__scan_index__pause_patch",
+        "operationId": "pause_scan",
         "parameters": [
           {
             "name": "project_name",
@@ -1775,7 +1775,7 @@
         ],
         "summary": "Resume Scan",
         "description": "Resume a paused, cancelled or failed scan and return the resulting Task\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to resume\n    camera_name: The name of the camera to use for the scan\n\nReturns:\n    Task: The resumed or restarted task",
-        "operationId": "resume_scan_projects__project_name__scans__scan_index__resume_patch",
+        "operationId": "resume_scan",
         "parameters": [
           {
             "name": "project_name",
@@ -1839,7 +1839,7 @@
         ],
         "summary": "Cancel Scan",
         "description": "Cancel a running scan and return the resulting Task\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to cancel\n\nReturns:\n    Task: The updated task state",
-        "operationId": "cancel_scan_projects__project_name__scans__scan_index__cancel_patch",
+        "operationId": "cancel_scan",
         "parameters": [
           {
             "name": "project_name",
@@ -1894,7 +1894,7 @@
         ],
         "summary": "Download Project",
         "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
-        "operationId": "download_project_projects__project_name__zip_get",
+        "operationId": "download_project",
         "parameters": [
           {
             "name": "project_name",
@@ -1938,7 +1938,7 @@
         ],
         "summary": "Download Scans",
         "description": "Download selected scans from a project as a ZIP file stream\n\nThis endpoint streams selected scans from a project as a ZIP file.\nIf no scan indices are provided, all scans will be included.\n\nArgs:\n    project_name: Name of the project\n    scan_indices: List of scan indices to include in the ZIP file\n\nReturns:\n    StreamingResponse: ZIP file stream",
-        "operationId": "download_scans_projects__project_name__scans_zip_get",
+        "operationId": "download_scans",
         "parameters": [
           {
             "name": "project_name",
@@ -1994,7 +1994,7 @@
         ],
         "summary": "Get Scan",
         "description": "Get Scan by project and index\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan\n\nReturns:\n    Scan: The scan object",
-        "operationId": "get_scan_projects__project_name__scans__scan_index__get",
+        "operationId": "get_scan",
         "parameters": [
           {
             "name": "project_name",
@@ -2049,7 +2049,7 @@
         ],
         "summary": "Get Pins",
         "description": "Get all initialized GPIO pins\n\nReturns:\n    dict[str, list[int]]: A dictionary of initialized output pins and buttons",
-        "operationId": "get_pins_gpio__get",
+        "operationId": "get_pins",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2081,7 +2081,7 @@
         ],
         "summary": "Get Pin",
         "description": "Get output value of a specific GPIO pin\n\nArgs:\n    pin_id: The ID (int) of the GPIO pin to get the value of\n\nReturns:\n    bool: The output value of the GPIO pin",
-        "operationId": "get_pin_gpio__pin_id__get",
+        "operationId": "get_pin",
         "parameters": [
           {
             "name": "pin_id",
@@ -2126,7 +2126,7 @@
         ],
         "summary": "Set Pin",
         "description": "Set GPIO pin output value\n\nArgs:\n    pin_id: The ID (int) of the GPIO pin to set the value of\n    status: The output value to set for the GPIO pin",
-        "operationId": "set_pin_gpio__pin_id__patch",
+        "operationId": "set_pin",
         "parameters": [
           {
             "name": "pin_id",
@@ -2179,7 +2179,7 @@
         ],
         "summary": "Toggle Pin",
         "description": "Toggle GPIO pin output value\n\nArgs:\n    pin_id: The ID (int) of the GPIO pin to toggle",
-        "operationId": "toggle_pin_gpio__pin_id__toggle_patch",
+        "operationId": "toggle_pin",
         "parameters": [
           {
             "name": "pin_id",
@@ -2223,7 +2223,7 @@
         ],
         "summary": "Get Software Info",
         "description": "Get information about the scanner software",
-        "operationId": "get_software_info__get",
+        "operationId": "get_software_info",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2246,7 +2246,7 @@
         ],
         "summary": "Tail Logs",
         "description": "Show or follow current logs.\n\nWhen follow=false (default), returns the last N lines of the selected log.\nWhen follow=true (text mode only!), streams new lines as they are written (like `tail -f`).\n\nArgs:\n    format: \"text\" for openscan.log, \"json\" for openscan_detailed_log.json.\n    lines: Number of last lines to return initially.\n    follow: If true, stream appended log lines in text mode.\n    poll_interval: Poll interval (seconds) when following in text mode.\n\nReturns:\n    A response with the requested log content.",
-        "operationId": "tail_logs_logs_tail_get",
+        "operationId": "tail_logs",
         "parameters": [
           {
             "name": "format",
@@ -2321,7 +2321,7 @@
         ],
         "summary": "Download Logs Archive",
         "description": "Create and download a ZIP archive containing all log files.\n\nThe archive includes rotated files for both text and JSON logs, using\ndeflate compression for reasonable size to share e.g. via email.\n\nReturns:\n    FileResponse serving the generated ZIP. The temp file is deleted after send.",
-        "operationId": "download_logs_archive_logs_archive_get",
+        "operationId": "download_logs_archive",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2344,7 +2344,7 @@
         ],
         "summary": "Get Device Info",
         "description": "Get information about the device\n\nReturns:\n    dict: A dictionary containing information about the device",
-        "operationId": "get_device_info_device_info_get",
+        "operationId": "get_device_info",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2369,7 +2369,7 @@
         ],
         "summary": "List Config Files",
         "description": "List all available device configuration files",
-        "operationId": "list_config_files_device_configurations_get",
+        "operationId": "list_config_files",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2392,7 +2392,7 @@
         ],
         "summary": "Add Config Json",
         "description": "Add a device configuration from a JSON object\n\nThis endpoint accepts a JSON object with the device configuration,\nvalidates it and saves it to a file.\n\nArgs:\n    config_data: The device configuration to add\n    filename: The filename to save the configuration as\n\nReturns:\n    dict: A dictionary containing the status of the operation",
-        "operationId": "add_config_json_device_configurations__post",
+        "operationId": "add_config_json",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2437,7 +2437,7 @@
         ],
         "summary": "Set Config File",
         "description": "Set the device configuration from a file and initialize hardware\n\nArgs:\n    config_data: The device configuration to set\n\nReturns:\n    dict: A dictionary containing the status of the operation",
-        "operationId": "set_config_file_device_configurations_current_put",
+        "operationId": "set_config_file",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2480,7 +2480,7 @@
         ],
         "summary": "Save Device Config",
         "description": "Save the current device configuration to a file\n\nThis endpoint saves the current device configuration to device_config.json.\n\nReturns:\n    dict: A dictionary containing the status of the operation",
-        "operationId": "save_device_config_device_configurations_current_patch",
+        "operationId": "save_device_config",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2505,7 +2505,7 @@
         ],
         "summary": "Reinitialize Hardware",
         "description": "Reinitialize hardware components\n\nThis can be used in case of a hardware failure or to reload the hardware components.\n\nArgs:\n    detect_cameras: Whether to detect cameras\n\nReturns:\n    dict: A dictionary containing the status of the operation",
-        "operationId": "reinitialize_hardware_device_configurations_current_initialize_post",
+        "operationId": "reinitialize_hardware",
         "parameters": [
           {
             "name": "detect_cameras",
@@ -2552,7 +2552,7 @@
         ],
         "summary": "Reboot",
         "description": "Reboot system and optionally save config.\n\nArgs:\n    save_config: Whether to save the current configuration before rebooting",
-        "operationId": "reboot_device_reboot_post",
+        "operationId": "reboot",
         "parameters": [
           {
             "name": "save_config",
@@ -2600,7 +2600,7 @@
         ],
         "summary": "Shutdown",
         "description": "Shutdown system and optionally save config.\n\nArgs:\n    save_config: Whether to save the current configuration before shutting down",
-        "operationId": "shutdown_device_shutdown_post",
+        "operationId": "shutdown",
         "parameters": [
           {
             "name": "save_config",
@@ -2648,7 +2648,7 @@
         ],
         "summary": "Get All Tasks",
         "description": "Retrieve a list of all tasks known to the task manager.\n\nReturns:\n    List[Task]: A list of all tasks known to the task manager.",
-        "operationId": "get_all_tasks_tasks__get",
+        "operationId": "get_all_tasks",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2677,7 +2677,7 @@
         ],
         "summary": "Get Task Status",
         "description": "Retrieve the status and details of a specific task.\n\nArgs:\n    task_id: The ID of the task to retrieve.\n\nReturns:\n    Task: The task object with its status and details.",
-        "operationId": "get_task_status_tasks__task_id__get",
+        "operationId": "get_task_status",
         "parameters": [
           {
             "name": "task_id",
@@ -2721,7 +2721,7 @@
         ],
         "summary": "Cancel Task",
         "description": "Request cancellation of a running task.\n\nArgs:\n    task_id: The ID of the task to cancel.\n\nReturns:\n    Task: The task object with its status and details.",
-        "operationId": "cancel_task_tasks__task_id__delete",
+        "operationId": "cancel_task",
         "parameters": [
           {
             "name": "task_id",
@@ -2767,7 +2767,7 @@
         ],
         "summary": "Pause a Task",
         "description": "Pauses a running task.\n\nArgs:\n    task_id: The ID of the task to pause.\n\nReturns:\n    Task: The task object with its status and details.",
-        "operationId": "pause_task_tasks__task_id__pause_post",
+        "operationId": "pause_task",
         "parameters": [
           {
             "name": "task_id",
@@ -2813,7 +2813,7 @@
         ],
         "summary": "Resume a Task",
         "description": "Resumes a paused task.\n\nArgs:\n    task_id: The ID of the task to resume.\n\nReturns:\n    Task: The task object with its status and details.",
-        "operationId": "resume_task_tasks__task_id__resume_post",
+        "operationId": "resume_task",
         "parameters": [
           {
             "name": "task_id",
@@ -2859,7 +2859,7 @@
         ],
         "summary": "Create Task",
         "description": "Create and start a new background task with optional parameters.\n\nThe request body accepts:\n- **args**: List of positional arguments (e.g., `[\"project_name\", 0]`)\n- **kwargs**: Dictionary of keyword arguments (e.g., `{\"num_batches\": 5}`)\n\nArgs:\n    task_name: The name of the task to create, as registered in the TaskManager.\n    args: Positional arguments to pass to the task's run method.\n    kwargs: Keyword arguments to pass to the task's run method.\n\nReturns:\n    The created task object.\n\nExamples:\n    ```json\n    // No parameters\n    {}\n\n    // With positional args\n    {\n        \"args\": [\"MyProject\", 0]\n    }\n\n    // With keyword args\n    {\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n\n    // With both\n    {\n        \"args\": [\"MyProject\", 0],\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n    ```",
-        "operationId": "create_task_tasks__task_name__post",
+        "operationId": "create_task",
         "parameters": [
           {
             "name": "task_name",
@@ -2914,7 +2914,7 @@
         ],
         "summary": "Move To Position",
         "description": "Move Rotor and Turntable to a polar point",
-        "operationId": "move_to_position_develop_scanner_position_put",
+        "operationId": "move_to_position",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2957,7 +2957,7 @@
         ],
         "summary": "Restart Application",
         "description": "Trigger a Firmware reload by touching the reload sentinel file.\n\nNote: The application has to be started with the --reload-trigger option to enable this endpoint.",
-        "operationId": "restart_application_develop_restart_post",
+        "operationId": "restart_application",
         "responses": {
           "202": {
             "description": "Successful Response",
@@ -2986,7 +2986,7 @@
         ],
         "summary": "Run crop task and return visualization image",
         "description": "Run the crop task and return the visualization image with bounding boxes.\n\nArgs:\n    camera_name: Name of the camera controller to use.\n    threshold: Optional Canny threshold passed to the analysis (tutorial uses a trackbar). If not set, defaults inside the task.\n\nReturns:\n    Response: JPEG image showing contours, rectangles and circles as detected by the task.",
-        "operationId": "crop_image_develop_crop_image_get",
+        "operationId": "crop_image",
         "parameters": [
           {
             "name": "camera_name",
@@ -3043,7 +3043,7 @@
         ],
         "summary": "Hello World Async",
         "description": "Start the async hello world demo task.",
-        "operationId": "hello_world_async_develop_hello_world_async_post",
+        "operationId": "hello_world_async",
         "parameters": [
           {
             "name": "total_steps",
@@ -3098,7 +3098,7 @@
         ],
         "summary": "Get Path",
         "description": "Get a list of coordinates by path method and number of points",
-        "operationId": "get_path_develop__method__get",
+        "operationId": "get_path",
         "parameters": [
           {
             "name": "method",
@@ -3156,7 +3156,7 @@
         ],
         "summary": "Get Cloud Status",
         "description": "Return aggregated status information for the cloud backend.\n\nReturns:\n    CloudStatusResponse: A response object containing the status of the cloud backend",
-        "operationId": "get_cloud_status_cloud_status_get",
+        "operationId": "get_cloud_status",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3181,7 +3181,7 @@
         ],
         "summary": "Get Cloud Settings",
         "description": "Return the masked active cloud configuration.\n\nReturns:\n    CloudSettingsResponse: A response object containing the masked active cloud configuration",
-        "operationId": "get_cloud_settings_cloud_settings_get",
+        "operationId": "get_cloud_settings",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3204,7 +3204,7 @@
         ],
         "summary": "Update Cloud Settings",
         "description": "Persist and activate new cloud settings.\n\nArgs:\n    new_settings: The new cloud settings to persist and activate\n\nReturns:\n    CloudSettingsResponse: A response object containing the masked active cloud configuration",
-        "operationId": "update_cloud_settings_cloud_settings_post",
+        "operationId": "update_cloud_settings",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3249,7 +3249,7 @@
         ],
         "summary": "List Cloud Projects",
         "description": "Return all local projects enriched with cloud metadata.\n\nReturns:\n    list[CloudProjectStatus]: A list of cloud project status objects",
-        "operationId": "list_cloud_projects_cloud_projects_get",
+        "operationId": "list_cloud_projects",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3278,7 +3278,7 @@
         ],
         "summary": "Get Cloud Project",
         "description": "Return cloud details for a single local project.\n\nArgs:\n    project_name: The name of the project to get the cloud details for\n\nReturns:\n    CloudProjectStatus: A response object containing the cloud project status",
-        "operationId": "get_cloud_project_cloud_projects__project_name__get",
+        "operationId": "get_cloud_project",
         "parameters": [
           {
             "name": "project_name",
@@ -3322,7 +3322,7 @@
         ],
         "summary": "Reset Cloud Project",
         "description": "Reset the remote project and clear the local linkage.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
-        "operationId": "reset_cloud_project_cloud_projects__project_name__delete",
+        "operationId": "reset_cloud_project",
         "parameters": [
           {
             "name": "project_name",
@@ -3370,7 +3370,7 @@
         ],
         "summary": "Start Focus Stacking",
         "description": "Start focus stacking for a scan.",
-        "operationId": "start_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_start_post",
+        "operationId": "start_focus_stacking",
         "parameters": [
           {
             "name": "project_name",
@@ -3422,7 +3422,7 @@
         ],
         "summary": "Pause Focus Stacking",
         "description": "Pause an active focus stacking task.",
-        "operationId": "pause_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_pause_patch",
+        "operationId": "pause_focus_stacking",
         "parameters": [
           {
             "name": "project_name",
@@ -3474,7 +3474,7 @@
         ],
         "summary": "Resume Focus Stacking",
         "description": "Resume a paused focus stacking task.",
-        "operationId": "resume_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_resume_patch",
+        "operationId": "resume_focus_stacking",
         "parameters": [
           {
             "name": "project_name",
@@ -3526,7 +3526,7 @@
         ],
         "summary": "Cancel Focus Stacking",
         "description": "Cancel an active focus stacking task.",
-        "operationId": "cancel_focus_stacking_projects__project_name__scans__scan_index__focus_stacking_cancel_patch",
+        "operationId": "cancel_focus_stacking",
         "parameters": [
           {
             "name": "project_name",
