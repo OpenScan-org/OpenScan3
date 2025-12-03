@@ -11,6 +11,7 @@ from openscan.config.logger import setup_logging
 from openscan.utils.settings import load_settings_json
 from openscan import __version__
 
+# base routers
 from openscan.routers import (
     cameras,
     motors,
@@ -24,6 +25,12 @@ from openscan.routers import (
     cloud,
     websocket,
     focus_stacking,
+)
+# v0.5 routers
+from openscan.routers.v0_5 import (
+    cameras as cameras_v05,
+    motors as motors_v05,
+    lights as lights_v05,
 )
 from openscan.controllers import device as device_controller
 
@@ -175,12 +182,28 @@ BASE_ROUTERS = [
     websocket.router,
 ]
 
+v0_5_ROUTERS = [
+    cameras_v05.router,
+    motors_v05.router,
+    lights_v05.router,
+    projects.router,
+    gpio.router,
+    openscan.router,
+    device.router,
+    tasks.router,
+    develop.router,
+    cloud.router,
+    websocket.router,
+    focus_stacking.router,
+]
+
+
 # Router mapping per API version. Extend per version to diverge.
 # Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
     "0.3": BASE_ROUTERS,
     "0.4": BASE_ROUTERS,
-    "0.5": BASE_ROUTERS + [focus_stacking.router],
+    "0.5": v0_5_ROUTERS,
 }
 
 
