@@ -1534,7 +1534,7 @@
         }
       }
     },
-    "/projects/{project_name}/{scan_index}/": {
+    "/projects/{project_name}/{scan_index}/photos": {
       "delete": {
         "tags": [
           "projects"
@@ -1603,7 +1603,7 @@
         }
       }
     },
-    "/projects/{project_name}/scans/": {
+    "/projects/{project_name}/scans/{scan_index}": {
       "delete": {
         "tags": [
           "projects"
@@ -1623,7 +1623,7 @@
           },
           {
             "name": "scan_index",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "integer",
@@ -1638,6 +1638,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Scan",
+        "description": "Get Scan by project and index\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan\n\nReturns:\n    Scan: The scan object",
+        "operationId": "get_scan",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
                 }
               }
             }
@@ -1968,61 +2021,6 @@
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          },
-          "404": {
-            "description": "Not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/projects/{project_name}/scans/{scan_index}": {
-      "get": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Get Scan",
-        "description": "Get Scan by project and index\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan\n\nReturns:\n    Scan: The scan object",
-        "operationId": "get_scan",
-        "parameters": [
-          {
-            "name": "project_name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Name"
-            }
-          },
-          {
-            "name": "scan_index",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Scan Index"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Scan"
-                }
               }
             }
           },
