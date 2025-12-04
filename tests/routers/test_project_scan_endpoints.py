@@ -95,6 +95,39 @@ def test_pause_endpoint_without_task(
     assert response.status_code == 409
 
 
+def test_delete_scan_endpoint_removes_scan(
+    api_client: TestClient,
+    api_project_manager: ProjectManager,
+    sample_scan_settings: ScanSetting,
+) -> None:
+    project, scan, _ = _prepare_scan(api_project_manager, sample_scan_settings)
+
+    with patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+        response = api_client.delete(f"/latest/projects/{project.name}/scans/{scan.index}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["deleted"] == [f"{project.name}:scan{scan.index:02d}"]
+
+    removed_scan = api_project_manager.get_scan_by_index(project.name, scan.index)
+    assert removed_scan is None
+
+
+def test_delete_scan_endpoint_rejects_legacy_path(
+    api_client: TestClient,
+    api_project_manager: ProjectManager,
+    sample_scan_settings: ScanSetting,
+) -> None:
+    project, scan, _ = _prepare_scan(api_project_manager, sample_scan_settings)
+
+    with patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+        response = api_client.delete(f"/latest/projects/{project.name}/{scan.index}")
+
+    # The legacy path should not exist anymore, so FastAPI returns 404.
+    assert response.status_code == 404
+
+
 def test_resume_endpoint_persists_status(
     api_client: TestClient,
     api_project_manager: ProjectManager,

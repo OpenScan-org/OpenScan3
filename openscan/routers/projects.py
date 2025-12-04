@@ -161,7 +161,7 @@ async def download_project_from_cloud(
     return task
 
 
-@router.delete("/{project_name}/{scan_index}/", response_model=DeleteResponse)
+@router.delete("/{project_name}/{scan_index}/photos", response_model=DeleteResponse)
 async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
     """Delete photos from a scan in a project
 
@@ -213,7 +213,7 @@ async def delete_project(project_name: str):
     )
 
 
-@router.delete("/{project_name}/scans/", response_model=DeleteResponse)
+@router.delete("/{project_name}/scans/{scan_index}", response_model=DeleteResponse)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project
 
