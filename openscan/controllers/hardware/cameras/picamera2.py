@@ -176,7 +176,7 @@ class Picamera2Controller(CameraController):
         self._strategy = self._strategies.get(self.camera.name, IMX519Strategy())
 
         self.control_mapping = {
-            'shutter': 'ExposureTime',
+            # 'shutter': 'ExposureTime',
             'saturation': 'Saturation',
             'contrast': 'Contrast',
             'gain': 'AnalogueGain',
@@ -199,6 +199,10 @@ class Picamera2Controller(CameraController):
         for setting, value in settings.__dict__.items():
             if setting in self.control_mapping:
                 self._picam.set_controls({self.control_mapping[setting]: value})
+
+        # apply shutter
+        if settings.shutter is not None:
+            self._picam.set_controls({'ExposureTime': int(settings.shutter * 1000)})
 
         # handle ColourGains (AWB gains) separately
         red_gain = getattr(settings, 'awbg_red')
@@ -610,7 +614,7 @@ class Picamera2Controller(CameraController):
             6: lambda f: cv2.rotate(f, cv2.ROTATE_90_CLOCKWISE),
             8: lambda f: cv2.rotate(f, cv2.ROTATE_90_COUNTERCLOCKWISE),
         }
-        frame = rotate_map.get(self.settings.orientation_flag, lambda f: f)(frame)
+        #frame = rotate_map.get(self.settings.orientation_flag, lambda f: f)(frame)
 
         _, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
         self._set_busy(False)

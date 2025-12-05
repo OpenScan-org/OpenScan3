@@ -86,7 +86,7 @@
           "cameras"
         ],
         "summary": "Get Preview",
-        "description": "Get a camera preview stream in lower resolution\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
         "operationId": "get_preview",
         "parameters": [
           {
@@ -273,16 +273,18 @@
               "type": "string",
               "title": "Name"
             }
-          },
-          {
-            "name": "settings",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/BaseModel"
-            }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseModel"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -662,16 +664,18 @@
               "type": "string",
               "title": "Name"
             }
-          },
-          {
-            "name": "settings",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/BaseModel"
-            }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseModel"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1034,16 +1038,18 @@
               "type": "string",
               "title": "Name"
             }
-          },
-          {
-            "name": "settings",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/BaseModel"
-            }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseModel"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3816,7 +3822,8 @@
               }
             ],
             "title": "Manual Focus",
-            "description": "Manual focus position in diopters. This is only applied if autofocus is disabled."
+            "description": "Manual focus position in diopters. This is only applied if autofocus is disabled.",
+            "default": 12.0
           },
           "crop_width": {
             "anyOf": [

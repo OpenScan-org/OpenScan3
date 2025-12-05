@@ -59,6 +59,8 @@ async def get_camera(camera_name: str):
 async def get_preview(camera_name: str):
     """Get a camera preview stream in lower resolution
 
+    Note: The preview is not rotated by orientation_flag and has to be rotated by client.
+
     Args:
         camera_name: The name of the camera to get the preview stream from
 
