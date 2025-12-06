@@ -85,7 +85,11 @@ async def get_preview(camera_name: str):
              #   await asyncio.sleep(0.1)  # Small sleep to prevent busy waiting
              #   continue  # Skip frame generation and yield
             if not controller.is_busy():
-                frame = controller.preview()
+                try:
+                    frame = controller.preview()
+                except RuntimeError:
+                    break
+
                 frame = _apply_preview_rotation(
                     frame,
                     controller.get_config().orientation_flag or 1,

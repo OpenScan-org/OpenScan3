@@ -289,6 +289,9 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
             remove_motor_controller(controller)
         for controller in get_all_light_controllers():
             remove_light_controller(controller)
+        for controller in get_all_camera_controllers():
+            remove_camera_controller(controller)
+        cleanup_all_pins()
         logger.debug("Cleaned up old controllers.")
 
     # Detect hardware

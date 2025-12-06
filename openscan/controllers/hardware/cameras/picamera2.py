@@ -174,6 +174,7 @@ class Picamera2Controller(CameraController):
         super().__init__(camera)
         self._picam = Picamera2()
         self._strategy = self._strategies.get(self.camera.name, IMX519Strategy())
+        self._is_closing = False
 
         self.control_mapping = {
             # 'shutter': 'ExposureTime',
@@ -598,6 +599,9 @@ class Picamera2Controller(CameraController):
         Returns:
             IO[bytes]: A file-like object containing the JPEG image.
         """
+        if self._picam is None or self._is_closing:
+            raise RuntimeError("Picamera2 controller is not available")
+
         self._set_busy(True)
         frame = self._picam.capture_array(mode)
 
@@ -623,9 +627,20 @@ class Picamera2Controller(CameraController):
 
     def cleanup(self):
         """Clean up the camera resource."""
-        self._picam.close()
-        Picamera2Controller._picam = None
-        logger.debug("Picamera2 controller closed successfully.")
+        if self._picam is None:
+            return
+
+        self._is_closing = True
+        try:
+            self._picam.stop()
+        except Exception as exc:
+            logger.debug("Picamera2 stop raised during cleanup: %s", exc)
+
+        try:
+            self._picam.close()
+        finally:
+            self._picam = None
+            logger.debug("Picamera2 controller closed successfully.")
 
 
 """
