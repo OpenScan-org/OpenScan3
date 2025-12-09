@@ -26,11 +26,11 @@ from openscan.routers import (
     websocket,
     focus_stacking,
 )
-# v0.5 routers
-from openscan.routers.v0_5 import (
-    cameras as cameras_v05,
-    motors as motors_v05,
-    lights as lights_v05,
+# next routers
+from openscan.routers.next import (
+    cameras as cameras_next,
+    motors as motors_next,
+    lights as lights_next,
 )
 from openscan.controllers import device as device_controller
 
@@ -182,10 +182,10 @@ BASE_ROUTERS = [
     websocket.router,
 ]
 
-v0_5_ROUTERS = [
-    cameras_v05.router,
-    motors_v05.router,
-    lights_v05.router,
+next_ROUTERS = [
+    cameras_next.router,
+    motors_next.router,
+    lights_next.router,
     projects.router,
     gpio.router,
     openscan.router,
@@ -203,7 +203,8 @@ v0_5_ROUTERS = [
 ROUTERS_BY_VERSION: dict[str, list] = {
     "0.3": BASE_ROUTERS,
     "0.4": BASE_ROUTERS,
-    "0.5": v0_5_ROUTERS,
+    "0.5": BASE_ROUTERS + [focus_stacking.router],
+    "next": next_ROUTERS,
 }
 
 
@@ -281,12 +282,13 @@ for v in SUPPORTED_VERSIONS:
     app.mount(f"/v{v}", make_version_app(v))
 
 app.mount("/latest", make_version_app(LATEST))
+app.mount("/next", make_version_app("next"))
 
 
 @app.get("/versions")
 def list_versions():
     """List available API versions and the current latest alias."""
-    return {"versions": [f"v{v}" for v in SUPPORTED_VERSIONS], "latest": f"v{LATEST}"}
+    return {"versions": [f"{v}" for v in SUPPORTED_VERSIONS], "latest": f"v{LATEST}"}
 
 
 if __name__ == "__main__":
