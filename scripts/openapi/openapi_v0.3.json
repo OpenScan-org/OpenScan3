@@ -3449,17 +3449,17 @@
           "shutter": {
             "anyOf": [
               {
-                "type": "integer",
-                "maximum": 435918849.0,
-                "minimum": 1.0
+                "type": "number",
+                "maximum": 435918.849,
+                "minimum": 0.001
               },
               {
                 "type": "null"
               }
             ],
             "title": "Shutter",
-            "description": "Shutter speed in microseconds.",
-            "default": 50000
+            "description": "Shutter speed in milliseconds.",
+            "default": 50.0
           },
           "saturation": {
             "anyOf": [

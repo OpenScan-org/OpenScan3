@@ -86,7 +86,7 @@
           "cameras"
         ],
         "summary": "Get Preview",
-        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is rotated by orientation_flag and has not to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
         "operationId": "get_preview",
         "parameters": [
           {
@@ -212,7 +212,7 @@
         }
       }
     },
-    "/cameras/{name}/settings": {
+    "/cameras/{camera_name}/settings": {
       "get": {
         "tags": [
           "cameras"
@@ -223,7 +223,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
@@ -267,24 +267,22 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Name"
             }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BaseModel"
-              }
+          },
+          {
+            "name": "settings",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BaseModel"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -321,7 +319,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
@@ -603,7 +601,7 @@
         }
       }
     },
-    "/motors/{name}/settings": {
+    "/motors/{motor_name}/settings": {
       "get": {
         "tags": [
           "motors"
@@ -614,7 +612,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
@@ -658,24 +656,22 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Name"
             }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BaseModel"
-              }
+          },
+          {
+            "name": "settings",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BaseModel"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -712,7 +708,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
@@ -977,7 +973,7 @@
         }
       }
     },
-    "/lights/{name}/settings": {
+    "/lights/{light_name}/settings": {
       "get": {
         "tags": [
           "lights"
@@ -988,7 +984,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
@@ -1032,24 +1028,22 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Name"
             }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BaseModel"
-              }
+          },
+          {
+            "name": "settings",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BaseModel"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1086,7 +1080,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
@@ -3663,17 +3657,17 @@
           "shutter": {
             "anyOf": [
               {
-                "type": "integer",
-                "maximum": 435918849.0,
-                "minimum": 1.0
+                "type": "number",
+                "maximum": 435918.849,
+                "minimum": 0.001
               },
               {
                 "type": "null"
               }
             ],
             "title": "Shutter",
-            "description": "Shutter speed in microseconds.",
-            "default": 50000
+            "description": "Shutter speed in milliseconds.",
+            "default": 50.0
           },
           "saturation": {
             "anyOf": [

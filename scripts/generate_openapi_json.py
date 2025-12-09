@@ -51,10 +51,14 @@ def main() -> None:
             print(f"[openapi] ERROR while generating v{version}: {exc!r}")
             raise
 
-    print(f"[openapi] generating schema for /latest alias (v{LATEST}) ...")
-    latest_app = make_version_app(LATEST)
-    write_schema_for_app(output_path=output_dir / "openapi_latest.json", app=latest_app)
-    print(f"[openapi] wrote {output_dir / 'openapi_latest.json'}")
+    special_targets = {"latest": LATEST, "next": "next"}
+
+    for alias, version in special_targets.items():
+        descriptor = f"v{version}" if alias == "latest" else version
+        print(f"[openapi] generating schema for /{alias} alias ({descriptor}) ...")
+        app = make_version_app(version)
+        write_schema_for_app(output_path=output_dir / f"openapi_{alias}.json", app=app)
+        print(f"[openapi] wrote {output_dir / f'openapi_{alias}.json'}")
 
 
 if __name__ == "__main__":
