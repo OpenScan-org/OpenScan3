@@ -44,38 +44,47 @@ MOVE_TO_CASES = [
 
 
 @pytest.fixture
-def mocked_dependencies(mocker, event_loop):  # Added event_loop here
+def motor_event_loop():
+    """Provides a dedicated event loop for motor controller tests."""
+    loop = asyncio.new_event_loop()
+    try:
+        yield loop
+    finally:
+        loop.close()
+
+
+@pytest.fixture
+def mocked_dependencies(monkeypatch, motor_event_loop):
     """Mocks GPIO, time.sleep, math.cos, and event_loop.run_in_executor."""
-    mock_gpio = mocker.patch(GPIO_PATCH_PATH)
-    mock_time_sleep = mocker.patch(TIME_PATCH_PATH + '.sleep')
-    mock_math_cos = mocker.patch(MATH_PATCH_PATH + '.cos', return_value=0.0)
 
-    # This side effect will be called when event_loop.run_in_executor is called.
-    # It should execute the callback synchronously.
+    import openscan.controllers.hardware.motors as motors_module
+
+    mock_gpio = MagicMock()
+    monkeypatch.setattr(motors_module, 'gpio', mock_gpio)
+
+    mock_time_sleep = MagicMock()
+    monkeypatch.setattr(motors_module.time, 'sleep', mock_time_sleep)
+
+    mock_math_cos = MagicMock(return_value=0.0)
+    monkeypatch.setattr(motors_module.math, 'cos', mock_math_cos)
+
     def sync_run_in_executor_side_effect(executor, callback, *args):
-        # 'executor' is the first argument passed to run_in_executor (e.g., self._executor from MotorController)
-        # 'callback' is the function to run (e.g., do_movement)
-        # '*args' are arguments for the callback
-        return callback(*args)  # Directly call the 'do_movement' function
+        return callback(*args)
 
-    # Patch run_in_executor on the specific event_loop instance used by the test
-    mock_run_in_executor = mocker.patch.object(
-        event_loop,
-        'run_in_executor',
-        new_callable=AsyncMock,  # Make it an AsyncMock
-        side_effect=sync_run_in_executor_side_effect
-    )
+    mock_run_in_executor = AsyncMock(side_effect=sync_run_in_executor_side_effect)
+    monkeypatch.setattr(motor_event_loop, 'run_in_executor', mock_run_in_executor, raising=True)
 
     return {
         "gpio": mock_gpio,
         "time_sleep": mock_time_sleep,
         "math_cos": mock_math_cos,
-        "run_in_executor": mock_run_in_executor  # Mock for event_loop.run_in_executor
+        "run_in_executor": mock_run_in_executor,
+        "event_loop": motor_event_loop,
     }
 
 
 @pytest.fixture
-def motor_controller_instance(motor_model_instance, motor_config_instance, mocked_dependencies, mocker):
+def motor_controller_instance(motor_model_instance, motor_config_instance, mocked_dependencies):
     """Provides a MotorController instance with mocked dependencies."""
     # Ensure motor_model_instance is correctly passed if found
     controller = MotorController(motor=motor_model_instance) # Corrected argument name
@@ -158,7 +167,7 @@ def motor_model_clamping_instance(motor_config_clamping_instance):
     return Motor(name="test_motor", settings=motor_config_clamping_instance, angle=90.0)
 
 @pytest.fixture
-def motor_controller_clamping_instance(motor_model_clamping_instance, motor_config_clamping_instance, mocked_dependencies, mocker):
+def motor_controller_clamping_instance(motor_model_clamping_instance, motor_config_clamping_instance, mocked_dependencies):
     """Provides a MotorController instance with mocked dependencies."""
     # Ensure motor_model_instance is correctly passed if found
     controller = MotorController(motor=motor_model_clamping_instance) # Corrected argument name

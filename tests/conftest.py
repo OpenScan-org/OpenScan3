@@ -58,6 +58,15 @@ def light_model_instance():
     """Provides a Light model instance."""
     return Light(name="test_light", settings=LightConfig(pins=[1, 2]))
 
+
+@pytest.fixture(scope="function")
+def task_manager_storage_path(tmp_path_factory):
+    """Provide an isolated persistence directory for TaskManager tests."""
+
+    temp_storage = tmp_path_factory.mktemp("task_manager_storage")
+    yield temp_storage
+    shutil.rmtree(temp_storage, ignore_errors=True)
+
 @pytest.fixture
 def mock_camera_controller() -> MagicMock:
     """Fixture for a mocked CameraController."""
@@ -218,5 +227,36 @@ async def focus_task_manager():
 
     if os.path.exists(TASKS_STORAGE_PATH):
         shutil.rmtree(TASKS_STORAGE_PATH)
+
+    TaskManager._instance = None
+
+
+@pytest.fixture(autouse=True)
+def cleanup_task_manager_storage(
+    monkeypatch: pytest.MonkeyPatch,
+    task_manager_storage_path,
+):
+    """Reset TaskManager state and persistence between individual tests."""
+
+    task_manager_storage_path.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        "openscan.controllers.services.tasks.task_manager.TASKS_STORAGE_PATH",
+        task_manager_storage_path,
+        raising=False,
+    )
+
+    TaskManager._instance = None
+
+    yield
+
+    task_manager_instance = TaskManager._instance
+    if task_manager_instance is not None:
+        pending_handles = list(getattr(task_manager_instance, "_running_async_tasks", {}).values())
+        pending_handles += list(getattr(task_manager_instance, "_running_blocking_tasks", {}).values())
+        for handle in pending_handles:
+            loop = handle.get_loop()
+            if loop.is_closed():
+                continue
+            handle.cancel()
 
     TaskManager._instance = None

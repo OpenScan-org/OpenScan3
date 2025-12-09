@@ -8,6 +8,7 @@ import tempfile
 import types
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Generator
 from unittest.mock import MagicMock
 
@@ -22,14 +23,27 @@ from openscan.config.scan import ScanSetting
 
 
 @pytest.fixture(scope="function")
-def project_manager() -> Generator[ProjectManager, None, None]:
+def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Generator[ProjectManager, None, None]:
     """
     Create a ProjectManager instance with a temporary directory for projects.
     """
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = tmp_path_factory.mktemp("projects_api")
     pm = ProjectManager(path=temp_dir)
+
+    monkeypatch.setattr(
+        "openscan.controllers.services.projects.get_project_manager",
+        lambda path=None: pm,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "openscan.routers.projects.get_project_manager",
+        lambda: pm,
+        raising=False,
+    )
+
     yield pm
-    shutil.rmtree(temp_dir)
+
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @pytest.fixture(scope="function")
@@ -92,7 +106,7 @@ def test_new_project(client: TestClient, project_manager: ProjectManager):
     assert project_data["description"] == project_description
 
     # Verify that the project directory and the project file were created
-    project_path = os.path.join("projects", project_name)
+    project_path = os.path.join(project_manager._path, project_name)
     assert os.path.isdir(project_path)
     assert os.path.isfile(os.path.join(project_path, "openscan_project.json"))
 
@@ -155,6 +169,7 @@ def test_delete_project_not_found(client: TestClient):
 
 def test_download_project_zip_streaming_headers_without_content_length(
     client: TestClient,
+    project_manager: ProjectManager,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Ensure the project ZIP endpoint streams without setting Content-Length."""
@@ -196,6 +211,7 @@ def test_download_project_zip_streaming_headers_without_content_length(
 
 def test_download_scans_zip_streaming_handles_large_virtual_size(
     client: TestClient,
+    project_manager: ProjectManager,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Ensure scan ZIP streaming skips Content-Length even for huge virtual sizes."""

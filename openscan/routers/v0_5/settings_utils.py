@@ -33,22 +33,13 @@ def create_settings_endpoints(
         controller = get_controller(name)
         return controller.settings.model
 
-
     @router.put(
         path,
         response_model=settings_model,
         name=f"replace_{resource_name}_settings",
     )
-    async def replace_settings(name: str, settings: T) -> T:
-        """Replace all settings for a specific resource
-
-        Args:
-            name: The name of the resource to replace settings for
-            settings: The new settings for the resource
-
-        Returns:
-            The updated settings for the resource
-        """
+    async def replace_settings(name: str, settings: settings_model) -> T:
+        """Replace all settings for a specific resource"""
         controller = get_controller(name)
         try:
             controller.settings.replace(settings)
