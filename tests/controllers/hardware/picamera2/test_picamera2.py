@@ -11,7 +11,7 @@ camera_settings = CameraSettings(
     crop_width=20,
     crop_height=20,
     orientation_flag=6,
-    shutter=50000,
+    shutter=50.0,
 )
 
 camera_name = "arducam_64mp" #  or "imx519"
@@ -80,7 +80,7 @@ def test_settings_change(mocker):
     spy_focus = mocker.spy(camera_controller, "_configure_focus")
 
 
-    camera_controller.settings.shutter = 100000
+    camera_controller.settings.shutter = 100.0
 
     configure_focus_calls = spy_focus.call_count
 
@@ -88,7 +88,7 @@ def test_settings_change(mocker):
     camera_controller.settings.AF = False
 
     time.sleep(0.1)
-    assert camera_controller.settings.shutter == 100000
+    assert camera_controller.settings.shutter == 100.0
     assert camera_controller.settings.AF == False
     # assert that _configure_focus() has been called twice (one for setting manual_focus and one for setting AF)
     assert spy_focus.call_count == configure_focus_calls + 2

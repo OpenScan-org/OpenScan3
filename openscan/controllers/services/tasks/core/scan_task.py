@@ -19,8 +19,8 @@ from openscan.config.scan import ScanSetting
 from openscan.controllers.services.projects import ProjectManager, get_project_manager
 from openscan.controllers.services.tasks.base_task import BaseTask
 from openscan.models.paths import PolarPoint3D, PathMethod
-from openscan.models.scan import Scan, ScanMetadata, ScanStatus
-from openscan.models.task import TaskProgress
+from openscan.models.scan import Scan, ScanMetadata
+from openscan.models.task import TaskProgress, TaskStatus
 from openscan.utils.paths import paths
 from openscan.utils.paths.optimization import PathOptimizer
 
@@ -172,7 +172,7 @@ class ScanTask(BaseTask):
                 exc_info=True,
             )
             scan.system_message = f"Error during scan: {e}"
-            scan.status = ScanStatus.FAILED
+            scan.status = TaskStatus.ERROR
             await self._ctx.project_manager.save_scan_state(scan)
             raise
         finally:
@@ -205,7 +205,7 @@ class ScanTask(BaseTask):
             return camera_controller, project_manager
         except Exception as e:
             logger.error("Failed to initialize scan and get controllers: %s", e)
-            scan.status = ScanStatus.FAILED
+            scan.status = TaskStatus.ERROR
             scan.system_message = f"Controller initialization failed: {e}"
             raise
 
@@ -258,7 +258,7 @@ class ScanTask(BaseTask):
         for current_step, current_point in enumerate(self._ctx.path_dict.keys()):
             original_index = self._ctx.path_dict[current_point]
             step_start_time = datetime.now()
-            self._ctx.scan.status = ScanStatus.RUNNING
+            self._ctx.scan.status = TaskStatus.RUNNING
 
             # Check for cancellation
             if self.is_cancelled():
@@ -267,7 +267,7 @@ class ScanTask(BaseTask):
                     self._ctx.scan.index,
                     self._ctx.scan.project_name,
                 )
-                self._ctx.scan.status = ScanStatus.CANCELLED
+                self._ctx.scan.status = TaskStatus.CANCELLED
                 yield TaskProgress(
                     current=current_step + start_from_step + 1,
                     total=total,
@@ -301,7 +301,7 @@ class ScanTask(BaseTask):
             )
         else:
             # Loop completed without break
-            self._ctx.scan.status = ScanStatus.COMPLETED
+            self._ctx.scan.status = TaskStatus.COMPLETED
             logger.info(
                 "Scan %s for project %s completed successfully.",
                 self._ctx.scan.index,

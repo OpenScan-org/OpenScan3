@@ -40,6 +40,7 @@ from openscan.models.scan import Scan
 from openscan.models.camera import PhotoData
 from openscan.controllers.hardware.cameras.camera import CameraController
 from openscan.config.scan import ScanSetting
+from openscan.models.task import TaskStatus
 
 
 logger = logging.getLogger(__name__)
@@ -263,11 +264,22 @@ class ProjectManager:
             project_json = os.path.join(self._path, folder, "openscan_project.json")
             if os.path.isdir(os.path.join(self._path, folder)) and os.path.exists(project_json):
                 try:
-                    self._projects[folder] = get_project(self._path, folder)
+                    project = get_project(self._path, folder)
+                    self._reset_incomplete_scans(project)
+                    self._projects[folder] = project
                 except Exception as e:
                     logger.error(f"Error loading project {folder}: {e}", exc_info=True)
 
         logger.info(f"Loaded {len(self._projects)} projects.")
+
+    def _reset_incomplete_scans(self, project: Project) -> None:
+        """Reset scans that were left in a transient state during startup."""
+        for scan in project.scans.values():
+            if scan.status in {TaskStatus.RUNNING, TaskStatus.PENDING}:
+                logger.debug(f"Resetting scan status {scan.index} for project {project.name}")
+                scan.status = TaskStatus.INTERRUPTED
+                scan.last_updated = datetime.now()
+                _save_scan_json(project.path, scan)
 
     def get_project_by_name(self, project_name: str) -> Optional[Project]:
         """Get a project by name. Returns None if the project does not exist."""
