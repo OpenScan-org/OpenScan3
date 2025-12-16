@@ -35,6 +35,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable reloads driven by the project-level .reload-trigger sentinel file.",
     )
+    common.add_argument(
+        "--root-path",
+        default="",
+        help="Root path for reverse proxy (e.g., '/api' when served under /api/).",
+    )
 
     parser = argparse.ArgumentParser(
         prog="openscan",
@@ -67,6 +72,7 @@ def _cmd_serve(
     host: str,
     port: int,
     reload_trigger: bool,
+    root_path: str,
 ) -> int:
     """Start the FastAPI app using uvicorn.
 
@@ -74,13 +80,12 @@ def _cmd_serve(
         host: Host interface to bind to.
         port: TCP port to bind to.
         reload_trigger: Whether to enable reloads via the .reload-trigger sentinel file.
+        root_path: Root path prefix for reverse proxy setups.
 
     Returns:
         Exit status code (0 on success).
     """
     # Import by string to avoid importing the app at CLI parse time.
-    # This uses the wrapper module `openscan.main:app`, which re-exports
-    # the existing FastAPI instance from `app.main` during Phase 1.
     reload_enabled = reload_trigger
     reload_dirs = [str(DEFAULT_RELOAD_TRIGGER.parent)] if reload_trigger else None
     reload_includes = [DEFAULT_RELOAD_TRIGGER.name] if reload_trigger else None
@@ -90,6 +95,7 @@ def _cmd_serve(
         "openscan.main:app",
         host=host,
         port=port,
+        root_path=root_path,
         reload=reload_enabled,
         reload_dirs=reload_dirs,
         reload_includes=reload_includes,
@@ -116,6 +122,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         host=args.host,
         port=args.port,
         reload_trigger=args.reload_trigger,
+        root_path=args.root_path,
     )
 
     if code != 0:
