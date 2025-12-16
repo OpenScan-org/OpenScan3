@@ -36,10 +36,6 @@ from openscan.controllers import device as device_controller
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
-
 
 logger = logging.getLogger(__name__)
 
@@ -118,33 +114,6 @@ async def lifespan(app: FastAPI):
     logging.shutdown()
 
 
-class PrivateNetworkAccessMiddleware(BaseHTTPMiddleware):
-    """Handle Chrome's Private Network Access preflight requests."""
-
-    async def dispatch(self, request: Request, call_next):
-        origin = request.headers.get("origin", "*")
-        # Handle OPTIONS preflight
-        if request.method == "OPTIONS":
-            return Response(
-                status_code=204,
-                headers={
-                    "Access-Control-Allow-Private-Network": "true",
-                    "Access-Control-Allow-Origin": origin,
-                    "Access-Control-Allow-Methods": "*",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Credentials": "true",
-                },
-            )
-        # Handle actual request
-        response = await call_next(request)
-        # Always add PNA header to all responses
-        response.headers["Access-Control-Allow-Private-Network"] = "true"
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-
-        return response
-
-
 app = FastAPI(
     title="OpenScan3 API",
     description="REST interface controlling OpenScan hardware.",
@@ -161,8 +130,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(PrivateNetworkAccessMiddleware)
 
 # Create versioned sub-apps and mount them under /vX.Y and /latest
 # Root app intentionally has no docs; each sub-app exposes its own docs.
@@ -225,17 +192,6 @@ def make_version_app(version: str) -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-    # Add PNA middleware first
-    sub.add_middleware(PrivateNetworkAccessMiddleware)
-
-    # Then CORS
-    sub.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     # Include routers for this version (no extra prefixes; mount path provides version prefix)
     for r in ROUTERS_BY_VERSION.get(version, BASE_ROUTERS):
