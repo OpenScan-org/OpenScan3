@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 
 class CameraSettings(BaseModel):
-    shutter: Optional[int] = Field(50000, ge=1, le=435918849, description="Shutter speed in microseconds.") # 435918849 is the maximum of Arducam Hawkeye
+    shutter: Optional[float] = Field(50.0, ge=0.001, le=435918.849, description="Shutter speed in milliseconds.") # 435918.849 ms == 435918849 µs is the maximum of Arducam Hawkeye
     saturation: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Image color saturation from 0 to 32")
     contrast: Optional[float] = Field(1.0, ge=0.0, le=32.0, description="Image contrast from 0 to 32.")
     awbg_red: Optional[float] = Field(1.8, ge=0.0, le=32.0, description="Red Gain from 0 to 32.")
@@ -22,7 +22,7 @@ class CameraSettings(BaseModel):
                description="Autofocus window (x,y,w,h) in pixels. "
                            "(x,y) specify the position of the upper left corner of the window. "
                            "This will be ignored if AF is disabled.")
-    manual_focus: Optional[float] = Field(None, ge=0.0, le=15.0, description="Manual focus position in diopters. "
+    manual_focus: Optional[float] = Field(12.0, ge=0.0, le=15.0, description="Manual focus position in diopters. "
                                                                              "This is only applied if autofocus is disabled.")
 
     crop_width: Optional[int] = Field(0, ge=0, le=100, description="Cropping width in percent.")

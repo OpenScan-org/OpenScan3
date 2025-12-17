@@ -3,6 +3,7 @@ import logging
 import json
 from pathlib import Path
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -10,6 +11,7 @@ from openscan.config.logger import setup_logging
 from openscan.utils.settings import load_settings_json
 from openscan import __version__
 
+# base routers
 from openscan.routers import (
     cameras,
     motors,
@@ -22,14 +24,22 @@ from openscan.routers import (
     develop,
     cloud,
     websocket,
+    focus_stacking,
+)
+from openscan.routers.v0_5 import (
+    cameras as cameras_v0_5,
+    motors as motors_v0_5,
+    lights as lights_v0_5,
+)
+# next routers
+from openscan.routers.next import (
+    cameras as cameras_next,
+    motors as motors_next,
+    lights as lights_next,
 )
 from openscan.controllers import device as device_controller
 
 from openscan.controllers.services.tasks.task_manager import get_task_manager
-
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
 
 
 logger = logging.getLogger(__name__)
@@ -109,34 +119,14 @@ async def lifespan(app: FastAPI):
     logging.shutdown()
 
 
-class PrivateNetworkAccessMiddleware(BaseHTTPMiddleware):
-    """Handle Chrome's Private Network Access preflight requests."""
-
-    async def dispatch(self, request: Request, call_next):
-        origin = request.headers.get("origin", "*")
-        # Handle OPTIONS preflight
-        if request.method == "OPTIONS":
-            return Response(
-                status_code=204,
-                headers={
-                    "Access-Control-Allow-Private-Network": "true",
-                    "Access-Control-Allow-Origin": origin,
-                    "Access-Control-Allow-Methods": "*",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Credentials": "true",
-                },
-            )
-        # Handle actual request
-        response = await call_next(request)
-        # Always add PNA header to all responses
-        response.headers["Access-Control-Allow-Private-Network"] = "true"
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-
-        return response
-
-
-app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(
+    title="OpenScan3 API",
+    description="REST interface controlling OpenScan hardware.",
+    version=__version__,
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -145,8 +135,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(PrivateNetworkAccessMiddleware)
 
 # Create versioned sub-apps and mount them under /vX.Y and /latest
 # Root app intentionally has no docs; each sub-app exposes its own docs.
@@ -166,11 +154,43 @@ BASE_ROUTERS = [
     websocket.router,
 ]
 
+v0_5_ROUTERS = [
+    cameras_v0_5.router,
+    motors_v0_5.router,
+    lights_v0_5.router,
+    projects.router,
+    gpio.router,
+    openscan.router,
+    device.router,
+    tasks.router,
+    develop.router,
+    cloud.router,
+    focus_stacking.router,
+    websocket.router,
+]
+
+next_ROUTERS = [
+    cameras_next.router,
+    motors_next.router,
+    lights_next.router,
+    projects.router,
+    gpio.router,
+    openscan.router,
+    device.router,
+    tasks.router,
+    develop.router,
+    cloud.router,
+    websocket.router,
+    focus_stacking.router,
+]
+
+
 # Router mapping per API version. Extend per version to diverge.
 # Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.3": BASE_ROUTERS,
     "0.4": BASE_ROUTERS,
+    "0.5": v0_5_ROUTERS,
+    "next": next_ROUTERS,
 }
 
 
@@ -191,29 +211,44 @@ def make_version_app(version: str) -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-    # Add PNA middleware first
-    sub.add_middleware(PrivateNetworkAccessMiddleware)
-
-    # Then CORS
-    sub.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     # Include routers for this version (no extra prefixes; mount path provides version prefix)
     for r in ROUTERS_BY_VERSION.get(version, BASE_ROUTERS):
         sub.include_router(r)
 
+    _use_route_names_as_operation_ids(sub)
+
     return sub
+
+
+def _use_route_names_as_operation_ids(app: FastAPI) -> None:
+    """Assign each APIRoute's operation_id to its route name.
+
+    This helps with OpenAPI documentation generation and prevents names like 'deleteProjectProjectsProjectNameDelete'.
+
+    Args:
+        app: The FastAPI application whose routes should be updated.
+    """
+    seen: dict[str, int] = {}
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+
+        base_name = route.name or getattr(route.endpoint, "__name__", None)
+        if not base_name:
+            continue
+
+        count = seen.get(base_name, 0)
+        seen[base_name] = count + 1
+
+        operation_id = base_name if count == 0 else f"{base_name}_{count + 1}"
+        route.operation_id = operation_id
 
 
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
-    "0.3",
     "0.4",
+    "0.5",
 ]
 LATEST = SUPPORTED_VERSIONS[-1]
 
@@ -221,12 +256,13 @@ for v in SUPPORTED_VERSIONS:
     app.mount(f"/v{v}", make_version_app(v))
 
 app.mount("/latest", make_version_app(LATEST))
+app.mount("/next", make_version_app("next"))
 
 
 @app.get("/versions")
 def list_versions():
     """List available API versions and the current latest alias."""
-    return {"versions": [f"v{v}" for v in SUPPORTED_VERSIONS], "latest": f"v{LATEST}"}
+    return {"versions": [f"{v}" for v in SUPPORTED_VERSIONS], "latest": f"v{LATEST}"}
 
 
 if __name__ == "__main__":

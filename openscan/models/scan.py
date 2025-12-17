@@ -2,7 +2,6 @@ from datetime import datetime
 from time import time
 from dataclasses import field
 from typing import Optional
-from enum import Enum
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -10,25 +9,21 @@ from openscan.config.scan import ScanSetting
 from openscan.config.camera import CameraSettings
 from openscan.models.paths import PolarPoint3D, CartesianPoint3D
 from openscan.utils.paths.paths import polar_to_cartesian
+from openscan.models.task import TaskStatus
 
-
-class ScanStatus(str, Enum):
-    """Defines the persistent status of a scan."""
-    PENDING = "pending"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-    INTERRUPTED = "interrupted"
-
+class StackingTaskStatus(BaseModel):
+    task_id: Optional[str] = None
+    status: Optional[TaskStatus] = None
 
 class Scan(BaseModel):
     """Represents a single scan session within a project."""
     project_name: str = Field(..., description="The name of the project this scan belongs to.")
     index: int = Field(..., description="The sequential index of the scan within the project.")
     created: datetime = Field(default_factory=datetime.now, description="The timestamp when the scan was created.")
-    status: ScanStatus = Field(default=ScanStatus.PENDING, description="The final, persistent status of the scan.")
+    status: TaskStatus = Field(
+        default=TaskStatus.PENDING,
+        description="The final, persistent status of the scan, mirroring the associated Task status.",
+    )
 
     settings: ScanSetting = Field(..., description="The settings used for this scan.")
     camera_name: Optional[str] = None
@@ -45,6 +40,8 @@ class Scan(BaseModel):
     #photos: list[str] = field(default_factory=list)
 
     task_id: Optional[str] = None
+
+    stacking_task_status: Optional[StackingTaskStatus] = None
 
 
 class ScanMetadata(BaseModel):

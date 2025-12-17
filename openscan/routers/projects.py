@@ -16,7 +16,7 @@ from openscan.controllers.services import projects, cloud
 import openscan.controllers.services.scans as scans #import start_scan, cancel_scan, pause_scan, resume_scan
 from openscan.models.project import Project
 from openscan.config.scan import ScanSetting
-from openscan.models.scan import Scan, ScanStatus
+from openscan.models.scan import Scan
 from openscan.models.task import Task, TaskStatus
 
 from openscan.controllers.services.projects import get_project_manager
@@ -106,6 +106,8 @@ async def add_scan_with_description(project_name: str,
         task = await scans.start_scan(project_manager, scan, camera_controller)
         return task
 
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start scan: {e}")
 
@@ -159,7 +161,7 @@ async def download_project_from_cloud(
     return task
 
 
-@router.delete("/{project_name}/{scan_index}/", response_model=DeleteResponse)
+@router.delete("/{project_name}/{scan_index}/photos", response_model=DeleteResponse)
 async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
     """Delete photos from a scan in a project
 
@@ -211,7 +213,7 @@ async def delete_project(project_name: str):
     )
 
 
-@router.delete("/{project_name}/scans/", response_model=DeleteResponse)
+@router.delete("/{project_name}/scans/{scan_index}", response_model=DeleteResponse)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project
 
@@ -341,19 +343,22 @@ async def cancel_scan(project_name: str, scan_index: int) -> Task:
     Returns:
         Task: The updated task state
     """
+    project_manager = get_project_manager()
+    scan = project_manager.get_scan_by_index(project_name, scan_index)
+    if not scan:
+        raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
+
     try:
-        project_manager = get_project_manager()
-        scan = project_manager.get_scan_by_index(project_name, scan_index)
-        if not scan:
-            raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
-
         task = await scans.cancel_scan(scan)
-        if task is None:
-            raise HTTPException(status_code=409, detail="Scan is not running or cannot be cancelled.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return task
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if task is None:
+        raise HTTPException(status_code=409, detail="Scan is not running or cannot be cancelled.")
+
+    return task
 
 
 def _serialize_project_for_zip(project: Project) -> str:

@@ -21,8 +21,10 @@ def create_settings_endpoints(
         settings_model: Pydantic model for the settings
     """
 
+    path = "/{name}/settings"
+
     @router.get(
-        f"/{{{resource_name}}}/settings",
+        path,
         response_model=settings_model,
         name=f"get_{resource_name}_settings",
     )
@@ -31,22 +33,13 @@ def create_settings_endpoints(
         controller = get_controller(name)
         return controller.settings.model
 
-
     @router.put(
-        f"/{{{resource_name}}}/settings",
+        path,
         response_model=settings_model,
         name=f"replace_{resource_name}_settings",
     )
-    async def replace_settings(name: str, settings: T) -> T:
-        """Replace all settings for a specific resource
-
-        Args:
-            name: The name of the resource to replace settings for
-            settings: The new settings for the resource
-
-        Returns:
-            The updated settings for the resource
-        """
+    async def replace_settings(name: str, settings: settings_model) -> T:
+        """Replace all settings for a specific resource"""
         controller = get_controller(name)
         try:
             controller.settings.replace(settings)
@@ -56,7 +49,7 @@ def create_settings_endpoints(
 
 
     @router.patch(
-        f"/{{{resource_name}}}/settings",
+        path,
         response_model=settings_model,
         name=f"update_{resource_name}_settings",
     )

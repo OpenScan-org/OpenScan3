@@ -9,12 +9,21 @@ import pytest_asyncio
 from openscan.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
 from openscan.models.task import TaskStatus, Task, TaskProgress
 
-# Mark all tests in this module as asyncio tests
-pytestmark = pytest.mark.asyncio
+
+@pytest.fixture
+def tasks_storage_dir(task_manager_storage_path):
+    """Synchronize module-level TASKS_STORAGE_PATH with the isolated test directory."""
+
+    global TASKS_STORAGE_PATH
+    TASKS_STORAGE_PATH = task_manager_storage_path
+    return task_manager_storage_path
+
+# Mark all tests in this module as asyncio tests and ensure storage dir fixture runs
+pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("tasks_storage_dir")]
 
 
 @pytest_asyncio.fixture
-async def task_manager_fixture():
+async def task_manager_fixture(tasks_storage_dir):
     """
     Provides a clean, isolated TaskManager instance for each test.
 
