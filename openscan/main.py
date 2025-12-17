@@ -26,6 +26,11 @@ from openscan.routers import (
     websocket,
     focus_stacking,
 )
+from openscan.routers.v0_5 import (
+    cameras as cameras_v0_5,
+    motors as motors_v0_5,
+    lights as lights_v0_5,
+)
 # next routers
 from openscan.routers.next import (
     cameras as cameras_next,
@@ -149,6 +154,21 @@ BASE_ROUTERS = [
     websocket.router,
 ]
 
+v0_5_ROUTERS = [
+    cameras_v0_5.router,
+    motors_v0_5.router,
+    lights_v0_5.router,
+    projects.router,
+    gpio.router,
+    openscan.router,
+    device.router,
+    tasks.router,
+    develop.router,
+    cloud.router,
+    focus_stacking.router,
+    websocket.router,
+]
+
 next_ROUTERS = [
     cameras_next.router,
     motors_next.router,
@@ -168,9 +188,8 @@ next_ROUTERS = [
 # Router mapping per API version. Extend per version to diverge.
 # Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.3": BASE_ROUTERS,
     "0.4": BASE_ROUTERS,
-    "0.5": BASE_ROUTERS + [focus_stacking.router],
+    "0.5": v0_5_ROUTERS,
     "next": next_ROUTERS,
 }
 
@@ -228,7 +247,6 @@ def _use_route_names_as_operation_ids(app: FastAPI) -> None:
 
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
-    "0.3",
     "0.4",
     "0.5",
 ]
