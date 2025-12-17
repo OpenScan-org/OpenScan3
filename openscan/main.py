@@ -168,7 +168,6 @@ next_ROUTERS = [
 # Router mapping per API version. Extend per version to diverge.
 # Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.3": BASE_ROUTERS,
     "0.4": BASE_ROUTERS,
     "0.5": BASE_ROUTERS + [focus_stacking.router],
     "next": next_ROUTERS,
@@ -228,7 +227,6 @@ def _use_route_names_as_operation_ids(app: FastAPI) -> None:
 
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
-    "0.3",
     "0.4",
     "0.5",
 ]

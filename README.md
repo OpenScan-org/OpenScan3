@@ -52,6 +52,7 @@ Refer to the [user guide](https://github.com/esto-openscan/OpenScan3-pi-gen/blob
 For a detailed architectural overview and task system design, see:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/TASKS.md`](docs/TASKS.md)
+- [`docs/WEBSOCKETS.md`](docs/WEBSOCKETS.md)
 
 ### Setup
 
@@ -145,17 +146,14 @@ After loading the correct configuration, your OpenScan hardware should be ready 
 <!-- ROADMAP -->
 ## Roadmap
 
-### Alpha (November 2025)
-- Node-RED UI baseline for device control
-- Updater and CI/CD image builds
-
 ### Beta (January 2026)
-- WebSockets for tasks, device state, and scan progress
-- OS/device services: Samba, USB, disk monitoring, stats; camera-assisted Wi‑Fi/setup
-- Reliability: improved handling for Arducam Hawkeye 64MP memory issues
+- [x] WebSockets for tasks, device state, and scan progress
+- [ ] OS/device services: Samba, USB, disk monitoring, stats; camera-assisted Wi‑Fi/setup
+- [ ] Reliability: improved handling for Arducam Hawkeye 64MP memory issues
+- [ ] Frontend improvements ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client))
+
 
 ### Release (May 2026)
-- Frontend polish (Node-RED) and evaluate a second UI
 - Turntable Mode as a ScanTask
 - Enhanced hardware support
   - grblHAL
