@@ -201,7 +201,7 @@ Distributed under the GPL-3.0 license. See [LICENSE](https://github.com/OpenScan
 <!-- CONTACT -->
 ## Contact
 
-Join the OpenScan [Discord Server](https://discord.com/invite/gpaKWPpWtG) to get in touch with the OpenScan community!
+Join the OpenScan [Discord Server](https://discord.gg/eBdqtdkXyF) to get in touch with the OpenScan community!
 
 Or write an email to <a href="mailto:info@openscan.eu">info@openscan.eu</a>
 
