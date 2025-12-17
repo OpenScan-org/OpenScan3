@@ -86,7 +86,7 @@
           "cameras"
         ],
         "summary": "Get Preview",
-        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is rotated by orientation_flag and has not to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
         "operationId": "get_preview",
         "parameters": [
           {
@@ -212,7 +212,7 @@
         }
       }
     },
-    "/cameras/{camera_name}/settings": {
+    "/cameras/{name}/settings": {
       "get": {
         "tags": [
           "cameras"
@@ -223,7 +223,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -262,27 +262,29 @@
           "cameras"
         ],
         "summary": "Replace Camera Name Settings",
-        "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
+        "description": "Replace all settings for a specific resource",
         "operationId": "replace_camera_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Name"
             }
-          },
-          {
-            "name": "settings",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/BaseModel"
-            }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CameraSettings"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -319,7 +321,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -601,7 +603,7 @@
         }
       }
     },
-    "/motors/{motor_name}/settings": {
+    "/motors/{name}/settings": {
       "get": {
         "tags": [
           "motors"
@@ -612,7 +614,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -651,27 +653,29 @@
           "motors"
         ],
         "summary": "Replace Motor Name Settings",
-        "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
+        "description": "Replace all settings for a specific resource",
         "operationId": "replace_motor_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Name"
             }
-          },
-          {
-            "name": "settings",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/BaseModel"
-            }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MotorConfig"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -708,7 +712,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -973,7 +977,7 @@
         }
       }
     },
-    "/lights/{light_name}/settings": {
+    "/lights/{name}/settings": {
       "get": {
         "tags": [
           "lights"
@@ -984,7 +988,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -1023,27 +1027,29 @@
           "lights"
         ],
         "summary": "Replace Light Name Settings",
-        "description": "Replace all settings for a specific resource\n\nArgs:\n    name: The name of the resource to replace settings for\n    settings: The new settings for the resource\n\nReturns:\n    The updated settings for the resource",
+        "description": "Replace all settings for a specific resource",
         "operationId": "replace_light_name_settings",
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Name"
             }
-          },
-          {
-            "name": "settings",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/BaseModel"
-            }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LightConfig"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1080,7 +1086,7 @@
         "parameters": [
           {
             "name": "name",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -3572,11 +3578,6 @@
   },
   "components": {
     "schemas": {
-      "BaseModel": {
-        "properties": {},
-        "type": "object",
-        "title": "BaseModel"
-      },
       "Body_add_config_json_device_configurations__post": {
         "properties": {
           "config_data": {
