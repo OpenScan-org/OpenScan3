@@ -25,8 +25,8 @@ class CameraSettings(BaseModel):
     manual_focus: Optional[float] = Field(12.0, ge=0.0, le=15.0, description="Manual focus position in diopters. "
                                                                              "This is only applied if autofocus is disabled.")
 
-    crop_width: Optional[int] = Field(0, ge=0, le=100, description="Cropping width in percent.")
-    crop_height: Optional[int] = Field(0, ge=0, le=100, description="Cropping on height in percent.")
+    crop_width: Optional[int] = Field(10, ge=0, le=100, description="Cropping width in percent.")
+    crop_height: Optional[int] = Field(10, ge=0, le=100, description="Cropping on height in percent.")
 
     orientation_flag: Optional[int] = Field(8, ge=1, le=9, description="Orientation in exif flag format."
                                                                        "For imx519 use 8."
