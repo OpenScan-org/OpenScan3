@@ -451,12 +451,14 @@ def get_available_configs():
 def reboot(with_saving = False):
     if with_saving:
         save_device_config()
+    cleanup_and_exit()
     os.system("sudo reboot")
 
 
 def shutdown(with_saving = False):
     if with_saving:
         save_device_config()
+    cleanup_and_exit()
     os.system("sudo shutdown now")
 
 
