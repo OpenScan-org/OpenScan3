@@ -8,7 +8,8 @@ Currently supporting only picamera2.
 
 import abc
 import logging
-from typing import IO
+from importlib import import_module
+from typing import IO, Dict
 
 
 from openscan.models.camera import Camera, CameraType, PhotoData
@@ -21,6 +22,44 @@ from openscan.controllers.services.device_events import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+_CAMERA_TYPE_MODULES = {
+    CameraType.GPHOTO2: "gphoto2",
+    CameraType.LINUXPY: "linuxpy.video.device",
+    CameraType.PICAMERA2: "picamera2",
+}
+_camera_type_availability: Dict[CameraType, bool] = {}
+
+
+def _is_module_available(module_path: str) -> bool:
+    """Return True if the given module path can be imported."""
+    try:
+        import_module(module_path)
+    except ModuleNotFoundError as exc:
+        logger.info("Optional dependency '%s' not available: %s", module_path, exc)
+        return False
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.error("Unexpected error while checking module '%s': %s", module_path, exc, exc_info=True)
+        return False
+    return True
+
+
+def get_available_camera_types(force_refresh: bool = False) -> Dict[CameraType, bool]:
+    """Return availability map for all known camera controller types."""
+    if force_refresh or not _camera_type_availability:
+        _camera_type_availability.clear()
+        for camera_type, module_path in _CAMERA_TYPE_MODULES.items():
+            _camera_type_availability[camera_type] = _is_module_available(module_path)
+        # Camera types without explicit module dependencies default to True
+        for camera_type in CameraType:
+            _camera_type_availability.setdefault(camera_type, True)
+    return _camera_type_availability.copy()
+
+
+def is_camera_type_available(camera_type: CameraType) -> bool:
+    """Convenience helper returning availability status for a single camera type."""
+    return get_available_camera_types().get(camera_type, False)
 
 class CameraController(StatefulHardware):
     """
@@ -120,14 +159,20 @@ def _create_camera_controller_instance(camera: Camera) -> 'CameraController':
     Currently, supports only picamera2 properly.
     """
     if camera.type == CameraType.GPHOTO2:
+        if not is_camera_type_available(CameraType.GPHOTO2):
+            raise RuntimeError("GPhoto2 controller requested but the module is not available on this system.")
         from .gphoto2 import Gphoto2Camera
         logger.debug("Creating Gphoto2 camera controller")
         return Gphoto2Camera(camera)
     elif camera.type == CameraType.PICAMERA2:
+        if not is_camera_type_available(CameraType.PICAMERA2):
+            raise RuntimeError("Picamera2 controller requested but the module is not available on this system.")
         logger.debug("Creating Picamera2 camera controller")
         from .picamera2 import Picamera2Controller
         return Picamera2Controller(camera)
     elif camera.type == CameraType.LINUXPY:
+        if not is_camera_type_available(CameraType.LINUXPY):
+            raise RuntimeError("LinuxPy controller requested but the module is not available on this system.")
         logger.debug("Creating LinuxPy camera controller")
         from .linuxpy import LINUXPYCamera
         return LINUXPYCamera(camera)

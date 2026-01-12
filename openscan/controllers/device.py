@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 
 from linuxpy.video.device import iter_video_capture_devices
 import gphoto2 as gp
-from picamera2 import Picamera2
 
 from openscan.models.camera import Camera, CameraType
 from openscan.models.motor import Motor, Endstop
@@ -37,8 +36,13 @@ from openscan.controllers.services.cloud_settings import (
     set_active_source,
 )
 
-from openscan.controllers.hardware.cameras.camera import create_camera_controller, get_all_camera_controllers, \
-    remove_camera_controller
+from openscan.controllers.hardware.cameras.camera import (
+    create_camera_controller,
+    get_all_camera_controllers,
+    get_available_camera_types,
+    is_camera_type_available,
+    remove_camera_controller,
+)
 from openscan.controllers.hardware.motors import create_motor_controller, get_all_motor_controllers, get_motor_controller, \
     remove_motor_controller
 from openscan.controllers.hardware.lights import create_light_controller, get_all_light_controllers, remove_light_controller, \
@@ -256,23 +260,29 @@ def _detect_cameras() -> Dict[str, Camera]:
         logger.error(f"Error loading GPhoto2 cameras: {e}")
 
     # Get Picamera2
-    try:
-        picam = Picamera2()
-        picam_name = picam.camera_properties.get("Model")
-        cameras[picam_name] = Camera(
-            type=CameraType.PICAMERA2,
-            name=picam_name,
-            path="/dev/video0" + str(picam.camera_properties.get("Location")),
-            settings=CameraSettings()
-        )
-        picam.close()
-        del picam
+    if is_camera_type_available(CameraType.PICAMERA2):
+        try:
+            from picamera2 import Picamera2
 
-    except IndexError as e:
-        logger.critical(f"Error loading Picamera2, most likely because of incorrect dtoverlay in /boot/firmware/config.txt.",
-                     exc_info=True)
-    except Exception as e:
-        logger.error(f"Error loading Picamera2: {e}", exc_info=True)
+            picam = Picamera2()
+            picam_name = picam.camera_properties.get("Model")
+            cameras[picam_name] = Camera(
+                type=CameraType.PICAMERA2,
+                name=picam_name,
+                path="/dev/video0" + str(picam.camera_properties.get("Location")),
+                settings=CameraSettings()
+            )
+            picam.close()
+            del picam
+        except IndexError as e:
+            logger.critical(
+                "Error loading Picamera2, most likely because of incorrect dtoverlay in /boot/firmware/config.txt.",
+                exc_info=True,
+            )
+        except Exception as e:
+            logger.error(f"Error loading Picamera2: {e}", exc_info=True)
+    else:
+        logger.info("Skipping Picamera2 detection: module not available on this system.")
     return cameras
 
 
@@ -354,8 +364,16 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
             )
 
     # Initialize controllers
+    availability = get_available_camera_types()
     for name, camera in camera_objects.items():
         try:
+            if not availability.get(camera.type, False):
+                logger.warning(
+                    "Skipping controller init for %s (%s): dependency not available.",
+                    name,
+                    camera.type,
+                )
+                continue
             create_camera_controller(camera)
         except Exception as e:
             logger.error(f"Error initializing camera controller for {name}: {e}")
