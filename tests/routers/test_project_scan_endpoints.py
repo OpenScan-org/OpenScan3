@@ -192,6 +192,34 @@ def test_cancel_endpoint_persists_status(
     task_manager_mock.cancel_task.assert_awaited_once_with(scan.task_id)
 
 
+def test_cancel_paused_scan_endpoint_persists_status(
+    api_client: TestClient,
+    api_project_manager: ProjectManager,
+    sample_scan_settings: ScanSetting,
+) -> None:
+    project, scan, _ = _prepare_scan(api_project_manager, sample_scan_settings)
+    scan.task_id = "task-paused-cancel"
+    # Set initial state to PAUSED in persistence
+    scan.status = TaskStatus.PAUSED
+    asyncio.run(api_project_manager.save_scan_state(scan))
+
+    cancelled_task = Task(name="scan_task", task_type="core", status=TaskStatus.CANCELLED)
+    task_manager_mock = MagicMock()
+    task_manager_mock.cancel_task = AsyncMock(return_value=cancelled_task)
+
+    with patch("openscan.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
+         patch("openscan.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
+         patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+        response = api_client.patch(f"/latest/projects/{project.name}/scans/{scan.index}/cancel")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == TaskStatus.CANCELLED.value
+
+    stored_scan = api_project_manager.get_scan_by_index(project.name, scan.index)
+    assert stored_scan.status == TaskStatus.CANCELLED
+    task_manager_mock.cancel_task.assert_awaited_once_with(scan.task_id)
+
+
 def test_cancel_endpoint_missing_task_returns_conflict(
     api_client: TestClient,
     api_project_manager: ProjectManager,

@@ -82,6 +82,8 @@ class BaseTask(ABC):
         terminate.
         """
         self._stop_event.set()
+        # Ensure paused tasks resume so they can observe the cancellation signal.
+        self._pause_event.set()
 
     def is_cancelled(self) -> bool:
         """

@@ -327,6 +327,56 @@ class TestScanTask:
         # --- Assertions ---
         assert final_task_model.status == TaskStatus.COMPLETED
 
+    @pytest.mark.asyncio
+    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan.controllers.hardware.motors', create=True)
+    async def test_scan_task_cancel_while_paused(
+        self,
+        mock_motors: MagicMock,
+        mock_generate_scan_path: MagicMock,
+        mock_get_project_manager: MagicMock,
+        mock_get_camera_controller: MagicMock,
+        task_manager_fixture: TaskManager,
+        mock_camera_controller: MagicMock,
+        sample_scan_model: Scan,
+        mock_project_manager: MagicMock,
+        fake_photo_data: PhotoData,
+    ):
+        """Tests that cancelling during a pause transitions the task to CANCELLED."""
+        mock_get_camera_controller.return_value = mock_camera_controller
+        mock_get_project_manager.return_value = mock_project_manager
+        mock_generate_scan_path.return_value = {PolarPoint3D(theta=i, fi=i): i for i in range(5)}
+
+        async def slow_move_pause(*args, **kwargs):
+            await asyncio.sleep(0.1)
+
+        async def slow_add_photo_pause(*args, **kwargs):
+            await asyncio.sleep(0.01)
+
+        mock_motors.move_to_point.side_effect = slow_move_pause
+        mock_camera_controller.photo.return_value = fake_photo_data
+        mock_project_manager.add_photo_async.side_effect = slow_add_photo_pause
+
+        tm = task_manager_fixture
+
+        task_model = await tm.create_and_run_task(
+            "scan_task",
+            sample_scan_model,
+            0  # start_from_step
+        )
+
+        await asyncio.sleep(0.05)
+        paused_task = await tm.pause_task(task_model.id)
+        assert paused_task.status == TaskStatus.PAUSED
+
+        cancelled_task = await tm.cancel_task(task_model.id)
+        assert cancelled_task.status == TaskStatus.CANCELLED
+
+        final_task_model = await tm.wait_for_task(task_model.id)
+        assert final_task_model.status == TaskStatus.CANCELLED
+
     def test_scan_task_arguments_are_serializable(self, sample_scan_model: Scan):
         """Test that ScanTask arguments can be JSON serialized for persistence."""
         start_from_step = 5

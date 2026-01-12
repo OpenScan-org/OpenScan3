@@ -277,6 +277,19 @@ class ScanTask(BaseTask):
 
             # Wait here if the task is paused
             await self.wait_for_pause()
+            if self.is_cancelled():
+                logger.info(
+                    "Scan %s for project %s was cancelled while paused.",
+                    self._ctx.scan.index,
+                    self._ctx.scan.project_name,
+                )
+                self._ctx.scan.status = TaskStatus.CANCELLED
+                yield TaskProgress(
+                    current=current_step + start_from_step + 1,
+                    total=total,
+                    message="Scan cancelled by request.",
+                )
+                break
 
             # Move to current position
             await motors.move_to_point(current_point)
