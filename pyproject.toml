@@ -56,8 +56,7 @@ Homepage = "https://github.com/OpenScan-org/OpenScan3"
 Issues = "https://github.com/OpenScan-org/OpenScan3/issues"
 
 [project.scripts]
-openscan = "openscan_firmware.cli:main"
-openscan3 = "openscan_firmware.cli:main"
+openscan-firmware = "openscan_firmware.cli:main"
 
 [tool.setuptools]
 include-package-data = true
