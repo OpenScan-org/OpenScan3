@@ -9,18 +9,18 @@ import pytest_asyncio
 from unittest.mock import MagicMock, AsyncMock, patch, call
 from datetime import datetime
 
-from openscan.config.scan import ScanSetting
+from openscan_firmware.config.scan import ScanSetting
 
-from openscan.models.task import Task, TaskStatus, TaskProgress
-from openscan.models.scan import Scan
-from openscan.models.paths import CartesianPoint3D, PolarPoint3D
-from openscan.controllers.services.tasks.task_manager import TaskManager
-from openscan.controllers.services.projects import ProjectManager
-from openscan.controllers.hardware.motors import MotorController
-from openscan.models.motor import Motor
-from openscan.config.motor import MotorConfig
-from openscan.models.camera import PhotoData
-from openscan.models.camera import CameraMetadata
+from openscan_firmware.models.task import Task, TaskStatus, TaskProgress
+from openscan_firmware.models.scan import Scan
+from openscan_firmware.models.paths import CartesianPoint3D, PolarPoint3D
+from openscan_firmware.controllers.services.tasks.task_manager import TaskManager
+from openscan_firmware.controllers.services.projects import ProjectManager
+from openscan_firmware.controllers.hardware.motors import MotorController
+from openscan_firmware.models.motor import Motor
+from openscan_firmware.config.motor import MotorConfig
+from openscan_firmware.models.camera import PhotoData
+from openscan_firmware.models.camera import CameraMetadata
 
 
 @pytest_asyncio.fixture
@@ -37,7 +37,7 @@ async def task_manager_fixture() -> TaskManager:
 
     # Autodiscover tasks from packages
     tm.autodiscover_tasks(
-        namespaces=["openscan.controllers.services.tasks"],
+        namespaces=["openscan_firmware.controllers.services.tasks"],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager", "example_tasks"},
         safe_mode=True,
@@ -87,10 +87,10 @@ class TestScanTask:
     """Test suite for the ScanTask execution and lifecycle management."""
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_task_successful_run(
         self,
         mock_motors: MagicMock,
@@ -163,10 +163,10 @@ class TestScanTask:
         mock_get_project_manager.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_task_error_handling(
         self,
         mock_motors: MagicMock,
@@ -209,10 +209,10 @@ class TestScanTask:
         assert "Camera error" in final_task_model.error
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_task_cancellation(
         self,
         mock_motors: MagicMock,
@@ -268,10 +268,10 @@ class TestScanTask:
         assert final_task_model.status == TaskStatus.CANCELLED
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_task_pause_and_resume(
         self,
         mock_motors: MagicMock,
@@ -328,10 +328,10 @@ class TestScanTask:
         assert final_task_model.status == TaskStatus.COMPLETED
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_task_cancel_while_paused(
         self,
         mock_motors: MagicMock,
@@ -411,10 +411,10 @@ class TestScanTaskIntegration:
     """Integration tests for ScanTask persistence behavior with real ProjectManager."""
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_json_persistence_integration(
             self,
             mock_motors: MagicMock,
@@ -485,10 +485,10 @@ class TestScanTaskIntegration:
             assert mock_add_photo.call_count == test_points
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_json_persistence_on_error(
             self,
             mock_motors: MagicMock,
@@ -543,10 +543,10 @@ class TestScanTaskIntegration:
             assert "capture failed" in saved_scan.system_message
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_json_persistence_with_pause_and_photo_count(
             self,
             mock_motors: MagicMock,
@@ -625,10 +625,10 @@ class TestScanTaskIntegration:
             assert mock_save.call_count >= test_points
 
     @pytest.mark.asyncio
-    @patch('openscan.controllers.hardware.cameras.camera.get_camera_controller')
-    @patch('openscan.controllers.services.tasks.core.scan_task.get_project_manager')
-    @patch('openscan.controllers.services.tasks.core.scan_task.generate_scan_path')
-    @patch('openscan.controllers.hardware.motors', create=True)
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_json_persistence_with_focus_stacking(
             self,
             mock_motors: MagicMock,

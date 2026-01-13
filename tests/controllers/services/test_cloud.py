@@ -2,14 +2,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from openscan.controllers.services.cloud import (
+from openscan_firmware.controllers.services.cloud import (
     CloudServiceError,
     download_project,
     upload_project,
 )
-from openscan.controllers.services.projects import ProjectManager
-from openscan.models.project import Project
-from openscan.models.task import Task, TaskStatus
+from openscan_firmware.controllers.services.projects import ProjectManager
+from openscan_firmware.models.project import Project
+from openscan_firmware.models.task import Task, TaskStatus
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def task_manager(monkeypatch):
     manager = StubTaskManager()
 
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_task_manager",
+        "openscan_firmware.controllers.services.cloud.get_task_manager",
         lambda: manager,
     )
 
@@ -62,7 +62,7 @@ def task_manager(monkeypatch):
 @pytest.fixture(autouse=True)
 def mock_cloud_settings(monkeypatch):
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud._require_cloud_settings",
+        "openscan_firmware.controllers.services.cloud._require_cloud_settings",
         lambda: SimpleNamespace(),
     )
 
@@ -74,7 +74,7 @@ async def test_upload_project_rejects_uploaded_project(monkeypatch, project_mana
     project.cloud_project_name = "demo-remote.zip"
 
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_project_manager",
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
         lambda: project_manager,
     )
 
@@ -93,7 +93,7 @@ async def test_upload_project_rejects_running_task(monkeypatch, project_manager,
     task_manager.add_task(task)
 
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_project_manager",
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
         lambda: project_manager,
     )
 
@@ -112,11 +112,11 @@ async def test_upload_project_starts_when_not_blocked(monkeypatch, project_manag
         return created_task
 
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_project_manager",
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
         lambda: project_manager,
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_task_manager",
+        "openscan_firmware.controllers.services.cloud.get_task_manager",
         lambda: task_manager,
     )
     monkeypatch.setattr(task_manager, "create_and_run_task", fake_create_and_run)
@@ -131,7 +131,7 @@ async def test_download_project_requires_remote(monkeypatch, project_manager, ta
     project.cloud_project_name = None
 
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_project_manager",
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
         lambda: project_manager,
     )
 
@@ -153,7 +153,7 @@ async def test_download_project_rejects_running_task(monkeypatch, project_manage
     task_manager.add_task(task)
 
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_project_manager",
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
         lambda: project_manager,
     )
 
@@ -174,11 +174,11 @@ async def test_download_project_starts(monkeypatch, project_manager, task_manage
         return created_task
 
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_project_manager",
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
         lambda: project_manager,
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.cloud.get_task_manager",
+        "openscan_firmware.controllers.services.cloud.get_task_manager",
         lambda: task_manager,
     )
     monkeypatch.setattr(task_manager, "create_and_run_task", fake_create_and_run)

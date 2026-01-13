@@ -3,16 +3,16 @@ import asyncio  # Still needed for async functions
 from unittest.mock import AsyncMock, MagicMock  # Keep for specific mock types
 
 # Adjust paths if necessary for your project structure
-from openscan.controllers.hardware.motors import MotorController
-from openscan.models.motor import Motor
-from openscan.config.motor import MotorConfig
+from openscan_firmware.controllers.hardware.motors import MotorController
+from openscan_firmware.models.motor import Motor
+from openscan_firmware.config.motor import MotorConfig
 
 # The module paths for patching are relative to where they are *used*
-# (i.e., in 'openscan.controllers.hardware.motors')
-GPIO_PATCH_PATH = 'openscan.controllers.hardware.motors.gpio'
-TIME_PATCH_PATH = 'openscan.controllers.hardware.motors.time'
-ASYNCIO_PATCH_PATH = 'openscan.controllers.hardware.motors.asyncio'
-MATH_PATCH_PATH = 'openscan.controllers.hardware.motors.math'  # math.cos is used in _execute_movement
+# (i.e., in 'openscan_firmware.controllers.hardware.motors')
+GPIO_PATCH_PATH = 'openscan_firmware.controllers.hardware.motors.gpio'
+TIME_PATCH_PATH = 'openscan_firmware.controllers.hardware.motors.time'
+ASYNCIO_PATCH_PATH = 'openscan_firmware.controllers.hardware.motors.asyncio'
+MATH_PATCH_PATH = 'openscan_firmware.controllers.hardware.motors.math'  # math.cos is used in _execute_movement
 
 # --- Test Data ---
 MOVE_DEGREES_CASES = [
@@ -57,7 +57,7 @@ def motor_event_loop():
 def mocked_dependencies(monkeypatch, motor_event_loop):
     """Mocks GPIO, time.sleep, math.cos, and event_loop.run_in_executor."""
 
-    import openscan.controllers.hardware.motors as motors_module
+    import openscan_firmware.controllers.hardware.motors as motors_module
 
     mock_gpio = MagicMock()
     monkeypatch.setattr(motors_module, 'gpio', mock_gpio)

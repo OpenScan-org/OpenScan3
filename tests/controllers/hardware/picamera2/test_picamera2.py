@@ -2,12 +2,12 @@ import time
 
 import pytest
 
-from openscan.controllers.hardware.cameras.camera import (
+from openscan_firmware.controllers.hardware.cameras.camera import (
     create_camera_controller,
     is_camera_type_available,
 )
-from openscan.config.camera import CameraSettings
-from openscan.models.camera import Camera, CameraType
+from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.models.camera import Camera, CameraType
 
 
 if not is_camera_type_available(CameraType.PICAMERA2):

@@ -25,7 +25,7 @@ Legacy modules at `app/controllers/services/tasks/scan_task.py`, `.../crop_task.
 Autodiscovery is configured in `settings/openscan_firmware.json`:
 
 - `task_autodiscovery_enabled` (bool): Enable/disable autodiscovery at startup.
-- `task_autodiscovery_namespaces` (list[str]): Python package roots to scan, e.g. `openscan.controllers.services.tasks`, `openscan.tasks.community`.
+- `task_autodiscovery_namespaces` (list[str]): Python package roots to scan, e.g. `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`.
 - `task_autodiscovery_include_subpackages` (bool): Recursively scan subpackages.
 - `task_autodiscovery_ignore_modules` (list[str]): Basenames of modules to skip, e.g. `base_task`, `task_manager`.
 - `task_autodiscovery_safe_mode` (bool): Import errors are logged and ignored instead of aborting startup.
@@ -40,8 +40,8 @@ A module can opt out of autodiscovery by declaring `__openscan_autodiscover__ = 
 A minimal task class looks like this:
 
 ```python
-from openscan.controllers.services.tasks.base_task import BaseTask
-from openscan.models.task import TaskProgress
+from openscan_firmware.controllers.services.tasks.base_task import BaseTask
+from openscan_firmware.models.task import TaskProgress
 
 class MyCustomTask(BaseTask):
     task_name = "my_custom_task"       # must be snake_case and end with _task

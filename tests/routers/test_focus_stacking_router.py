@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from openscan.main import app
-from openscan.models.task import Task, TaskStatus
+from openscan_firmware.main import app
+from openscan_firmware.models.task import Task, TaskStatus
 
 
 @pytest.fixture(name="client")
@@ -29,7 +29,7 @@ def test_focus_stacking_endpoints_available_only_in_v0_5(monkeypatch, client: Te
         return _make_task()
 
     monkeypatch.setattr(
-        "openscan.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
+        "openscan_firmware.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
         _stub,
     )
 
@@ -56,7 +56,7 @@ def test_focus_stacking_conflict(monkeypatch, client: TestClient, endpoint: tupl
         return None
 
     monkeypatch.setattr(
-        "openscan.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
+        "openscan_firmware.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
         _stub,
     )
 
@@ -78,7 +78,7 @@ def test_focus_stacking_not_found(monkeypatch, client: TestClient, endpoint: tup
         raise ValueError("Scan not found")
 
     monkeypatch.setattr(
-        "openscan.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
+        "openscan_firmware.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
         _stub,
     )
 

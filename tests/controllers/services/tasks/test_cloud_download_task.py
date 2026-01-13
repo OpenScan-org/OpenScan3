@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from openscan.controllers.services.cloud import CloudServiceError
-from openscan.controllers.services.tasks.core.cloud_task import CloudDownloadTask
-from openscan.models.task import Task
+from openscan_firmware.controllers.services.cloud import CloudServiceError
+from openscan_firmware.controllers.services.tasks.core.cloud_task import CloudDownloadTask
+from openscan_firmware.models.task import Task
 
 
 @pytest.fixture(autouse=True)
@@ -14,7 +14,7 @@ def _mock_retry_delay(monkeypatch):
     """Speed up retry loops during tests."""
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task._DOWNLOAD_RETRY_DELAY_SECONDS",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._DOWNLOAD_RETRY_DELAY_SECONDS",
         0,
     )
 
@@ -23,11 +23,11 @@ def _prepare_environment(monkeypatch, project_manager, *, remote_name="demo-remo
     project = project_manager.add_project("demo")
     project.cloud_project_name = remote_name
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task._require_cloud_settings",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._require_cloud_settings",
         lambda: SimpleNamespace(),
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task.get_project_manager",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_manager",
         lambda: project_manager,
     )
     return project
@@ -60,11 +60,11 @@ async def test_cloud_download_task_success(monkeypatch, project_manager, tmp_pat
         return project
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task.get_project_info",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_info",
         fake_get_project_info,
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive",
         fake_download,
     )
     monkeypatch.setattr(project_manager, "add_download", fake_add_download, raising=False)
@@ -90,11 +90,11 @@ async def test_cloud_download_task_missing_project(monkeypatch, project_manager)
     project_manager.add_project("demo")
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task._require_cloud_settings",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._require_cloud_settings",
         lambda: SimpleNamespace(),
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task.get_project_manager",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_manager",
         lambda: project_manager,
     )
 
@@ -117,7 +117,7 @@ async def test_cloud_download_task_no_download_link(monkeypatch, project_manager
         return {}
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task.get_project_info",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_info",
         fake_get_project_info,
     )
 
@@ -148,11 +148,11 @@ async def test_cloud_download_task_cancel(monkeypatch, project_manager, tmp_path
         return archive_path, archive_path.stat().st_size, archive_path.stat().st_size
 
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task.get_project_info",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_info",
         fake_get_project_info,
     )
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive",
         slow_download,
     )
 

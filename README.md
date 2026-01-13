@@ -20,7 +20,7 @@ There are two ways to get started on a Raspberry Pi: flash a ready-made image or
 
 ## Install OpenScan Image (Recommended)
 
-Download the image from here: https://openscan.eu/pages/resources-downloads
+Download the image from here: https://openscan_firmware.eu/pages/resources-downloads
 
 Choose the image according to your camera variant:
 
@@ -111,7 +111,7 @@ Distributed under the GPL-3.0 license. See [LICENSE](https://github.com/OpenScan
 
 Join the OpenScan [Discord Server](https://discord.gg/eBdqtdkXyF) to get in touch with the OpenScan community!
 
-Or write an email to <a href="mailto:info@openscan.eu">info@openscan.eu</a>
+Or write an email to <a href="mailto:info@openscan_firmware.eu">info@openscan_firmware.eu</a>
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

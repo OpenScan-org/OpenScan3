@@ -5,13 +5,13 @@ from __future__ import annotations
 import anyio
 from fastapi.testclient import TestClient
 
-from openscan.controllers.services.tasks.task_events import (
+from openscan_firmware.controllers.services.tasks.task_events import (
     TaskEventType,
     task_event_publisher,
 )
-from openscan.controllers.services.device_events import device_event_publisher
-from openscan.main import app
-from openscan.models.task import Task
+from openscan_firmware.controllers.services.device_events import device_event_publisher
+from openscan_firmware.main import app
+from openscan_firmware.models.task import Task
 
 
 def test_task_updates_are_broadcast_to_subscribers() -> None:

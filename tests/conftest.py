@@ -9,18 +9,18 @@ from datetime import datetime
 from pathlib import Path
 import io
 
-from openscan.controllers.services.projects import ProjectManager, save_project
-from openscan.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
-from openscan.models.task import TaskStatus
-from openscan.config.camera import CameraSettings
-from openscan.config.scan import ScanSetting
-from openscan.models.paths import PathMethod
-from openscan.models.scan import Scan
-from openscan.models.camera import CameraMetadata, PhotoData
-from openscan.models.motor import Motor
-from openscan.config.motor import MotorConfig
-from openscan.models.light import Light
-from openscan.config.light import LightConfig
+from openscan_firmware.controllers.services.projects import ProjectManager, save_project
+from openscan_firmware.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
+from openscan_firmware.models.task import TaskStatus
+from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.config.scan import ScanSetting
+from openscan_firmware.models.paths import PathMethod
+from openscan_firmware.models.scan import Scan
+from openscan_firmware.models.camera import CameraMetadata, PhotoData
+from openscan_firmware.models.motor import Motor
+from openscan_firmware.config.motor import MotorConfig
+from openscan_firmware.models.light import Light
+from openscan_firmware.config.light import LightConfig
 @pytest.fixture
 def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
     """Fixture to create a temporary, isolated projects directory for testing."""
@@ -203,7 +203,7 @@ async def focus_task_manager():
     TaskManager._instance = None
     task_manager = TaskManager()
     task_manager.autodiscover_tasks(
-        namespaces=["openscan.controllers.services.tasks"],
+        namespaces=["openscan_firmware.controllers.services.tasks"],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager", "example_tasks"},
         safe_mode=True,
@@ -240,7 +240,7 @@ def cleanup_task_manager_storage(
 
     task_manager_storage_path.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        "openscan.controllers.services.tasks.task_manager.TASKS_STORAGE_PATH",
+        "openscan_firmware.controllers.services.tasks.task_manager.TASKS_STORAGE_PATH",
         task_manager_storage_path,
         raising=False,
     )

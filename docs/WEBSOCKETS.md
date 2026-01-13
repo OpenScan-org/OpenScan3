@@ -106,14 +106,14 @@ Key points:
 `TaskManager` emits `task.update` messages whenever events occur. Internally it calls `TaskEventPublisher.publish`, which forwards the `Task` Pydantic model into the `tasks` namespace (@openscan/controllers/services/tasks/task_events.py#23-35).
 
 ### Device
-Hardware controllers trigger `DeviceEventPublisher.publish_status` via helpers in `openscan.controllers.services.device_events`. The publisher resolves the latest device snapshot and places it on the `device` namespace. Two integration points are used consistently:
+Hardware controllers trigger `DeviceEventPublisher.publish_status` via helpers in `openscan_firmware.controllers.services.device_events`. The publisher resolves the latest device snapshot and places it on the `device` namespace. Two integration points are used consistently:
   1. `schedule_device_status_broadcast(changed=...)` – queued after settings changes so subscribers receive structured updates.
   2. `notify_busy_change(component, name)` – invoked inside `_set_busy` helpers so toggling hardware activity immediately propagates to clients.
 
 Example (motor controller):
 
 ```python
-from openscan.controllers.services.device_events import (
+from openscan_firmware.controllers.services.device_events import (
     notify_busy_change,
     schedule_device_status_broadcast,
 )

@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from openscan.controllers.services.projects import ProjectManager, get_project_manager
-from openscan.main import app
-from openscan.models.task import Task, TaskStatus
-from openscan.config.scan import ScanSetting
-from openscan.config.camera import CameraSettings
+from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
+from openscan_firmware.main import app
+from openscan_firmware.models.task import Task, TaskStatus
+from openscan_firmware.config.scan import ScanSetting
+from openscan_firmware.config.camera import CameraSettings
 
 
 @pytest.fixture(scope="function")
@@ -43,7 +43,7 @@ def _prepare_scan(
     camera_controller.settings = MagicMock()
     camera_controller.settings.model = CameraSettings()
 
-    with patch("openscan.controllers.services.projects.asyncio.get_running_loop", return_value=MagicMock()):
+    with patch("openscan_firmware.controllers.services.projects.asyncio.get_running_loop", return_value=MagicMock()):
         scan = project_manager.add_scan(
             project_name=project.name,
             camera_controller=camera_controller,
@@ -66,9 +66,9 @@ def test_pause_endpoint_persists_status(
     task_manager_mock = MagicMock()
     task_manager_mock.pause_task = AsyncMock(return_value=paused_task)
 
-    with patch("openscan.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
-         patch("openscan.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
-         patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+    with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
+         patch("openscan_firmware.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
+         patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager):
         response = api_client.patch(f"/latest/projects/{project.name}/scans/{scan.index}/pause")
 
     assert response.status_code == 200
@@ -89,7 +89,7 @@ def test_pause_endpoint_without_task(
     scan.task_id = None
     asyncio.run(api_project_manager.save_scan_state(scan))
 
-    with patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+    with patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager):
         response = api_client.patch(f"/latest/projects/{project.name}/scans/{scan.index}/pause")
 
     assert response.status_code == 409
@@ -102,7 +102,7 @@ def test_delete_scan_endpoint_removes_scan(
 ) -> None:
     project, scan, _ = _prepare_scan(api_project_manager, sample_scan_settings)
 
-    with patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+    with patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager):
         response = api_client.delete(f"/latest/projects/{project.name}/scans/{scan.index}")
 
     assert response.status_code == 200
@@ -121,7 +121,7 @@ def test_delete_scan_endpoint_rejects_legacy_path(
 ) -> None:
     project, scan, _ = _prepare_scan(api_project_manager, sample_scan_settings)
 
-    with patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+    with patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager):
         response = api_client.delete(f"/latest/projects/{project.name}/{scan.index}")
 
     # The legacy path should not exist anymore, so FastAPI returns 404.
@@ -148,11 +148,11 @@ def test_resume_endpoint_persists_status(
         status=TaskStatus.PAUSED,
     )
 
-    with patch("openscan.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
-         patch("openscan.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
-         patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager), \
-         patch("openscan.routers.projects.get_camera_controller", return_value=camera_controller), \
-         patch("openscan.routers.projects.get_task_manager", return_value=router_task_manager):
+    with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
+         patch("openscan_firmware.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
+         patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager), \
+         patch("openscan_firmware.routers.projects.get_camera_controller", return_value=camera_controller), \
+         patch("openscan_firmware.routers.projects.get_task_manager", return_value=router_task_manager):
         response = api_client.patch(
             f"/latest/projects/{project.name}/scans/{scan.index}/resume",
             params={"camera_name": "mock-cam"},
@@ -179,9 +179,9 @@ def test_cancel_endpoint_persists_status(
     task_manager_mock = MagicMock()
     task_manager_mock.cancel_task = AsyncMock(return_value=cancelled_task)
 
-    with patch("openscan.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
-         patch("openscan.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
-         patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+    with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
+         patch("openscan_firmware.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
+         patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager):
         response = api_client.patch(f"/latest/projects/{project.name}/scans/{scan.index}/cancel")
 
     assert response.status_code == 200
@@ -207,9 +207,9 @@ def test_cancel_paused_scan_endpoint_persists_status(
     task_manager_mock = MagicMock()
     task_manager_mock.cancel_task = AsyncMock(return_value=cancelled_task)
 
-    with patch("openscan.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
-         patch("openscan.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
-         patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager):
+    with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock), \
+         patch("openscan_firmware.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
+         patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager):
         response = api_client.patch(f"/latest/projects/{project.name}/scans/{scan.index}/cancel")
 
     assert response.status_code == 200
@@ -229,8 +229,8 @@ def test_cancel_endpoint_missing_task_returns_conflict(
     scan.task_id = None
     asyncio.run(api_project_manager.save_scan_state(scan))
 
-    with patch("openscan.routers.projects.get_project_manager", return_value=api_project_manager), \
-         patch("openscan.controllers.services.scans.cancel_scan", new_callable=AsyncMock) as cancel_mock:
+    with patch("openscan_firmware.routers.projects.get_project_manager", return_value=api_project_manager), \
+         patch("openscan_firmware.controllers.services.scans.cancel_scan", new_callable=AsyncMock) as cancel_mock:
         cancel_mock.return_value = None
         response = api_client.patch(f"/latest/projects/{project.name}/scans/{scan.index}/cancel")
 

@@ -64,7 +64,7 @@ def _install_fake_hw_modules(monkeypatch):
 def _import_device(monkeypatch):
     _install_fake_hw_modules(monkeypatch)
     import importlib
-    device = importlib.import_module("openscan.controllers.device")
+    device = importlib.import_module("openscan_firmware.controllers.device")
     return device
 
 
@@ -86,13 +86,13 @@ def test_save_device_config_writes_json(tmp_path, monkeypatch,
     monkeypatch.setattr(device, "DEVICE_CONFIG_FILE", tmp_file)
 
     # Build a minimal ScannerDevice model with settings
-    from openscan.models.scanner import ScannerDevice
-    from openscan.models.camera import Camera, CameraType
-    from openscan.models.motor import Motor
-    from openscan.models.light import Light
-    from openscan.config.camera import CameraSettings
-    from openscan.config.motor import MotorConfig
-    from openscan.config.light import LightConfig
+    from openscan_firmware.models.scanner import ScannerDevice
+    from openscan_firmware.models.camera import Camera, CameraType
+    from openscan_firmware.models.motor import Motor
+    from openscan_firmware.models.light import Light
+    from openscan_firmware.config.camera import CameraSettings
+    from openscan_firmware.config.motor import MotorConfig
+    from openscan_firmware.config.light import LightConfig
 
     cam = Camera(name="cam1", type=CameraType.PICAMERA2, path="/dev/video0", settings=CameraSettings(shutter=123))
     motor = motor_model_instance
@@ -140,7 +140,7 @@ def test_get_device_info_uses_controller_status(monkeypatch):
     monkeypatch.setattr(device, "get_all_light_controllers", lambda: {"ring": DummyCtrl("ring")})
 
     # also provide a simple _scanner_device for name/model/shield fields
-    from openscan.models.scanner import ScannerDevice
+    from openscan_firmware.models.scanner import ScannerDevice
     dev = ScannerDevice(name="X", model=None, shield=None, cameras={}, motors={}, lights={}, endstops={}, initialized=True)
     monkeypatch.setattr(device, "_scanner_device", dev, raising=True)
 

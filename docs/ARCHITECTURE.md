@@ -107,7 +107,7 @@ Routers (`openscan/routers/`) call this service layer (e.g., in `projects.py`), 
 Autodiscovery is configured in `settings/openscan_firmware.json`. Relevant keys:
 
 - `task_autodiscovery_enabled`: Toggle for discovery at startup.
-- `task_autodiscovery_namespaces`: Python package roots to scan (e.g., `openscan.controllers.services.tasks`, `openscan.tasks.community`).
+- `task_autodiscovery_namespaces`: Python package roots to scan (e.g., `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`).
 - `task_autodiscovery_ignore_modules`: Module base names to skip (e.g., `base_task`, `task_manager`, optionally `example_tasks`).
 - `task_autodiscovery_safe_mode`: Skip modules that fail to import and log warnings instead of aborting.
 - `task_autodiscovery_override_on_conflict`: Whether to overwrite an already-registered `task_name`.
