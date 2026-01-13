@@ -20,7 +20,7 @@ There are two ways to get started on a Raspberry Pi: flash a ready-made image or
 
 ## Install OpenScan Image (Recommended)
 
-Download the image from here: https://openscan_firmware.eu/pages/resources-downloads
+Download the image from here: https://openscan.eu/pages/resources-downloads
 
 Choose the image according to your camera variant:
 
@@ -56,7 +56,7 @@ See [`docs/DEVELOP.md`](docs/DEVELOP.md) for development setup, first steps, and
 
 ### Beta (February 2026)
 - [x] WebSockets for tasks, device state, and scan progress
-- [ ] OS/device services: Samba, USB, disk monitoring, stats; camera-assisted Wi‑Fi/setup
+- [ ] OS/device services: Samba, USB, disk monitoring; camera-assisted Wi‑Fi/setup
 - [ ] Reliability: improved handling for Arducam Hawkeye 64MP memory issues
 - [ ] Frontend improvements ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client))
 

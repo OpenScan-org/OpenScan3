@@ -22,8 +22,7 @@ pip install -e .[dev]
 Run the API in dev mode (auto-reload):
 
 ```sh
-openscan --reload --host 0.0.0.0 --port 8000
-# or: python -m openscan serve --reload --host 0.0.0.0 --port 8000
+python -m openscan_firmware serve --reload --host 0.0.0.0 --port 8000
 ```
 
 Run tests (skip hardware/camera-specific tests on non‑Pi):
@@ -54,7 +53,7 @@ source .venv/bin/activate
 pip install -e .[dev]  # Drop [dev] if you only need runtime dependencies
 
 # Start the API with auto-reload
-openscan --reload --host 0.0.0.0 --port 8000
+python -m openscan_firmware serve --reload --host 0.0.0.0 --port 8000
 ```
 
 ### First Steps after Setup
@@ -83,7 +82,7 @@ Alternatively, copy a default settings file to `device_config.json` and restart 
 
 ```bash
 cp settings/device/default_mini_greenshield.json device_config.json
-sudo systemctl restart openscan3.service
+sudo systemctl restart openscan-firmware.service
 ```
 
 After loading the correct configuration, your OpenScan hardware should be ready to use via the web interface.

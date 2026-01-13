@@ -10,7 +10,7 @@ This document explains how OpenScan3 exposes realtime updates via WebSockets, wh
 
 ## Endpoint Layout
 
-- **Router module:** `openscan/routers/websocket.py`
+- **Router module:** `openscan_firmware/routers/websocket.py`
 - **Base path:** `/ws`
 - **Task stream endpoint:** `/ws/tasks`
 - **Device stream endpoint:** `/ws/device`
@@ -103,7 +103,7 @@ Key points:
 ## Event Publishers in the Controllers
 
 ### Tasks
-`TaskManager` emits `task.update` messages whenever events occur. Internally it calls `TaskEventPublisher.publish`, which forwards the `Task` Pydantic model into the `tasks` namespace (@openscan/controllers/services/tasks/task_events.py#23-35).
+`TaskManager` emits `task.update` messages whenever events occur. Internally it calls `TaskEventPublisher.publish`, which forwards the `Task` Pydantic model into the `tasks` namespace (@openscan_firmware/controllers/services/tasks/task_events.py#23-35).
 
 ### Device
 Hardware controllers trigger `DeviceEventPublisher.publish_status` via helpers in `openscan_firmware.controllers.services.device_events`. The publisher resolves the latest device snapshot and places it on the `device` namespace. Two integration points are used consistently:
