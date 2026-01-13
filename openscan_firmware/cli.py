@@ -72,7 +72,7 @@ def _cmd_serve(
     host: str,
     port: int,
     reload_trigger: bool,
-    root_path: str,
+    root_path: str = "",
 ) -> int:
     """Start the FastAPI app using uvicorn.
 
