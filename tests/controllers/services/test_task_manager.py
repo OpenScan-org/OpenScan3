@@ -6,8 +6,8 @@ import shutil
 import pytest
 import pytest_asyncio
 
-from openscan.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
-from openscan.models.task import TaskStatus, Task, TaskProgress
+from openscan_firmware.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
+from openscan_firmware.models.task import TaskStatus, Task, TaskProgress
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ async def task_manager_fixture(tasks_storage_dir):
     # Discover demo/example tasks via autodiscovery
     tm.autodiscover_tasks(
         namespaces=[
-            "openscan.controllers.services.tasks",
+            "openscan_firmware.controllers.services.tasks",
         ],
         include_subpackages=True,
         ignore_modules={"base_task", "task_manager", "example_tasks"},

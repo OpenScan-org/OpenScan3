@@ -3,9 +3,9 @@ from gpiozero.pins.mock import MockFactory
 from gpiozero import Device
 
 
-from openscan.controllers.hardware.lights import LightController
-from openscan.models.light import Light
-from openscan.config.light import LightConfig
+from openscan_firmware.controllers.hardware.lights import LightController
+from openscan_firmware.models.light import Light
+from openscan_firmware.config.light import LightConfig
 
 
 Device.pin_factory = MockFactory()

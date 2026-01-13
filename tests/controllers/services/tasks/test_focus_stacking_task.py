@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from openscan.controllers.services.tasks.core.focus_stacking_task import FocusStackingTask
-from openscan.models.task import TaskStatus
+from openscan_firmware.controllers.services.tasks.core.focus_stacking_task import FocusStackingTask
+from openscan_firmware.models.task import TaskStatus
 
 
 async def wait_for_status(task_manager, task_id: str, expected_status: TaskStatus, timeout: float = 5.0):
@@ -25,7 +25,7 @@ async def wait_for_status(task_manager, task_id: str, expected_status: TaskStatu
 
 def configure_focus_stacking_task(monkeypatch, env: dict, batches: dict[int, list[str]], stack_impl=None):
     monkeypatch.setattr(
-        "openscan.controllers.services.projects.get_project_manager",
+        "openscan_firmware.controllers.services.projects.get_project_manager",
         lambda: env["project_manager"],
     )
     monkeypatch.setattr(

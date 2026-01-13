@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from openscan.config.camera import CameraSettings
-from openscan.config.scan import ScanSetting
-from openscan.controllers.services import focus_stacking as service
-from openscan.models.scan import Scan, StackingTaskStatus
-from openscan.models.task import Task, TaskStatus
+from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.config.scan import ScanSetting
+from openscan_firmware.controllers.services import focus_stacking as service
+from openscan_firmware.models.scan import Scan, StackingTaskStatus
+from openscan_firmware.models.task import Task, TaskStatus
 
 
 @pytest.fixture(name="scan")
@@ -41,7 +41,7 @@ def patch_project_manager(monkeypatch, scan: Scan):
     project_manager = MagicMock()
     project_manager.get_scan_by_index.return_value = scan
     project_manager.save_scan_state = AsyncMock()
-    monkeypatch.setattr("openscan.controllers.services.focus_stacking.get_project_manager", lambda: project_manager)
+    monkeypatch.setattr("openscan_firmware.controllers.services.focus_stacking.get_project_manager", lambda: project_manager)
     return project_manager
 
 
@@ -52,7 +52,7 @@ def patch_task_manager(monkeypatch):
     task_manager.pause_task = AsyncMock()
     task_manager.resume_task = AsyncMock()
     task_manager.cancel_task = AsyncMock()
-    monkeypatch.setattr("openscan.controllers.services.focus_stacking.get_task_manager", lambda: task_manager)
+    monkeypatch.setattr("openscan_firmware.controllers.services.focus_stacking.get_task_manager", lambda: task_manager)
     return task_manager
 
 

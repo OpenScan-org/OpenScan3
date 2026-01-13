@@ -56,7 +56,7 @@ See [`docs/DEVELOP.md`](docs/DEVELOP.md) for development setup, first steps, and
 
 ### Beta (February 2026)
 - [x] WebSockets for tasks, device state, and scan progress
-- [ ] OS/device services: Samba, USB, disk monitoring, stats; camera-assisted Wi‑Fi/setup
+- [ ] OS/device services: Samba, USB, disk monitoring; camera-assisted Wi‑Fi/setup
 - [ ] Reliability: improved handling for Arducam Hawkeye 64MP memory issues
 - [ ] Frontend improvements ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client))
 
@@ -111,7 +111,7 @@ Distributed under the GPL-3.0 license. See [LICENSE](https://github.com/OpenScan
 
 Join the OpenScan [Discord Server](https://discord.gg/eBdqtdkXyF) to get in touch with the OpenScan community!
 
-Or write an email to <a href="mailto:info@openscan.eu">info@openscan.eu</a>
+Or write an email to <a href="mailto:info@openscan_firmware.eu">info@openscan_firmware.eu</a>
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

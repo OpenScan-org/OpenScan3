@@ -8,17 +8,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from openscan.controllers.services.projects import (
+from openscan_firmware.controllers.services.projects import (
     ProjectManager,
     _write_json_atomic,
     save_project,
 )
-from openscan.config.camera import CameraSettings
-from openscan.config.scan import ScanSetting
-from openscan.models.camera import PhotoData
-from openscan.models.paths import PolarPoint3D
-from openscan.models.scan import Scan, ScanMetadata, StackingTaskStatus
-from openscan.models.task import TaskStatus
+from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.config.scan import ScanSetting
+from openscan_firmware.models.camera import PhotoData
+from openscan_firmware.models.paths import PolarPoint3D
+from openscan_firmware.models.scan import Scan, ScanMetadata, StackingTaskStatus
+from openscan_firmware.models.task import TaskStatus
 
 
 # --- Test Cases for ProjectManager ---

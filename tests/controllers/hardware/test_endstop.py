@@ -2,12 +2,12 @@ import pytest
 from gpiozero.pins.mock import MockFactory
 from gpiozero import Device
 
-from openscan.controllers.hardware.endstops import EndstopController
-from openscan.controllers.hardware.motors import MotorController
-from openscan.config.endstop import EndstopConfig
-from openscan.config.motor import MotorConfig
-from openscan.models.motor import Motor, Endstop
-from openscan.controllers import device as device_controller_module
+from openscan_firmware.controllers.hardware.endstops import EndstopController
+from openscan_firmware.controllers.hardware.motors import MotorController
+from openscan_firmware.config.endstop import EndstopConfig
+from openscan_firmware.config.motor import MotorConfig
+from openscan_firmware.models.motor import Motor, Endstop
+from openscan_firmware.controllers import device as device_controller_module
 
 Device.pin_factory = MockFactory()
 
@@ -194,8 +194,8 @@ def test_device_controller_initializes_endstop_from_nested_config(monkeypatch):
 
     # 2. Mock motor controller dependencies
     mock_motor_controller = MotorController(Motor(name="test_motor", settings=MotorConfig(**mock_device_config["motors"]["test_motor"])))
-    monkeypatch.setattr('openscan.controllers.device.create_motor_controller', lambda motor: None)
-    monkeypatch.setattr('openscan.controllers.device.get_motor_controller', lambda name: mock_motor_controller)
+    monkeypatch.setattr('openscan_firmware.controllers.device.create_motor_controller', lambda motor: None)
+    monkeypatch.setattr('openscan_firmware.controllers.device.get_motor_controller', lambda name: mock_motor_controller)
 
     # 3. Mock the listener to avoid hardware interaction
     monkeypatch.setattr(EndstopController, 'start_listener', lambda self: None)
