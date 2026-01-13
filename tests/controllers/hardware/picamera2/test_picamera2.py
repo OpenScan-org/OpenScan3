@@ -1,10 +1,20 @@
 import time
 
-from picamera2.utils import orientation_to_transform
+import pytest
 
-from openscan.controllers.hardware.cameras.camera import create_camera_controller
-from openscan.config.camera import CameraSettings
-from openscan.models.camera import Camera, CameraType, PhotoData
+from openscan_firmware.controllers.hardware.cameras.camera import (
+    create_camera_controller,
+    is_camera_type_available,
+)
+from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.models.camera import Camera, CameraType
+
+
+if not is_camera_type_available(CameraType.PICAMERA2):
+    pytest.skip(
+        "Picamera2 hardware tests skipped: controller dependencies not available on this system.",
+        allow_module_level=True,
+    )
 
 
 camera_settings = CameraSettings(

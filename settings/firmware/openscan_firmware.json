@@ -1,8 +1,8 @@
 {
   "task_autodiscovery_enabled": true,
   "task_autodiscovery_namespaces": [
-    "openscan.controllers.services.tasks",
-    "openscan.tasks.community"
+    "openscan_firmware.controllers.services.tasks",
+    "openscan_firmware.tasks.community"
   ],
   "task_autodiscovery_include_subpackages": true,
   "task_autodiscovery_ignore_modules": ["base_task", "task_manager", "example_tasks", "examples"],

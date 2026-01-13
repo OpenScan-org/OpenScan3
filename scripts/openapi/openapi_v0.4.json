@@ -2243,7 +2243,7 @@
           "openscan"
         ],
         "summary": "Tail Logs",
-        "description": "Show or follow current logs.\n\nWhen follow=false (default), returns the last N lines of the selected log.\nWhen follow=true (text mode only!), streams new lines as they are written (like `tail -f`).\n\nArgs:\n    format: \"text\" for openscan.log, \"json\" for openscan_detailed_log.json.\n    lines: Number of last lines to return initially.\n    follow: If true, stream appended log lines in text mode.\n    poll_interval: Poll interval (seconds) when following in text mode.\n\nReturns:\n    A response with the requested log content.",
+        "description": "Show or follow current logs.\n\nWhen follow=false (default), returns the last N lines of the selected log.\nWhen follow=true (text mode only!), streams new lines as they are written (like `tail -f`).\n\nArgs:\n    format: \"text\" for openscan_firmware.log, \"json\" for openscan_detailed_log.json.\n    lines: Number of last lines to return initially.\n    follow: If true, stream appended log lines in text mode.\n    poll_interval: Poll interval (seconds) when following in text mode.\n\nReturns:\n    A response with the requested log content.",
         "operationId": "tail_logs",
         "parameters": [
           {

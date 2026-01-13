@@ -5,11 +5,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from openscan.config.cloud import CloudSettings, set_cloud_settings
-from openscan.controllers.services.cloud_settings import set_active_source
-from openscan.models.project import Project
-from openscan.models.task import Task
-from openscan.routers.cloud import router
+from openscan_firmware.config.cloud import CloudSettings, set_cloud_settings
+from openscan_firmware.controllers.services.cloud_settings import set_active_source
+from openscan_firmware.models.project import Project
+from openscan_firmware.models.task import Task
+from openscan_firmware.routers.cloud import router
 
 
 @pytest.fixture(autouse=True)
@@ -31,27 +31,27 @@ def client():
 
 def test_cloud_status_success(client, monkeypatch):
     monkeypatch.setattr(
-        "openscan.routers.cloud.cloud_service.get_status",
+        "openscan_firmware.routers.cloud.cloud_service.get_status",
         lambda: {"ok": True},
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.cloud_service.get_token_info",
+        "openscan_firmware.routers.cloud.cloud_service.get_token_info",
         lambda: {"credit": 42},
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.cloud_service.get_queue_estimate",
+        "openscan_firmware.routers.cloud.cloud_service.get_queue_estimate",
         lambda: {"minutes": 5},
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.get_masked_active_settings",
+        "openscan_firmware.routers.cloud.get_masked_active_settings",
         lambda: {"token": "***abcd"},
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.get_active_source",
+        "openscan_firmware.routers.cloud.get_active_source",
         lambda: "persistent",
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.settings_file_exists",
+        "openscan_firmware.routers.cloud.settings_file_exists",
         lambda: True,
     )
 
@@ -80,23 +80,23 @@ def test_update_cloud_settings_persists(client, monkeypatch, tmp_path):
         return target
 
     monkeypatch.setattr(
-        "openscan.routers.cloud.save_persistent_cloud_settings",
+        "openscan_firmware.routers.cloud.save_persistent_cloud_settings",
         fake_save,
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.get_masked_active_settings",
+        "openscan_firmware.routers.cloud.get_masked_active_settings",
         lambda: {"token": "***5678"},
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.get_active_source",
+        "openscan_firmware.routers.cloud.get_active_source",
         lambda: "persistent",
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.settings_file_exists",
+        "openscan_firmware.routers.cloud.settings_file_exists",
         lambda: True,
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.set_active_source",
+        "openscan_firmware.routers.cloud.set_active_source",
         lambda source: None,
     )
 
@@ -158,15 +158,15 @@ def test_list_cloud_projects(client, monkeypatch):
     stub_pm = StubProjectManager()
 
     monkeypatch.setattr(
-        "openscan.routers.cloud.get_project_manager",
+        "openscan_firmware.routers.cloud.get_project_manager",
         lambda: stub_pm,
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.get_task_manager",
+        "openscan_firmware.routers.cloud.get_task_manager",
         lambda: StubTaskManager(),
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.cloud_service.get_project_info",
+        "openscan_firmware.routers.cloud.cloud_service.get_project_info",
         lambda remote_name: {"project": remote_name, "state": "ready"},
     )
 
@@ -217,11 +217,11 @@ def test_reset_cloud_project(client, monkeypatch):
     stub_pm = StubProjectManager()
 
     monkeypatch.setattr(
-        "openscan.routers.cloud.get_project_manager",
+        "openscan_firmware.routers.cloud.get_project_manager",
         lambda: stub_pm,
     )
     monkeypatch.setattr(
-        "openscan.routers.cloud.cloud_service.reset_project",
+        "openscan_firmware.routers.cloud.cloud_service.reset_project",
         lambda remote_name: {"reset": remote_name},
     )
 

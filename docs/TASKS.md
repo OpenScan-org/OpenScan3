@@ -4,19 +4,19 @@ This document explains how background tasks work in OpenScan3, how they are disc
 
 ## Overview
 
-- Tasks live under `openscan/controllers/services/tasks/`.
+- Tasks live under `openscan_firmware/controllers/services/tasks/`.
 - The `TaskManager` is responsible for registration, scheduling, persistence, and lifecycle management of tasks.
 - Tasks are Python classes inheriting from `BaseTask` and must define an explicit `task_name` in snake_case with the `_task` suffix, e.g. `scan_task`.
-- Tasks are auto-discovered at application startup (see `openscan/main.py`) based on configuration in `settings/openscan_firmware.json`.
+- Tasks are auto-discovered at application startup (see `openscan_firmware/main.py`) based on configuration in `settings/openscan_firmware.json`.
 
 ## Directory Structure
 
-- Core (production) tasks: `openscan/controllers/services/tasks/core/`
+- Core (production) tasks: `openscan_firmware/controllers/services/tasks/core/`
   - `scan_task.py`: Exclusive async task (generator style) responsible for the scan workflow.
   - `crop_task.py`: Blocking non-exclusive task for simple crop detection.
-- Example tasks: `openscan/controllers/services/tasks/examples/`
+- Example tasks: `openscan_firmware/controllers/services/tasks/examples/`
   - `demo_examples.py`: Contains multiple demo tasks such as `hello_world_async_task`, `hello_world_blocking_task`, `exclusive_demo_task`, `generator_task`, `failing_task`.
-- Community tasks: `openscan/tasks/community/`
+- Community tasks: `openscan_firmware/tasks/community/`
 
 Legacy modules at `app/controllers/services/tasks/scan_task.py`, `.../crop_task.py`, and `.../example_tasks.py` have been removed in favor of the new structure and will raise an import error if used.
 
@@ -25,7 +25,7 @@ Legacy modules at `app/controllers/services/tasks/scan_task.py`, `.../crop_task.
 Autodiscovery is configured in `settings/openscan_firmware.json`:
 
 - `task_autodiscovery_enabled` (bool): Enable/disable autodiscovery at startup.
-- `task_autodiscovery_namespaces` (list[str]): Python package roots to scan, e.g. `openscan.controllers.services.tasks`, `openscan.tasks.community`.
+- `task_autodiscovery_namespaces` (list[str]): Python package roots to scan, e.g. `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`.
 - `task_autodiscovery_include_subpackages` (bool): Recursively scan subpackages.
 - `task_autodiscovery_ignore_modules` (list[str]): Basenames of modules to skip, e.g. `base_task`, `task_manager`.
 - `task_autodiscovery_safe_mode` (bool): Import errors are logged and ignored instead of aborting startup.
@@ -40,8 +40,8 @@ A module can opt out of autodiscovery by declaring `__openscan_autodiscover__ = 
 A minimal task class looks like this:
 
 ```python
-from openscan.controllers.services.tasks.base_task import BaseTask
-from openscan.models.task import TaskProgress
+from openscan_firmware.controllers.services.tasks.base_task import BaseTask
+from openscan_firmware.models.task import TaskProgress
 
 class MyCustomTask(BaseTask):
     task_name = "my_custom_task"       # must be snake_case and end with _task
@@ -76,7 +76,7 @@ To keep arguments persistable, prefer simple types (numbers, strings, dicts/list
 
 ## Using Tasks via API / Services
 
-Routers should generally call the service layer instead of importing task classes directly. For scans, use `openscan/controllers/services/scans.py`:
+Routers should generally call the service layer instead of importing task classes directly. For scans, use `openscan_firmware/controllers/services/scans.py`:
 
 - `start_scan(project_manager, scan, camera_controller, start_from_step=0)`
 - `pause_scan(scan)`
@@ -95,4 +95,4 @@ These functions internally use `TaskManager` to create, control, and inspect tas
 
 ## Examples
 
-See `openscan/controllers/services/tasks/examples/demo_examples.py` for multiple reference implementations: async, blocking, exclusive, generator-based, and failing tasks.
+See `openscan_firmware/controllers/services/tasks/examples/demo_examples.py` for multiple reference implementations: async, blocking, exclusive, generator-based, and failing tasks.
