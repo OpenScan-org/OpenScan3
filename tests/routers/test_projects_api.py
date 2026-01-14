@@ -30,13 +30,15 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
     temp_dir = tmp_path_factory.mktemp("projects_api")
     pm = ProjectManager(path=temp_dir)
 
+    module_path = "openscan_firmware.routers.v0_6.projects"
+
     monkeypatch.setattr(
         "openscan_firmware.controllers.services.projects.get_project_manager",
         lambda path=None: pm,
         raising=False,
     )
     monkeypatch.setattr(
-        "openscan_firmware.routers.projects.get_project_manager",
+        module_path + ".get_project_manager",
         lambda: pm,
         raising=False,
     )

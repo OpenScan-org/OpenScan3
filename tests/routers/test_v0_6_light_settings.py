@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 
 from openscan_firmware.config.light import LightConfig
 from openscan_firmware.controllers.hardware import lights as lights_module
-from openscan_firmware.routers.v0_6.lights import router
 
 
 class DummySettings:
@@ -33,9 +32,10 @@ class DummyLightController:
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client(latest_router_loader) -> TestClient:
     app = FastAPI()
-    app.include_router(router, prefix="/v0.5")
+    router_module = latest_router_loader("lights")
+    app.include_router(router_module.router, prefix="/v0.6")
     with TestClient(app) as test_client:
         yield test_client
 
@@ -55,8 +55,8 @@ def fake_light_controller():
         lights_module._light_registry.update(original_registry)
 
 
-def test_get_light_settings_v05(client: TestClient, fake_light_controller: DummyLightController) -> None:
-    response = client.get("/v0.5/lights/ring/settings")
+def test_get_light_settings_latest(client: TestClient, fake_light_controller: DummyLightController) -> None:
+    response = client.get("/v0.6/lights/ring/settings")
 
     assert response.status_code == 200
     assert response.json()["pins"] == [1, 2]
@@ -68,7 +68,7 @@ def test_replace_light_settings_overwrites_configuration(
 ) -> None:
     payload = {"pins": [3, 4], "pwm_support": True}
 
-    response = client.put("/v0.5/lights/ring/settings", json=payload)
+    response = client.put("/v0.6/lights/ring/settings", json=payload)
 
     assert response.status_code == 200
     assert fake_light_controller.settings.model.pins == [3, 4]
@@ -87,7 +87,7 @@ def test_replace_light_settings_returns_422_on_controller_error(
 
     monkeypatch.setattr(fake_light_controller.settings, "replace", _failing_replace)
 
-    response = client.put("/v0.5/lights/ring/settings", json={"pins": [5], "pwm_support": False})
+    response = client.put("/v0.6/lights/ring/settings", json={"pins": [5], "pwm_support": False})
 
     assert response.status_code == 422
     assert response.json()["detail"] == "invalid replace"
@@ -96,7 +96,7 @@ def test_replace_light_settings_returns_422_on_controller_error(
 def test_update_light_settings_applies_partial_changes(
     client: TestClient, fake_light_controller: DummyLightController
 ) -> None:
-    response = client.patch("/v0.5/lights/ring/settings", json={"pwm_support": True})
+    response = client.patch("/v0.6/lights/ring/settings", json={"pwm_support": True})
 
     assert response.status_code == 200
     assert fake_light_controller.settings.model.pins == [1, 2]
@@ -114,7 +114,7 @@ def test_update_light_settings_returns_422_on_controller_error(
 
     monkeypatch.setattr(fake_light_controller.settings, "update", _failing_update)
 
-    response = client.patch("/v0.5/lights/ring/settings", json={"pwm_support": True})
+    response = client.patch("/v0.6/lights/ring/settings", json={"pwm_support": True})
 
     assert response.status_code == 422
     assert response.json()["detail"] == "invalid update"

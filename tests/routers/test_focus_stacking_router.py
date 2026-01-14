@@ -22,24 +22,30 @@ def _make_task(status: TaskStatus = TaskStatus.RUNNING) -> Task:
     ("resume", "patch"),
     ("cancel", "patch"),
 ])
-def test_focus_stacking_endpoints_available_only_in_v0_5(monkeypatch, client: TestClient, endpoint: tuple[str, str]):
+def test_focus_stacking_endpoints_available_only_in_latest(
+    monkeypatch,
+    client: TestClient,
+    endpoint: tuple[str, str],
+    latest_router_path,
+):
     action, method = endpoint
+    module_path = latest_router_path("focus_stacking")
 
     async def _stub(*args, **kwargs):
         return _make_task()
 
     monkeypatch.setattr(
-        "openscan_firmware.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
+        f"{module_path}.focus_service.{action}_focus_stacking",
         _stub,
     )
 
-    url = f"/v0.5/projects/demo/scans/1/focus-stacking/{action}"
+    url = f"/v0.6/projects/demo/scans/1/focus-stacking/{action}"
     response = getattr(client, method)(url)
 
     assert response.status_code == 200
     assert response.json()["status"] == TaskStatus.RUNNING
 
-    legacy_url = f"/v0.4/projects/demo/scans/1/focus-stacking/{action}"
+    legacy_url = f"/v0.5/projects/demo/scans/1/focus-stacking/{action}"
     legacy_response = getattr(client, method)(legacy_url)
     assert legacy_response.status_code == 404
 
@@ -49,18 +55,24 @@ def test_focus_stacking_endpoints_available_only_in_v0_5(monkeypatch, client: Te
     ("cancel", "Focus stacking is not running"),
     ("resume", "Focus stacking is not paused"),
 ])
-def test_focus_stacking_conflict(monkeypatch, client: TestClient, endpoint: tuple[str, str]):
+def test_focus_stacking_conflict(
+    monkeypatch,
+    client: TestClient,
+    endpoint: tuple[str, str],
+    latest_router_path,
+):
     action, message = endpoint
+    module_path = latest_router_path("focus_stacking")
 
     async def _stub(*args, **kwargs):
         return None
 
     monkeypatch.setattr(
-        "openscan_firmware.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
+        f"{module_path}.focus_service.{action}_focus_stacking",
         _stub,
     )
 
-    response = client.patch(f"/v0.5/projects/demo/scans/1/focus-stacking/{action}")
+    response = client.patch(f"/v0.6/projects/demo/scans/1/focus-stacking/{action}")
     assert response.status_code == 409
     assert response.json()["detail"] == message
 
@@ -71,17 +83,23 @@ def test_focus_stacking_conflict(monkeypatch, client: TestClient, endpoint: tupl
     ("resume", "patch"),
     ("cancel", "patch"),
 ])
-def test_focus_stacking_not_found(monkeypatch, client: TestClient, endpoint: tuple[str, str]):
+def test_focus_stacking_not_found(
+    monkeypatch,
+    client: TestClient,
+    endpoint: tuple[str, str],
+    latest_router_path,
+):
     action, method = endpoint
+    module_path = latest_router_path("focus_stacking")
 
     async def _stub(*args, **kwargs):
         raise ValueError("Scan not found")
 
     monkeypatch.setattr(
-        "openscan_firmware.routers.focus_stacking.focus_service." f"{action}_focus_stacking",
+        f"{module_path}.focus_service.{action}_focus_stacking",
         _stub,
     )
 
-    response = getattr(client, method)(f"/v0.5/projects/demo/scans/1/focus-stacking/{action}")
+    response = getattr(client, method)(f"/v0.6/projects/demo/scans/1/focus-stacking/{action}")
     assert response.status_code == 404
     assert response.json()["detail"] == "Scan not found"
