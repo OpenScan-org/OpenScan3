@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from openscan_firmware.config.light import LightConfig
 from openscan_firmware.controllers.hardware import lights as lights_module
-from openscan_firmware.routers.next.lights import router
+from openscan_firmware.routers.v0_6.lights import router
 
 
 class DummySettings:
