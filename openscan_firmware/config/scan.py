@@ -5,10 +5,16 @@ from openscan_firmware.models.paths import PathMethod
 
 
 class ScanSetting(BaseModel):
-    path_method: PathMethod
+    path_method: PathMethod  = Field(
+        default=PathMethod.FIBONACCI,
+        description="Scanning path generator (e.g. fibonacci or spriral)."
+    )
     points: int = Field(130, ge=1, le=999, description="Number of points in scanning path.")
 
-    image_format: Literal['jpeg','dng','rgb_array', 'yuv_array']
+    image_format: Literal['jpeg','dng','rgb_array', 'yuv_array'] = Field(
+        default='jpeg',
+        description='Output image format (JPEG, DNG, RGB array or YUV array).'
+        )
 
     # Theta constraints for constrained paths
     min_theta: float = Field(12.0, ge=0.0, le=180.0,
