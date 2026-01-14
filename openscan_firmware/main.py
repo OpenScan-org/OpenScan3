@@ -11,6 +11,7 @@ from openscan_firmware.config.logger import setup_logging
 from openscan_firmware.utils.settings import load_settings_json
 from openscan_firmware import __version__
 
+from openscan_firmware.routers import websocket as websocket_router
 from openscan_firmware.routers.v0_6 import (
     cameras as cameras_v0_6,
     motors as motors_v0_6,
@@ -22,7 +23,6 @@ from openscan_firmware.routers.v0_6 import (
     tasks as tasks_v0_6,
     develop as develop_v0_6,
     cloud as cloud_v0_6,
-    websocket as websocket_v0_6,
     focus_stacking as focus_stacking_v0_6,
 )
 # next routers
@@ -144,7 +144,7 @@ v0_6_ROUTERS = [
     tasks_v0_6.router,
     develop_v0_6.router,
     cloud_v0_6.router,
-    websocket_v0_6.router,
+    websocket_router.router,
     focus_stacking_v0_6.router,
 ]
 
@@ -159,7 +159,7 @@ next_ROUTERS = [
     tasks_v0_6.router,
     develop_v0_6.router,
     cloud_v0_6.router,
-    websocket_v0_6.router,
+    websocket_router.router,
     focus_stacking_v0_6.router,
 ]
 
@@ -189,7 +189,12 @@ def make_version_app(version: str) -> FastAPI:
 
 
     # Include routers for this version (no extra prefixes; mount path provides version prefix)
-    for r in ROUTERS_BY_VERSION.get(version, BASE_ROUTERS):
+    try:
+        routers = ROUTERS_BY_VERSION[version]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported API version requested: {version}") from exc
+
+    for r in routers:
         sub.include_router(r)
 
     _use_route_names_as_operation_ids(sub)
