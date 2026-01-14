@@ -1,13 +1,17 @@
 import logging
-from pydantic import BaseModel, model_validator
 from typing import Optional, List
+
+from pydantic import BaseModel, Field, model_validator
 
 logger = logging.getLogger(__name__)
 
 class LightConfig(BaseModel):
-    pin: Optional[int] = None
-    pins: Optional[List[int]] = None
-    pwm: bool = False
+    pin: Optional[int] = Field(default=None, description="Single GPIO pin controlling the light output.")
+    pins: Optional[List[int]] = Field(default=None, description="Multiple GPIO pins driving grouped light outputs.")
+    pwm_support: bool = Field(
+        default=False,
+        description="Indicates whether this light hardware can handle PWM (otherwise only on/off).",
+    )
 
     @model_validator(mode="before")
     @classmethod
