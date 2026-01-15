@@ -1,6 +1,7 @@
 import asyncio
 import os
 import shutil
+from importlib import import_module
 
 import pytest
 import pytest_asyncio
@@ -21,6 +22,27 @@ from openscan_firmware.models.motor import Motor
 from openscan_firmware.config.motor import MotorConfig
 from openscan_firmware.models.light import Light
 from openscan_firmware.config.light import LightConfig
+from openscan_firmware.main import LATEST
+
+
+def _latest_router_module_path(name: str) -> str:
+    version_folder = f"v{LATEST.replace('.', '_')}"
+    return f"openscan_firmware.routers.{version_folder}.{name}"
+
+
+def _import_latest_router_module(name: str):
+    return import_module(_latest_router_module_path(name))
+
+
+@pytest.fixture
+def latest_router_loader():
+    return _import_latest_router_module
+
+
+@pytest.fixture
+def latest_router_path():
+    return _latest_router_module_path
+
 @pytest.fixture
 def MOCKED_PROJECTS_PATH(tmp_path) -> Path:
     """Fixture to create a temporary, isolated projects directory for testing."""

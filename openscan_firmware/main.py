@@ -11,25 +11,19 @@ from openscan_firmware.config.logger import setup_logging
 from openscan_firmware.utils.settings import load_settings_json
 from openscan_firmware import __version__
 
-# base routers
-from openscan_firmware.routers import (
-    cameras,
-    motors,
-    projects,
-    gpio,
-    openscan,
-    lights,
-    device,
-    tasks,
-    develop,
-    cloud,
-    websocket,
-    focus_stacking,
-)
-from openscan_firmware.routers.v0_5 import (
-    cameras as cameras_v0_5,
-    motors as motors_v0_5,
-    lights as lights_v0_5,
+from openscan_firmware.routers import websocket as websocket_router
+from openscan_firmware.routers.v0_6 import (
+    cameras as cameras_v0_6,
+    motors as motors_v0_6,
+    lights as lights_v0_6,
+    projects as projects_v0_6,
+    gpio as gpio_v0_6,
+    openscan as openscan_v0_6,
+    device as device_v0_6,
+    tasks as tasks_v0_6,
+    develop as develop_v0_6,
+    cloud as cloud_v0_6,
+    focus_stacking as focus_stacking_v0_6,
 )
 # next routers
 from openscan_firmware.routers.next import (
@@ -139,57 +133,39 @@ app.add_middleware(
 # Create versioned sub-apps and mount them under /vX.Y and /latest
 # Root app intentionally has no docs; each sub-app exposes its own docs.
 
-# Base routers shared across versions by default
-BASE_ROUTERS = [
-    cameras.router,
-    motors.router,
-    lights.router,
-    projects.router,
-    gpio.router,
-    openscan.router,
-    device.router,
-    tasks.router,
-    develop.router,
-    cloud.router,
-    websocket.router,
-]
-
-v0_5_ROUTERS = [
-    cameras_v0_5.router,
-    motors_v0_5.router,
-    lights_v0_5.router,
-    projects.router,
-    gpio.router,
-    openscan.router,
-    device.router,
-    tasks.router,
-    develop.router,
-    cloud.router,
-    focus_stacking.router,
-    websocket.router,
+v0_6_ROUTERS = [
+    cameras_v0_6.router,
+    motors_v0_6.router,
+    lights_v0_6.router,
+    projects_v0_6.router,
+    gpio_v0_6.router,
+    openscan_v0_6.router,
+    device_v0_6.router,
+    tasks_v0_6.router,
+    develop_v0_6.router,
+    cloud_v0_6.router,
+    websocket_router.router,
+    focus_stacking_v0_6.router,
 ]
 
 next_ROUTERS = [
     cameras_next.router,
     motors_next.router,
     lights_next.router,
-    projects.router,
-    gpio.router,
-    openscan.router,
-    device.router,
-    tasks.router,
-    develop.router,
-    cloud.router,
-    websocket.router,
-    focus_stacking.router,
+    projects_v0_6.router,
+    gpio_v0_6.router,
+    openscan_v0_6.router,
+    device_v0_6.router,
+    tasks_v0_6.router,
+    develop_v0_6.router,
+    cloud_v0_6.router,
+    websocket_router.router,
+    focus_stacking_v0_6.router,
 ]
 
 
-# Router mapping per API version. Extend per version to diverge.
-# Example: "0.2": BASE_ROUTERS + [new_feature.router]
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.4": BASE_ROUTERS,
-    "0.5": v0_5_ROUTERS,
+    "0.6": v0_6_ROUTERS,
     "next": next_ROUTERS,
 }
 
@@ -213,7 +189,12 @@ def make_version_app(version: str) -> FastAPI:
 
 
     # Include routers for this version (no extra prefixes; mount path provides version prefix)
-    for r in ROUTERS_BY_VERSION.get(version, BASE_ROUTERS):
+    try:
+        routers = ROUTERS_BY_VERSION[version]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported API version requested: {version}") from exc
+
+    for r in routers:
         sub.include_router(r)
 
     _use_route_names_as_operation_ids(sub)
@@ -247,8 +228,7 @@ def _use_route_names_as_operation_ids(app: FastAPI) -> None:
 
 # Supported API versions and latest alias
 SUPPORTED_VERSIONS = [
-    "0.4",
-    "0.5",
+    "0.6",
 ]
 LATEST = SUPPORTED_VERSIONS[-1]
 

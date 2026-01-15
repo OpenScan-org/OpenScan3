@@ -9,9 +9,9 @@ from openscan_firmware.models.scanner import ScannerDevice
 from openscan_firmware.controllers import device
 
 from openscan_firmware.utils.settings import resolve_settings_dir
-from openscan_firmware.routers.cameras import CameraStatusResponse
-from openscan_firmware.routers.motors import MotorStatusResponse
-from openscan_firmware.routers.lights import LightStatusResponse
+from .cameras import CameraStatusResponse
+from .motors import MotorStatusResponse
+from .lights import LightStatusResponse
 
 router = APIRouter(
     prefix="/device",
