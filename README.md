@@ -5,9 +5,9 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-OpenScan3 is a firmware for controlling OpenScan devices, a family of OpenSource and OpenHardware devices designed to make photogrammetry accessible to everyone.
+OpenScan3 is a firmware for controlling OpenScan devices, a family of open source and open hardware devices, designed to make 3d scanning with photogrammetry accessible to everyone.
 
-The goal of OpenScan3 is providing a hackable and extensible firmware for OpenScan devices and starting point for individual photogrammetry rigs.
+The goal of OpenScan3 is providing a hackable and extensible firmware for common OpenScan devices and a starting point for custom photogrammetry rigs.
 
 OpenScan3 is under development and is not ready for production!
 
@@ -29,6 +29,16 @@ Choose the image according to your camera variant:
 
 Warning: Choosing the wrong image may result in permanent damage to your camera!
 
+Flash the image with Raspberry Pi Imager or a similar tool.
+
+**Default Hostname:** `openscan3-alpha` (or `openscan3-alpha.local` if mDNS is enabled)
+
+**UI (Webfrontend):** http://openscan3-alpha/ or http://openscan3-alpha.local/
+
+**API documentation:** http://openscan3-alpha/api/latest/docs.
+
+## Build OpenScan Image from Source
+
 You can also use [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/OpenScan3-pi-gen) to build a customized image:
 
 - Clone the repository with submodules: `git clone --recurse-submodules https://github.com/esto-openscan/OpenScan3-pi-gen.git`
@@ -36,12 +46,6 @@ You can also use [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/O
 - Flash the generated image from `pi-gen/deploy/` with Raspberry Pi Imager or a similar tool
 
 Refer to the [user guide](https://github.com/esto-openscan/OpenScan3-pi-gen/blob/main/DOCUMENTATION.md) in that repository for detailed build and usage instructions, including networking, services, and troubleshooting.
-
-#### Accessing OpenScan3
-
-*   **Default Hostname:** `openscan3-alpha` (or `openscan3-alpha.local` if mDNS is enabled)
-*   **UI ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client)):** http://openscan3-alpha/ or http://openscan3-alpha.local/
-*   **API documentation:** http://openscan3-alpha/api/latest/docs.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
