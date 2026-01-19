@@ -60,9 +60,15 @@ python -m openscan_firmware serve --reload --host 0.0.0.0 --port 8000
 
 You need to load a device configuration specific to your hardware setup. By default, no specific configuration is loaded.
 
-There are two ways to load a configuration:
+There are three ways to load a configuration:
 
-**Method 1: Using the API (Recommended)**
+**Method 1: Using the SPA client (Recommended)**
+
+1.  If you booted from the official OpenScan image, the bundled SPA client is available at `http://openscan3-alpha`.
+2.  Open the page in a browser on the same network; the guided setup wizard walks you through selecting the correct hardware profile.
+3.  Confirm the suggested configuration; the SPA will push it to the firmware and trigger any required reloads automatically.
+
+**Method 2: Using the API docs**
 
 1.  Navigate to the API documentation at `http://openscan3-alpha:8000/latest/docs`.
 2.  Find the **Device** Section and the **PUT** endpoint `/latest/device/configurations/current`.
@@ -76,7 +82,7 @@ There are two ways to load a configuration:
     You can find available default configuration files in the local `settings/device/` folder of your checkout.
 5.  Execute the request. If successful, you should receive a `200 OK` response, and the hardware corresponding to the configuration should initialize.
 
-**Method 2: Manual File Copy**
+**Method 3: Manual File Copy**
 
 Alternatively, copy a default settings file to `device_config.json` and restart the service:
 
