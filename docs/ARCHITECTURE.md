@@ -23,7 +23,7 @@ The architecture follows in generally the MVC (Model-View-Controller) pattern sl
 2. **Controllers**
    - Controllers in `openscan_firmware/controllers` implement the business logic.
    - Settings are managed at runtime within `openscan_firmware/controllers/settings.py`
-   - (TODO: Detection and initialization of hardware will be managed by the Device Controller within `openscan_firmware/controllers/hardware/device.py`, which is also capable of managing configuration profiles)
+   - Detection and initialization of hardware will be managed by the Device Controller within `openscan_firmware/controllers/hardware/device.py`, which is also capable of managing configuration profiles
    2.1. **Hardware Controllers**
       - Located in `openscan_firmware/controllers/hardware` control the hardware components of the scanner.
       - Abstracts the hardware details from the application logic.
@@ -37,7 +37,7 @@ The architecture follows in generally the MVC (Model-View-Controller) pattern sl
       - Examples: Managing scan projects and scan procedures.
    
 3. **Configuration Management**
-   - Located in `app/config`.
+   - Located in `openscan_firmware/config`.
    - Manages settings for different components.
 
 4. **Models and Data Structures**
@@ -93,14 +93,6 @@ The `TaskManager` enforces the following semantics:
 - Blocking tasks (`is_blocking = True`) run in a thread pool and do not count against the async concurrency limit. Exclusive semantics still apply.
 - Scheduling decisions are encapsulated in `TaskManager._can_run_task` and the internal queueing logic.
 
-### Service Layer for Scans
-
-The deprecated `ScanManager` was replaced by a stateless service layer in `openscan_firmware/controllers/services/scans.py`:
-
-- `start_scan(project_manager, scan, camera_controller, start_from_step=0)` creates and runs a `scan_task` via the `TaskManager`.
-- `pause_scan(scan)`, `resume_scan(scan)`, `cancel_scan(scan)` delegate task lifecycle operations to the `TaskManager`.
-
-Routers (`openscan_firmware/routers/`) call this service layer (e.g., in `projects.py`), avoiding direct import-time coupling to task modules.
 
 ### Configuration
 
@@ -114,6 +106,15 @@ Autodiscovery is configured in `settings/openscan_firmware.json`. Relevant keys:
 - `task_categories_enabled` and `task_required_core_names`: Enable categories and enforce presence of critical tasks (`scan_task`, `crop_task`).
 
 For a developer-oriented deep dive into tasks (naming, structure, examples), see `docs/TASKS.md`.
+
+### Service Layer for Scans
+
+The deprecated `ScanManager` was replaced by a stateless service layer in `openscan_firmware/controllers/services/scans.py`:
+
+- `start_scan(project_manager, scan, camera_controller, start_from_step=0)` creates and runs a `scan_task` via the `TaskManager`.
+- `pause_scan(scan)`, `resume_scan(scan)`, `cancel_scan(scan)` delegate task lifecycle operations to the `TaskManager`.
+
+Routers (`openscan_firmware/routers/`) call this service layer (e.g., in `projects.py`), avoiding direct import-time coupling to task modules.
 
 ## API Versioning
 
@@ -129,8 +130,9 @@ OpenScan3 exposes versioned APIs using mounted FastAPI sub-apps.
 Implementation details (see `openscan_firmware/main.py`):
 
 - The root `FastAPI` app defines the global Lifecycle (logging, hardware init, task autodiscovery) so initialization happens only once.
-- For each supported version, `make_version_app(version)` creates a sub-app and includes all routers from `openscan_firmware/routers/` without additional prefixes; the mount path provides the version prefix.
+- Routers are grouped by API track under `openscan_firmware/routers/<version>/` (e.g., `v0_6`, `next`). `make_version_app(version)` looks up the router list from `ROUTERS_BY_VERSION` and mounts it without extra prefixes; the mount path provides the version prefix.
 - CORS (and other middlewares if needed) are added per sub-app so they apply within the mounted context.
+- A `/next` preview app can be mounted alongside stable releases for early testing without affecting `/latest`.
 
 Client guidance:
 
