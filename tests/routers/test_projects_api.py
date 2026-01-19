@@ -15,11 +15,11 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from openscan.controllers.services.projects import ProjectManager, get_project_manager
-from openscan.main import app
-from openscan.models.project import Project
-from openscan.models.task import Task
-from openscan.config.scan import ScanSetting
+from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
+from openscan_firmware.main import app
+from openscan_firmware.models.project import Project
+from openscan_firmware.models.task import Task
+from openscan_firmware.config.scan import ScanSetting
 
 
 @pytest.fixture(scope="function")
@@ -30,13 +30,15 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
     temp_dir = tmp_path_factory.mktemp("projects_api")
     pm = ProjectManager(path=temp_dir)
 
+    module_path = "openscan_firmware.routers.v0_6.projects"
+
     monkeypatch.setattr(
-        "openscan.controllers.services.projects.get_project_manager",
+        "openscan_firmware.controllers.services.projects.get_project_manager",
         lambda path=None: pm,
         raising=False,
     )
     monkeypatch.setattr(
-        "openscan.routers.projects.get_project_manager",
+        module_path + ".get_project_manager",
         lambda: pm,
         raising=False,
     )

@@ -17,10 +17,10 @@ print("[openapi] sys.path head:")
 for idx, entry in enumerate(sys.path[:5]):
     print(f"  {idx}: {entry}")
 
-from openscan import __file__ as openscan_file  # type: ignore
-from openscan.main import make_version_app, SUPPORTED_VERSIONS, LATEST
+from openscan_firmware import __file__ as firmware_file  # type: ignore
+from openscan_firmware.main import make_version_app, SUPPORTED_VERSIONS, LATEST
 
-print(f"[openapi] using openscan module at: {openscan_file}")
+print(f"[openapi] using openscan_firmware module at: {firmware_file}")
 print(f"[openapi] supported versions: {SUPPORTED_VERSIONS}")
 print(f"[openapi] latest alias: {LATEST}")
 

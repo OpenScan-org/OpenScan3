@@ -3,9 +3,9 @@ from gpiozero.pins.mock import MockFactory
 from gpiozero import Device
 
 
-from openscan.controllers.hardware.lights import LightController
-from openscan.models.light import Light
-from openscan.config.light import LightConfig
+from openscan_firmware.controllers.hardware.lights import LightController
+from openscan_firmware.models.light import Light
+from openscan_firmware.config.light import LightConfig
 
 
 Device.pin_factory = MockFactory()
@@ -13,22 +13,22 @@ Device.pin_factory = MockFactory()
 @pytest.fixture
 def light_config_with_pins():
     """Provides light config for the tests."""
-    return LightConfig(pins=[1,2], pwm=True)
+    return LightConfig(pins=[1,2], pwm_support=True)
 
 @pytest.fixture
 def light_config_with_a_pin():
     """Provides light config for the tests."""
-    return LightConfig(pin=2, pwm=True)
+    return LightConfig(pin=2, pwm_support=True)
 
 @pytest.fixture
 def light_config_with_pin_and_pins_duplicate():
     """Provides light config for the tests."""
-    return LightConfig(pin=2, pins=[1,2], pwm=True)
+    return LightConfig(pin=2, pins=[1,2], pwm_support=True)
 
 @pytest.fixture
 def light_config_with_pin_and_pins():
     """Provides light config for the tests."""
-    return LightConfig(pin=3, pins=[1,2], pwm=True)
+    return LightConfig(pin=3, pins=[1,2], pwm_support=True)
 
 LIGHT_CONFIG_FIXTURES = [
     "light_config_with_pins",
@@ -44,7 +44,7 @@ def test_lightcontroller_initialization(light_config, request):
     light = Light(name="test_light", settings=light_config)
     controller = LightController(light)
     assert controller.model == light
-    for field in ["pin", "pins", "pwm"]:
+    for field in ["pin", "pins", "pwm_support"]:
         assert getattr(controller.settings._settings, field) == getattr(light_config, field)
 
 
@@ -63,9 +63,9 @@ def test_change_light_settings(light_config_with_pins):
     """Test if the light settings can be changed and are propagated to light model."""
     light = Light(name="test_light", settings=light_config_with_pins)
     controller = LightController(light)
-    controller.settings.pwm = False
-    assert controller.settings.pwm is False
-    assert controller.model.settings.pwm is False
+    controller.settings.pwm_support = False
+    assert controller.settings.pwm_support is False
+    assert controller.model.settings.pwm_support is False
 
 
 def test_pin_and_pins_merge(request):

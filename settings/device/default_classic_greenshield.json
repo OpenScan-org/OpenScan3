@@ -28,7 +28,7 @@
     "lights": {
       "OpenScan.eu Ringlight": {
            "pins": [17,27],
-           "pwm": true
+           "pwm_support": true
       }
     }
 }

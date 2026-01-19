@@ -2249,7 +2249,7 @@
           "openscan"
         ],
         "summary": "Tail Logs",
-        "description": "Show or follow current logs.\n\nWhen follow=false (default), returns the last N lines of the selected log.\nWhen follow=true (text mode only!), streams new lines as they are written (like `tail -f`).\n\nArgs:\n    format: \"text\" for openscan.log, \"json\" for openscan_detailed_log.json.\n    lines: Number of last lines to return initially.\n    follow: If true, stream appended log lines in text mode.\n    poll_interval: Poll interval (seconds) when following in text mode.\n\nReturns:\n    A response with the requested log content.",
+        "description": "Show or follow current logs.\n\nWhen follow=false (default), returns the last N lines of the selected log.\nWhen follow=true (text mode only!), streams new lines as they are written (like `tail -f`).\n\nArgs:\n    format: \"text\" for openscan_firmware.log, \"json\" for openscan_detailed_log.json.\n    lines: Number of last lines to return initially.\n    follow: If true, stream appended log lines in text mode.\n    poll_interval: Poll interval (seconds) when following in text mode.\n\nReturns:\n    A response with the requested log content.",
         "operationId": "tail_logs",
         "parameters": [
           {
@@ -3833,7 +3833,7 @@
             ],
             "title": "Crop Width",
             "description": "Cropping width in percent.",
-            "default": 0
+            "default": 10
           },
           "crop_height": {
             "anyOf": [
@@ -3848,7 +3848,7 @@
             ],
             "title": "Crop Height",
             "description": "Cropping on height in percent.",
-            "default": 0
+            "default": 10
           },
           "orientation_flag": {
             "anyOf": [
@@ -4395,7 +4395,8 @@
                 "type": "null"
               }
             ],
-            "title": "Pin"
+            "title": "Pin",
+            "description": "Single GPIO pin controlling the light output."
           },
           "pins": {
             "anyOf": [
@@ -4409,11 +4410,13 @@
                 "type": "null"
               }
             ],
-            "title": "Pins"
+            "title": "Pins",
+            "description": "Multiple GPIO pins driving grouped light outputs."
           },
-          "pwm": {
+          "pwm_support": {
             "type": "boolean",
-            "title": "Pwm",
+            "title": "Pwm Support",
+            "description": "Indicates whether this light hardware can handle PWM (otherwise only on/off).",
             "default": false
           }
         },
@@ -4475,15 +4478,18 @@
         "properties": {
           "direction_pin": {
             "type": "integer",
-            "title": "Direction Pin"
+            "title": "Direction Pin",
+            "description": "GPIO pin controlling the motor direction signal."
           },
           "enable_pin": {
             "type": "integer",
-            "title": "Enable Pin"
+            "title": "Enable Pin",
+            "description": "GPIO pin toggling the motor driver enable line."
           },
           "step_pin": {
             "type": "integer",
-            "title": "Step Pin"
+            "title": "Step Pin",
+            "description": "GPIO pin used to emit step pulses."
           },
           "acceleration": {
             "type": "integer",
@@ -4810,7 +4816,9 @@
       "ScanSetting": {
         "properties": {
           "path_method": {
-            "$ref": "#/components/schemas/PathMethod"
+            "$ref": "#/components/schemas/PathMethod",
+            "description": "Scanning path generator (e.g. fibonacci or spriral).",
+            "default": "fibonacci"
           },
           "points": {
             "type": "integer",
@@ -4828,7 +4836,9 @@
               "rgb_array",
               "yuv_array"
             ],
-            "title": "Image Format"
+            "title": "Image Format",
+            "description": "Output image format (JPEG, DNG, RGB array or YUV array).",
+            "default": "jpeg"
           },
           "min_theta": {
             "type": "number",
@@ -4891,10 +4901,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "path_method",
-          "image_format"
-        ],
         "title": "ScanSetting"
       },
       "ScannerDevice": {

@@ -5,9 +5,11 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-OpenScan3 is a firmware for controlling OpenScan devices, a family of OpenSource and OpenHardware devices designed to make photogrammetry accessible to everyone.
+OpenScan3 is a firmware for controlling OpenScan devices, a family of open source and open hardware devices, designed to make 3d scanning with photogrammetry accessible to everyone.
 
-The goal of OpenScan3 is providing a hackable and extensible firmware for OpenScan devices and starting point for individual photogrammetry rigs.
+The goal of OpenScan3 is providing a hackable and extensible firmware for common OpenScan devices and a starting point for custom photogrammetry rigs.
+
+OpenScan3 is maintained by [OpenScan.eu](https://openscan.eu).
 
 OpenScan3 is under development and is not ready for production!
 
@@ -29,19 +31,17 @@ Choose the image according to your camera variant:
 
 Warning: Choosing the wrong image may result in permanent damage to your camera!
 
-You can also use [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/OpenScan3-pi-gen) to build a customized image:
+Flash the image with Raspberry Pi Imager or a similar tool.
 
-- Clone the repository with submodules: `git clone --recurse-submodules https://github.com/esto-openscan/OpenScan3-pi-gen.git`
-- Pick a camera configuration (for example `./build-all.sh generic` for the generic variant)
-- Flash the generated image from `pi-gen/deploy/` with Raspberry Pi Imager or a similar tool
+**Default Hostname:** `openscan3-alpha` (or `openscan3-alpha.local` if mDNS is enabled)
 
-Refer to the [user guide](https://github.com/esto-openscan/OpenScan3-pi-gen/blob/main/DOCUMENTATION.md) in that repository for detailed build and usage instructions, including networking, services, and troubleshooting.
+**UI (Webfrontend):** http://openscan3-alpha/ or http://openscan3-alpha.local/
 
-#### Accessing OpenScan3
+**API documentation:** http://openscan3-alpha/api/latest/docs.
 
-*   **Default Hostname:** `openscan3-alpha` (or `openscan3-alpha.local` if mDNS is enabled)
-*   **UI ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client)):** http://openscan3-alpha/ or http://openscan3-alpha.local/
-*   **API documentation:** http://openscan3-alpha/api/latest/docs.
+## Build OpenScan Image from Source
+
+You can also use [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/OpenScan3-pi-gen) based on pi-gen to build the image from source or customize it.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -56,7 +56,7 @@ See [`docs/DEVELOP.md`](docs/DEVELOP.md) for development setup, first steps, and
 
 ### Beta (February 2026)
 - [x] WebSockets for tasks, device state, and scan progress
-- [ ] OS/device services: Samba, USB, disk monitoring, stats; camera-assisted Wi‑Fi/setup
+- [ ] OS/device services: Samba, USB, disk monitoring; camera-assisted Wi‑Fi/setup
 - [ ] Reliability: improved handling for Arducam Hawkeye 64MP memory issues
 - [ ] Frontend improvements ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client))
 
@@ -82,10 +82,10 @@ For details and up-to-date status, see GitHub issues and check out the Discord c
 <!-- CONTRIBUTING -->
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**. 
+Pull requests, issues, and feature requests are welcome.
 
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-Don't forget to give the project a star! Thanks again!
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)

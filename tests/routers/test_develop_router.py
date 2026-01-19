@@ -7,16 +7,16 @@ from itertools import count
 
 from fastapi.testclient import TestClient
 
-from openscan.cli import _cmd_serve
-import openscan.main as main_module
-from openscan.routers import develop
+from openscan_firmware.cli import _cmd_serve
+import openscan_firmware.main as main_module
 
 
-def test_restart_endpoint_updates_reload_trigger(monkeypatch, tmp_path):
+def test_restart_endpoint_updates_reload_trigger(monkeypatch, tmp_path, latest_router_loader, latest_router_path):
     """The restart endpoint should create and update the reload sentinel file."""
     sentinel_file = tmp_path / "reload.trigger"
-    monkeypatch.setattr("openscan.cli.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
-    monkeypatch.setattr("openscan.routers.develop.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
+    monkeypatch.setattr("openscan_firmware.cli.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
+    develop = latest_router_loader("develop")
+    monkeypatch.setattr(f"{latest_router_path('develop')}.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
 
     time_values = count(start=1)
     monkeypatch.setattr(develop.time, "time", lambda: float(next(time_values)))
@@ -52,10 +52,10 @@ def test_cli_reload_trigger_configures_uvicorn(monkeypatch, tmp_path):
         captured["params"] = params
         return 0
 
-    monkeypatch.setattr("openscan.cli.uvicorn.run", fake_run)
+    monkeypatch.setattr("openscan_firmware.cli.uvicorn.run", fake_run)
 
     trigger_path = tmp_path / "reload.trigger"
-    monkeypatch.setattr("openscan.cli.DEFAULT_RELOAD_TRIGGER", trigger_path, raising=False)
+    monkeypatch.setattr("openscan_firmware.cli.DEFAULT_RELOAD_TRIGGER", trigger_path, raising=False)
 
     exit_code = _cmd_serve(
         host="127.0.0.1",
@@ -64,7 +64,7 @@ def test_cli_reload_trigger_configures_uvicorn(monkeypatch, tmp_path):
     )
 
     assert exit_code == 0
-    assert captured["app"] == "openscan.main:app"
+    assert captured["app"] == "openscan_firmware.main:app"
 
     params = captured["params"]
     assert params["host"] == "127.0.0.1"
@@ -75,12 +75,12 @@ def test_cli_reload_trigger_configures_uvicorn(monkeypatch, tmp_path):
     assert params["reload_excludes"] == ["*.py", "*.pyc", "*.pyi", "*.pyd", "*.pyo"]
 
 
-def test_restart_triggers_device_initialize_on_reload(monkeypatch, tmp_path):
+def test_restart_triggers_device_initialize_on_reload(monkeypatch, tmp_path, latest_router_loader, latest_router_path):
     """Touching the reload endpoint should trigger re-initialization after reload."""
 
     sentinel_file = tmp_path / "reload.trigger"
-    monkeypatch.setattr("openscan.cli.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
-    monkeypatch.setattr("openscan.routers.develop.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
+    monkeypatch.setattr("openscan_firmware.cli.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
+    monkeypatch.setattr(f"{latest_router_path('develop')}.DEFAULT_RELOAD_TRIGGER", sentinel_file, raising=False)
 
     init_calls: list[object] = []
 
@@ -90,8 +90,8 @@ def test_restart_triggers_device_initialize_on_reload(monkeypatch, tmp_path):
     def fake_initialize(config):  # noqa: ANN201
         init_calls.append(config)
 
-    monkeypatch.setattr("openscan.controllers.device.load_device_config", fake_load_config)
-    monkeypatch.setattr("openscan.controllers.device.initialize", fake_initialize)
+    monkeypatch.setattr("openscan_firmware.controllers.device.load_device_config", fake_load_config)
+    monkeypatch.setattr("openscan_firmware.controllers.device.initialize", fake_initialize)
 
     # First app lifecycle run (baseline)
     with TestClient(main_module.app) as client:

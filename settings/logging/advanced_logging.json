@@ -36,7 +36,7 @@
       "class": "logging.handlers.RotatingFileHandler",
       "level": "INFO",
       "formatter": "detailed",
-      "filename": "logs/openscan.log",
+      "filename": "logs/openscan_firmware.log",
       "maxBytes": 10485760,
       "backupCount": 5,
       "encoding": "utf8"

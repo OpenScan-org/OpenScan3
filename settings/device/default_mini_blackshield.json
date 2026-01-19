@@ -40,7 +40,7 @@
     "lights": {
       "Blackshield Ringlight": {
            "pins": [24,26],
-           "pwm": false
+           "pwm_support": false
       }
     }
 }
