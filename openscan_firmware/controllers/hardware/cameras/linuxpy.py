@@ -1,53 +1,53 @@
-from tempfile import TemporaryFile
+import logging
 from typing import IO
-from linuxpy.video.device import Device, VideoCapture
+
+from linuxpy.video.device import Device  # type: ignore[import]
+
+from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.models.camera import Camera, PhotoData
 
 from .camera import CameraController
-from openscan_firmware.models.camera import Camera, CameraMode
+
+logger = logging.getLogger(__name__)
 
 
 class LINUXPYCamera(CameraController):
-    __camera = [None, None]
+    """Boilerplate controller for LinuxPy based USB cameras."""
 
-    @classmethod
-    def _get_camera(cls, camera: Camera, mode: CameraMode) -> Device:
-        if cls.__camera[1] != mode:
-            cls.__camera[1] = mode
-            if cls.__camera[0] is not None:
-                cls.__camera[0].close()
-            cls.__camera[0] = Device(camera.path)
-            if mode == CameraMode.PHOTO:
-                # set mode
-                with cls.__camera[0] as camera:
-                    capture = VideoCapture(camera)
-                    capture.set_format(1920, 1080, "MJPG")
-                    #with capture:
-                    #    for frame in capture:
-                #cls.__camera[0].video_capture.set_format(1920, 1080, "MJPG")
-            elif mode == CameraMode.PREVIEW:
-                cls.__camera[0].video_capture.set_format(320, 240, "MJPG")
-        return cls.__camera[0]
+    def __init__(self, camera: Camera):
+        super().__init__(camera)
+        self._device: Device | None = None
+        logger.info("Initialized LinuxPy controller for camera '%s'.", camera.name)
 
-    @staticmethod
-    def photo(camera: Camera) -> IO[bytes]:
-        linuxpy_camera = LINUXPYCamera._get_camera(camera, CameraMode.PHOTO)
-        with linuxpy_camera as camera:
-            capture = VideoCapture(camera)
-            capture.set_format(1920, 1080, "MJPG")
-            with capture:
-                for frame in capture:
-                    file = TemporaryFile()
-                    file.write(bytes(frame))
-                    file.seek(0)
-                    return file
+    def _apply_settings_to_hardware(self, settings: CameraSettings) -> None:
+        """Apply camera settings to the LinuxPy backend.
 
-    @staticmethod
-    def preview(camera: Camera) -> IO[bytes]:
-        # not working yet!
-        linuxpy_camera = LINUXPYCamera._get_camera(camera, CameraMode.PREVIEW)
-        linuxpy_camera_stream = iter(linuxpy_camera)
-        next(linuxpy_camera_stream)  # first frame can be garbage
-        file = TemporaryFile()
-        file.write(next(linuxpy_camera_stream))
-        file.seek(0)
-        return file
+        Args:
+            settings (CameraSettings): Camera configuration to be pushed to hardware.
+        """
+        logger.debug(
+            "LinuxPy settings updated for '%s': %s",
+            self.camera.name,
+            settings.model_dump_json(),
+        )
+
+    def preview(self) -> IO[bytes]:
+        """Capture a low resolution preview frame."""
+        raise NotImplementedError("LinuxPy preview is not implemented yet.")
+
+    def capture_rgb_array(self) -> PhotoData:
+        """Capture an RGB array for analysis."""
+        raise NotImplementedError("LinuxPy RGB capture is not implemented yet.")
+
+    def capture_yuv_array(self) -> PhotoData:
+        """Capture a YUV array for analysis."""
+        raise NotImplementedError("LinuxPy YUV capture is not implemented yet.")
+
+    def capture_dng(self) -> PhotoData:
+        """Capture a RAW/DNG frame."""
+        raise NotImplementedError("LinuxPy DNG capture is not implemented yet.")
+
+    def capture_jpeg(self) -> PhotoData:
+        """Capture a JPEG frame."""
+        raise NotImplementedError("LinuxPy JPEG capture is not implemented yet.")
+
