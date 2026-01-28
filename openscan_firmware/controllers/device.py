@@ -239,8 +239,8 @@ def _detect_cameras() -> Dict[str, Camera]:
                 cameras[cam.info.card] = Camera(
                     type=CameraType.LINUXPY,
                     name=cam.info.card,
-                    path=cam.filename,
-                    settings=None
+                    path=str(cam.filename),
+                    settings=CameraSettings()
                 )
             cam.close()
     except Exception as e:
