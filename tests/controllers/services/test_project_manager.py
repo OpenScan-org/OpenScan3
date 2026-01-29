@@ -21,6 +21,19 @@ from openscan_firmware.models.scan import Scan, ScanMetadata, StackingTaskStatus
 from openscan_firmware.models.task import TaskStatus
 
 
+# --- Helper utilities ------------------------------------------------------
+
+
+def _scan_directory(project_manager: ProjectManager, project_name: str, scan_index: int) -> Path:
+    project = project_manager.get_project_by_name(project_name)
+    assert project is not None, "Project must exist for scan directory lookup"
+    return Path(project.path) / f"scan{scan_index:02d}"
+
+
+def _dir_size(directory: Path) -> int:
+    return sum(file.stat().st_size for file in directory.rglob("*") if file.is_file())
+
+
 # --- Test Cases for ProjectManager ---
 
 @pytest.mark.asyncio
@@ -284,3 +297,139 @@ async def test_pm_save_scan_state_persists_stacking_status(
 
     assert reloaded_scan is not None
     assert reloaded_scan.stacking_task_status == scan.stacking_task_status
+
+
+def test_pm_ensure_scan_sizes_updates_total_size(
+    project_manager: ProjectManager,
+    sample_scan_settings: ScanSetting,
+):
+    project_name = "SizeSync"
+    project = project_manager.add_project(name=project_name)
+
+    scan = Scan(
+        project_name=project_name,
+        index=1,
+        created=datetime.now(),
+        settings=sample_scan_settings,
+        camera_settings=CameraSettings(),
+    )
+    project.scans["scan01"] = scan
+    save_project(project)
+
+    scan_dir = _scan_directory(project_manager, project_name, scan.index)
+    photo_path = scan_dir / "scan01_001.jpg"
+    metadata_dir = scan_dir / "metadata"
+    metadata_dir.mkdir(exist_ok=True)
+    metadata_path = metadata_dir / "scan01_001.json"
+
+    photo_path.write_bytes(b"x" * 128)
+    metadata_path.write_text("{}")
+
+    scan.total_size_bytes = 0
+
+    project_manager._ensure_scan_sizes(project)
+
+    expected_size = _dir_size(scan_dir)
+
+    assert scan.total_size_bytes == expected_size
+
+    scan_json = scan_dir / "scan.json"
+    with scan_json.open() as handle:
+        payload = json.load(handle)
+    assert payload["total_size_bytes"] == expected_size
+
+
+@pytest.mark.asyncio
+async def test_pm_add_photo_async_updates_total_size(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+    sample_camera_metadata,
+):
+    project_name = "PhotoGrowth"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    project = project_manager.get_project_by_name(project_name)
+    assert project is not None
+    scan_dir = _scan_directory(project_manager, project_name, scan.index)
+    initial_size = project_manager._calculate_scan_size_bytes(project, scan)
+
+    photo_data = PhotoData(
+        data=io.BytesIO(b"photo-bytes"),
+        format="jpeg",
+        camera_metadata=sample_camera_metadata,
+    )
+    photo_data.scan_metadata = ScanMetadata(
+        step=1,
+        polar_coordinates=PolarPoint3D(theta=0.0, fi=0.0, r=1.0),
+        project_name=project_name,
+        scan_index=scan.index,
+    )
+
+    await project_manager.add_photo_async(photo_data)
+
+    updated_scan = project_manager.get_scan_by_index(project_name, scan.index)
+    project = project_manager.get_project_by_name(project_name)
+    assert project is not None
+    updated_size = project_manager._calculate_scan_size_bytes(project, updated_scan)
+
+    assert updated_scan is not None
+    assert updated_scan.total_size_bytes == updated_size
+    assert updated_size > initial_size
+
+
+@pytest.mark.asyncio
+async def test_pm_delete_photos_recalculates_total_size(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+    sample_camera_metadata,
+):
+    project_name = "PhotoShrink"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    photo_data = PhotoData(
+        data=io.BytesIO(b"photo-bytes"),
+        format="jpeg",
+        camera_metadata=sample_camera_metadata,
+    )
+    photo_data.scan_metadata = ScanMetadata(
+        step=1,
+        polar_coordinates=PolarPoint3D(theta=0.0, fi=0.0, r=1.0),
+        project_name=project_name,
+        scan_index=scan.index,
+    )
+
+    await project_manager.add_photo_async(photo_data)
+
+    project = project_manager.get_project_by_name(project_name)
+    assert project is not None
+    scan_dir = _scan_directory(project_manager, project_name, scan.index)
+    photo_filename = f"scan{scan.index:02d}_{1:03d}.jpg"
+    added_size = project_manager._calculate_scan_size_bytes(project, scan)
+    assert (scan_dir / photo_filename).exists()
+
+    scan = project_manager.get_scan_by_index(project_name, scan.index)
+    assert scan is not None
+
+    project_manager.delete_photos(scan, [photo_filename])
+
+    reduced_scan = project_manager.get_scan_by_index(project_name, scan.index)
+    project = project_manager.get_project_by_name(project_name)
+    assert project is not None
+    reduced_size = project_manager._calculate_scan_size_bytes(project, reduced_scan)
+
+    assert not (scan_dir / photo_filename).exists()
+    assert reduced_size < added_size
+    assert reduced_scan is not None
+    assert reduced_scan.total_size_bytes == reduced_size

@@ -169,9 +169,11 @@ def save_project(project: Project):
     # This summary typically includes just the index or other minimal identifying info.
     scans_summary = {}
     for scan_id, scan_obj in project.scans.items():
-        scans_summary[scan_id] = {"index": scan_obj.index,
-                                  "created": scan_obj.created.isoformat(),
-                                  }
+        scans_summary[scan_id] = {
+            "index": scan_obj.index,
+            "created": scan_obj.created.isoformat(),
+            "total_size_bytes": scan_obj.total_size_bytes,
+        }
 
     project_main_data['scans'] = scans_summary
 
@@ -266,6 +268,7 @@ class ProjectManager:
                 try:
                     project = get_project(self._path, folder)
                     self._reset_incomplete_scans(project)
+                    self._ensure_scan_sizes(project)
                     self._projects[folder] = project
                 except Exception as e:
                     logger.error(f"Error loading project {folder}: {e}", exc_info=True)
@@ -280,6 +283,72 @@ class ProjectManager:
                 scan.status = TaskStatus.INTERRUPTED
                 scan.last_updated = datetime.now()
                 _save_scan_json(project.path, scan)
+
+    def _ensure_scan_sizes(self, project: Project) -> None:
+        """Recalculate scan sizes to keep metadata in sync with disk state."""
+        dirty = False
+        for scan in project.scans.values():
+            recalculated = self._calculate_scan_size_bytes(project, scan)
+            if recalculated != scan.total_size_bytes:
+                scan.total_size_bytes = recalculated
+                scan.last_updated = datetime.now()
+                dirty = True
+
+        if dirty:
+            save_project(project)
+
+    def _get_scan_directory(self, project: Project, scan: Scan) -> str:
+        return os.path.join(project.path, f"scan{scan.index:02d}")
+
+    def _calculate_scan_size_bytes(self, project: Project, scan: Scan) -> int:
+        scan_dir = self._get_scan_directory(project, scan)
+        if not os.path.exists(scan_dir):
+            return 0
+
+        base_size = 0
+        for root, _, files in os.walk(scan_dir):
+            for filename in files:
+                file_path = os.path.join(root, filename)
+                if filename == "scan.json":
+                    continue
+                try:
+                    base_size += os.path.getsize(file_path)
+                except FileNotFoundError:
+                    continue
+
+        def serialized_scan_size(total_size: int) -> int:
+            payload = scan.model_copy(update={"total_size_bytes": total_size}).model_dump_json(indent=2)
+            return base_size + len(payload.encode("utf-8"))
+
+        target_size = base_size
+        for _ in range(5):
+            new_size = serialized_scan_size(target_size)
+            if new_size == target_size:
+                return new_size
+            target_size = new_size
+
+        logger.warning(
+            "Scan size calculation did not converge for %s/%s, returning last estimate",
+            project.name,
+            scan.index,
+        )
+        return target_size
+
+    def _recalculate_and_save_scan_size(self, project_name: str, scan_index: int) -> None:
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            logger.error("Cannot recalculate size, project %s not found", project_name)
+            return
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            logger.error("Cannot recalculate size, scan %s missing in project %s", scan_id, project_name)
+            return
+
+        scan.total_size_bytes = self._calculate_scan_size_bytes(project, scan)
+        scan.last_updated = datetime.now()
+        save_project(project)
 
     def get_project_by_name(self, project_name: str) -> Optional[Project]:
         """Get a project by name. Returns None if the project does not exist."""
@@ -531,7 +600,12 @@ class ProjectManager:
         logger.info(f"Saved photo {photo_filename} and metadata to {photo_dir}")
 
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, save_project, project)
+        await loop.run_in_executor(
+            None,
+            self._recalculate_and_save_scan_size,
+            photo_data.scan_metadata.project_name,
+            photo_data.scan_metadata.scan_index,
+        )
 
     def _prepare_photo_path(self, photo_data: PhotoData) -> tuple[str, str]:
         """Prepare the path and the filename for a photo file.
@@ -628,15 +702,23 @@ class ProjectManager:
     def delete_photos(self, scan: Scan, photo_filenames: list[str]) -> bool:
         """Delete one or more photos from a scan in a project"""
         try:
+            project = self._projects[scan.project_name]
             scan_id = f"scan{scan.index:02d}"
-            photo_path = os.path.join(scan.project_name, scan_id)
+            scan_dir = os.path.join(project.path, scan_id)
 
             for photo_filename in photo_filenames:
-                photo_path = os.path.join(photo_path, photo_filename)
-                if os.path.exists(photo_path):
-                    os.remove(photo_path)
+                file_path = os.path.join(scan_dir, photo_filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
 
-            logger.info(f"Deleted photo {photo_path} from scan {scan_id} in project {scan.project_name}")
+            self._recalculate_and_save_scan_size(scan.project_name, scan.index)
+
+            logger.info(
+                "Deleted photos %s from scan %s in project %s",
+                photo_filenames,
+                scan_id,
+                scan.project_name,
+            )
 
             return True
         except Exception as e:

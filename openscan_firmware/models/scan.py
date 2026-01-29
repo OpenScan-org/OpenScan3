@@ -36,6 +36,11 @@ class Scan(BaseModel):
     description: Optional[str] = None
 
     duration: float = 0.0
+    total_size_bytes: int = Field(
+        default=0,
+        ge=0,
+        description="Total size of all files belonging to the scan, in bytes.",
+    )
 
     #photos: list[str] = field(default_factory=list)
 
