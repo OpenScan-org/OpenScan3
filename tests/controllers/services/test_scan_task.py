@@ -162,6 +162,11 @@ class TestScanTask:
         mock_get_camera_controller.assert_called_once_with(sample_scan_model.camera_name)
         mock_get_project_manager.assert_called_once()
 
+        mock_project_manager.save_scan_path.assert_called_once_with(
+            sample_scan_model,
+            mock_generate_scan_path.return_value,
+        )
+
     @pytest.mark.asyncio
     @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
     @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')

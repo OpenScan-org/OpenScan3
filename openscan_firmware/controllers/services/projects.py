@@ -41,6 +41,7 @@ from openscan_firmware.models.camera import PhotoData
 from openscan_firmware.controllers.hardware.cameras.camera import CameraController
 from openscan_firmware.config.scan import ScanSetting
 from openscan_firmware.models.task import TaskStatus
+from openscan_firmware.utils.paths.paths import polar_to_cartesian
 
 
 logger = logging.getLogger(__name__)
@@ -793,6 +794,35 @@ class ProjectManager:
                 metadata = json.load(handle)
 
         return scan, photo_path, metadata
+
+    def save_scan_path(self, scan: Scan, path_dict) -> None:
+        project = self.get_project_by_name(scan.project_name)
+        if project is None:
+            raise ValueError(f"Project {scan.project_name} does not exist")
+
+        scan_dir = self._get_scan_directory(project, scan)
+        path_file = os.path.join(scan_dir, "path.json")
+
+        points = []
+        for execution_step, (polar_point, original_step) in enumerate(path_dict.items()):
+            cart = polar_to_cartesian(polar_point)
+            points.append(
+                {
+                    "execution_step": execution_step,
+                    "original_step": original_step,
+                    "polar": {"theta": polar_point.theta, "fi": polar_point.fi, "r": polar_point.r},
+                    "cartesian": {"x": cart.x, "y": cart.y, "z": cart.z},
+                }
+            )
+
+        payload = {
+            "project_name": scan.project_name,
+            "scan_index": scan.index,
+            "generated": datetime.now().isoformat(),
+            "points": points,
+        }
+
+        _write_json_atomic(path_file, json.dumps(payload, indent=2))
 
 
 _active_project_manager: Optional[ProjectManager] = None

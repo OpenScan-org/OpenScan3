@@ -263,6 +263,29 @@ async def get_scan_photo(
     )
 
 
+@router.get("/{project_name}/scans/{scan_index:int}/path")
+async def get_scan_path(project_name: str, scan_index: int):
+    project_manager = get_project_manager()
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+    scan = project_manager.get_scan_by_index(project_name, scan_index)
+    if not scan:
+        raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
+
+    scan_dir = os.path.join(project.path, f"scan{scan_index:02d}")
+    path_file = os.path.join(scan_dir, "path.json")
+    if not os.path.exists(path_file):
+        raise HTTPException(status_code=404, detail="path.json not found")
+
+    def _read_json(path: str) -> dict:
+        with open(path, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    return await asyncio.to_thread(_read_json, path_file)
+
+
 @router.delete("/{project_name}/scans/{scan_index}", response_model=DeleteResponse)
 async def delete_scan(project_name: str, scan_index: int):
     """Delete a scan from a project

@@ -143,6 +143,8 @@ class ScanTask(BaseTask):
             total,
         )
 
+        await asyncio.to_thread(project_manager.save_scan_path, scan, path_dict)
+
         # Filter positions for resuming from specific step
         if start_from_step > 0:
             keys = list(path_dict.keys())[start_from_step:]
