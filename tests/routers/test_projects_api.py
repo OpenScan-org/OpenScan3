@@ -31,6 +31,7 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
     pm = ProjectManager(path=temp_dir)
 
     module_path = "openscan_firmware.routers.v0_6.projects"
+    next_module_path = "openscan_firmware.routers.next.projects"
 
     monkeypatch.setattr(
         "openscan_firmware.controllers.services.projects.get_project_manager",
@@ -39,6 +40,11 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
     )
     monkeypatch.setattr(
         module_path + ".get_project_manager",
+        lambda: pm,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        next_module_path + ".get_project_manager",
         lambda: pm,
         raising=False,
     )
@@ -66,6 +72,21 @@ def test_project(project_manager: ProjectManager) -> Project:
     """
     project = project_manager.add_project("test-project-123")
     return project
+
+
+def test_get_project_thumbnail_missing(client: TestClient, test_project: Project):
+    response = client.get(f"/next/projects/{test_project.name}/thumbnail")
+    assert response.status_code == 404
+
+
+def test_get_project_thumbnail_success(client: TestClient, test_project: Project):
+    thumbnail_path = Path(test_project.path) / "thumbnail.jpg"
+    thumbnail_path.write_bytes(b"fake-jpeg")
+
+    response = client.get(f"/next/projects/{test_project.name}/thumbnail")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "image/jpeg"
+    assert response.content == b"fake-jpeg"
 
 
 def test_get_project(client: TestClient, test_project: Project):

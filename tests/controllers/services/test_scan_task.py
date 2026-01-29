@@ -62,11 +62,14 @@ def motor_controller_instance():
     yield controller
 
 @pytest.fixture
-def mock_project_manager() -> MagicMock:
+def mock_project_manager(tmp_path) -> MagicMock:
     """Provides a mocked ProjectManager with an async add_photo_async method."""
     mock_pm = MagicMock(spec=ProjectManager)
     # Configure add_photo_async as an awaitable mock
     mock_pm.add_photo_async = AsyncMock()
+    mock_project = MagicMock()
+    mock_project.path = str(tmp_path / "test_project")
+    mock_pm.get_project_by_name.return_value = mock_project
     return mock_pm
 
 @pytest.fixture

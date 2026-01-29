@@ -75,6 +75,20 @@ async def get_project(project_name: str):
     return project
 
 
+@router.get("/{project_name}/thumbnail")
+async def get_project_thumbnail(project_name: str):
+    project_manager = get_project_manager()
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+    thumbnail_path = os.path.join(project.path, "thumbnail.jpg")
+    if not os.path.exists(thumbnail_path):
+        raise HTTPException(status_code=404, detail="thumbnail.jpg not found")
+
+    return FileResponse(thumbnail_path, media_type="image/jpeg", filename="thumbnail.jpg")
+
+
 @router.post("/{project_name}", response_model=Project)
 async def new_project(project_name: str, project_description: Optional[str] = ""):
     """Create a new project

@@ -10,10 +10,14 @@ Public classes and functions use Google-style docstrings.
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import AsyncGenerator, Optional, Tuple
+
+from PIL import Image
 
 from openscan_firmware.config.scan import ScanSetting
 from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
@@ -134,6 +138,7 @@ class ScanTask(BaseTask):
         """
         # Initialize controllers and generate path
         camera_controller, project_manager = await self._initialize_controllers(scan)
+        await self._ensure_project_thumbnail(camera_controller, project_manager, scan.project_name)
         path_dict = generate_scan_path(scan.settings)
         total = len(path_dict)
         logger.info(
@@ -324,6 +329,54 @@ class ScanTask(BaseTask):
             )
             self._task_model.result = f"Scan completed successfully after {total} steps."
             yield TaskProgress(current=total, total=total, message="Scan completed successfully.")
+
+    async def _ensure_project_thumbnail(self, camera_controller: object, project_manager: ProjectManager, project_name: str) -> None:
+        project = project_manager.get_project_by_name(project_name)
+        os.makedirs(project.path, exist_ok=True)
+        thumbnail_path = os.path.join(project.path, "thumbnail.jpg")
+        if os.path.exists(thumbnail_path):
+            return
+
+        preview_bytes = camera_controller.preview()
+        orientation_flag = int(camera_controller.settings.orientation_flag or 1)
+
+        await asyncio.to_thread(
+            self._save_thumbnail_jpeg,
+            preview_bytes,
+            thumbnail_path,
+            orientation_flag,
+        )
+
+    @staticmethod
+    def _save_thumbnail_jpeg(preview_bytes: bytes, thumbnail_path: str, orientation_flag: int) -> None:
+        image = Image.open(io.BytesIO(preview_bytes))
+        image = image.convert("RGB")
+        image = ScanTask._apply_orientation_pillow(image, orientation_flag)
+        image.thumbnail((512, 512), Image.Resampling.LANCZOS)
+        image.save(thumbnail_path, format="JPEG", quality=85, optimize=True)
+
+    @staticmethod
+    def _apply_orientation_pillow(image: Image.Image, orientation_flag: int) -> Image.Image:
+        flag = int(orientation_flag or 1)
+        if flag == 1:
+            return image
+        if flag == 2:
+            return image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        if flag == 3:
+            return image.transpose(Image.Transpose.ROTATE_180)
+        if flag == 4:
+            return image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+        if flag == 5:
+            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            return image.transpose(Image.Transpose.ROTATE_270)
+        if flag == 6:
+            return image.transpose(Image.Transpose.ROTATE_270)
+        if flag == 7:
+            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            return image.transpose(Image.Transpose.ROTATE_90)
+        if flag == 8:
+            return image.transpose(Image.Transpose.ROTATE_90)
+        return image
 
     async def _capture_photos_at_position(self, current_point: PolarPoint3D, index: int) -> None:
         """Capture photos at current position with optional focus stacking.
