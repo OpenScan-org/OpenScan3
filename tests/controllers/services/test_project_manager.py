@@ -384,6 +384,45 @@ async def test_pm_add_photo_async_updates_total_size(
 
 
 @pytest.mark.asyncio
+async def test_pm_add_photo_async_tracks_filename(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+    sample_camera_metadata,
+):
+    project_name = "PhotoIndex"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    photo_data = PhotoData(
+        data=io.BytesIO(b"photo-bytes"),
+        format="jpeg",
+        camera_metadata=sample_camera_metadata,
+    )
+    photo_data.scan_metadata = ScanMetadata(
+        step=1,
+        polar_coordinates=PolarPoint3D(theta=0.0, fi=0.0, r=1.0),
+        project_name=project_name,
+        scan_index=scan.index,
+    )
+
+    await project_manager.add_photo_async(photo_data)
+
+    updated_scan = project_manager.get_scan_by_index(project_name, scan.index)
+    assert updated_scan is not None
+    expected_filename = f"scan{scan.index:02d}_{1:03d}.jpg"
+    assert updated_scan.photos == [expected_filename]
+
+    scan_dir = _scan_directory(project_manager, project_name, scan.index)
+    assert (scan_dir / expected_filename).exists()
+    assert (scan_dir / "metadata" / "scan01_001.json").exists()
+
+
+@pytest.mark.asyncio
 async def test_pm_delete_photos_recalculates_total_size(
     project_manager: ProjectManager,
     mock_camera_controller: MagicMock,
@@ -433,3 +472,89 @@ async def test_pm_delete_photos_recalculates_total_size(
     assert reduced_size < added_size
     assert reduced_scan is not None
     assert reduced_scan.total_size_bytes == reduced_size
+
+
+@pytest.mark.asyncio
+async def test_pm_delete_photos_updates_photo_index(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+    sample_camera_metadata,
+):
+    project_name = "PhotoDelete"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    photo_data = PhotoData(
+        data=io.BytesIO(b"photo-bytes"),
+        format="jpeg",
+        camera_metadata=sample_camera_metadata,
+    )
+    photo_data.scan_metadata = ScanMetadata(
+        step=1,
+        polar_coordinates=PolarPoint3D(theta=0.0, fi=0.0, r=1.0),
+        project_name=project_name,
+        scan_index=scan.index,
+    )
+
+    await project_manager.add_photo_async(photo_data)
+    scan = project_manager.get_scan_by_index(project_name, scan.index)
+    assert scan is not None
+    photo_filename = f"scan{scan.index:02d}_{1:03d}.jpg"
+
+    project_manager.delete_photos(scan, [photo_filename])
+
+    updated_scan = project_manager.get_scan_by_index(project_name, scan.index)
+    assert updated_scan is not None
+    assert photo_filename not in updated_scan.photos
+
+    scan_dir = _scan_directory(project_manager, project_name, scan.index)
+    assert not (scan_dir / photo_filename).exists()
+    assert not (scan_dir / "metadata" / "scan01_001.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_pm_get_photo_file_returns_metadata(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+    sample_camera_metadata,
+):
+    project_name = "PhotoFetch"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    photo_data = PhotoData(
+        data=io.BytesIO(b"photo-bytes"),
+        format="jpeg",
+        camera_metadata=sample_camera_metadata,
+    )
+    photo_data.scan_metadata = ScanMetadata(
+        step=2,
+        polar_coordinates=PolarPoint3D(theta=0.0, fi=0.0, r=1.0),
+        project_name=project_name,
+        scan_index=scan.index,
+    )
+
+    await project_manager.add_photo_async(photo_data)
+    photo_filename = f"scan{scan.index:02d}_{2:03d}.jpg"
+
+    stored_scan, photo_path, metadata = project_manager.get_photo_file(
+        project_name,
+        scan.index,
+        photo_filename,
+    )
+
+    assert stored_scan.index == scan.index
+    assert photo_filename in stored_scan.photos
+    assert os.path.basename(photo_path) == photo_filename
+    assert metadata is not None
+    assert metadata["scan_metadata"]["step"] == 2

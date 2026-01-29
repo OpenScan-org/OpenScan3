@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 import pathlib
-from typing import Optional, List
+from typing import Optional, List, Any
 import asyncio
 import os
 import json
+import mimetypes
 from datetime import datetime
 import logging
 
@@ -34,6 +35,16 @@ class DeleteResponse(BaseModel):
     success: bool
     message: str
     deleted: list[str]
+
+
+class PhotoResponse(BaseModel):
+    project_name: str
+    scan_index: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    metadata: Optional[dict[str, Any]] = None
+    photo_data: bytes
 
 
 @router.get("/", response_model=dict[str, Project])
@@ -210,6 +221,45 @@ async def delete_project(project_name: str):
         success=True,
         message="Project deleted successfully",
         deleted=[project_name]
+    )
+
+
+@router.get("/{project_name}/{scan_index:int}/photo", response_model=PhotoResponse)
+async def get_scan_photo(
+    project_name: str,
+    scan_index: int,
+    filename: str = Query(..., description="Photo filename including extension, e.g. scan01_001.jpg"),
+    file_only: bool = Query(False, description="Return only the raw file instead of JSON payload"),
+):
+    """Fetch a stored scan photo either as JSON payload or direct file download."""
+    project_manager = get_project_manager()
+    try:
+        scan, photo_path, metadata = project_manager.get_photo_file(project_name, scan_index, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    content_type, _ = mimetypes.guess_type(photo_path)
+    media_type = content_type or "application/octet-stream"
+
+    if file_only:
+        return FileResponse(photo_path, media_type=media_type, filename=filename)
+
+    def _read_file_bytes(path: str) -> bytes:
+        with open(path, "rb") as handle:
+            return handle.read()
+
+    photo_bytes = await asyncio.to_thread(_read_file_bytes, photo_path)
+
+    return PhotoResponse(
+        project_name=scan.project_name,
+        scan_index=scan.index,
+        filename=filename,
+        content_type=media_type,
+        size_bytes=len(photo_bytes),
+        metadata=metadata,
+        photo_data=photo_bytes,
     )
 
 

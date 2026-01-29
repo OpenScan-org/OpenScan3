@@ -184,24 +184,24 @@ def save_project(project: Project):
     for scan in project.scans.values():
         _save_scan_json(project.path, scan)
 
-async def _save_photo_async(photo_data: PhotoData, photo_path: str):
-    """Save a photo to a file.
-
-    Args:
-        photo_data (PhotoData): The photo data to save.
-        photo_path (str): The path to save the photo to.
-    """
-    handler = {
-        "jpeg": _save_photo_jpeg,
-        "dng": _save_photo_dng,
-        "rgb_array": _save_photo_rgb,
-        "yuv_array": _save_photo_yuv,
+async def _save_photo_async(photo_data: PhotoData, photo_path: str) -> str:
+    """Save a photo to disk and return the final path including extension."""
+    handlers = {
+        "jpeg": (_save_photo_jpeg, ".jpg"),
+        "dng": (_save_photo_dng, ".dng"),
+        "rgb_array": (_save_photo_rgb, ".npy"),
+        "yuv_array": (_save_photo_yuv, ".npy"),
     }
+
     try:
-        await handler[photo_data.format](photo_data, photo_path)
-        logger.info(f"Saved {photo_data.format} to {photo_path}")
-    except KeyError:
-        raise ValueError(f"Can't save photo, unsupported image format: {photo_data.format}")
+        saver, extension = handlers[photo_data.format]
+    except KeyError as exc:
+        raise ValueError(f"Can't save photo, unsupported image format: {photo_data.format}") from exc
+
+    final_path = f"{photo_path}{extension}"
+    await saver(photo_data, final_path)
+    logger.info("Saved %s to %s", photo_data.format, final_path)
+    return final_path
 
 async def _save_photo_jpeg(photo_data: PhotoData, file_path: str):
     """Save a JPEG photo to a file.
@@ -211,7 +211,7 @@ async def _save_photo_jpeg(photo_data: PhotoData, file_path: str):
         file_path (str): The path to save the photo to.
     """
     photo_data.data.seek(0)
-    async with aiofiles.open(file_path + ".jpg", 'wb') as f:
+    async with aiofiles.open(file_path, 'wb') as f:
         await f.write(photo_data.data.read())
 
 async def _save_photo_dng(photo_data: PhotoData, file_path: str, chunk_size: int = 1024 * 1024):
@@ -225,7 +225,7 @@ async def _save_photo_dng(photo_data: PhotoData, file_path: str, chunk_size: int
         chunk_size (int, optional): The size of the chunks to write. Defaults to 1024 * 1024.
     """
     photo_data.data.seek(0)
-    async with aiofiles.open(file_path + ".dng", 'wb') as f:
+    async with aiofiles.open(file_path, 'wb') as f:
         while chunk := photo_data.data.read(chunk_size):
             await f.write(chunk)
 
@@ -592,14 +592,24 @@ class ProjectManager:
         metadata_dir = os.path.join(photo_dir, "metadata")
         os.makedirs(metadata_dir, exist_ok=True)
 
-        await asyncio.gather(
+        saved_photo_path, _ = await asyncio.gather(
             _save_photo_async(photo_data, os.path.join(photo_dir, photo_filename)),
             _save_photo_metadata_async(photo_data, os.path.join(metadata_dir, photo_filename))
         )
 
         logger.info(f"Saved photo {photo_filename} and metadata to {photo_dir}")
 
+        saved_filename = os.path.basename(saved_photo_path)
+
         loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            self._register_photo_file,
+            photo_data.scan_metadata.project_name,
+            photo_data.scan_metadata.scan_index,
+            saved_filename,
+        )
+
         await loop.run_in_executor(
             None,
             self._recalculate_and_save_scan_size,
@@ -707,9 +717,19 @@ class ProjectManager:
             scan_dir = os.path.join(project.path, scan_id)
 
             for photo_filename in photo_filenames:
+                if photo_filename != os.path.basename(photo_filename):
+                    raise ValueError("Photo filename must not contain directories")
+
                 file_path = os.path.join(scan_dir, photo_filename)
                 if os.path.exists(file_path):
                     os.remove(file_path)
+
+                metadata_name = os.path.splitext(photo_filename)[0] + ".json"
+                metadata_path = os.path.join(scan_dir, "metadata", metadata_name)
+                if os.path.exists(metadata_path):
+                    os.remove(metadata_path)
+
+                self._remove_photo_file_record(project, scan, photo_filename)
 
             self._recalculate_and_save_scan_size(scan.project_name, scan.index)
 
@@ -724,6 +744,55 @@ class ProjectManager:
         except Exception as e:
             logger.error(f"Error deleting photo: {e}", exc_info=True)
             return False
+
+    def _register_photo_file(self, project_name: str, scan_index: int, filename: str) -> None:
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            raise ValueError(f"Scan {scan_index} not found in project {project_name}")
+
+        if filename not in scan.photos:
+            scan.photos.append(filename)
+            scan.last_updated = datetime.now()
+            _save_scan_json(project.path, scan)
+
+    def _remove_photo_file_record(self, project: Project, scan: Scan, filename: str) -> None:
+        if filename in scan.photos:
+            scan.photos.remove(filename)
+            scan.last_updated = datetime.now()
+            _save_scan_json(project.path, scan)
+
+    def get_photo_file(self, project_name: str, scan_index: int, filename: str) -> tuple[Scan, str, dict | None]:
+        """Return scan, absolute photo path, and optional metadata for a stored photo."""
+        if not filename or filename != os.path.basename(filename):
+            raise ValueError("Invalid photo filename")
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise FileNotFoundError(f"Project {project_name} not found")
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            raise FileNotFoundError(f"Scan {scan_index} not found in project {project_name}")
+
+        scan_dir = self._get_scan_directory(project, scan)
+        photo_path = os.path.join(scan_dir, filename)
+        if not os.path.exists(photo_path):
+            raise FileNotFoundError(f"Photo {filename} not found")
+
+        metadata = None
+        metadata_name = os.path.splitext(filename)[0] + ".json"
+        metadata_path = os.path.join(scan_dir, "metadata", metadata_name)
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r", encoding="utf-8") as handle:
+                metadata = json.load(handle)
+
+        return scan, photo_path, metadata
 
 
 _active_project_manager: Optional[ProjectManager] = None
