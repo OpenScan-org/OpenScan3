@@ -108,7 +108,6 @@ class HawkeyeStrategy(CameraStrategy):
     """Strategy class for camera-specific configurations and processing for the Arducam Hawkeye camera with 64MP."""
     def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         return picam.create_preview_configuration(
-            transform=Transform(hflip=True, vflip=False),
             main={"size": (2312, 1736)},
             raw=None,
             controls=additional_settings
@@ -159,8 +158,6 @@ class HawkeyeStrategy(CameraStrategy):
         return frame[:, :, [2, 1, 0]]  # correct the color channels
 
     def process_photo_frame(self, frame):
-        frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        #return frame[:, :, [2, 1, 0]]  # correct the color channels
         return frame
 
 
