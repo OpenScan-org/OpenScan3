@@ -2,10 +2,13 @@ from types import SimpleNamespace
 
 import pytest
 
+from openscan_firmware.config.cloud import CloudSettings, mask_secret
 from openscan_firmware.controllers.services.cloud import (
     CloudServiceError,
+    _cloud_request,
     download_project,
     upload_project,
+    logger as cloud_logger,
 )
 from openscan_firmware.controllers.services.projects import ProjectManager
 from openscan_firmware.models.project import Project
@@ -185,3 +188,34 @@ async def test_download_project_starts(monkeypatch, project_manager, task_manage
 
     task = await download_project("demo")
     assert task is created_task
+
+
+def test_cloud_request_masks_token_in_logs(monkeypatch, caplog):
+    settings = CloudSettings(
+        user="api-user",
+        password="secret",
+        token="token-secret",
+        host="http://example.com",
+        split_size=1024,
+    )
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud._require_cloud_settings",
+        lambda: settings,
+    )
+
+    def fake_request(method, url, auth, params, timeout):
+        assert params["token"] == settings.token
+        return SimpleNamespace(status_code=200)
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.requests.request",
+        fake_request,
+    )
+
+    with caplog.at_level("DEBUG", logger=cloud_logger.name):
+        _cloud_request("get", "status")
+
+    log_text = caplog.text
+    assert settings.token not in log_text
+    assert mask_secret(settings.token) in log_text
