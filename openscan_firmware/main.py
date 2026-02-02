@@ -27,9 +27,8 @@ from openscan_firmware.routers.v0_6 import (
 )
 # next routers
 from openscan_firmware.routers.next import (
-    cameras as cameras_next,
-    motors as motors_next,
-    lights as lights_next,
+    projects as projects_next,
+
 )
 from openscan_firmware.controllers import device as device_controller
 
@@ -149,10 +148,10 @@ v0_6_ROUTERS = [
 ]
 
 next_ROUTERS = [
-    cameras_next.router,
-    motors_next.router,
-    lights_next.router,
-    projects_v0_6.router,
+    cameras_v0_6.router,
+    motors_v0_6.router,
+    lights_v0_6.router,
+    projects_next.router,
     gpio_v0_6.router,
     openscan_v0_6.router,
     device_v0_6.router,

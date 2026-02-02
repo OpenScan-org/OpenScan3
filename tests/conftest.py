@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 from datetime import datetime
 from pathlib import Path
 import io
+from PIL import Image
 
 from openscan_firmware.controllers.services.projects import ProjectManager, save_project
 from openscan_firmware.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
@@ -96,6 +97,10 @@ def mock_camera_controller() -> MagicMock:
     controller.settings = MagicMock()
     controller.settings.model = MagicMock()
     controller.settings.model = CameraSettings(shutter=400)
+    controller.settings.orientation_flag = 1
+    preview_buffer = io.BytesIO()
+    Image.new("RGB", (1, 1), color=(0, 0, 0)).save(preview_buffer, format="JPEG")
+    controller.preview.return_value = preview_buffer.getvalue()
     controller.camera.name = "mock_camera"
     return controller
 
