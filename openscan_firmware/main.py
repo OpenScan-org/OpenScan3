@@ -28,6 +28,7 @@ from openscan_firmware.routers.v0_6 import (
 # next routers
 from openscan_firmware.routers.next import (
     projects as projects_next,
+    cloud as cloud_next
 
 )
 from openscan_firmware.controllers import device as device_controller
@@ -157,7 +158,7 @@ next_ROUTERS = [
     device_v0_6.router,
     tasks_v0_6.router,
     develop_v0_6.router,
-    cloud_v0_6.router,
+    cloud_next.router,
     websocket_router.router,
     focus_stacking_v0_6.router,
 ]

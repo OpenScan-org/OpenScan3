@@ -24,7 +24,7 @@ def reset_cloud_state():
 def client(latest_router_loader):
     app = FastAPI()
     router_module = latest_router_loader("cloud")
-    app.include_router(router_module.router)
+    app.include_router(router_module.router, prefix="/next")
     with TestClient(app) as test_client:
         yield test_client
 
