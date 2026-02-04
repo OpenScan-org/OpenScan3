@@ -264,11 +264,13 @@ def _use_route_names_as_operation_ids(app: FastAPI) -> None:
 
 
 # Supported API versions and latest alias
+# Define the supported API versions and explicitly set the latest alias.
+# We keep 0.6 for backwards compatibility but expose v0.7 as the /latest endpoints.
 SUPPORTED_VERSIONS = [
     "0.6",
     "0.7",
 ]
-LATEST = SUPPORTED_VERSIONS[-1]
+LATEST = "0.7"
 
 for v in SUPPORTED_VERSIONS:
     app.mount(f"/v{v}", make_version_app(v))

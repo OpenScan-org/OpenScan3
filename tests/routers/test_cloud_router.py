@@ -197,6 +197,11 @@ def test_reset_cloud_project(client, monkeypatch, latest_router_path):
             proj.cloud_project_name = cloud_project_name
             return proj
 
+        def mark_downloaded(self, name: str, downloaded: bool):
+            proj = self.projects[name]
+            proj.downloaded = downloaded
+            return proj
+
     stub_pm = StubProjectManager()
 
     monkeypatch.setattr(f"{module_path}.get_project_manager", lambda: stub_pm)

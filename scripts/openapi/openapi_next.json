@@ -86,7 +86,7 @@
           "cameras"
         ],
         "summary": "Get Preview",
-        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n    mode: Either ``stream`` for the MJPEG stream or ``snapshot`` for a single JPEG frame\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
         "operationId": "get_preview",
         "parameters": [
           {
@@ -96,6 +96,17 @@
             "schema": {
               "type": "string",
               "title": "Camera Name"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(stream|snapshot)$",
+              "default": "stream",
+              "title": "Mode"
             }
           }
         ],
@@ -3464,7 +3475,7 @@
           "cloud"
         ],
         "summary": "Reset Cloud Project",
-        "description": "Reset the remote project and clear the local linkage.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
+        "description": "Reset the remote project and clear the local linkage.\n\nInvokes the cloud backend's `resetProject` action, which removes the\ncurrent reconstruction job (queue progress, generated models and downloads)\nand frees the remote project name for another upload.\nLocally the project is marked as not uploaded anymore, the cached\n`cloud_project_name` is cleared, and the `downloaded` flag is reset to\nFalse so a subsequent download reflects the new state. The on-disk files\nstay untouched.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
         "operationId": "reset_cloud_project",
         "parameters": [
           {
