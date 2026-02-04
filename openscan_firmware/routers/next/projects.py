@@ -159,33 +159,6 @@ async def upload_project_to_cloud(project_name: str, token_override: Optional[st
     return task
 
 
-@router.post("/{project_name}/download", response_model=Task)
-async def download_project_from_cloud(
-    project_name: str,
-    token_override: Optional[str] = None,
-    remote_project: Optional[str] = None,
-) -> Task:
-    """Schedule an asynchronous cloud download for a project's reconstruction.
-
-    Args:
-        project_name: The name of the project
-        token_override: Optional token override
-        remote_project: Optional explicit remote project name, defaults to the stored cloud name
-
-    Returns:
-        Task: The TaskManager model describing the scheduled download
-    """
-    try:
-        task = await cloud.download_project(
-            project_name,
-            token=token_override,
-            remote_project=remote_project,
-        )
-    except cloud.CloudServiceError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return task
-
-
 @router.delete("/{project_name}/{scan_index}/photos", response_model=DeleteResponse)
 async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
     """Delete photos from a scan in a project
@@ -510,6 +483,45 @@ async def download_project(project_name: str):
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{project_name}/model/zip")
+async def download_project_model(project_name: str):
+    """Download the reconstructed model directory of a project as a ZIP file."""
+
+    try:
+        from zipstream import ZipStream
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency issue
+        raise HTTPException(status_code=500, detail="zipstream is not installed") from exc
+
+    project_manager = get_project_manager()
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+    model_dir = pathlib.Path(project.path) / "model"
+    if not model_dir.exists() or not model_dir.is_dir():
+        raise HTTPException(
+            status_code=404,
+            detail=f"No reconstructed model present for project {project_name}",
+        )
+
+    zs = ZipStream(sized=True)
+    zs.comment = f"OpenScan3 Project Model: {project_name}"
+    zs.add_path(str(model_dir), "model")
+    zs.add(_serialize_project_for_zip(project), "project_metadata.json")
+
+    headers = {
+        "Content-Disposition": f"attachment; filename={project_name}_model.zip",
+    }
+    if getattr(zs, "last_modified", None):
+        headers["Last-Modified"] = str(zs.last_modified)
+
+    return StreamingResponse(
+        zs,
+        media_type="application/zip",
+        headers=headers,
+    )
 
 
 @router.get("/{project_name}/scans/zip")

@@ -2,10 +2,13 @@ from types import SimpleNamespace
 
 import pytest
 
+from openscan_firmware.config.cloud import CloudSettings, mask_secret
 from openscan_firmware.controllers.services.cloud import (
     CloudServiceError,
+    _cloud_request,
     download_project,
     upload_project,
+    logger as cloud_logger,
 )
 from openscan_firmware.controllers.services.projects import ProjectManager
 from openscan_firmware.models.project import Project
@@ -144,6 +147,11 @@ async def test_download_project_rejects_running_task(monkeypatch, project_manage
     project = project_manager.get_project_by_name("demo")
     project.cloud_project_name = "demo-remote.zip"
 
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.get_project_info",
+        lambda *_, **__: {"dlink": "https://download/link"},
+    )
+
     task = Task(
         name="cloud_download_task",
         task_type="cloud_download_task",
@@ -166,6 +174,11 @@ async def test_download_project_starts(monkeypatch, project_manager, task_manage
     project = project_manager.get_project_by_name("demo")
     project.cloud_project_name = "demo-remote.zip"
 
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.get_project_info",
+        lambda *_, **__: {"dlink": "https://download/link"},
+    )
+
     created_task = Task(name="cloud_download_task", task_type="cloud_download_task")
 
     async def fake_create_and_run(task_name, project_name, **kwargs):
@@ -185,3 +198,53 @@ async def test_download_project_starts(monkeypatch, project_manager, task_manage
 
     task = await download_project("demo")
     assert task is created_task
+
+
+@pytest.mark.asyncio
+async def test_download_project_requires_ready_remote(monkeypatch, project_manager, task_manager):
+    project = project_manager.get_project_by_name("demo")
+    project.cloud_project_name = "demo-remote.zip"
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
+        lambda: project_manager,
+    )
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.get_project_info",
+        lambda *_, **__: {},
+    )
+
+    with pytest.raises(CloudServiceError, match="not ready"):
+        await download_project("demo")
+
+
+def test_cloud_request_masks_token_in_logs(monkeypatch, caplog):
+    settings = CloudSettings(
+        user="api-user",
+        password="secret",
+        token="token-secret",
+        host="http://example.com",
+        split_size=1024,
+    )
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud._require_cloud_settings",
+        lambda: settings,
+    )
+
+    def fake_request(method, url, auth, params, timeout):
+        assert params["token"] == settings.token
+        return SimpleNamespace(status_code=200)
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.requests.request",
+        fake_request,
+    )
+
+    with caplog.at_level("DEBUG", logger=cloud_logger.name):
+        _cloud_request("get", "status")
+
+    log_text = caplog.text
+    assert settings.token not in log_text
+    assert mask_secret(settings.token) in log_text

@@ -1,5 +1,6 @@
 """Cloud service helpers for OpenScan."""
 
+import asyncio
 import io
 import logging
 import math
@@ -402,6 +403,11 @@ async def download_project(
         raise CloudServiceError(
             "No remote project reference stored. Upload the project before downloading."
         )
+
+    download_info = await asyncio.to_thread(get_project_info, remote_name, token)
+    dlink = download_info.get("dlink") if download_info else None
+    if not dlink:
+        raise CloudServiceError("Cloud project is not ready for download yet. Try again later.")
 
     task_manager = get_task_manager()
     for task in task_manager.get_all_tasks_info():

@@ -2,7 +2,7 @@
 projects/
 logs/
 tests/data
-settings/openscan/cloud.json
+settings/firmware/cloud.json
 
 
 # Byte-compiled / optimized / DLL files

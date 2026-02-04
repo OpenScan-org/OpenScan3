@@ -27,8 +27,17 @@ from openscan_firmware.routers.v0_6 import (
 )
 # next routers
 from openscan_firmware.routers.next import (
+    cameras as cameras_next,
+    motors as motors_next,
+    lights as lights_next,
     projects as projects_next,
-
+    gpio as gpio_next,
+    openscan as openscan_next,
+    device as device_next,
+    tasks as tasks_next,
+    develop as develop_next,
+    cloud as cloud_next,
+    focus_stacking as focus_stacking_next,
 )
 from openscan_firmware.controllers import device as device_controller
 
@@ -148,18 +157,18 @@ v0_6_ROUTERS = [
 ]
 
 next_ROUTERS = [
-    cameras_v0_6.router,
-    motors_v0_6.router,
-    lights_v0_6.router,
+    cameras_next.router,
+    motors_next.router,
+    lights_next.router,
     projects_next.router,
-    gpio_v0_6.router,
-    openscan_v0_6.router,
-    device_v0_6.router,
-    tasks_v0_6.router,
-    develop_v0_6.router,
-    cloud_v0_6.router,
+    gpio_next.router,
+    openscan_next.router,
+    device_next.router,
+    tasks_next.router,
+    develop_next.router,
+    cloud_next.router,
     websocket_router.router,
-    focus_stacking_v0_6.router,
+    focus_stacking_next.router,
 ]
 
 
