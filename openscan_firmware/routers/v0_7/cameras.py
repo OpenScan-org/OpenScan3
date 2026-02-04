@@ -56,7 +56,7 @@ async def get_camera(camera_name: str):
 
 
 @router.get("/{camera_name}/preview")
-async def get_preview(camera_name: str, mode: str = Query(default="stream", regex="^(stream|snapshot)$")):
+async def get_preview(camera_name: str, mode: str = Query(default="stream", pattern="^(stream|snapshot)$")):
     """Get a camera preview stream in lower resolution
 
     Note: The preview is not rotated by orientation_flag and has to be rotated by client.
