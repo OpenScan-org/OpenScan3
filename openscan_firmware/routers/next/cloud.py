@@ -272,8 +272,10 @@ async def reset_cloud_project(project_name: str) -> dict[str, Any]:
     Invokes the cloud backend's `resetProject` action, which removes the
     current reconstruction job (queue progress, generated models and downloads)
     and frees the remote project name for another upload.
-    Locally the project is marked as not uploaded anymore and the stored `cloud_project_name` is
-    cleared, while the on-disk files stay untouched.
+    Locally the project is marked as not uploaded anymore, the cached
+    `cloud_project_name` is cleared, and the `downloaded` flag is reset to
+    False so a subsequent download reflects the new state. The on-disk files
+    stay untouched.
 
     Args:
         project_name: The name of the project to reset the remote project for
@@ -297,6 +299,7 @@ async def reset_cloud_project(project_name: str) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     project_manager.mark_uploaded(project_name, False)
+    project_manager.mark_downloaded(project_name, False)
     return {"project": project_name, "remote_project": remote_name, "response": response}
 
 
