@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
@@ -56,18 +56,28 @@ async def get_camera(camera_name: str):
 
 
 @router.get("/{camera_name}/preview")
-async def get_preview(camera_name: str):
+async def get_preview(camera_name: str, mode: str = Query(default="stream", regex="^(stream|snapshot)$")):
     """Get a camera preview stream in lower resolution
 
     Note: The preview is not rotated by orientation_flag and has to be rotated by client.
 
     Args:
         camera_name: The name of the camera to get the preview stream from
+        mode: Either ``stream`` for the MJPEG stream or ``snapshot`` for a single JPEG frame
 
     Returns:
         StreamingResponse: A streaming response containing the preview stream
     """
     controller = get_camera_controller(camera_name)
+
+    if mode == "snapshot":
+        if controller.is_busy():
+            raise HTTPException(status_code=409, detail="Camera is busy. If this is a bug, please restart the camera.")
+        try:
+            frame = controller.preview()
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return Response(content=frame, media_type="image/jpeg")
 
     async def generate():
         while True:
