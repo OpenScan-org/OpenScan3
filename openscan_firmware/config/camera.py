@@ -30,7 +30,8 @@ class CameraSettings(BaseModel):
 
     orientation_flag: Optional[int] = Field(8, ge=1, le=9, description="Orientation in exif flag format."
                                                                        "For imx519 in Mini use 8."
-                                                                       "For Hawkeye in Mini use 6.")
+                                                                       "For Hawkeye in Mini use 6."
+                                                                       "For imx519 in Classic use 1.")
 
     preview_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")
     photo_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")
