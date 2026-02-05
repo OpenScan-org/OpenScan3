@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openscan-firmware"
-version = "0.6.1"
+version = "0.7.0"
 description = "OpenScan3 - Raspberry Pi based photogrammetry scanner (FastAPI-based application)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -22,15 +22,15 @@ classifiers = [
 
 dependencies = [
   "rpi.gpio==0.7.1",
-  "fastapi==0.115.6",
-  "uvicorn[standard]==0.34.0",
+  "fastapi==0.128.0",
+  "uvicorn[standard]==0.40.0",
   "gphoto2==2.6.3",
-  "linuxpy==0.20.0",
+  "linuxpy==0.23.0",
   "pillow==11.1.0",
-  "matplotlib==3.10.0",
+  "matplotlib==3.10.8",
   "numpy>=1.24.2",
   "picamera2==0.3.24",
-  "orjson==3.10.15",
+  "orjson==3.11.7",
   "python-dotenv==1.0.1",
   "aiofiles==24.1.0",
   "zipstream-ng==1.5.0",
