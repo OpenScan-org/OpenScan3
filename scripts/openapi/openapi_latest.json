@@ -86,7 +86,7 @@
           "cameras"
         ],
         "summary": "Get Preview",
-        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n    mode: Either ``stream`` for the MJPEG stream or ``snapshot`` for a single JPEG frame\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n    mode: Either ``stream`` for the MJPEG stream or ``snapshot`` for a single JPEG frame\n    fps: Target frames per second for the stream, clamped between 1 and 50 (only used in stream mode)\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
         "operationId": "get_preview",
         "parameters": [
           {
@@ -107,6 +107,18 @@
               "pattern": "^(stream|snapshot)$",
               "default": "stream",
               "title": "Mode"
+            }
+          },
+          {
+            "name": "fps",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Fps"
             }
           }
         ],
@@ -4090,7 +4102,7 @@
               }
             ],
             "title": "Orientation Flag",
-            "description": "Orientation in exif flag format.For imx519 in Mini use 8.For Hawkeye in Mini use 6.",
+            "description": "Orientation in exif flag format.For imx519 in Mini use 8.For Hawkeye in Mini use 6.For imx519 in Classic use 1.",
             "default": 8
           },
           "preview_resolution": {
