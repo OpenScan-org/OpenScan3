@@ -3862,7 +3862,7 @@
               }
             ],
             "title": "Orientation Flag",
-            "description": "Orientation in exif flag format.For imx519 in Mini use 8.For Hawkeye in Mini use 6.",
+            "description": "Orientation in exif flag format.For imx519 in Mini use 8.For Hawkeye in Mini use 6.For imx519 in Classic use 1.",
             "default": 8
           },
           "preview_resolution": {

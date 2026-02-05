@@ -56,7 +56,11 @@ async def get_camera(camera_name: str):
 
 
 @router.get("/{camera_name}/preview")
-async def get_preview(camera_name: str, mode: str = Query(default="stream", pattern="^(stream|snapshot)$")):
+async def get_preview(
+    camera_name: str,
+    mode: str = Query(default="stream", pattern="^(stream|snapshot)$"),
+    fps: int = Query(default=50, ge=1, le=50),
+):
     """Get a camera preview stream in lower resolution
 
     Note: The preview is not rotated by orientation_flag and has to be rotated by client.
@@ -64,6 +68,7 @@ async def get_preview(camera_name: str, mode: str = Query(default="stream", patt
     Args:
         camera_name: The name of the camera to get the preview stream from
         mode: Either ``stream`` for the MJPEG stream or ``snapshot`` for a single JPEG frame
+        fps: Target frames per second for the stream, clamped between 1 and 50 (only used in stream mode)
 
     Returns:
         StreamingResponse: A streaming response containing the preview stream
@@ -78,6 +83,8 @@ async def get_preview(camera_name: str, mode: str = Query(default="stream", patt
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return Response(content=frame, media_type="image/jpeg")
+
+    frame_delay = 1 / fps
 
     async def generate():
         while True:
@@ -99,7 +106,7 @@ async def get_preview(camera_name: str, mode: str = Query(default="stream", patt
                     break
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(frame_delay)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace;boundary=frame")
 
