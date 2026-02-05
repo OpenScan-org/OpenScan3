@@ -202,7 +202,7 @@ class CloudDownloadTask(BaseTask):
                 dlink = download_info.get("dlink")
                 status = str(download_info.get("status", "")).lower()
                 if dlink:
-                    if status and status not in {"finished", "done", "complete"}:
+                    if status and status not in {"finished", "done", "complete", "processing done"}:
                         logger.warning(
                             "[%s] Download link present but project status is '%s'",
                             self.id,

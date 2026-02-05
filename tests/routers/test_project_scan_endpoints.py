@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+import json
+import os
 
 from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
 from openscan_firmware.main import app
@@ -132,6 +134,41 @@ def test_delete_scan_endpoint_rejects_legacy_path(
 
     # The legacy path should not exist anymore, so FastAPI returns 404.
     assert response.status_code == 404
+
+
+def test_get_scan_path_endpoint_returns_path_json(
+    api_client: TestClient,
+    api_project_manager: ProjectManager,
+    sample_scan_settings: ScanSetting,
+    latest_router_path,
+) -> None:
+    project, scan, _ = _prepare_scan(api_project_manager, sample_scan_settings)
+
+    scan_dir = os.path.join(project.path, f"scan{scan.index:02d}")
+    os.makedirs(scan_dir, exist_ok=True)
+    path_payload = {
+        "project_name": project.name,
+        "scan_index": scan.index,
+        "points": [
+            {
+                "execution_step": 0,
+                "original_step": 0,
+                "polar": {"theta": 0.0, "fi": 0.0, "r": 1.0},
+                "cartesian": {"x": 0.0, "y": 0.0, "z": 1.0},
+            }
+        ],
+    }
+    with open(os.path.join(scan_dir, "path.json"), "w", encoding="utf-8") as handle:
+        json.dump(path_payload, handle)
+
+    with patch("openscan_firmware.routers.next.projects.get_project_manager", return_value=api_project_manager):
+        response = api_client.get(f"/next/projects/{project.name}/scans/{scan.index}/path")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["project_name"] == project.name
+    assert body["scan_index"] == scan.index
+    assert body["points"][0]["execution_step"] == 0
 
 
 def test_resume_endpoint_persists_status(

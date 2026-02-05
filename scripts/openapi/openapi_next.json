@@ -86,7 +86,7 @@
           "cameras"
         ],
         "summary": "Get Preview",
-        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n    mode: Either ``stream`` for the MJPEG stream or ``snapshot`` for a single JPEG frame\n    fps: Target frames per second for the stream, clamped between 1 and 50 (only used in stream mode)\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
         "operationId": "get_preview",
         "parameters": [
           {
@@ -96,6 +96,29 @@
             "schema": {
               "type": "string",
               "title": "Camera Name"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(stream|snapshot)$",
+              "default": "stream",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "fps",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Fps"
             }
           }
         ],
@@ -1318,6 +1341,49 @@
         }
       }
     },
+    "/projects/{project_name}/thumbnail": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project Thumbnail",
+        "operationId": "get_project_thumbnail",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_name}/scan": {
       "post": {
         "tags": [
@@ -1462,84 +1528,6 @@
         }
       }
     },
-    "/projects/{project_name}/download": {
-      "post": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Download Project From Cloud",
-        "description": "Schedule an asynchronous cloud download for a project's reconstruction.\n\nArgs:\n    project_name: The name of the project\n    token_override: Optional token override\n    remote_project: Optional explicit remote project name, defaults to the stored cloud name\n\nReturns:\n    Task: The TaskManager model describing the scheduled download",
-        "operationId": "download_project_from_cloud",
-        "parameters": [
-          {
-            "name": "project_name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Name"
-            }
-          },
-          {
-            "name": "token_override",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token Override"
-            }
-          },
-          {
-            "name": "remote_project",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Remote Project"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/projects/{project_name}/{scan_index}/photos": {
       "delete": {
         "tags": [
@@ -1590,6 +1578,136 @@
                 "schema": {
                   "$ref": "#/components/schemas/DeleteResponse"
                 }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/{scan_index}/photo": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Scan Photo",
+        "description": "Fetch a stored scan photo either as JSON payload or direct file download.",
+        "operationId": "get_scan_photo",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Photo filename including extension, e.g. scan01_001.jpg",
+              "title": "Filename"
+            },
+            "description": "Photo filename including extension, e.g. scan01_001.jpg"
+          },
+          {
+            "name": "file_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Return only the raw file instead of JSON payload",
+              "default": false,
+              "title": "File Only"
+            },
+            "description": "Return only the raw file instead of JSON payload"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/path": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Scan Path",
+        "operationId": "get_scan_path",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -1954,6 +2072,50 @@
         "summary": "Download Project",
         "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
         "operationId": "download_project",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/model/zip": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Download Project Model",
+        "description": "Download the reconstructed model directory of a project as a ZIP file.",
+        "operationId": "download_project_model",
         "parameters": [
           {
             "name": "project_name",
@@ -3325,7 +3487,7 @@
           "cloud"
         ],
         "summary": "Reset Cloud Project",
-        "description": "Reset the remote project and clear the local linkage.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
+        "description": "Reset the remote project and clear the local linkage.\n\nInvokes the cloud backend's `resetProject` action, which removes the\ncurrent reconstruction job (queue progress, generated models and downloads)\nand frees the remote project name for another upload.\nLocally the project is marked as not uploaded anymore, the cached\n`cloud_project_name` is cleared, and the `downloaded` flag is reset to\nFalse so a subsequent download reflects the new state. The on-disk files\nstay untouched.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
         "operationId": "reset_cloud_project",
         "parameters": [
           {
@@ -3347,6 +3509,84 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Reset Cloud Project Cloud Projects  Project Name  Delete"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cloud/projects/{project_name}/download": {
+      "post": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Download Project From Cloud",
+        "description": "Schedule an asynchronous cloud download for a project's reconstruction.\n\nArgs:\n    project_name: Local project name whose reconstruction should be downloaded.\n    token_override: Optional token override forwarded to the download task.\n    remote_project: Optional explicit remote project identifier; defaults to stored linkage.\n\nReturns:\n    Task: The TaskManager model describing the scheduled download.",
+        "operationId": "download_project_from_cloud",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "token_override",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token Override"
+            }
+          },
+          {
+            "name": "remote_project",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Remote Project"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -3862,7 +4102,7 @@
               }
             ],
             "title": "Orientation Flag",
-            "description": "Orientation in exif flag format.For imx519 use 8.For Hawkeye in Mini use 5.",
+            "description": "Orientation in exif flag format.For imx519 in Mini use 8.For Hawkeye in Mini use 6.For imx519 in Classic use 1.",
             "default": 8
           },
           "preview_resolution": {
@@ -4607,6 +4847,57 @@
         ],
         "title": "PathMethod"
       },
+      "PhotoResponse": {
+        "properties": {
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "scan_index": {
+            "type": "integer",
+            "title": "Scan Index"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "photo_data": {
+            "type": "string",
+            "format": "binary",
+            "title": "Photo Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_name",
+          "scan_index",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "photo_data"
+        ],
+        "title": "PhotoResponse"
+      },
       "PolarPoint3D": {
         "properties": {
           "theta": {
@@ -4780,6 +5071,21 @@
             "type": "number",
             "title": "Duration",
             "default": 0.0
+          },
+          "total_size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Size Bytes",
+            "description": "Total size of all files belonging to the scan, in bytes.",
+            "default": 0
+          },
+          "photos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Photos",
+            "description": "Relative filenames (with extension) of all photos captured for this scan."
           },
           "task_id": {
             "anyOf": [

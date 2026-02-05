@@ -62,11 +62,14 @@ def motor_controller_instance():
     yield controller
 
 @pytest.fixture
-def mock_project_manager() -> MagicMock:
+def mock_project_manager(tmp_path) -> MagicMock:
     """Provides a mocked ProjectManager with an async add_photo_async method."""
     mock_pm = MagicMock(spec=ProjectManager)
     # Configure add_photo_async as an awaitable mock
     mock_pm.add_photo_async = AsyncMock()
+    mock_project = MagicMock()
+    mock_project.path = str(tmp_path / "test_project")
+    mock_pm.get_project_by_name.return_value = mock_project
     return mock_pm
 
 @pytest.fixture
@@ -161,6 +164,11 @@ class TestScanTask:
         # 4. Verify service locators were called
         mock_get_camera_controller.assert_called_once_with(sample_scan_model.camera_name)
         mock_get_project_manager.assert_called_once()
+
+        mock_project_manager.save_scan_path.assert_called_once_with(
+            sample_scan_model,
+            mock_generate_scan_path.return_value,
+        )
 
     @pytest.mark.asyncio
     @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')

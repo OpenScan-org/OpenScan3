@@ -21,7 +21,7 @@ from openscan_firmware.controllers.services.cloud_settings import (
     set_active_source,
     settings_file_exists,
 )
-from openscan_firmware.controllers.services.projects import get_project_manager, ProjectManager
+from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
 from openscan_firmware.models.project import Project
 from openscan_firmware.models.task import Task
@@ -269,6 +269,14 @@ async def get_cloud_project(project_name: str) -> CloudProjectStatus:
 async def reset_cloud_project(project_name: str) -> dict[str, Any]:
     """Reset the remote project and clear the local linkage.
 
+    Invokes the cloud backend's `resetProject` action, which removes the
+    current reconstruction job (queue progress, generated models and downloads)
+    and frees the remote project name for another upload.
+    Locally the project is marked as not uploaded anymore, the cached
+    `cloud_project_name` is cleared, and the `downloaded` flag is reset to
+    False so a subsequent download reflects the new state. The on-disk files
+    stay untouched.
+
     Args:
         project_name: The name of the project to reset the remote project for
 
@@ -291,4 +299,33 @@ async def reset_cloud_project(project_name: str) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     project_manager.mark_uploaded(project_name, False)
+    project_manager.mark_downloaded(project_name, False)
     return {"project": project_name, "remote_project": remote_name, "response": response}
+
+
+@router.post("/projects/{project_name}/download", response_model=Task)
+async def download_project_from_cloud(
+    project_name: str,
+    token_override: str | None = None,
+    remote_project: str | None = None,
+) -> Task:
+    """Schedule an asynchronous cloud download for a project's reconstruction.
+
+    Args:
+        project_name: Local project name whose reconstruction should be downloaded.
+        token_override: Optional token override forwarded to the download task.
+        remote_project: Optional explicit remote project identifier; defaults to stored linkage.
+
+    Returns:
+        Task: The TaskManager model describing the scheduled download.
+    """
+
+    try:
+        task = await cloud_service.download_project(
+            project_name,
+            token=token_override,
+            remote_project=remote_project,
+        )
+    except CloudServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return task

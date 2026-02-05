@@ -41,6 +41,7 @@ from openscan_firmware.models.camera import PhotoData
 from openscan_firmware.controllers.hardware.cameras.camera import CameraController
 from openscan_firmware.config.scan import ScanSetting
 from openscan_firmware.models.task import TaskStatus
+from openscan_firmware.utils.paths.paths import polar_to_cartesian
 
 
 logger = logging.getLogger(__name__)
@@ -169,9 +170,11 @@ def save_project(project: Project):
     # This summary typically includes just the index or other minimal identifying info.
     scans_summary = {}
     for scan_id, scan_obj in project.scans.items():
-        scans_summary[scan_id] = {"index": scan_obj.index,
-                                  "created": scan_obj.created.isoformat(),
-                                  }
+        scans_summary[scan_id] = {
+            "index": scan_obj.index,
+            "created": scan_obj.created.isoformat(),
+            "total_size_bytes": scan_obj.total_size_bytes,
+        }
 
     project_main_data['scans'] = scans_summary
 
@@ -182,24 +185,24 @@ def save_project(project: Project):
     for scan in project.scans.values():
         _save_scan_json(project.path, scan)
 
-async def _save_photo_async(photo_data: PhotoData, photo_path: str):
-    """Save a photo to a file.
-
-    Args:
-        photo_data (PhotoData): The photo data to save.
-        photo_path (str): The path to save the photo to.
-    """
-    handler = {
-        "jpeg": _save_photo_jpeg,
-        "dng": _save_photo_dng,
-        "rgb_array": _save_photo_rgb,
-        "yuv_array": _save_photo_yuv,
+async def _save_photo_async(photo_data: PhotoData, photo_path: str) -> str:
+    """Save a photo to disk and return the final path including extension."""
+    handlers = {
+        "jpeg": (_save_photo_jpeg, ".jpg"),
+        "dng": (_save_photo_dng, ".dng"),
+        "rgb_array": (_save_photo_rgb, ".npy"),
+        "yuv_array": (_save_photo_yuv, ".npy"),
     }
+
     try:
-        await handler[photo_data.format](photo_data, photo_path)
-        logger.info(f"Saved {photo_data.format} to {photo_path}")
-    except KeyError:
-        raise ValueError(f"Can't save photo, unsupported image format: {photo_data.format}")
+        saver, extension = handlers[photo_data.format]
+    except KeyError as exc:
+        raise ValueError(f"Can't save photo, unsupported image format: {photo_data.format}") from exc
+
+    final_path = f"{photo_path}{extension}"
+    await saver(photo_data, final_path)
+    logger.info("Saved %s to %s", photo_data.format, final_path)
+    return final_path
 
 async def _save_photo_jpeg(photo_data: PhotoData, file_path: str):
     """Save a JPEG photo to a file.
@@ -209,7 +212,7 @@ async def _save_photo_jpeg(photo_data: PhotoData, file_path: str):
         file_path (str): The path to save the photo to.
     """
     photo_data.data.seek(0)
-    async with aiofiles.open(file_path + ".jpg", 'wb') as f:
+    async with aiofiles.open(file_path, 'wb') as f:
         await f.write(photo_data.data.read())
 
 async def _save_photo_dng(photo_data: PhotoData, file_path: str, chunk_size: int = 1024 * 1024):
@@ -223,7 +226,7 @@ async def _save_photo_dng(photo_data: PhotoData, file_path: str, chunk_size: int
         chunk_size (int, optional): The size of the chunks to write. Defaults to 1024 * 1024.
     """
     photo_data.data.seek(0)
-    async with aiofiles.open(file_path + ".dng", 'wb') as f:
+    async with aiofiles.open(file_path, 'wb') as f:
         while chunk := photo_data.data.read(chunk_size):
             await f.write(chunk)
 
@@ -266,6 +269,7 @@ class ProjectManager:
                 try:
                     project = get_project(self._path, folder)
                     self._reset_incomplete_scans(project)
+                    self._ensure_scan_sizes(project)
                     self._projects[folder] = project
                 except Exception as e:
                     logger.error(f"Error loading project {folder}: {e}", exc_info=True)
@@ -280,6 +284,72 @@ class ProjectManager:
                 scan.status = TaskStatus.INTERRUPTED
                 scan.last_updated = datetime.now()
                 _save_scan_json(project.path, scan)
+
+    def _ensure_scan_sizes(self, project: Project) -> None:
+        """Recalculate scan sizes to keep metadata in sync with disk state."""
+        dirty = False
+        for scan in project.scans.values():
+            recalculated = self._calculate_scan_size_bytes(project, scan)
+            if recalculated != scan.total_size_bytes:
+                scan.total_size_bytes = recalculated
+                scan.last_updated = datetime.now()
+                dirty = True
+
+        if dirty:
+            save_project(project)
+
+    def _get_scan_directory(self, project: Project, scan: Scan) -> str:
+        return os.path.join(project.path, f"scan{scan.index:02d}")
+
+    def _calculate_scan_size_bytes(self, project: Project, scan: Scan) -> int:
+        scan_dir = self._get_scan_directory(project, scan)
+        if not os.path.exists(scan_dir):
+            return 0
+
+        base_size = 0
+        for root, _, files in os.walk(scan_dir):
+            for filename in files:
+                file_path = os.path.join(root, filename)
+                if filename == "scan.json":
+                    continue
+                try:
+                    base_size += os.path.getsize(file_path)
+                except FileNotFoundError:
+                    continue
+
+        def serialized_scan_size(total_size: int) -> int:
+            payload = scan.model_copy(update={"total_size_bytes": total_size}).model_dump_json(indent=2)
+            return base_size + len(payload.encode("utf-8"))
+
+        target_size = base_size
+        for _ in range(5):
+            new_size = serialized_scan_size(target_size)
+            if new_size == target_size:
+                return new_size
+            target_size = new_size
+
+        logger.warning(
+            "Scan size calculation did not converge for %s/%s, returning last estimate",
+            project.name,
+            scan.index,
+        )
+        return target_size
+
+    def _recalculate_and_save_scan_size(self, project_name: str, scan_index: int) -> None:
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            logger.error("Cannot recalculate size, project %s not found", project_name)
+            return
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            logger.error("Cannot recalculate size, scan %s missing in project %s", scan_id, project_name)
+            return
+
+        scan.total_size_bytes = self._calculate_scan_size_bytes(project, scan)
+        scan.last_updated = datetime.now()
+        save_project(project)
 
     def get_project_by_name(self, project_name: str) -> Optional[Project]:
         """Get a project by name. Returns None if the project does not exist."""
@@ -523,15 +593,30 @@ class ProjectManager:
         metadata_dir = os.path.join(photo_dir, "metadata")
         os.makedirs(metadata_dir, exist_ok=True)
 
-        await asyncio.gather(
+        saved_photo_path, _ = await asyncio.gather(
             _save_photo_async(photo_data, os.path.join(photo_dir, photo_filename)),
             _save_photo_metadata_async(photo_data, os.path.join(metadata_dir, photo_filename))
         )
 
         logger.info(f"Saved photo {photo_filename} and metadata to {photo_dir}")
 
+        saved_filename = os.path.basename(saved_photo_path)
+
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, save_project, project)
+        await loop.run_in_executor(
+            None,
+            self._register_photo_file,
+            photo_data.scan_metadata.project_name,
+            photo_data.scan_metadata.scan_index,
+            saved_filename,
+        )
+
+        await loop.run_in_executor(
+            None,
+            self._recalculate_and_save_scan_size,
+            photo_data.scan_metadata.project_name,
+            photo_data.scan_metadata.scan_index,
+        )
 
     def _prepare_photo_path(self, photo_data: PhotoData) -> tuple[str, str]:
         """Prepare the path and the filename for a photo file.
@@ -628,20 +713,116 @@ class ProjectManager:
     def delete_photos(self, scan: Scan, photo_filenames: list[str]) -> bool:
         """Delete one or more photos from a scan in a project"""
         try:
+            project = self._projects[scan.project_name]
             scan_id = f"scan{scan.index:02d}"
-            photo_path = os.path.join(scan.project_name, scan_id)
+            scan_dir = os.path.join(project.path, scan_id)
 
             for photo_filename in photo_filenames:
-                photo_path = os.path.join(photo_path, photo_filename)
-                if os.path.exists(photo_path):
-                    os.remove(photo_path)
+                if photo_filename != os.path.basename(photo_filename):
+                    raise ValueError("Photo filename must not contain directories")
 
-            logger.info(f"Deleted photo {photo_path} from scan {scan_id} in project {scan.project_name}")
+                file_path = os.path.join(scan_dir, photo_filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+
+                metadata_name = os.path.splitext(photo_filename)[0] + ".json"
+                metadata_path = os.path.join(scan_dir, "metadata", metadata_name)
+                if os.path.exists(metadata_path):
+                    os.remove(metadata_path)
+
+                self._remove_photo_file_record(project, scan, photo_filename)
+
+            self._recalculate_and_save_scan_size(scan.project_name, scan.index)
+
+            logger.info(
+                "Deleted photos %s from scan %s in project %s",
+                photo_filenames,
+                scan_id,
+                scan.project_name,
+            )
 
             return True
         except Exception as e:
             logger.error(f"Error deleting photo: {e}", exc_info=True)
             return False
+
+    def _register_photo_file(self, project_name: str, scan_index: int, filename: str) -> None:
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            raise ValueError(f"Scan {scan_index} not found in project {project_name}")
+
+        if filename not in scan.photos:
+            scan.photos.append(filename)
+            scan.last_updated = datetime.now()
+            _save_scan_json(project.path, scan)
+
+    def _remove_photo_file_record(self, project: Project, scan: Scan, filename: str) -> None:
+        if filename in scan.photos:
+            scan.photos.remove(filename)
+            scan.last_updated = datetime.now()
+            _save_scan_json(project.path, scan)
+
+    def get_photo_file(self, project_name: str, scan_index: int, filename: str) -> tuple[Scan, str, dict | None]:
+        """Return scan, absolute photo path, and optional metadata for a stored photo."""
+        if not filename or filename != os.path.basename(filename):
+            raise ValueError("Invalid photo filename")
+
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise FileNotFoundError(f"Project {project_name} not found")
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            raise FileNotFoundError(f"Scan {scan_index} not found in project {project_name}")
+
+        scan_dir = self._get_scan_directory(project, scan)
+        photo_path = os.path.join(scan_dir, filename)
+        if not os.path.exists(photo_path):
+            raise FileNotFoundError(f"Photo {filename} not found")
+
+        metadata = None
+        metadata_name = os.path.splitext(filename)[0] + ".json"
+        metadata_path = os.path.join(scan_dir, "metadata", metadata_name)
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r", encoding="utf-8") as handle:
+                metadata = json.load(handle)
+
+        return scan, photo_path, metadata
+
+    def save_scan_path(self, scan: Scan, path_dict) -> None:
+        project = self.get_project_by_name(scan.project_name)
+        if project is None:
+            raise ValueError(f"Project {scan.project_name} does not exist")
+
+        scan_dir = self._get_scan_directory(project, scan)
+        path_file = os.path.join(scan_dir, "path.json")
+
+        points = []
+        for execution_step, (polar_point, original_step) in enumerate(path_dict.items()):
+            cart = polar_to_cartesian(polar_point)
+            points.append(
+                {
+                    "execution_step": execution_step,
+                    "original_step": original_step,
+                    "polar": {"theta": polar_point.theta, "fi": polar_point.fi, "r": polar_point.r},
+                    "cartesian": {"x": cart.x, "y": cart.y, "z": cart.z},
+                }
+            )
+
+        payload = {
+            "project_name": scan.project_name,
+            "scan_index": scan.index,
+            "generated": datetime.now().isoformat(),
+            "points": points,
+        }
+
+        _write_json_atomic(path_file, json.dumps(payload, indent=2))
 
 
 _active_project_manager: Optional[ProjectManager] = None

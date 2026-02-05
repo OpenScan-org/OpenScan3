@@ -3862,7 +3862,7 @@
               }
             ],
             "title": "Orientation Flag",
-            "description": "Orientation in exif flag format.For imx519 use 8.For Hawkeye in Mini use 5.",
+            "description": "Orientation in exif flag format.For imx519 in Mini use 8.For Hawkeye in Mini use 6.For imx519 in Classic use 1.",
             "default": 8
           },
           "preview_resolution": {
@@ -4780,6 +4780,21 @@
             "type": "number",
             "title": "Duration",
             "default": 0.0
+          },
+          "total_size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Size Bytes",
+            "description": "Total size of all files belonging to the scan, in bytes.",
+            "default": 0
+          },
+          "photos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Photos",
+            "description": "Relative filenames (with extension) of all photos captured for this scan."
           },
           "task_id": {
             "anyOf": [

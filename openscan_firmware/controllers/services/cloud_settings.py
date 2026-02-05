@@ -9,20 +9,19 @@ from pathlib import Path
 from typing import Any
 
 from openscan_firmware.config.cloud import CloudConfigurationError, CloudSettings, get_cloud_settings, mask_secret
-from openscan_firmware.controllers.services.cloud import _require_cloud_settings
 from openscan_firmware.utils.settings import resolve_settings_file
 
 logger = logging.getLogger(__name__)
 
-_CLOUD_SETTINGS_SUBDIR = "openscan"
+_CLOUD_SETTINGS_SUBDIR = "firmware"
 _CLOUD_SETTINGS_FILENAME = "cloud.json"
 _ACTIVE_SOURCE: str | None = None
 
 
-def get_settings_path() -> Path:
+def get_settings_path(subdirectory: str = _CLOUD_SETTINGS_SUBDIR) -> Path:
     """Return the path where persistent cloud settings are stored."""
 
-    return resolve_settings_file(_CLOUD_SETTINGS_SUBDIR, _CLOUD_SETTINGS_FILENAME)
+    return resolve_settings_file(subdirectory, _CLOUD_SETTINGS_FILENAME)
 
 
 def save_persistent_cloud_settings(settings: CloudSettings) -> Path:
@@ -38,7 +37,7 @@ def save_persistent_cloud_settings(settings: CloudSettings) -> Path:
     target = get_settings_path()
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    payload = settings.model_dump()
+    payload = settings.model_dump(mode="json")
     temp_path = target.with_suffix(".tmp")
 
     with temp_path.open("w", encoding="utf-8") as handle:
