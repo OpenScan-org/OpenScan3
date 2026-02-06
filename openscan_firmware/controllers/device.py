@@ -246,15 +246,17 @@ def _detect_cameras() -> Dict[str, Camera]:
     except Exception as e:
         logger.error(f"Error loading Linux cameras: {e}")
 
-    # Get GPhoto2 cameras
+    # Get GPhoto2 cameras (avoid deprecated CameraList iteration)
     try:
         gphoto2_cameras = gp.Camera.autodetect()
-        for c in gphoto2_cameras:
-            cameras[c[0]] = Camera(
+        for idx in range(gphoto2_cameras.count()):
+            camera_name = gphoto2_cameras.get_name(idx)
+            camera_path = gphoto2_cameras.get_value(idx)
+            cameras[camera_name] = Camera(
                 type=CameraType.GPHOTO2,
-                name=c[0],
-                path=c[1],
-                settings=None
+                name=camera_name,
+                path=camera_path,
+                settings=None,
             )
     except Exception as e:
         logger.error(f"Error loading GPhoto2 cameras: {e}")
