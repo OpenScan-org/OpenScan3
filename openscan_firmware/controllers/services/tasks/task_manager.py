@@ -37,11 +37,13 @@ import json
 import logging
 import os
 import pathlib
+import sys
 import time
 from datetime import datetime
 from typing import Any, Type, Coroutine, AsyncGenerator
 import functools
 import importlib
+import importlib.util
 import pkgutil
 import re
 
@@ -54,6 +56,7 @@ from openscan_firmware.controllers.services.tasks.task_events import (
     TaskEventType,
 )
 from openscan_firmware.models.task import Task, TaskStatus, TaskProgress
+from openscan_firmware.utils.dir_paths import resolve_community_tasks_dir
 
 logger = logging.getLogger(__name__)
 
@@ -756,6 +759,8 @@ class TaskManager:
         registered: list[str] = []
         ignore_modules = ignore_modules or set()
 
+        external_tasks_dir = resolve_community_tasks_dir()
+
         def _is_valid_task_name(name: str) -> bool:
             # Enforce snake_case with _task suffix
             return bool(re.fullmatch(r"[a-z][a-z0-9_]*_task", name))
@@ -852,6 +857,65 @@ class TaskManager:
                         f"category: {getattr(obj, 'task_category', 'community')}) registered via autodiscovery."
                     )
                     registered.append(task_name)
+
+        if external_tasks_dir.exists():
+            for candidate in sorted(external_tasks_dir.glob("*.py")):
+                if candidate.name.startswith("__"):
+                    continue
+
+                module_name = f"openscan_external_tasks.{candidate.stem}"
+                try:
+                    spec = importlib.util.spec_from_file_location(module_name, candidate)
+                    if spec is None or spec.loader is None:
+                        raise RuntimeError(f"Could not load spec for {candidate}")
+                    module = importlib.util.module_from_spec(spec)
+                    sys.modules[module_name] = module
+                    spec.loader.exec_module(module)
+                except Exception as e:
+                    msg = f"Failed to import external task module '{candidate}': {e}"
+                    if safe_mode:
+                        logger.warning(msg)
+                        continue
+                    raise
+
+                for obj in vars(module).values():
+                    if isinstance(obj, type) and issubclass(obj, BaseTask) and obj is not BaseTask:
+                        task_name = getattr(obj, "task_name", None)
+                        if require_explicit_name and not task_name:
+                            msg = f"Task class {obj.__name__} in {module.__name__} missing explicit 'task_name'."
+                            logger.error(msg)
+                            if raise_on_missing_name:
+                                raise RuntimeError(msg)
+                            continue
+
+                        if task_name and not _is_valid_task_name(task_name):
+                            msg = (
+                                f"Task class {obj.__name__} in {module.__name__} has invalid task_name '{task_name}'. "
+                                "Expected snake_case ending with '_task'."
+                            )
+                            logger.error(msg)
+                            if raise_on_missing_name:
+                                raise RuntimeError(msg)
+                            continue
+
+                        if task_name in self._task_registry:
+                            if override_on_conflict:
+                                logger.warning(
+                                    f"Task '{task_name}' already registered. Overwriting due to override_on_conflict=True."
+                                )
+                            else:
+                                logger.warning(
+                                    f"Task '{task_name}' already registered. Skipping due to override_on_conflict=False."
+                                )
+                                continue
+
+                        self._task_registry[task_name] = obj
+                        logger.info(
+                            f"Task '{task_name}' (exclusive: {getattr(obj, 'is_exclusive', False)}, "
+                            f"blocking: {getattr(obj, 'is_blocking', False)}, "
+                            f"category: {getattr(obj, 'task_category', 'community')}) registered via external tasks dir."
+                        )
+                        registered.append(task_name)
 
         if registered:
             logger.info(f"Autodiscovery complete. Registered tasks: {sorted(set(registered))}")

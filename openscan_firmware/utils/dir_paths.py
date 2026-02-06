@@ -36,10 +36,10 @@ PATH_PROFILES: dict[str, PathProfile] = {
         system_path=Path("/var/openscan3/projects"),
         fallback_path=Path("./projects"),
     ),
-    "tasks": PathProfile(
-        env_var="OPENSCAN_TASK_DIR",
-        system_path=Path("/var/openscan3/tasks"),
-        fallback_path=Path("./tasks/community"),
+    "community_tasks": PathProfile(
+        env_var="OPENSCAN_COMMUNITY_TASKS_DIR",
+        system_path=Path("/var/openscan3/community-tasks"),
+        fallback_path=Path("./openscan_firmware/tasks/community"),
     ),
 }
 
@@ -107,6 +107,6 @@ def resolve_projects_dir(subdirectory: str | None = None) -> Path:
     return _resolve_with_optional_subdir("projects", subdirectory)
 
 
-def resolve_tasks_dir(subdirectory: str | None = None) -> Path:
-    """Resolve the tasks directory or an optional child path."""
-    return _resolve_with_optional_subdir("tasks", subdirectory)
+def resolve_community_tasks_dir(subdirectory: str | None = None) -> Path:
+    """Resolve the community tasks directory or an optional child path."""
+    return _resolve_with_optional_subdir("community_tasks", subdirectory)

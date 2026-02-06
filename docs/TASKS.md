@@ -18,6 +18,13 @@ This document explains how background tasks work in OpenScan3, how they are disc
   - `demo_examples.py`: Contains multiple demo tasks such as `hello_world_async_task`, `hello_world_blocking_task`, `exclusive_demo_task`, `generator_task`, `failing_task`.
 - Community tasks: `openscan_firmware/tasks/community/`
 
+External (system-wide) community tasks can also be provided outside of the repo:
+
+- Default directory: `/var/openscan3/community-tasks`
+- Override via env var: `OPENSCAN_COMMUNITY_TASKS_DIR`
+
+External community tasks are loaded from plain `*.py` files in that directory (no package structure required).
+
 Legacy modules at `app/controllers/services/tasks/scan_task.py`, `.../crop_task.py`, and `.../example_tasks.py` have been removed in favor of the new structure and will raise an import error if used.
 
 ## Autodiscovery
@@ -70,7 +77,7 @@ Notes:
 
 ## Persistence
 
-The TaskManager persists task state (including arguments) to disk under an internal storage path. On startup, after successful autodiscovery, the manager restores persisted tasks via `restore_tasks_from_persistence()`.
+The TaskManager persists task state (including arguments) to disk under an internal storage path (`data/tasks`). On startup, after successful autodiscovery, the manager restores persisted tasks via `restore_tasks_from_persistence()`.
 
 To keep arguments persistable, prefer simple types (numbers, strings, dicts/lists) or Pydantic models that support `.model_dump()`.
 

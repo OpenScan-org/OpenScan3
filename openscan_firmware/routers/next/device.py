@@ -8,7 +8,7 @@ import shutil
 from openscan_firmware.models.scanner import ScannerDevice
 from openscan_firmware.controllers import device
 
-from openscan_firmware.utils.settings import resolve_settings_dir
+from openscan_firmware.utils.dir_paths import resolve_settings_dir
 from .cameras import CameraStatusResponse
 from .motors import MotorStatusResponse
 from .lights import LightStatusResponse

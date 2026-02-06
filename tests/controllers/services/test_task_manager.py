@@ -6,7 +6,10 @@ import shutil
 import pytest
 import pytest_asyncio
 
-from openscan_firmware.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
+import openscan_firmware.controllers.services.tasks.task_manager as task_manager_module
+from openscan_firmware.controllers.services.tasks.task_manager import TaskManager
+
+TASKS_STORAGE_PATH = task_manager_module.TASKS_STORAGE_PATH
 from openscan_firmware.models.task import TaskStatus, Task, TaskProgress
 
 
@@ -14,8 +17,8 @@ from openscan_firmware.models.task import TaskStatus, Task, TaskProgress
 def tasks_storage_dir(task_manager_storage_path):
     """Synchronize module-level TASKS_STORAGE_PATH with the isolated test directory."""
 
-    global TASKS_STORAGE_PATH
-    TASKS_STORAGE_PATH = task_manager_storage_path
+    task_manager_module.TASKS_STORAGE_PATH = task_manager_storage_path
+    globals()["TASKS_STORAGE_PATH"] = task_manager_module.TASKS_STORAGE_PATH
     return task_manager_storage_path
 
 # Mark all tests in this module as asyncio tests and ensure storage dir fixture runs
@@ -31,9 +34,9 @@ async def task_manager_fixture(tasks_storage_dir):
     task files from the filesystem before and after each test.
     """
     # --- Filesystem Teardown from previous run ---
-    if os.path.exists(TASKS_STORAGE_PATH):
-        shutil.rmtree(TASKS_STORAGE_PATH)
-    os.makedirs(TASKS_STORAGE_PATH)
+    if os.path.exists(task_manager_module.TASKS_STORAGE_PATH):
+        shutil.rmtree(task_manager_module.TASKS_STORAGE_PATH)
+    os.makedirs(task_manager_module.TASKS_STORAGE_PATH)
 
     # --- Singleton Reset ---
     # Resetting the singleton instance is crucial for test isolation.
@@ -69,8 +72,8 @@ async def task_manager_fixture(tasks_storage_dir):
             await asyncio.sleep(0.01)
 
     # --- Final Filesystem Cleanup ---
-    if os.path.exists(TASKS_STORAGE_PATH):
-        shutil.rmtree(TASKS_STORAGE_PATH)
+    if os.path.exists(task_manager_module.TASKS_STORAGE_PATH):
+        shutil.rmtree(task_manager_module.TASKS_STORAGE_PATH)
 
     # --- Final Singleton Reset ---
     TaskManager._instance = None

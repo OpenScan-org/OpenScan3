@@ -1,4 +1,4 @@
-from openscan_firmware.utils.settings import resolve_settings_dir
+from openscan_firmware.utils.dir_paths import resolve_settings_dir
 
 
 def test_resolve_settings_dir_uses_env_base(tmp_path, monkeypatch):
