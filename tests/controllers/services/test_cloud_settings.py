@@ -5,6 +5,28 @@ from openscan_firmware.config.cloud import CloudSettings
 from openscan_firmware.controllers.services import cloud_settings
 
 
+def test_get_settings_path_honors_env_override(tmp_path, monkeypatch):
+    base_dir = tmp_path / "custom_settings"
+    monkeypatch.setenv("OPENSCAN_SETTINGS_DIR", str(base_dir))
+
+    path = cloud_settings.get_settings_path()
+
+    assert path == base_dir / "firmware" / "cloud.json"
+
+
+def test_load_persistent_cloud_settings_from_env_dir(tmp_path, monkeypatch):
+    base_dir = tmp_path / "custom_settings"
+    monkeypatch.setenv("OPENSCAN_SETTINGS_DIR", str(base_dir))
+    target = base_dir / "firmware" / "cloud.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    settings = _build_cloud_settings()
+    target.write_text(settings.model_dump_json(), encoding="utf-8")
+
+    loaded = cloud_settings.load_persistent_cloud_settings()
+
+    assert loaded == settings
+
+
 def _build_cloud_settings() -> CloudSettings:
     return CloudSettings(
         user="api-user",

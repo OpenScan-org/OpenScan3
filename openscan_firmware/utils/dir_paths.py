@@ -63,14 +63,7 @@ def _resolve_with_optional_subdir(profile_name: str, subdirectory: str | None = 
     if not subdirectory:
         return base
 
-    candidate = base / subdirectory
-    if candidate.exists():
-        return candidate
-
-    if base.exists():
-        return base
-
-    return candidate
+    return base / subdirectory
 
 
 def resolve_settings_dir(subdirectory: str | None = None) -> Path:
