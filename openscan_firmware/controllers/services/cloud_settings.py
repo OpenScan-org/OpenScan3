@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from openscan_firmware.config.cloud import CloudConfigurationError, CloudSettings, get_cloud_settings, mask_secret
-from openscan_firmware.utils.settings import resolve_settings_file
+from openscan_firmware.utils.dir_paths import resolve_settings_file
 
 logger = logging.getLogger(__name__)
 

@@ -42,6 +42,7 @@ from openscan_firmware.controllers.hardware.cameras.camera import CameraControll
 from openscan_firmware.config.scan import ScanSetting
 from openscan_firmware.models.task import TaskStatus
 from openscan_firmware.utils.paths.paths import polar_to_cartesian
+from openscan_firmware.utils.dir_paths import resolve_projects_dir
 
 
 logger = logging.getLogger(__name__)
@@ -827,35 +828,30 @@ class ProjectManager:
 
 _active_project_manager: Optional[ProjectManager] = None
 
+
+def _resolve_projects_path(path: Optional[pathlib.PurePath]) -> pathlib.Path:
+    if path is not None:
+        return pathlib.Path(path).expanduser().resolve()
+    return resolve_projects_dir().resolve()
+
+
 def get_project_manager(path: Optional[pathlib.PurePath] = None) -> ProjectManager:
-    """Get or create a ProjectManager instance for the given path"""
+    """Get or create a ProjectManager instance honoring OPENSCAN_PROJECT_DIR."""
     global _active_project_manager
 
-    if path is None:
-        if _active_project_manager:
-            logger.debug("No path provided, returning existing ProjectManager")
-            return _active_project_manager
-
-    resolved_path_str = str(pathlib.Path(path).resolve()) if path else None
+    resolved_path = _resolve_projects_path(path)
 
     if _active_project_manager is None:
-        if resolved_path_str is None:
-            logger.warning("No path provided, initializing new ProjectManager with default path")
-            _active_project_manager = ProjectManager()
-        logger.info(f"Creating new ProjectManager for {path}")
-        _active_project_manager = ProjectManager(path)
+        logger.info("Creating new ProjectManager for %s", resolved_path)
+        _active_project_manager = ProjectManager(resolved_path)
         return _active_project_manager
-    else:
-        # An instance already exists, check if paths match
-        # Ensure _active_project_manager._path is also a resolved string for fair comparison
-        # Assuming _active_project_manager._path was stored as a resolved string or Path object
-        current_manager_path_str = str(pathlib.Path(_active_project_manager._path).resolve())
 
-        if resolved_path_str == current_manager_path_str:
-            logger.debug("Explicitly requested ProjectManager for the same path already exists, returning existing ProjectManager")
-            return _active_project_manager
-        else:
-            raise RuntimeError(
-                f"ProjectManager is already initialized with a different path. "
-                f"Current: '{current_manager_path_str}', Requested: '{resolved_path_str}'"
-            )
+    current_manager_path = pathlib.Path(_active_project_manager._path).resolve()
+    if current_manager_path == resolved_path:
+        logger.debug("Returning existing ProjectManager for %s", current_manager_path)
+        return _active_project_manager
+
+    raise RuntimeError(
+        "ProjectManager is already initialized with a different path. "
+        f"Current: '{current_manager_path}', Requested: '{resolved_path}'"
+    )

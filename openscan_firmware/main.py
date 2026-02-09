@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from openscan_firmware.config.logger import setup_logging
-from openscan_firmware.utils.settings import load_settings_json
+from openscan_firmware.utils.dir_paths import load_settings_json
 from openscan_firmware import __version__
 
 from openscan_firmware.routers import websocket as websocket_router
