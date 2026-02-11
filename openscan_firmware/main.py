@@ -55,6 +55,7 @@ from openscan_firmware.routers.next import (
 from openscan_firmware.controllers import device as device_controller
 
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
+from openscan_firmware.utils.firmware_state import handle_startup
 
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,8 @@ async def lifespan(app: FastAPI):
         ", ".join(f"v{v}" for v in SUPPORTED_VERSIONS),
         LATEST,
     )
+
+    handle_startup(logger)
 
     device_controller.initialize(device_controller.load_device_config())
 

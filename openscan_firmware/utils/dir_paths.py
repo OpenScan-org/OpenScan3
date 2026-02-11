@@ -36,6 +36,11 @@ PATH_PROFILES: dict[str, PathProfile] = {
         system_path=Path("/var/openscan3/projects"),
         fallback_path=Path("./projects"),
     ),
+    "runtime": PathProfile(
+        env_var="OPENSCAN_RUNTIME_DIR",
+        system_path=Path("/var/openscan3"),
+        fallback_path=Path("./data"),
+    ),
     "community_tasks": PathProfile(
         env_var="OPENSCAN_COMMUNITY_TASKS_DIR",
         system_path=Path("/var/openscan3/community-tasks"),
@@ -98,6 +103,11 @@ def resolve_logs_dir() -> Path:
 def resolve_projects_dir(subdirectory: str | None = None) -> Path:
     """Resolve the projects directory or an optional child path."""
     return _resolve_with_optional_subdir("projects", subdirectory)
+
+
+def resolve_runtime_dir(subdirectory: str | None = None) -> Path:
+    """Resolve the runtime data directory (persistent state files)."""
+    return _resolve_with_optional_subdir("runtime", subdirectory)
 
 
 def resolve_community_tasks_dir(subdirectory: str | None = None) -> Path:
