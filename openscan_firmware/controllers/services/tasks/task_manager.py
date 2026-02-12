@@ -109,6 +109,43 @@ class TaskManager:
 
         return cls._instance
 
+    def initialize_core_tasks(
+        self,
+        autodiscovery_enabled: bool,
+        required_core_tasks: set[str],
+        override_on_conflict: bool = False,
+    ) -> None:
+        """Ensure the core task set is available according to startup mode."""
+        if autodiscovery_enabled:
+            self.autodiscover_tasks(override_on_conflict=override_on_conflict)
+            missing = required_core_tasks - set(self._task_registry.keys())
+            if missing:
+                raise RuntimeError(f"Missing required core tasks: {sorted(missing)}")
+            return
+
+        self._register_builtin_core_tasks()
+
+    def _register_builtin_core_tasks(self) -> None:
+        """Register the built-in core tasks for manual/fallback mode."""
+        from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask as CoreScanTask
+        from openscan_firmware.controllers.services.tasks.core.focus_stacking_task import (
+            FocusStackingTask as CoreFocusStackingTask,
+        )
+        from openscan_firmware.controllers.services.tasks.core.cloud_task import (
+            CloudUploadTask as CoreCloudUploadTask,
+            CloudDownloadTask as CoreCloudDownloadTask,
+        )
+
+        fallback_tasks = {
+            "scan_task": CoreScanTask,
+            "focus_stacking_task": CoreFocusStackingTask,
+            "cloud_upload_task": CoreCloudUploadTask,
+            "cloud_download_task": CoreCloudDownloadTask,
+        }
+
+        for task_name, task_cls in fallback_tasks.items():
+            self.register_task(task_name, task_cls)
+
     def restore_tasks_from_persistence(self):
         """Loads all persisted task JSON files from the storage directory.
         This should be called during application startup, after all task types have been registered.

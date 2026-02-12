@@ -96,32 +96,11 @@ async def lifespan(app: FastAPI):
     autodiscovery_enabled = _env_flag("OPENSCAN_TASK_AUTODISCOVERY", False)
     override_on_conflict = _env_flag("OPENSCAN_TASK_OVERRIDE_ON_CONFLICT", False)
 
-    if autodiscovery_enabled:
-        task_manager.autodiscover_tasks(override_on_conflict=override_on_conflict)
-
-        # Fail-fast on required core tasks
-        missing = set(REQUIRED_CORE_TASKS) - set(task_manager._task_registry.keys())
-        if missing:
-            raise RuntimeError(f"Missing required core tasks: {sorted(missing)}")
-    else:
-        # Fallback manual registration for development
-        from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask as CoreScanTask
-        from openscan_firmware.controllers.services.tasks.core.focus_stacking_task import (
-            FocusStackingTask as CoreFocusStackingTask,
-        )
-        from openscan_firmware.controllers.services.tasks.core.cloud_task import (
-            CloudUploadTask as CoreCloudUploadTask,
-            CloudDownloadTask as CoreCloudDownloadTask,
-        )
-        fallback_tasks = {
-            "scan_task": CoreScanTask,
-            "focus_stacking_task": CoreFocusStackingTask,
-            "cloud_upload_task": CoreCloudUploadTask,
-            "cloud_download_task": CoreCloudDownloadTask,
-        }
-
-        for task_name, task_cls in fallback_tasks.items():
-            task_manager.register_task(task_name, task_cls)
+    task_manager.initialize_core_tasks(
+        autodiscovery_enabled=autodiscovery_enabled,
+        required_core_tasks=set(REQUIRED_CORE_TASKS),
+        override_on_conflict=override_on_conflict,
+    )
 
     # Now that tasks are registered, restore any persisted tasks
     task_manager.restore_tasks_from_persistence()
