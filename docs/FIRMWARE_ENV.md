@@ -28,16 +28,22 @@ resolved base path.
 
 ## Cloud credentials
 
-Set the following variables to enable uploads via
+Set the token variable to enable uploads via
 `openscan_firmware.config.cloud.load_cloud_settings_from_env()`:
 
-| Env var | Required | Description |
-| --- | --- | --- |
-| `OPENSCANCLOUD_USER` | ✅ | Basic-auth username for the cloud API. |
-| `OPENSCANCLOUD_PASSWORD` | ✅ | Basic-auth password. |
-| `OPENSCANCLOUD_TOKEN` | ✅ | API token identifying the device/user. |
-| `OPENSCANCLOUD_HOST` | Optional | Override the cloud base URL (defaults to `http://openscanfeedback.dnsuser.de:1334`). |
-| `OPENSCANCLOUD_SPLIT_SIZE` | Optional | Max upload chunk size in bytes (defaults to `200_000_000`). |
+| Env var | Description |
+| ---  | - |
+| `OPENSCANCLOUD_TOKEN` | API token identifying the device/user. |
+
+The firmware now ships with the official OpenScan cloud defaults baked in:
+
+* Username/password: `openscan` / `free`
+* Host: `http://openscanfeedback.dnsuser.de:1334`
+* Upload chunk size: `200_000_000` bytes
+
+Changing those values via environment variables is intentionally unsupported to
+avoid misconfigured devices. For advanced setups, persist custom credentials via
+`settings/firmware/cloud.json` instead.
 
 At startup the firmware tries, in order:
 

@@ -8,6 +8,8 @@ from typing import Mapping
 from pydantic import BaseModel, Field, HttpUrl
 
 
+DEFAULT_CLOUD_USER = "openscan"
+DEFAULT_CLOUD_PASSWORD = "free"
 DEFAULT_CLOUD_HOST = "http://openscanfeedback.dnsuser.de:1334"
 DEFAULT_SPLIT_SIZE = 200_000_000
 
@@ -15,10 +17,19 @@ DEFAULT_SPLIT_SIZE = 200_000_000
 class CloudSettings(BaseModel):
     """Settings that describe how to talk to the OpenScan cloud backend."""
 
-    user: str = Field(..., description="HTTP basic auth username for the cloud API.")
-    password: str = Field(..., description="HTTP basic auth password for the cloud API.")
+    user: str = Field(
+        DEFAULT_CLOUD_USER,
+        description="HTTP basic auth username for the cloud API.",
+    )
+    password: str = Field(
+        DEFAULT_CLOUD_PASSWORD,
+        description="HTTP basic auth password for the cloud API.",
+    )
     token: str = Field(..., description="API token identifying the device or user.")
-    host: HttpUrl = Field(..., description="Base URL of the cloud service.")
+    host: HttpUrl = Field(
+        DEFAULT_CLOUD_HOST,
+        description="Base URL of the cloud service.",
+    )
     split_size: int = Field(
         DEFAULT_SPLIT_SIZE,
         ge=1,
@@ -55,36 +66,28 @@ def get_cloud_settings() -> CloudSettings:
 def load_cloud_settings_from_env(env: Mapping[str, str] | None = None) -> CloudSettings | None:
     """Create cloud settings from environment variables.
 
+    Only the API token may be provided via the environment. All other values
+    fall back to their project defaults.
+
     Args:
         env: Optional mapping to read values from, defaults to ``os.environ``.
 
     Returns:
-        CloudSettings instance when required variables are present, otherwise ``None``.
+        CloudSettings instance when the token variable is present, otherwise ``None``.
     """
 
     source = env or os.environ
 
-    user = source.get("OPENSCANCLOUD_USER", "").strip()
-    password = source.get("OPENSCANCLOUD_PASSWORD", "").strip()
     token = source.get("OPENSCANCLOUD_TOKEN", "").strip()
-
-    if not (user and password and token):
+    if not token:
         return None
 
-    host = source.get("OPENSCANCLOUD_HOST", DEFAULT_CLOUD_HOST).strip() or DEFAULT_CLOUD_HOST
-    split_size_raw = source.get("OPENSCANCLOUD_SPLIT_SIZE")
-
-    try:
-        split_size = int(split_size_raw) if split_size_raw else DEFAULT_SPLIT_SIZE
-    except ValueError:  # pragma: no cover - defensive conversion guard
-        split_size = DEFAULT_SPLIT_SIZE
-
     return CloudSettings(
-        user=user,
-        password=password,
+        user=DEFAULT_CLOUD_USER,
+        password=DEFAULT_CLOUD_PASSWORD,
         token=token,
-        host=host,
-        split_size=split_size,
+        host=DEFAULT_CLOUD_HOST,
+        split_size=DEFAULT_SPLIT_SIZE,
     )
 
 
