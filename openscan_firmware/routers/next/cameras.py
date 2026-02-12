@@ -3,7 +3,7 @@ import asyncio
 from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.models.camera import Camera, CameraType
@@ -24,6 +24,34 @@ class CameraStatusResponse(BaseModel):
     type: CameraType
     busy: bool
     settings: CameraSettings
+
+
+class AutoCalibrateAwbRequest(BaseModel):
+    warmup_frames: int = Field(
+        default=12,
+        description="Number of frames to discard before reading AWB metadata.",
+        ge=0,
+    )
+    stable_frames: int = Field(
+        default=4,
+        description="Consecutive frames that must meet the stability tolerance.",
+        ge=1,
+    )
+    eps: float = Field(
+        default=0.01,
+        description="Maximum delta between gain values to consider them stable.",
+        gt=0,
+    )
+    timeout_s: float = Field(
+        default=2.0,
+        description="Maximum time budget for the calibration loop in seconds.",
+        gt=0,
+    )
+
+
+class AutoCalibrateAwbResponse(BaseModel):
+    red_gain: float
+    blue_gain: float
 
 
 @router.get("/", response_model=dict[str, CameraStatusResponse])
@@ -142,6 +170,48 @@ async def restart_camera(camera_name: str):
     controller = get_camera_controller(camera_name)
     controller.restart_camera()
     return Response(status_code=200)
+
+
+@router.post(
+    "/{camera_name}/awb-calibration",
+    response_model=AutoCalibrateAwbResponse,
+    summary="Run automatic white balance calibration and lock the gains.",
+)
+async def auto_calibrate_awb(
+    camera_name: str,
+    params: AutoCalibrateAwbRequest = Body(default=AutoCalibrateAwbRequest()),
+):
+    """Expose the camera controller's automatic white balance calibration if available.
+
+    Args:
+        camera_name: Target camera identifier.
+        params: Optional tuning parameters forwarded to the controller implementation.
+
+    Returns:
+        AutoCalibrateAwbResponse: Locked gains after the calibration.
+
+    Raises:
+        HTTPException: When the controller is busy, unsupported, or calibration fails.
+    """
+
+    controller = get_camera_controller(camera_name)
+
+    if controller.is_busy():
+        raise HTTPException(status_code=409, detail="Camera is busy. Retry once it is idle.")
+
+    calibrate_fn = getattr(controller, "calibrate_awb_and_lock", None)
+    if not callable(calibrate_fn):
+        raise HTTPException(
+            status_code=501,
+            detail="This camera does not support automatic white balance calibration.",
+        )
+
+    try:
+        red_gain, blue_gain = calibrate_fn(**params.model_dump())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return AutoCalibrateAwbResponse(red_gain=red_gain, blue_gain=blue_gain)
 
 create_settings_endpoints(
     router=router,
