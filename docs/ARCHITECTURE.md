@@ -60,15 +60,14 @@ OpenScan3 uses a centralized background task system to coordinate long-running a
 - The task system is implemented under `openscan_firmware/controllers/services/tasks/`.
 - The central orchestrator is `TaskManager` (`openscan_firmware/controllers/services/tasks/task_manager.py`).
 - Tasks are classes that inherit from `BaseTask` and declare an explicit, snake_case `task_name` ending with `_task` (e.g., `scan_task`).
-- Tasks are auto-discovered at startup using settings in `settings/openscan_firmware.json`.
+- Tasks are auto-discovered at startup when `OPENSCAN_TASK_AUTODISCOVERY=1` is set; otherwise the built-in core tasks are registered manually.
 
 ### Startup Flow
 
 During application startup (see `openscan_firmware/main.py` in the FastAPI lifespan handler):
 
 1. Logging and device initialization are performed.
-2. The firmware settings file `settings/openscan_firmware.json` is read.
-3. `TaskManager.autodiscover_tasks()` is invoked with the configured namespaces, subpackage handling, ignore list, and safety options.
+2. If `OPENSCAN_TASK_AUTODISCOVERY=1`, `TaskManager.autodiscover_tasks()` scans the built-in namespaces with strict naming/ignore policies; otherwise the core tasks are registered manually.
 4. After discovery, the firmware always validates that the fixed core tasks (`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`) are registered. Missing tasks raise a `RuntimeError` and abort startup.
 5. After successful registration, `TaskManager.restore_tasks_from_persistence()` is called to recover previously persisted tasks.
 
@@ -96,14 +95,13 @@ The `TaskManager` enforces the following semantics:
 
 ### Configuration
 
-Autodiscovery is configured in `settings/openscan_firmware.json`. Relevant keys:
-
-- `task_autodiscovery_enabled`: Toggle for discovery at startup.
-- `task_autodiscovery_namespaces`: Python package roots to scan (e.g., `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`).
-- `task_autodiscovery_ignore_modules`: Module base names to skip (e.g., `base_task`, `task_manager`, optionally `example_tasks`).
-- `task_autodiscovery_safe_mode`: Skip modules that fail to import and log warnings instead of aborting.
-- `task_autodiscovery_override_on_conflict`: Whether to overwrite an already-registered `task_name` (defaults to keeping the original task).
-- Core tasks are fixed in code; if `scan_task`, `focus_stacking_task`, `cloud_upload_task`, or `cloud_download_task` are missing after discovery, startup aborts.
+Autodiscovery is disabled in production images. Set `OPENSCAN_TASK_AUTODISCOVERY=1` (and optionally
+`OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1`) to enable it for developer builds. The `TaskManager` always
+uses the same internal defaults: it scans `openscan_firmware.controllers.services.tasks` and
+`openscan_firmware.tasks.community`, recurses into subpackages, and ignores helper modules such as
+`base_task`, `task_manager`, and `examples*`. Core tasks are fixed in code; if `scan_task`,
+`focus_stacking_task`, `cloud_upload_task`, or `cloud_download_task` are missing after discovery,
+startup aborts.
 
 For a developer-oriented deep dive into tasks (naming, structure, examples), see `docs/TASKS.md`.
 

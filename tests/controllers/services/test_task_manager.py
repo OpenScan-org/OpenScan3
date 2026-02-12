@@ -54,6 +54,7 @@ async def task_manager_fixture(tasks_storage_dir):
         override_on_conflict=False,
         require_explicit_name=True,
         raise_on_missing_name=True,
+        use_default_ignore_modules=False,
     )
 
     yield tm  # Provide the cleaned-up instance to the test

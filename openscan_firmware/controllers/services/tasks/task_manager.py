@@ -60,6 +60,19 @@ from openscan_firmware.utils.dir_paths import resolve_community_tasks_dir
 
 logger = logging.getLogger(__name__)
 
+
+DEFAULT_AUTODISCOVERY_NAMESPACES = [
+    "openscan_firmware.controllers.services.tasks",
+    "openscan_firmware.tasks.community",
+]
+
+DEFAULT_AUTODISCOVERY_IGNORE_MODULES = {
+    "base_task",
+    "task_manager",
+    "example_tasks",
+    "examples",
+}
+
 # Configuration for task concurrency
 MAX_CONCURRENT_NON_EXCLUSIVE_TASKS = 3
 TASKS_STORAGE_PATH = pathlib.Path("data/tasks")
@@ -715,13 +728,14 @@ class TaskManager:
 
     def autodiscover_tasks(
         self,
-        namespaces: list[str],
+        namespaces: list[str] | None = None,
         include_subpackages: bool = True,
         ignore_modules: set[str] | None = None,
         safe_mode: bool = True,
         override_on_conflict: bool = False,
         require_explicit_name: bool = True,
         raise_on_missing_name: bool = True,
+        use_default_ignore_modules: bool = True,
     ) -> list[str]:
         """Discover and register `BaseTask` subclasses from given namespaces.
 
@@ -757,7 +771,13 @@ class TaskManager:
         """
         logger.info("Starting task autodiscovery...")
         registered: list[str] = []
-        ignore_modules = ignore_modules or set()
+        namespaces = namespaces or list(DEFAULT_AUTODISCOVERY_NAMESPACES)
+        if use_default_ignore_modules:
+            effective_ignore_modules = set(DEFAULT_AUTODISCOVERY_IGNORE_MODULES)
+            if ignore_modules:
+                effective_ignore_modules |= set(ignore_modules)
+        else:
+            effective_ignore_modules = set(ignore_modules or set())
 
         external_tasks_dir = resolve_community_tasks_dir()
 
@@ -774,9 +794,9 @@ class TaskManager:
             """
             segments = module_name.split('.')
             base = segments[-1]
-            if base in ignore_modules:
+            if base in effective_ignore_modules:
                 return True
-            return any(seg in ignore_modules for seg in segments)
+            return any(seg in effective_ignore_modules for seg in segments)
 
         modules_to_scan: list[str] = []
 

@@ -7,7 +7,7 @@ This document explains how background tasks work in OpenScan3, how they are disc
 - Tasks live under `openscan_firmware/controllers/services/tasks/`.
 - The `TaskManager` is responsible for registration, scheduling, persistence, and lifecycle management of tasks.
 - Tasks are Python classes inheriting from `BaseTask` and must define an explicit `task_name` in snake_case with the `_task` suffix, e.g. `scan_task`.
-- Tasks are auto-discovered at application startup (see `openscan_firmware/main.py`) based on configuration in `settings/openscan_firmware.json`.
+- Tasks are auto-discovered at application startup when `OPENSCAN_TASK_AUTODISCOVERY=1` is set; production images keep autodiscovery disabled.
 
 ## Directory Structure
 
@@ -29,13 +29,18 @@ Legacy modules at `app/controllers/services/tasks/scan_task.py`, `.../crop_task.
 
 ## Autodiscovery
 
-Autodiscovery is configured in `settings/openscan_firmware.json`:
+Autodiscovery is off by default for beta/end-user images. Set
+`OPENSCAN_TASK_AUTODISCOVERY=1` in the environment to enable it (optionally combine with
+`OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1` if you need to overwrite existing core tasks).
+When enabled, the `TaskManager` scans `openscan_firmware.controllers.services.tasks` and
+`openscan_firmware.tasks.community`, recurses into subpackages, and ignores helper
+modules such as `base_task`, `task_manager`, and everything under `examples*`. Naming
+checks (`task_name` must be snake_case ending in `_task`) and missing-name failures are
+hardcoded policies.
 
-- `task_autodiscovery_enabled` (bool): Enable/disable autodiscovery at startup.
-- `task_autodiscovery_namespaces` (list[str]): Python package roots to scan, e.g. `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`.
-- `task_autodiscovery_include_subpackages` (bool): Recursively scan subpackages.
-- `task_autodiscovery_ignore_modules` (list[str]): Basenames of modules to skip, e.g. `base_task`, `task_manager`.
-- The firmware enforces a fixed core set (`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`). Startup fails if any are missing after discovery, so keep those names available even when overriding implementations.
+The firmware enforces a fixed core set (`scan_task`, `focus_stacking_task`,
+`cloud_upload_task`, `cloud_download_task`). Startup fails if any are missing after
+discovery, so keep those names available even when overriding implementations.
 
 A module can opt out of autodiscovery by declaring `__openscan_autodiscover__ = False` at the module level.
 

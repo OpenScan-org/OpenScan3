@@ -1,14 +1,13 @@
-import uvicorn
 import logging
-import json
-from pathlib import Path
+import os
+
+import uvicorn
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from openscan_firmware.config.logger import setup_logging
-from openscan_firmware.utils.dir_paths import load_settings_json
 from openscan_firmware import __version__
 
 from openscan_firmware.routers import websocket as websocket_router
@@ -69,6 +68,13 @@ REQUIRED_CORE_TASKS = [
 ]
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Code to run on startup – configure logging with precedence and packaged defaults
@@ -87,36 +93,11 @@ async def lifespan(app: FastAPI):
 
     task_manager = get_task_manager()
 
-    # Load firmware settings controlling task autodiscovery (with precedence and packaged defaults)
-    autodiscovery_settings = load_settings_json("openscan_firmware.json", subdirectory="firmware") or {}
+    autodiscovery_enabled = _env_flag("OPENSCAN_TASK_AUTODISCOVERY", False)
+    override_on_conflict = _env_flag("OPENSCAN_TASK_OVERRIDE_ON_CONFLICT", False)
 
-    if autodiscovery_settings.get("task_autodiscovery_enabled", True):
-        namespaces = autodiscovery_settings.get(
-            "task_autodiscovery_namespaces", ["openscan_firmware.controllers.services.tasks"]
-        )
-        include_subpackages = autodiscovery_settings.get(
-            "task_autodiscovery_include_subpackages", True
-        )
-        ignore_modules = set(
-            autodiscovery_settings.get("task_autodiscovery_ignore_modules", [])
-        )
-        override_on_conflict = autodiscovery_settings.get(
-            "task_autodiscovery_override_on_conflict", False
-        )
-        require_explicit_name = True
-        raise_on_missing_name = autodiscovery_settings.get(
-            "task_raise_on_missing_name", True
-        )
-
-        task_manager.autodiscover_tasks(
-            namespaces=namespaces,
-            include_subpackages=include_subpackages,
-            ignore_modules=ignore_modules,
-            safe_mode=True,
-            override_on_conflict=override_on_conflict,
-            require_explicit_name=require_explicit_name,
-            raise_on_missing_name=raise_on_missing_name,
-        )
+    if autodiscovery_enabled:
+        task_manager.autodiscover_tasks(override_on_conflict=override_on_conflict)
 
         # Fail-fast on required core tasks
         missing = set(REQUIRED_CORE_TASKS) - set(task_manager._task_registry.keys())

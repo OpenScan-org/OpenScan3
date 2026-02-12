@@ -97,7 +97,7 @@ After loading the correct configuration, your OpenScan hardware should be ready 
 ### Core task overrides (advanced)
 
 - The firmware enforces a fixed list of required tasks (`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`). Startup fails fast if any of those names are missing after autodiscovery.
-- To ship a custom implementation, keep the same `task_name` and either place the module in one of the scanned namespaces or extend the namespace list in your firmware settings.
-- Overwriting an existing registration requires setting `"task_autodiscovery_override_on_conflict": true` in your local `openscan_firmware.json`. This switch is intentionally absent from the default config—only flip it when you fully control the replacement task.
+- To ship a custom implementation, keep the same `task_name` and either place the module in one of the scanned namespaces or extend the namespace list via your own package (Autodiscovery scans `openscan_firmware.controllers.services.tasks` plus `openscan_firmware.tasks.community`).
+- Enable autodiscovery by exporting `OPENSCAN_TASK_AUTODISCOVERY=1` (e.g., via `.env` or a systemd drop-in). If you need to replace an existing registration, also set `OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1`. Only flip this when you fully control the replacement task.
 - Example tasks (e.g., `examples/crop_task.py`) remain opt-in; leave them untouched if you only need the production features.
 -

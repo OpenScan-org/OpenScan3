@@ -41,17 +41,18 @@ At startup the firmware tries, in order:
 
 ## Task autodiscovery settings
 
-Task management is configured via `settings/firmware/openscan_firmware.json`:
+Autodiscovery is disabled by default for end-user builds. Enable it explicitly via the
+environment variable `OPENSCAN_TASK_AUTODISCOVERY=1` (and optionally
+`OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1` for power users who need to replace existing
+registrations). When enabled, the firmware scans the built-in namespaces
+(`openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`),
+recurses into their subpackages, and skips helper modules such as `base_task`,
+`task_manager`, and `examples*`. Naming enforcement and missing-name failures are
+always on inside the `TaskManager`.
 
-- `task_autodiscovery_enabled` (default `true`).
-- `task_autodiscovery_namespaces`: list of Python packages to scan.
-- `task_autodiscovery_include_subpackages`: recurse into subpackages.
-- `task_autodiscovery_ignore_modules`: skip modules by name.
-- `task_raise_on_missing_name`: keep failing when a task omits/violates its explicit name.
-- Required core tasks (`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`) are enforced directly in code; startup fails fast if any are missing.
-
-When autodiscovery is disabled, `ScanTask`, `FocusStackingTask`, `CloudUploadTask`, and
-`CloudDownloadTask` are registered manually for convenience.
+Regardless of autodiscovery, the firmware enforces the fixed core list
+(`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`). When
+autodiscovery is disabled, these core tasks are registered manually for stability.
 
 ## Firmware state & telemetry
 

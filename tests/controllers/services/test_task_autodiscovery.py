@@ -104,6 +104,28 @@ async def test_autodiscover_ignore_examples_package():
 
 
 @pytest.mark.asyncio
+async def test_autodiscover_defaults_register_core_tasks():
+    """Calling autodiscover_tasks() without args should use built-in defaults."""
+    TaskManager._instance = None
+    tm = TaskManager()
+
+    tm._task_registry.clear()
+
+    registered = tm.autodiscover_tasks()
+
+    required_core = {
+        "scan_task",
+        "focus_stacking_task",
+        "cloud_upload_task",
+        "cloud_download_task",
+    }
+
+    for task_name in required_core:
+        assert task_name in tm._task_registry
+        assert task_name in registered
+
+
+@pytest.mark.asyncio
 async def test_autodiscover_conflict_override_false():
     """When a task_name already exists and override_on_conflict=False, keep original."""
     from openscan_firmware.controllers.services.tasks.base_task import BaseTask
