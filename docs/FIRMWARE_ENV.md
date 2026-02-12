@@ -19,6 +19,13 @@ path in this order: explicit env var → system path (if it exists) → project
 fallback. Subdirectories (e.g. `resolve_settings_dir("device")`) append to the
 resolved base path.
 
+## Task-related flags
+
+| Env var | Purpose | Default | Notes |
+| --- | --- | --- | --- |
+| `OPENSCAN_TASK_AUTODISCOVERY` | Enables namespace scanning for tasks. | `0` (disabled) | When `0`, the firmware registers the built-in core tasks manually for stability. Set to `1` for development/power users. Full behavior is documented in [docs/TASKS.md](./TASKS.md#autodiscovery). |
+| `OPENSCAN_TASK_OVERRIDE_ON_CONFLICT` | Allow later registrations to replace existing task names. | `0` | Only meaningful when autodiscovery is enabled. Use with care when swapping core tasks (see [docs/TASKS.md](./TASKS.md#advanced-override-power-users-only)). |
+
 ## Cloud credentials
 
 Set the following variables to enable uploads via
@@ -39,51 +46,3 @@ At startup the firmware tries, in order:
 2. Environment variables (table above).
 3. If neither is present, uploads remain disabled and a warning is logged.
 
-## Task autodiscovery settings
-
-Autodiscovery is disabled by default for end-user builds. Enable it explicitly via the
-environment variable `OPENSCAN_TASK_AUTODISCOVERY=1` (and optionally
-`OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1` for power users who need to replace existing
-registrations). When enabled, the firmware scans the built-in namespaces
-(`openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`),
-recurses into their subpackages, and skips helper modules such as `base_task`,
-`task_manager`, and `examples*`. Naming enforcement and missing-name failures are
-always on inside the `TaskManager`.
-
-Regardless of autodiscovery, the firmware enforces the fixed core list
-(`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`). When
-autodiscovery is disabled, these core tasks are registered manually for stability.
-
-## Firmware state & telemetry
-
-- The firmware writes `firmware_state.lock` inside `OPENSCAN_RUNTIME_DIR` to
-  track:
-  - Schema version (`version`).
-  - `last_seen_firmware_version` (current package version).
-  - `unclean_shutdown`: runtime flag set to `True` on startup and to `False`
-    in `cleanup_and_exit()`.
-  - `last_shutdown_was_unclean`: snapshot of the state before the current
-    boot, so clients can highlight a previously failed shutdown.
-  - `updated_at`: ISO timestamp of the last write.
-- `/next/openscan` exposes `last_shutdown_was_unclean`, disk usage for runtime
-  and projects, plus `uptime_seconds`. The response is typed via
-  `SoftwareInfoResponse` for easy client consumption.
-
-## Startup & shutdown flow
-
-1. `uvicorn` launches `openscan_firmware.main:app` (default host `0.0.0.0`,
-   port `8000`).
-2. The FastAPI `lifespan` handler:
-   - Calls `setup_logging()` using `advanced_logging.json` if available.
-   - Logs firmware version and API compatibility.
-   - Invokes `handle_startup()` to warn about unclean shutdowns and mark the
-     new run as "unclean" until cleanup finishes.
-   - Initializes hardware via `device_controller.initialize(...)`.
-   - Instantiates the `TaskManager`, runs autodiscovery, and restores
-     persisted tasks.
-3. On shutdown the lifespan context closes hardware controllers via
-   `device_controller.cleanup_and_exit()`, calls `mark_clean_shutdown()`, and
-   flushes logging.
-
-With this overview you can quickly locate the relevant knobs when deploying
-OpenScan3 or debugging field issues.

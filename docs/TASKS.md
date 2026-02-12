@@ -46,7 +46,7 @@ A module can opt out of autodiscovery by declaring `__openscan_autodiscover__ = 
 
 ### Advanced override (power users only)
 
-The firmware defaults to keeping the first task registered under a given `task_name` and will log a warning for duplicates. If you deliberately want to swap out a core task (e.g., custom `scan_task`), set `"task_autodiscovery_override_on_conflict": true` in your own firmware JSON override. Only do this if you fully control the replacement task—overwriting core tasks can break the scanner.
+The firmware defaults to keeping the first task registered under a given `task_name` and will log a warning for duplicates. If you deliberately want to swap out a core task (e.g., custom `scan_task`), export `OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1` together mit `OPENSCAN_TASK_AUTODISCOVERY=1`. Nur einschalten, wenn du die Ersatz-Implementierung komplett kontrollierst – ein falsch überschriebenes Core-Task bricht den Scanner.
 
 ## Task Class Requirements
 
