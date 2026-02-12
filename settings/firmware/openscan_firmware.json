@@ -5,13 +5,6 @@
     "openscan_firmware.tasks.community"
   ],
   "task_autodiscovery_include_subpackages": true,
-  "task_autodiscovery_ignore_modules": ["base_task", "task_manager", "example_tasks", "examples"],
-  "task_autodiscovery_safe_mode": true,
-  "task_autodiscovery_override_on_conflict": false,
-
-  "task_categories_enabled": true,
-  "task_required_core_names": ["scan_task", "crop_task"],
-
-  "task_require_explicit_name": true,
+  "task_autodiscovery_ignore_modules": ["base_task", "task_manager", "example_tasks"],
   "task_raise_on_missing_name": true
 }

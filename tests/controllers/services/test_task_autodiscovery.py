@@ -31,13 +31,20 @@ async def test_autodiscover_registers_core_tasks():
         raise_on_missing_name=True,
     )
 
+    required_core = {
+        "scan_task",
+        "focus_stacking_task",
+        "cloud_upload_task",
+        "cloud_download_task",
+    }
+
     # Core tasks must be present
-    assert "scan_task" in tm._task_registry
-    assert "crop_task" in tm._task_registry
+    for task_name in required_core:
+        assert task_name in tm._task_registry
 
     # The method should return the list of newly registered tasks
-    assert "scan_task" in registered
-    assert "crop_task" in registered
+    for task_name in required_core:
+        assert task_name in registered
 
 
 @pytest.mark.asyncio
@@ -61,9 +68,16 @@ async def test_autodiscover_safe_mode_handles_import_errors():
         raise_on_missing_name=True,
     )
 
+    required_core = {
+        "scan_task",
+        "focus_stacking_task",
+        "cloud_upload_task",
+        "cloud_download_task",
+    }
+
     # Core tasks should still be discovered
-    assert "scan_task" in tm._task_registry
-    assert "crop_task" in tm._task_registry
+    for task_name in required_core:
+        assert task_name in tm._task_registry
 
 
 @pytest.mark.asyncio
@@ -82,10 +96,11 @@ async def test_autodiscover_ignore_examples_package():
         raise_on_missing_name=True,
     )
 
-    # Demo tasks should not be present
+    # Demo/example tasks should not be present (including crop_task, now an example)
     assert "hello_world_async_task" not in tm._task_registry
     assert "hello_world_blocking_task" not in tm._task_registry
     assert "exclusive_demo_task" not in tm._task_registry
+    assert "crop_task" not in tm._task_registry
 
 
 @pytest.mark.asyncio

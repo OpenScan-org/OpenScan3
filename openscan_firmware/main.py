@@ -61,6 +61,14 @@ from openscan_firmware.utils.firmware_state import handle_startup
 logger = logging.getLogger(__name__)
 
 
+REQUIRED_CORE_TASKS = [
+    "scan_task",
+    "focus_stacking_task",
+    "cloud_upload_task",
+    "cloud_download_task",
+]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Code to run on startup – configure logging with precedence and packaged defaults
@@ -92,13 +100,10 @@ async def lifespan(app: FastAPI):
         ignore_modules = set(
             autodiscovery_settings.get("task_autodiscovery_ignore_modules", [])
         )
-        safe_mode = autodiscovery_settings.get("task_autodiscovery_safe_mode", True)
         override_on_conflict = autodiscovery_settings.get(
             "task_autodiscovery_override_on_conflict", False
         )
-        require_explicit_name = autodiscovery_settings.get(
-            "task_require_explicit_name", True
-        )
+        require_explicit_name = True
         raise_on_missing_name = autodiscovery_settings.get(
             "task_raise_on_missing_name", True
         )
@@ -107,25 +112,35 @@ async def lifespan(app: FastAPI):
             namespaces=namespaces,
             include_subpackages=include_subpackages,
             ignore_modules=ignore_modules,
-            safe_mode=safe_mode,
+            safe_mode=True,
             override_on_conflict=override_on_conflict,
             require_explicit_name=require_explicit_name,
             raise_on_missing_name=raise_on_missing_name,
         )
 
         # Fail-fast on required core tasks
-        if autodiscovery_settings.get("task_categories_enabled", True):
-            required = set(autodiscovery_settings.get("task_required_core_names", []))
-            missing = required - set(task_manager._task_registry.keys())
-            if missing:
-                raise RuntimeError(f"Missing required core tasks: {sorted(missing)}")
+        missing = set(REQUIRED_CORE_TASKS) - set(task_manager._task_registry.keys())
+        if missing:
+            raise RuntimeError(f"Missing required core tasks: {sorted(missing)}")
     else:
         # Fallback manual registration for development
         from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask as CoreScanTask
-        from openscan_firmware.controllers.services.tasks.core.crop_task import CropTask as CoreCropTask
+        from openscan_firmware.controllers.services.tasks.core.focus_stacking_task import (
+            FocusStackingTask as CoreFocusStackingTask,
+        )
+        from openscan_firmware.controllers.services.tasks.core.cloud_task import (
+            CloudUploadTask as CoreCloudUploadTask,
+            CloudDownloadTask as CoreCloudDownloadTask,
+        )
+        fallback_tasks = {
+            "scan_task": CoreScanTask,
+            "focus_stacking_task": CoreFocusStackingTask,
+            "cloud_upload_task": CoreCloudUploadTask,
+            "cloud_download_task": CoreCloudDownloadTask,
+        }
 
-        task_manager.register_task("scan_task", CoreScanTask)
-        task_manager.register_task("crop_task", CoreCropTask)
+        for task_name, task_cls in fallback_tasks.items():
+            task_manager.register_task(task_name, task_cls)
 
     # Now that tasks are registered, restore any persisted tasks
     task_manager.restore_tasks_from_persistence()

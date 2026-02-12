@@ -69,7 +69,7 @@ During application startup (see `openscan_firmware/main.py` in the FastAPI lifes
 1. Logging and device initialization are performed.
 2. The firmware settings file `settings/openscan_firmware.json` is read.
 3. `TaskManager.autodiscover_tasks()` is invoked with the configured namespaces, subpackage handling, ignore list, and safety options.
-4. If `task_categories_enabled` is true, a fail-fast check validates that required core tasks (e.g., `scan_task`, `crop_task`) are present. Missing tasks raise a `RuntimeError` and abort startup.
+4. After discovery, the firmware always validates that the fixed core tasks (`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`) are registered. Missing tasks raise a `RuntimeError` and abort startup.
 5. After successful registration, `TaskManager.restore_tasks_from_persistence()` is called to recover previously persisted tasks.
 
 ### Task Discovery and Structure
@@ -77,9 +77,9 @@ During application startup (see `openscan_firmware/main.py` in the FastAPI lifes
 Tasks are organized in the following locations:
 
 - Core (production) tasks: `openscan_firmware/controllers/services/tasks/core/`
-  - e.g., `core/scan_task.py` (exclusive, async generator), `core/crop_task.py` (blocking, non-exclusive)
+  - e.g., `core/scan_task.py` (exclusive, async generator), `core/cloud_task.py` (cloud upload/download orchestration)
 - Example/demo tasks: `openscan_firmware/controllers/services/tasks/examples/`
-  - e.g., `examples/demo_examples.py` with `hello_world_async_task` etc.
+  - e.g., `examples/demo_examples.py`, `examples/crop_task.py` (blocking contour analysis)
 - Community tasks: `openscan_firmware/tasks/community/`
 
 Modules can opt-out from autodiscovery by setting a module-level flag `__openscan_autodiscover__ = False`. A global ignore list can also be configured in the settings file.
@@ -102,8 +102,8 @@ Autodiscovery is configured in `settings/openscan_firmware.json`. Relevant keys:
 - `task_autodiscovery_namespaces`: Python package roots to scan (e.g., `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`).
 - `task_autodiscovery_ignore_modules`: Module base names to skip (e.g., `base_task`, `task_manager`, optionally `example_tasks`).
 - `task_autodiscovery_safe_mode`: Skip modules that fail to import and log warnings instead of aborting.
-- `task_autodiscovery_override_on_conflict`: Whether to overwrite an already-registered `task_name`.
-- `task_categories_enabled` and `task_required_core_names`: Enable categories and enforce presence of critical tasks (`scan_task`, `crop_task`).
+- `task_autodiscovery_override_on_conflict`: Whether to overwrite an already-registered `task_name` (defaults to keeping the original task).
+- Core tasks are fixed in code; if `scan_task`, `focus_stacking_task`, `cloud_upload_task`, or `cloud_download_task` are missing after discovery, startup aborts.
 
 For a developer-oriented deep dive into tasks (naming, structure, examples), see `docs/TASKS.md`.
 

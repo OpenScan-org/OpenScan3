@@ -1,5 +1,5 @@
 """
-Core Crop Task (Proof of Concept)
+Core Crop Task (Example)
 
 Blocking task that analyzes a captured image and updates camera crop settings based on
 contour analysis. Designed without import-time hardware initialization to remain
@@ -38,7 +38,7 @@ class CropTask(BaseTask):
     """
 
     task_name = "crop_task"
-    task_category = "core"
+    task_category = "example"
     is_exclusive = False
     is_blocking = True
 

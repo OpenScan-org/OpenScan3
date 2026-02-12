@@ -35,12 +35,13 @@ Autodiscovery is configured in `settings/openscan_firmware.json`:
 - `task_autodiscovery_namespaces` (list[str]): Python package roots to scan, e.g. `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`.
 - `task_autodiscovery_include_subpackages` (bool): Recursively scan subpackages.
 - `task_autodiscovery_ignore_modules` (list[str]): Basenames of modules to skip, e.g. `base_task`, `task_manager`.
-- `task_autodiscovery_safe_mode` (bool): Import errors are logged and ignored instead of aborting startup.
-- `task_autodiscovery_override_on_conflict` (bool): When two tasks register the same `task_name`, optionally override the existing registration.
-- `task_categories_enabled` (bool): Enable validation of required core tasks.
-- `task_required_core_names` (list[str]): List of required task names, e.g. `["scan_task", "crop_task"]`.
+- The firmware enforces a fixed core set (`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`). Startup fails if any are missing after discovery, so keep those names available even when overriding implementations.
 
 A module can opt out of autodiscovery by declaring `__openscan_autodiscover__ = False` at the module level.
+
+### Advanced override (power users only)
+
+The firmware defaults to keeping the first task registered under a given `task_name` and will log a warning for duplicates. If you deliberately want to swap out a core task (e.g., custom `scan_task`), set `"task_autodiscovery_override_on_conflict": true` in your own firmware JSON override. Only do this if you fully control the replacement task—overwriting core tasks can break the scanner.
 
 ## Task Class Requirements
 
