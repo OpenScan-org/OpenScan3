@@ -23,12 +23,8 @@ async def test_autodiscover_registers_core_tasks():
             "openscan_firmware.controllers.services.tasks",
             "openscan_firmware.tasks.community",
         ],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager", "example_tasks"},
-        safe_mode=True,
+        extra_ignore_modules={"base_task", "task_manager", "example_tasks"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
     required_core = {
@@ -57,15 +53,14 @@ async def test_autodiscover_safe_mode_handles_import_errors():
     TaskManager._instance = None
     tm = TaskManager()
 
-    # Do not ignore example_tasks to force an import error inside autodiscovery
-    registered = tm.autodiscover_tasks(
-        namespaces=["openscan_firmware.controllers.services.tasks"],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager"},
-        safe_mode=True,
+    # Add a bogus namespace to trigger an import error while staying in safe mode
+    tm.autodiscover_tasks(
+        namespaces=[
+            "openscan_firmware.controllers.services.tasks",
+            "openscan_firmware.controllers.services.tasks.non_existent_namespace",
+        ],
+        extra_ignore_modules={"base_task", "task_manager"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
     required_core = {
@@ -88,12 +83,8 @@ async def test_autodiscover_ignore_examples_package():
 
     tm.autodiscover_tasks(
         namespaces=["openscan_firmware.controllers.services.tasks"],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager", "examples"},
-        safe_mode=True,
+        extra_ignore_modules={"base_task", "task_manager", "examples"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
     # Demo/example tasks should not be present (including crop_task, now an example)
@@ -146,12 +137,8 @@ async def test_autodiscover_conflict_override_false():
 
     tm.autodiscover_tasks(
         namespaces=["openscan_firmware.controllers.services.tasks"],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager"},
-        safe_mode=True,
+        extra_ignore_modules={"base_task", "task_manager"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
     # Registry should still point to the original dummy task

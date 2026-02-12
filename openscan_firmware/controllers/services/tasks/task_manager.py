@@ -729,13 +729,8 @@ class TaskManager:
     def autodiscover_tasks(
         self,
         namespaces: list[str] | None = None,
-        include_subpackages: bool = True,
-        ignore_modules: set[str] | None = None,
-        safe_mode: bool = True,
+        extra_ignore_modules: set[str] | None = None,
         override_on_conflict: bool = False,
-        require_explicit_name: bool = True,
-        raise_on_missing_name: bool = True,
-        use_default_ignore_modules: bool = True,
     ) -> list[str]:
         """Discover and register `BaseTask` subclasses from given namespaces.
 
@@ -746,21 +741,13 @@ class TaskManager:
         Args:
         #        modules: List of top-level module/package names to scan, e.g.
         #                ["openscan_firmware.controllers.services.tasks", "openscan_firmware.tasks.community"].
-            include_subpackages: If True, recursively walk subpackages using
-                `pkgutil.walk_packages`.
-            ignore_modules: Set of module or package names to ignore (e.g.,
-                {"base_task", "task_manager", "examples"}). Matching is performed
-                against any segment of the fully qualified module path, so adding
-                openscan_firmware.controllers.services.tasks.examples.*).
-            safe_mode: If True, import errors are logged as warnings and the module
-                is skipped. If False, import errors are re-raised.
+            extra_ignore_modules: Additional module or package names to ignore
+                on top of the built-in defaults ("base_task", "task_manager",
+                "example_tasks", "examples"). Matching is performed against any
+                segment of the fully qualified module path, so adding
+                "foo.bar" will ignore "foo.bar.baz" as well.
             override_on_conflict: If True, a duplicate task_name will overwrite the
                 existing registration. If False, duplicates are skipped with a warning.
-            require_explicit_name: If True, task classes without a `task_name`
-                attribute are considered invalid and are skipped (or raise).
-            raise_on_missing_name: If True and `require_explicit_name` is True,
-                missing or invalid names will raise a RuntimeError; otherwise they
-                are logged and skipped.
 
         Returns:
             List of successfully registered task names.
@@ -772,12 +759,13 @@ class TaskManager:
         logger.info("Starting task autodiscovery...")
         registered: list[str] = []
         namespaces = namespaces or list(DEFAULT_AUTODISCOVERY_NAMESPACES)
-        if use_default_ignore_modules:
-            effective_ignore_modules = set(DEFAULT_AUTODISCOVERY_IGNORE_MODULES)
-            if ignore_modules:
-                effective_ignore_modules |= set(ignore_modules)
-        else:
-            effective_ignore_modules = set(ignore_modules or set())
+        effective_ignore_modules = set(DEFAULT_AUTODISCOVERY_IGNORE_MODULES)
+        if extra_ignore_modules:
+            effective_ignore_modules |= set(extra_ignore_modules)
+
+        safe_mode = True
+        require_explicit_name = True
+        raise_on_missing_name = True
 
         external_tasks_dir = resolve_community_tasks_dir()
 
@@ -812,8 +800,8 @@ class TaskManager:
                     continue
                 raise
 
-            # Walk subpackages if requested
-            if include_subpackages and hasattr(pkg, "__path__"):
+            # Always walk subpackages to keep autodiscovery exhaustive
+            if hasattr(pkg, "__path__"):
                 for finder, name, ispkg in pkgutil.walk_packages(pkg.__path__, pkg.__name__ + "."):
                     if _should_ignore(name):
                         logger.debug(f"Skipping ignored module '{name}'.")
