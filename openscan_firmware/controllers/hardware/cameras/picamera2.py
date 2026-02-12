@@ -393,18 +393,17 @@ class Picamera2Controller(CameraController):
             logger.error("Could not determine gains from metadata.")
             raise RuntimeError("Could not determine gains from metadata.")
 
-        # Disable AWB and lock the gains
+        # Disable AWB and persist gains via the settings wrapper so downstream code stays in sync
+        locked_gains = (float(best_gains[0]), float(best_gains[1]))
         self._picam.set_controls({
             "AwbEnable": False,
-            "ColourGains": (float(best_gains[0]), float(best_gains[1]))
         })
-        self.settings.awbg_red = best_gains[0]
-        self.settings.awbg_blue = best_gains[1]
+        self.settings.update(awbg_red=locked_gains[0], awbg_blue=locked_gains[1])
         logger.info(f"AWB locked with gains: {best_gains}")
 
         self._set_busy(False)
 
-        return float(best_gains[0]), float(best_gains[1])
+        return locked_gains
 
     def restart_camera(self):
         """Restart the camera and reconfigure resolution."""
