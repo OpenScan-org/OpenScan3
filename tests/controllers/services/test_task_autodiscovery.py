@@ -23,21 +23,24 @@ async def test_autodiscover_registers_core_tasks():
             "openscan_firmware.controllers.services.tasks",
             "openscan_firmware.tasks.community",
         ],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager", "example_tasks"},
-        safe_mode=True,
+        extra_ignore_modules={"base_task", "task_manager", "example_tasks"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
+    required_core = {
+        "scan_task",
+        "focus_stacking_task",
+        "cloud_upload_task",
+        "cloud_download_task",
+    }
+
     # Core tasks must be present
-    assert "scan_task" in tm._task_registry
-    assert "crop_task" in tm._task_registry
+    for task_name in required_core:
+        assert task_name in tm._task_registry
 
     # The method should return the list of newly registered tasks
-    assert "scan_task" in registered
-    assert "crop_task" in registered
+    for task_name in required_core:
+        assert task_name in registered
 
 
 @pytest.mark.asyncio
@@ -50,20 +53,26 @@ async def test_autodiscover_safe_mode_handles_import_errors():
     TaskManager._instance = None
     tm = TaskManager()
 
-    # Do not ignore example_tasks to force an import error inside autodiscovery
-    registered = tm.autodiscover_tasks(
-        namespaces=["openscan_firmware.controllers.services.tasks"],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager"},
-        safe_mode=True,
+    # Add a bogus namespace to trigger an import error while staying in safe mode
+    tm.autodiscover_tasks(
+        namespaces=[
+            "openscan_firmware.controllers.services.tasks",
+            "openscan_firmware.controllers.services.tasks.non_existent_namespace",
+        ],
+        extra_ignore_modules={"base_task", "task_manager"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
+    required_core = {
+        "scan_task",
+        "focus_stacking_task",
+        "cloud_upload_task",
+        "cloud_download_task",
+    }
+
     # Core tasks should still be discovered
-    assert "scan_task" in tm._task_registry
-    assert "crop_task" in tm._task_registry
+    for task_name in required_core:
+        assert task_name in tm._task_registry
 
 
 @pytest.mark.asyncio
@@ -74,18 +83,37 @@ async def test_autodiscover_ignore_examples_package():
 
     tm.autodiscover_tasks(
         namespaces=["openscan_firmware.controllers.services.tasks"],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager", "examples"},
-        safe_mode=True,
+        extra_ignore_modules={"base_task", "task_manager", "examples"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
-    # Demo tasks should not be present
+    # Demo/example tasks should not be present (including crop_task, now an example)
     assert "hello_world_async_task" not in tm._task_registry
     assert "hello_world_blocking_task" not in tm._task_registry
     assert "exclusive_demo_task" not in tm._task_registry
+    assert "crop_task" not in tm._task_registry
+
+
+@pytest.mark.asyncio
+async def test_autodiscover_defaults_register_core_tasks():
+    """Calling autodiscover_tasks() without args should use built-in defaults."""
+    TaskManager._instance = None
+    tm = TaskManager()
+
+    tm._task_registry.clear()
+
+    registered = tm.autodiscover_tasks()
+
+    required_core = {
+        "scan_task",
+        "focus_stacking_task",
+        "cloud_upload_task",
+        "cloud_download_task",
+    }
+
+    for task_name in required_core:
+        assert task_name in tm._task_registry
+        assert task_name in registered
 
 
 @pytest.mark.asyncio
@@ -109,12 +137,8 @@ async def test_autodiscover_conflict_override_false():
 
     tm.autodiscover_tasks(
         namespaces=["openscan_firmware.controllers.services.tasks"],
-        include_subpackages=True,
-        ignore_modules={"base_task", "task_manager"},
-        safe_mode=True,
+        extra_ignore_modules={"base_task", "task_manager"},
         override_on_conflict=False,
-        require_explicit_name=True,
-        raise_on_missing_name=True,
     )
 
     # Registry should still point to the original dummy task

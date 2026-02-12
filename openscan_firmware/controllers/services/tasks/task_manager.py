@@ -60,6 +60,19 @@ from openscan_firmware.utils.dir_paths import resolve_community_tasks_dir
 
 logger = logging.getLogger(__name__)
 
+
+DEFAULT_AUTODISCOVERY_NAMESPACES = [
+    "openscan_firmware.controllers.services.tasks",
+    "openscan_firmware.tasks.community",
+]
+
+DEFAULT_AUTODISCOVERY_IGNORE_MODULES = {
+    "base_task",
+    "task_manager",
+    "example_tasks",
+    "examples",
+}
+
 # Configuration for task concurrency
 MAX_CONCURRENT_NON_EXCLUSIVE_TASKS = 3
 TASKS_STORAGE_PATH = pathlib.Path("data/tasks")
@@ -95,6 +108,43 @@ class TaskManager:
             # The loading of tasks is now deferred to an explicit call to `restore_tasks_from_persistence`
 
         return cls._instance
+
+    def initialize_core_tasks(
+        self,
+        autodiscovery_enabled: bool,
+        required_core_tasks: set[str],
+        override_on_conflict: bool = False,
+    ) -> None:
+        """Ensure the core task set is available according to startup mode."""
+        if autodiscovery_enabled:
+            self.autodiscover_tasks(override_on_conflict=override_on_conflict)
+            missing = required_core_tasks - set(self._task_registry.keys())
+            if missing:
+                raise RuntimeError(f"Missing required core tasks: {sorted(missing)}")
+            return
+
+        self._register_builtin_core_tasks()
+
+    def _register_builtin_core_tasks(self) -> None:
+        """Register the built-in core tasks for manual/fallback mode."""
+        from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask as CoreScanTask
+        from openscan_firmware.controllers.services.tasks.core.focus_stacking_task import (
+            FocusStackingTask as CoreFocusStackingTask,
+        )
+        from openscan_firmware.controllers.services.tasks.core.cloud_task import (
+            CloudUploadTask as CoreCloudUploadTask,
+            CloudDownloadTask as CoreCloudDownloadTask,
+        )
+
+        fallback_tasks = {
+            "scan_task": CoreScanTask,
+            "focus_stacking_task": CoreFocusStackingTask,
+            "cloud_upload_task": CoreCloudUploadTask,
+            "cloud_download_task": CoreCloudDownloadTask,
+        }
+
+        for task_name, task_cls in fallback_tasks.items():
+            self.register_task(task_name, task_cls)
 
     def restore_tasks_from_persistence(self):
         """Loads all persisted task JSON files from the storage directory.
@@ -715,13 +765,9 @@ class TaskManager:
 
     def autodiscover_tasks(
         self,
-        namespaces: list[str],
-        include_subpackages: bool = True,
-        ignore_modules: set[str] | None = None,
-        safe_mode: bool = True,
+        namespaces: list[str] | None = None,
+        extra_ignore_modules: set[str] | None = None,
         override_on_conflict: bool = False,
-        require_explicit_name: bool = True,
-        raise_on_missing_name: bool = True,
     ) -> list[str]:
         """Discover and register `BaseTask` subclasses from given namespaces.
 
@@ -732,21 +778,13 @@ class TaskManager:
         Args:
         #        modules: List of top-level module/package names to scan, e.g.
         #                ["openscan_firmware.controllers.services.tasks", "openscan_firmware.tasks.community"].
-            include_subpackages: If True, recursively walk subpackages using
-                `pkgutil.walk_packages`.
-            ignore_modules: Set of module or package names to ignore (e.g.,
-                {"base_task", "task_manager", "examples"}). Matching is performed
-                against any segment of the fully qualified module path, so adding
-                openscan_firmware.controllers.services.tasks.examples.*).
-            safe_mode: If True, import errors are logged as warnings and the module
-                is skipped. If False, import errors are re-raised.
+            extra_ignore_modules: Additional module or package names to ignore
+                on top of the built-in defaults ("base_task", "task_manager",
+                "example_tasks", "examples"). Matching is performed against any
+                segment of the fully qualified module path, so adding
+                "foo.bar" will ignore "foo.bar.baz" as well.
             override_on_conflict: If True, a duplicate task_name will overwrite the
                 existing registration. If False, duplicates are skipped with a warning.
-            require_explicit_name: If True, task classes without a `task_name`
-                attribute are considered invalid and are skipped (or raise).
-            raise_on_missing_name: If True and `require_explicit_name` is True,
-                missing or invalid names will raise a RuntimeError; otherwise they
-                are logged and skipped.
 
         Returns:
             List of successfully registered task names.
@@ -757,7 +795,14 @@ class TaskManager:
         """
         logger.info("Starting task autodiscovery...")
         registered: list[str] = []
-        ignore_modules = ignore_modules or set()
+        namespaces = namespaces or list(DEFAULT_AUTODISCOVERY_NAMESPACES)
+        effective_ignore_modules = set(DEFAULT_AUTODISCOVERY_IGNORE_MODULES)
+        if extra_ignore_modules:
+            effective_ignore_modules |= set(extra_ignore_modules)
+
+        safe_mode = True
+        require_explicit_name = True
+        raise_on_missing_name = True
 
         external_tasks_dir = resolve_community_tasks_dir()
 
@@ -774,9 +819,9 @@ class TaskManager:
             """
             segments = module_name.split('.')
             base = segments[-1]
-            if base in ignore_modules:
+            if base in effective_ignore_modules:
                 return True
-            return any(seg in ignore_modules for seg in segments)
+            return any(seg in effective_ignore_modules for seg in segments)
 
         modules_to_scan: list[str] = []
 
@@ -792,8 +837,8 @@ class TaskManager:
                     continue
                 raise
 
-            # Walk subpackages if requested
-            if include_subpackages and hasattr(pkg, "__path__"):
+            # Always walk subpackages to keep autodiscovery exhaustive
+            if hasattr(pkg, "__path__"):
                 for finder, name, ispkg in pkgutil.walk_packages(pkg.__path__, pkg.__name__ + "."):
                     if _should_ignore(name):
                         logger.debug(f"Skipping ignored module '{name}'.")

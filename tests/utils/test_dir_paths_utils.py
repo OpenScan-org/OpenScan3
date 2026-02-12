@@ -13,6 +13,32 @@ def test_resolve_settings_dir_uses_env_base(tmp_path, monkeypatch):
     assert result == env_base / "device"
 
 
+def test_resolve_runtime_dir_uses_env_override(tmp_path, monkeypatch):
+    runtime_dir = tmp_path / "runtime"
+    sub_dir = runtime_dir / "state"
+    sub_dir.mkdir(parents=True)
+    monkeypatch.setenv("OPENSCAN_RUNTIME_DIR", str(runtime_dir))
+
+    assert dir_paths.resolve_runtime_dir("state") == sub_dir
+
+
+def test_resolve_runtime_dir_falls_back_when_env_and_system_missing(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENSCAN_RUNTIME_DIR", raising=False)
+
+    fallback = tmp_path / "runtime-fallback"
+    monkeypatch.setitem(
+        dir_paths.PATH_PROFILES,
+        "runtime",
+        dir_paths.PathProfile(
+            env_var="OPENSCAN_RUNTIME_DIR",
+            system_path=tmp_path / "missing-system",
+            fallback_path=fallback,
+        ),
+    )
+
+    assert dir_paths.resolve_runtime_dir() == fallback
+
+
 def test_resolve_logs_dir_prefers_system_when_env_missing(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENSCAN_LOG_DIR", raising=False)
     system_dir = tmp_path / "logs"
