@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
@@ -14,6 +14,16 @@ router = APIRouter(
     tags=["motors"],
     responses={404: {"description": "Not found"}},
 )
+
+
+def _get_motor_controller_or_404(motor_name: str):
+    """Return the motor controller or raise a FastAPI 404."""
+
+    try:
+        return get_motor_controller(motor_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
 
 class MotorStatusResponse(BaseModel):
     name: str
@@ -47,10 +57,7 @@ async def get_motor(motor_name: str):
     Returns:
         MotorStatusResponse: A response object containing the status of the motor
     """
-    try:
-        return get_motor_controller(motor_name).get_status()
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    return _get_motor_controller_or_404(motor_name).get_status()
 
 
 @router.put("/{motor_name}/angle", response_model=MotorStatusResponse)
@@ -65,7 +72,7 @@ async def move_motor_to_angle(motor_name: str, degrees: float):
         MotorStatusResponse: A response object containing the status of the motor after the move
     """
 
-    controller = get_motor_controller(motor_name)
+    controller = _get_motor_controller_or_404(motor_name)
     await controller.move_to(degrees)
     return controller.get_status()
 
@@ -81,8 +88,49 @@ async def move_motor_by_degree(motor_name: str, degrees: float = Body(embed=True
     Returns:
         MotorStatusResponse: A response object containing the status of the motor after the move
     """
-    controller = get_motor_controller(motor_name)
+    controller = _get_motor_controller_or_404(motor_name)
     await controller.move_degrees(degrees)
+    return controller.get_status()
+
+
+@router.put("/{motor_name}/angle-override", response_model=MotorStatusResponse)
+async def override_motor_angle(
+    motor_name: str,
+    angle: float = Query(
+        90.0,
+        description=(
+            "Angle value that will overwrite the controller's internal model. Only change this "
+            "after verifying the physical motor position because no positional feedback is available."
+        ),
+    ),
+):
+    """Override the internal motor angle model.
+
+    This endpoint forces the controller's model to a specific angle without moving hardware. The
+    default of 90° assumes the motor was manually aligned beforehand. Changing this value without
+    confirming the actual motor position can desynchronize the model from reality and cause motion
+    issues. The override is rejected while the controller reports a busy state to avoid writing an
+    inconsistent angle during movements.
+
+    Args:
+        motor_name: Identifier of the motor whose model should be overwritten.
+        angle: The new angle to store in the model (defaults to 90°).
+
+    Returns:
+        MotorStatusResponse: Updated status after overriding the model angle.
+    """
+
+    controller = _get_motor_controller_or_404(motor_name)
+    if controller.is_busy():
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Motor is currently moving. Stop the motion before overriding the internal angle "
+                "model to avoid desynchronization."
+            ),
+        )
+
+    controller.model.angle = angle
     return controller.get_status()
 
 
@@ -98,7 +146,7 @@ async def move_motor_to_home_position(motor_name: str):
     Returns:
         MotorStatusResponse: A response object containing the status of the motor after the move
     """
-    controller = get_motor_controller(motor_name)
+    controller = _get_motor_controller_or_404(motor_name)
     if controller.endstop and not controller.is_busy():
         # Trigger Endstop
         controller.model.angle = 0

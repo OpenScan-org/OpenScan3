@@ -5,31 +5,15 @@ import os
 from importlib import resources
 from pathlib import Path
 
-from openscan_firmware.utils.settings import (
+from openscan_firmware.utils.dir_paths import (
     resolve_settings_dir,
     resolve_settings_file,
     load_settings_json as load_settings_json_from_utils,
+    resolve_logs_dir,
 )
 
 
-def _resolve_logs_dir() -> str:
-    """Resolve a writable logs directory with precedence.
-
-    Precedence:
-    1) OPENSCAN_LOG_DIR env var
-    2) /var/log/openscan3
-    3) ./logs (cwd)
-    """
-    env_dir = os.getenv("OPENSCAN_LOG_DIR")
-    if env_dir:
-        return env_dir
-    log_dir = Path("/var/log/openscan3")
-    if log_dir.exists():
-        return str(log_dir)
-    return "./logs"
-
-
-DEFAULT_LOGS_PATH = _resolve_logs_dir()
+DEFAULT_LOGS_PATH = resolve_logs_dir()
 def get_settings_file(filename: str) -> str | None:
     """Find a settings file according to precedence directories.
 
@@ -59,7 +43,7 @@ def _sanitize_logging_config(config: dict) -> dict:
         filename = handler.get("filename")
         if filename and not os.path.isabs(filename):
             # place into DEFAULT_LOGS_PATH with same basename
-            handler["filename"] = str(Path(DEFAULT_LOGS_PATH) / Path(filename).name)
+            handler["filename"] = str(DEFAULT_LOGS_PATH / Path(filename).name)
     return config
 
 
@@ -72,7 +56,7 @@ def setup_logging(preferred_filename: str | None = None, default_level=logging.I
     """
     # Ensure logs directory exists (best-effort)
     try:
-        Path(DEFAULT_LOGS_PATH).mkdir(parents=True, exist_ok=True)
+        DEFAULT_LOGS_PATH.mkdir(parents=True, exist_ok=True)
     except Exception as e:
         logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
         logging.warning(f"Could not create log directory {DEFAULT_LOGS_PATH}: {e}. Using basicConfig.")

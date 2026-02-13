@@ -55,57 +55,21 @@ This architecture is designed to be modular and extensible, allowing for easy in
 
 ## Background Task System
 
-OpenScan3 uses a centralized background task system to coordinate long-running and/or hardware-critical operations such as scanning, cropping, and demo/example jobs.
-
-- The task system is implemented under `openscan_firmware/controllers/services/tasks/`.
-- The central orchestrator is `TaskManager` (`openscan_firmware/controllers/services/tasks/task_manager.py`).
-- Tasks are classes that inherit from `BaseTask` and declare an explicit, snake_case `task_name` ending with `_task` (e.g., `scan_task`).
-- Tasks are auto-discovered at startup using settings in `settings/openscan_firmware.json`.
+OpenScan3 uses a centralized background task system to coordinate long-running and/or hardware-critical operations such as scanning, cropping, and demo/example jobs. Implementation details, naming rules, and module structure live in [docs/TASKS.md](./TASKS.md).
 
 ### Startup Flow
 
 During application startup (see `openscan_firmware/main.py` in the FastAPI lifespan handler):
 
 1. Logging and device initialization are performed.
-2. The firmware settings file `settings/openscan_firmware.json` is read.
-3. `TaskManager.autodiscover_tasks()` is invoked with the configured namespaces, subpackage handling, ignore list, and safety options.
-4. If `task_categories_enabled` is true, a fail-fast check validates that required core tasks (e.g., `scan_task`, `crop_task`) are present. Missing tasks raise a `RuntimeError` and abort startup.
-5. After successful registration, `TaskManager.restore_tasks_from_persistence()` is called to recover previously persisted tasks.
+2. `TaskManager.initialize_core_tasks()` enforces the core task set. With `OPENSCAN_TASK_AUTODISCOVERY=1`, it runs discovery inside the default namespaces; otherwise it registers the built-in core implementations manually.
+3. After initialization, `TaskManager.restore_tasks_from_persistence()` recovers previously persisted tasks.
 
 ### Task Discovery and Structure
 
-Tasks are organized in the following locations:
+Tasks live under `openscan_firmware/controllers/services/tasks/` (core + examples) and `openscan_firmware/tasks/community/`. See [docs/TASKS.md](./TASKS.md) for the full directory breakdown, opt-out flag, and ignore rules.
 
-- Core (production) tasks: `openscan_firmware/controllers/services/tasks/core/`
-  - e.g., `core/scan_task.py` (exclusive, async generator), `core/crop_task.py` (blocking, non-exclusive)
-- Example/demo tasks: `openscan_firmware/controllers/services/tasks/examples/`
-  - e.g., `examples/demo_examples.py` with `hello_world_async_task` etc.
-- Community tasks: `openscan_firmware/tasks/community/`
-
-Modules can opt-out from autodiscovery by setting a module-level flag `__openscan_autodiscover__ = False`. A global ignore list can also be configured in the settings file.
-
-### Concurrency & Scheduling
-
-The `TaskManager` enforces the following semantics:
-
-- Non-exclusive tasks can run in parallel up to a fixed limit (`MAX_CONCURRENT_NON_EXCLUSIVE_TASKS`).
-- Exclusive tasks require sole access and will prevent other tasks from starting; they are queued if necessary.
-- Blocking tasks (`is_blocking = True`) run in a thread pool and do not count against the async concurrency limit. Exclusive semantics still apply.
-- Scheduling decisions are encapsulated in `TaskManager._can_run_task` and the internal queueing logic.
-
-
-### Configuration
-
-Autodiscovery is configured in `settings/openscan_firmware.json`. Relevant keys:
-
-- `task_autodiscovery_enabled`: Toggle for discovery at startup.
-- `task_autodiscovery_namespaces`: Python package roots to scan (e.g., `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`).
-- `task_autodiscovery_ignore_modules`: Module base names to skip (e.g., `base_task`, `task_manager`, optionally `example_tasks`).
-- `task_autodiscovery_safe_mode`: Skip modules that fail to import and log warnings instead of aborting.
-- `task_autodiscovery_override_on_conflict`: Whether to overwrite an already-registered `task_name`.
-- `task_categories_enabled` and `task_required_core_names`: Enable categories and enforce presence of critical tasks (`scan_task`, `crop_task`).
-
-For a developer-oriented deep dive into tasks (naming, structure, examples), see `docs/TASKS.md`.
+Concurrency limits, blocking/exclusive semantics, and configuration flags are documented in [docs/TASKS.md](./TASKS.md#concurrency--scheduling) and the env-table in [docs/FIRMWARE_ENV.md](./FIRMWARE_ENV.md#task-related-flags).
 
 ### Service Layer for Scans
 

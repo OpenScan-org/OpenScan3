@@ -7,7 +7,7 @@ This document explains how background tasks work in OpenScan3, how they are disc
 - Tasks live under `openscan_firmware/controllers/services/tasks/`.
 - The `TaskManager` is responsible for registration, scheduling, persistence, and lifecycle management of tasks.
 - Tasks are Python classes inheriting from `BaseTask` and must define an explicit `task_name` in snake_case with the `_task` suffix, e.g. `scan_task`.
-- Tasks are auto-discovered at application startup (see `openscan_firmware/main.py`) based on configuration in `settings/openscan_firmware.json`.
+- Tasks are auto-discovered at application startup when `OPENSCAN_TASK_AUTODISCOVERY=1` is set; production images keep autodiscovery disabled.
 
 ## Directory Structure
 
@@ -18,22 +18,35 @@ This document explains how background tasks work in OpenScan3, how they are disc
   - `demo_examples.py`: Contains multiple demo tasks such as `hello_world_async_task`, `hello_world_blocking_task`, `exclusive_demo_task`, `generator_task`, `failing_task`.
 - Community tasks: `openscan_firmware/tasks/community/`
 
+External (system-wide) community tasks can also be provided outside of the repo:
+
+- Default directory: `/var/openscan3/community-tasks`
+- Override via env var: `OPENSCAN_COMMUNITY_TASKS_DIR`
+
+External community tasks are loaded from plain `*.py` files in that directory (no package structure required).
+
 Legacy modules at `app/controllers/services/tasks/scan_task.py`, `.../crop_task.py`, and `.../example_tasks.py` have been removed in favor of the new structure and will raise an import error if used.
 
 ## Autodiscovery
 
-Autodiscovery is configured in `settings/openscan_firmware.json`:
+Autodiscovery is off by default for beta/end-user images. Set
+`OPENSCAN_TASK_AUTODISCOVERY=1` in the environment to enable it (optionally combine with
+`OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1` if you need to overwrite existing core tasks).
+When enabled, the `TaskManager` scans `openscan_firmware.controllers.services.tasks` and
+`openscan_firmware.tasks.community`, recurses into subpackages, and ignores helper
+modules such as `base_task`, `task_manager`, and everything under `examples*`. Naming
+checks (`task_name` must be snake_case ending in `_task`) and missing-name failures are
+hardcoded policies.
 
-- `task_autodiscovery_enabled` (bool): Enable/disable autodiscovery at startup.
-- `task_autodiscovery_namespaces` (list[str]): Python package roots to scan, e.g. `openscan_firmware.controllers.services.tasks`, `openscan_firmware.tasks.community`.
-- `task_autodiscovery_include_subpackages` (bool): Recursively scan subpackages.
-- `task_autodiscovery_ignore_modules` (list[str]): Basenames of modules to skip, e.g. `base_task`, `task_manager`.
-- `task_autodiscovery_safe_mode` (bool): Import errors are logged and ignored instead of aborting startup.
-- `task_autodiscovery_override_on_conflict` (bool): When two tasks register the same `task_name`, optionally override the existing registration.
-- `task_categories_enabled` (bool): Enable validation of required core tasks.
-- `task_required_core_names` (list[str]): List of required task names, e.g. `["scan_task", "crop_task"]`.
+The firmware enforces a fixed core set (`scan_task`, `focus_stacking_task`,
+`cloud_upload_task`, `cloud_download_task`). Startup fails if any are missing after
+discovery, so keep those names available even when overriding implementations.
 
 A module can opt out of autodiscovery by declaring `__openscan_autodiscover__ = False` at the module level.
+
+### Advanced override (power users only)
+
+The firmware defaults to keeping the first task registered under a given `task_name` and will log a warning for duplicates. If you deliberately want to swap out a core task (e.g., custom `scan_task`), export `OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1` together mit `OPENSCAN_TASK_AUTODISCOVERY=1`. Nur einschalten, wenn du die Ersatz-Implementierung komplett kontrollierst – ein falsch überschriebenes Core-Task bricht den Scanner.
 
 ## Task Class Requirements
 
@@ -70,7 +83,7 @@ Notes:
 
 ## Persistence
 
-The TaskManager persists task state (including arguments) to disk under an internal storage path. On startup, after successful autodiscovery, the manager restores persisted tasks via `restore_tasks_from_persistence()`.
+The TaskManager persists task state (including arguments) to disk under an internal storage path (`data/tasks`). On startup, after successful autodiscovery, the manager restores persisted tasks via `restore_tasks_from_persistence()`.
 
 To keep arguments persistable, prefer simple types (numbers, strings, dicts/lists) or Pydantic models that support `.model_dump()`.
 

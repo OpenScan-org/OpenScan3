@@ -52,10 +52,8 @@ from openscan_firmware.controllers.hardware.gpio import cleanup_all_pins
 
 from openscan_firmware.controllers.services.projects import get_project_manager
 from openscan_firmware.controllers.services.device_events import schedule_device_status_broadcast
-from openscan_firmware.utils.settings import (
-    resolve_settings_dir,
-    resolve_settings_file,
-)
+from openscan_firmware.utils.dir_paths import resolve_settings_dir, resolve_settings_file
+from openscan_firmware.utils.firmware_state import mark_clean_shutdown
 
 logger = logging.getLogger(__name__)
 
@@ -412,7 +410,7 @@ def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_ca
 
     # initialize project manager
     try:
-        project_manager = get_project_manager(BASE_DIR / "projects")
+        project_manager = get_project_manager()
     except Exception as e:
         logger.error(f"Error initializing project manager: {e}", exc_info=True)
 
@@ -492,6 +490,7 @@ def cleanup_and_exit():
             logger.error(f"Error closing camera controller '{name}': {e}")
 
     cleanup_all_pins()
+    mark_clean_shutdown()
     logger.info("Exiting now...")
 
 
