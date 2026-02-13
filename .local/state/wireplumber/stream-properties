@@ -1,0 +1,2 @@
+[stream-properties]
+Audio/Sink:node.name:auto_null={"channelMap":["FL", "FR"], "mute":false, "channelVolumes":[1.000000, 1.000000], "volume":1.000000}
