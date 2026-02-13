@@ -4031,12 +4031,14 @@
           "user": {
             "type": "string",
             "title": "User",
-            "description": "HTTP basic auth username for the cloud API."
+            "description": "HTTP basic auth username for the cloud API.",
+            "default": "openscan"
           },
           "password": {
             "type": "string",
             "title": "Password",
-            "description": "HTTP basic auth password for the cloud API."
+            "description": "HTTP basic auth password for the cloud API.",
+            "default": "free"
           },
           "token": {
             "type": "string",
@@ -4049,7 +4051,8 @@
             "minLength": 1,
             "format": "uri",
             "title": "Host",
-            "description": "Base URL of the cloud service."
+            "description": "Base URL of the cloud service.",
+            "default": "http://openscanfeedback.dnsuser.de:1334"
           },
           "split_size": {
             "type": "integer",
@@ -4061,10 +4064,7 @@
         },
         "type": "object",
         "required": [
-          "user",
-          "password",
-          "token",
-          "host"
+          "token"
         ],
         "title": "CloudSettings",
         "description": "Settings that describe how to talk to the OpenScan cloud backend."
