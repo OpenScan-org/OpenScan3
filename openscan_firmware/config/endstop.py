@@ -19,3 +19,4 @@ class EndstopConfig(BaseModel):
 
     pull_up: Optional[bool] = Field(True, description="Whether to use a pull-up resistor")
     bounce_time: Optional[float] = Field(0.005, description="Debounce time for the button in seconds")
+    active_high: Optional[bool] = Field(False, description="Useful for normally closed switches")

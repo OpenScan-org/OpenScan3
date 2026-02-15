@@ -87,10 +87,11 @@ class EndstopController:
         Returns:
             dict: A dictionary containing the status of the endstop.
         """
+        pressed = is_button_pressed(self.settings.pin)
         return {"assigned_motor": self.settings.motor_name,
                 "position": self.settings.angular_position,
                 "pin": self.settings.pin,
-                "is_pressed": not is_button_pressed(self.settings.pin)}
+                "is_pressed": pressed if self.settings.active_high else (not pressed)}
 
 
     async def _move_back_task(self):

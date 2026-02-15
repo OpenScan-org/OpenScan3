@@ -268,6 +268,27 @@ class MotorController(StatefulHardware):
         logger.debug(f"Motor {self.model.name} will move {step_count} steps.")
         await self._execute_movement(step_count, target_angle)
 
+    async def move_to_endstop(self) -> None:
+        """Internal method to move motor to endstop.
+
+        Args:
+            none """
+
+        if self.endstop is None:
+            return
+
+        logger.debug(f"Will move motor {self.model.name} to endstop")
+
+        spr = self.settings.steps_per_rotation
+        direction = self.settings.direction
+
+        # Some high count degrees, rotor could be in a weird position
+        degrees_to_move = 270
+
+        step_count = int(degrees_to_move * spr / 360) * direction
+        logger.debug(f"Motor {self.model.name} will move {step_count} steps.")
+        await self._execute_movement(step_count, 0.0)
+
     def _pre_calculate_step_times(self, steps: int, min_interval=0.0001) -> List[float]:
         """
         Pre-calculate the exact time for each step in the movement.
