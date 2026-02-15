@@ -6,29 +6,42 @@
     "motors": {
         "rotor": {
             "direction_pin": 5,
-            "enable_pin": 23,
+            "enable_pin": 0,
             "step_pin": 6,
             "acceleration": 20000,
             "max_speed": 5000,
             "direction": 1,
-            "steps_per_rotation": 42667,
-            "min_angle": 12,
-            "max_angle": 125
+            "steps_per_rotation": 122880,
+            "min_angle": 13,
+            "max_angle": 180
         },
         "turntable": {
             "direction_pin": 9,
-            "enable_pin": 22,
+            "enable_pin": 10,
             "step_pin": 11,
             "acceleration": 5000,
             "max_speed": 5000,
             "direction": 1,
-            "steps_per_rotation": 3200
+            "steps_per_rotation": 6400
         }
     },
     "lights": {
       "Openscan.eu Ringlight": {
-           "pins": [17,27],
+           "pins": [12],
            "pwm_support": true
       }
+    },
+    "endstops": {
+        "rotor-endstop": {
+            "name": "rotor-endstop",
+            "settings": {
+                "pin": 27,
+                "angular_position": 165.0,
+                "motor_name": "rotor",
+                "pull_up": true,
+                "bounce_time": 0.005,
+                "active_high": true
+            }
+        }
     }
 }
