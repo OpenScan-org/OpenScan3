@@ -33,6 +33,12 @@ pytest -q -k "not picamera2"
 
 Note: On non‑Pi systems, camera features may be unavailable; skip camera tests as shown above.
 
+### Testing expectations
+
+- Run the quick suite (`pytest -q -k "not picamera2"`) before opening a pull request; it exercises everything that does not require Pi-only camera stacks.
+- Hardware or camera-focused tests should be guarded with markers so they can be skipped on desktop but must pass on Raspberry Pi CI targets.
+- When you fix a bug or add behavior, aim to provide a regression/unit test proving the change—optional for now because the suite is still inconsistent, but appreciated when feasible.
+
 
 ### Raspberry Pi (hardware development)
 

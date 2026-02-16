@@ -28,8 +28,9 @@ Choose the image according to your camera variant:
 
 - Arducam IMX519
 - Arducam Hawkeye
+- Generic (Picamera Module 3)
 
-Warning: Choosing the wrong image may result in permanent damage to your camera!
+> Warning: Choosing the wrong image may result in permanent damage to your camera!
 
 Flash the image with Raspberry Pi Imager or a similar tool.
 
@@ -57,8 +58,8 @@ See [`docs/DEVELOP.md`](docs/DEVELOP.md) for development setup, first steps, and
 ### Beta (February 2026)
 - [x] WebSockets for tasks, device state, and scan progress
 - [ ] OS/device services: Samba, USB, disk monitoring; camera-assisted Wi‑Fi/setup
-- [ ] Reliability: improved handling for Arducam Hawkeye 64MP memory issues
-- [ ] Frontend improvements ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client))
+- [x] Reliability: improved handling for Arducam Hawkeye 64MP memory issues
+- [x] Frontend improvements ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client))
 
 
 ### Release (May 2026)
@@ -82,16 +83,7 @@ For details and up-to-date status, see GitHub issues and check out the Discord c
 <!-- CONTRIBUTING -->
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**. 
-Pull requests, issues, and feature requests are welcome.
-
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+OpenScan thrives because of its community. Whether you report a bug, suggest a feature, or submit a pull request: every contribution matters! Check out the [Contributor Guide](docs/CONTRIBUTING.md) to get started and jump right in!
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
