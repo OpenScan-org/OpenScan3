@@ -78,8 +78,8 @@ async def new_project(project_name: str, project_description: Optional[str] = ""
     try:
         project_manager = get_project_manager()
         return project_manager.add_project(project_name, project_description)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/{project_name}/scan", response_model=Task)
