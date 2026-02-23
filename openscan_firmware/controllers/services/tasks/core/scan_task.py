@@ -126,7 +126,7 @@ class ScanTask(BaseTask):
     task_category = "core"
     is_exclusive = True
 
-    async def run(self, scan: Scan, start_from_step: int = 0) -> AsyncGenerator[TaskProgress, None]:
+    async def run(self, scan: Scan | dict, start_from_step: int = 0) -> AsyncGenerator[TaskProgress, None]:
         """Run a scan asynchronously with pause/resume/cancel support.
 
         Args:
@@ -136,6 +136,9 @@ class ScanTask(BaseTask):
         Yields:
             TaskProgress objects describing current progress.
         """
+        if not isinstance(scan, Scan):
+            scan = Scan.model_validate(scan)
+
         # Initialize controllers and generate path
         camera_controller, project_manager = await self._initialize_controllers(scan)
         await self._ensure_project_thumbnail(camera_controller, project_manager, scan.project_name)
@@ -150,9 +153,17 @@ class ScanTask(BaseTask):
 
         await asyncio.to_thread(project_manager.save_scan_path, scan, path_dict)
 
+        resume_from_step = max(start_from_step, scan.current_step or 0)
+
         # Filter positions for resuming from specific step
-        if start_from_step > 0:
-            keys = list(path_dict.keys())[start_from_step:]
+        if resume_from_step > 0:
+            logger.info(
+                "Resuming scan %s for project %s from step %s",
+                scan.index,
+                scan.project_name,
+                resume_from_step,
+            )
+            keys = list(path_dict.keys())[resume_from_step:]
             path_dict = {pos: path_dict[pos] for pos in keys}
 
         # Setup focus stacking if needed
@@ -168,7 +179,7 @@ class ScanTask(BaseTask):
 
         try:
             # Execute main scan loop
-            async for progress in self._execute_scan_loop(start_from_step, total):
+            async for progress in self._execute_scan_loop(resume_from_step, total):
                 yield progress
         except Exception as e:
             logger.error(
