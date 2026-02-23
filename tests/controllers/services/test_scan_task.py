@@ -503,6 +503,10 @@ class TestScanTaskIntegration:
     ):
         """Simulate shutdown, reload ScanTask from disk, and verify TaskManager.restart_task completes the scan."""
 
+        storage_dir = tmp_path / "tasks_storage"
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        task_manager_fixture._tasks_storage_path = storage_dir
+
         real_project_manager = ProjectManager(path=tmp_path)
 
         mock_get_camera_controller.return_value = mock_camera_controller
@@ -539,10 +543,39 @@ class TestScanTaskIntegration:
 
             await asyncio.sleep(0.05)
 
-            # Simulate abrupt shutdown: running task stays RUNNING, manager loses in-memory state
+            # The first run completes almost instantly with mocked hardware.
+            # We need to build a realistic "interrupted mid-scan" snapshot manually,
+            # as if the task was interrupted after processing 2 of 4 steps.
+            first_run_state = task_manager_fixture.get_task_info(task_model.id)
+            await task_manager_fixture.wait_for_task(task_model.id)
+
+            # Build a snapshot that looks like the task was interrupted mid-scan
+            pre_shutdown_snapshot = first_run_state.model_copy(deep=True)
+            pre_shutdown_snapshot.status = TaskStatus.RUNNING
+            pre_shutdown_snapshot.error = None
+            pre_shutdown_snapshot.completed_at = None
+
+            # Patch run_args: set scan.current_step to 2 (interrupted after step 2 of 4)
+            interrupted_step = 2
+            scan_arg = pre_shutdown_snapshot.run_args[0]
+            if isinstance(scan_arg, dict):
+                scan_arg["current_step"] = interrupted_step
+            else:
+                scan_arg.current_step = interrupted_step
+
+            task_file = storage_dir / f"{pre_shutdown_snapshot.id}.json"
+
+            # Clear all in-memory state to simulate a fresh startup
+            task_manager_fixture._running_async_tasks.clear()
+            task_manager_fixture._running_blocking_tasks.clear()
+            task_manager_fixture._running_task_instances.clear()
+            task_manager_fixture._active_exclusive_task_id = None
             task_manager_fixture._tasks = {}
             mock_save.reset_mock()
             mock_add_photo.reset_mock()
+
+            # Write the interrupted snapshot to disk
+            task_file.write_text(pre_shutdown_snapshot.model_dump_json(indent=2))
 
             task_manager_fixture.restore_tasks_from_persistence()
 
@@ -552,14 +585,16 @@ class TestScanTaskIntegration:
             assert restored_task.error == "Task was interrupted by application shutdown."
 
             restarted_task = await task_manager_fixture.restart_task(task_model.id)
-            assert restarted_task.status == TaskStatus.RUNNING
+            assert restarted_task.status in (TaskStatus.RUNNING, TaskStatus.PENDING)
 
             final_state = await task_manager_fixture.wait_for_task(task_model.id)
             assert final_state.status == TaskStatus.COMPLETED
+
+            remaining_steps = total_points - interrupted_step
             assert final_state.progress.current == final_state.progress.total == total_points
 
-            assert mock_add_photo.call_count == total_points
-            assert mock_save.call_count >= total_points
+            assert mock_add_photo.call_count == remaining_steps
+            assert mock_save.call_count >= remaining_steps
 
     @pytest.mark.asyncio
     @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')

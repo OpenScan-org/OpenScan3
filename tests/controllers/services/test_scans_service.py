@@ -9,6 +9,35 @@ from openscan_firmware.models.task import Task, TaskStatus
 
 
 @pytest.mark.asyncio
+async def test_start_scan_restarts_interrupted_task(sample_scan_model: Scan) -> None:
+    scan = sample_scan_model
+    scan.task_id = "task-interrupted"
+    scan.camera_name = "mock-cam"
+
+    camera_controller = MagicMock()
+    camera_controller.camera = MagicMock()
+    camera_controller.camera.name = "mock-cam"
+
+    project_manager = MagicMock()
+    project_manager.save_scan_state = AsyncMock()
+
+    existing_task = Task(name="scan_task", task_type="core", status=TaskStatus.INTERRUPTED, id="task-interrupted")
+    new_task = Task(name="scan_task", task_type="core", status=TaskStatus.RUNNING, id="task-new")
+
+    task_manager_mock = MagicMock()
+    task_manager_mock.get_task_info.return_value = existing_task
+    task_manager_mock.create_and_run_task = AsyncMock(return_value=new_task)
+
+    with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock):
+        result = await scans.start_scan(project_manager, scan, camera_controller, start_from_step=3)
+
+    assert result is new_task
+    task_manager_mock.create_and_run_task.assert_awaited_once_with("scan_task", scan, 3)
+    assert scan.task_id == new_task.id
+    project_manager.save_scan_state.assert_awaited_once_with(scan)
+
+
+@pytest.mark.asyncio
 async def test_pause_scan_updates_status_and_persists(sample_scan_model: Scan) -> None:
     scan = sample_scan_model
     scan.task_id = "task-id"

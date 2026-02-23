@@ -252,10 +252,11 @@ def test_resume_endpoint_restarts_interrupted_scan(
 
     assert start_scan_mock.await_count == 1
     start_args = start_scan_mock.await_args.args
+    start_kwargs = start_scan_mock.await_args.kwargs
     assert start_args[0] is api_project_manager
     assert start_args[1] == scan
     assert start_args[2] is camera_controller
-    assert start_args[3] == scan.current_step
+    assert start_kwargs["start_from_step"] == scan.current_step
 
 
 def test_cancel_endpoint_persists_status(
