@@ -75,6 +75,10 @@ async def start_scan(
                     start_from_step,
                 )
 
+            # Remove the stale terminal task so the TaskManager list reflects only the new run
+            await task_manager.delete_task(existing_task.id)
+            scan.task_id = None
+
     task_name = "scan_task"
     task = await task_manager.create_and_run_task(
         task_name,
