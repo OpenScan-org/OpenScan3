@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import io
 import logging
 import re
 import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any
+from typing import Any, AsyncGenerator
 
 import requests
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
@@ -47,8 +49,12 @@ class CloudUploadTask(BaseTask):
     is_exclusive = False
     is_blocking = False
 
-    async def run(self, project_name: str, token: str | None = None) -> CloudUploadResult:
-        """Perform the upload asynchronously with background offloading."""
+    async def run(
+        self,
+        project_name: str,
+        token: str | None = None,
+    ) -> AsyncGenerator[TaskProgress, None]:
+        """Stream the upload and emit byte-level TaskProgress updates."""
 
         settings = _require_cloud_settings()
         project_manager = get_project_manager()
@@ -59,14 +65,9 @@ class CloudUploadTask(BaseTask):
         archive_file, archive_size = await asyncio.to_thread(_build_project_archive, project)
         photo_count = await asyncio.to_thread(_count_project_photos, project)
         parts_required = max(1, (archive_size + settings.split_size - 1) // settings.split_size)
+        total_bytes = max(int(archive_size), 1)
 
         remote_project_name = _generate_remote_project_name(project.name)
-
-        self._task_model.progress = TaskProgress(
-            current=0,
-            total=parts_required,
-            message="Preparing upload",
-        )
 
         logger.info(
             "[%s] Uploading project '%s' with %s photos (%s bytes) split into %s part(s)",
@@ -94,6 +95,16 @@ class CloudUploadTask(BaseTask):
                 )
 
             chunk_iterator = _iter_chunks(archive_file, settings.split_size)
+            uploaded_bytes = 0
+
+            start_progress = TaskProgress(
+                current=0,
+                total=total_bytes,
+                message="Preparing upload",
+            )
+            self._task_model.progress = start_progress
+            yield start_progress
+
             for index in range(1, parts_required + 1):
                 await self.wait_for_pause()
                 if self.is_cancelled():
@@ -103,6 +114,10 @@ class CloudUploadTask(BaseTask):
                 chunk = await asyncio.to_thread(next, chunk_iterator, None)
                 if chunk is None:
                     raise CloudServiceError("Upload aborted: missing chunk data")
+
+                chunk.seek(0, io.SEEK_END)
+                chunk_size = chunk.tell()
+                chunk.seek(0)
 
                 part_link = upload_links[index - 1]
                 logger.debug(
@@ -114,11 +129,17 @@ class CloudUploadTask(BaseTask):
                 )
                 await asyncio.to_thread(_upload_file, chunk, part_link)
 
-                self._task_model.progress = TaskProgress(
-                    current=index,
-                    total=parts_required,
-                    message=f"Uploaded part {index}/{parts_required}",
+                uploaded_bytes = min(uploaded_bytes + chunk_size, total_bytes)
+                progress = TaskProgress(
+                    current=uploaded_bytes,
+                    total=total_bytes,
+                    message=(
+                        f"Uploading archive ({uploaded_bytes}/{total_bytes} bytes) "
+                        f"[{index}/{parts_required} parts]"
+                    ),
                 )
+                self._task_model.progress = progress
+                yield progress
 
             start_response = await asyncio.to_thread(_start_project, remote_project_name, token)
             logger.info("[%s] Started cloud processing for project '%s'", self.id, project.name)
@@ -132,7 +153,6 @@ class CloudUploadTask(BaseTask):
                 start_response=start_response,
             )
             self._task_model.result = result
-            self._task_model.progress.message = "Upload completed"
 
             await asyncio.to_thread(
                 project_manager.mark_uploaded,
@@ -141,7 +161,14 @@ class CloudUploadTask(BaseTask):
                 remote_project_name,
             )
 
-            return result
+            completed_progress = TaskProgress(
+                current=total_bytes,
+                total=total_bytes,
+                message="Upload completed",
+            )
+            self._task_model.progress = completed_progress
+            yield completed_progress
+            return
         finally:
             await asyncio.to_thread(archive_file.close)
 
@@ -159,7 +186,7 @@ class CloudDownloadTask(BaseTask):
         project_name: str,
         token: str | None = None,
         remote_project: str | None = None,
-    ) -> CloudDownloadResult:
+    ) -> AsyncGenerator[TaskProgress, None]:
         """Retrieve the reconstructed archive and unpack it into the project directory."""
 
         _require_cloud_settings()
@@ -181,11 +208,13 @@ class CloudDownloadTask(BaseTask):
             if self.is_cancelled():
                 raise CloudServiceError("Download cancelled")
 
-            self._task_model.progress = TaskProgress(
+            retry_progress = TaskProgress(
                 current=attempt - 1,
                 total=_DOWNLOAD_RETRY_ATTEMPTS,
                 message=f"Fetching cloud project info ({attempt}/{_DOWNLOAD_RETRY_ATTEMPTS})",
             )
+            self._task_model.progress = retry_progress
+            yield retry_progress
 
             try:
                 download_info = await asyncio.to_thread(get_project_info, remote_name, token)
@@ -224,20 +253,33 @@ class CloudDownloadTask(BaseTask):
                 "Cloud project is not ready for download yet. Try again later."
             )
 
-        self._task_model.progress = TaskProgress(
-            current=0,
-            total=1,
-            message="Preparing download",
-        )
+        prepare_progress = TaskProgress(current=0, total=1, message="Preparing download")
+        self._task_model.progress = prepare_progress
+        yield prepare_progress
 
         archive_path: Path | None = None
         bytes_downloaded = 0
         total_bytes = 0
+        stream_result: dict[str, Any] = {}
+        stream = self._download_archive_stream(dlink, download_info or {}, stream_result)
         try:
-            archive_path, bytes_downloaded, total_bytes = await self._download_archive(
-                dlink,
-                download_info or {},
-            )
+            async with contextlib.aclosing(stream) as downloader:
+                while True:
+                    try:
+                        downloaded, total_for_progress = await downloader.__anext__()
+                    except StopAsyncIteration:
+                        archive_path = stream_result.get("path")
+                        bytes_downloaded = int(stream_result.get("bytes_downloaded", 0))
+                        total_bytes = int(stream_result.get("total_bytes", 0))
+                        break
+
+                    progress = TaskProgress(
+                        current=downloaded,
+                        total=total_for_progress,
+                        message=f"Downloading archive ({downloaded}/{total_for_progress} bytes)",
+                    )
+                    self._task_model.progress = progress
+                    yield progress
 
             await asyncio.to_thread(project_manager.add_download, project_name, str(archive_path))
 
@@ -248,12 +290,14 @@ class CloudDownloadTask(BaseTask):
                 download_info=download_info or {},
             )
             self._task_model.result = result
-            self._task_model.progress = TaskProgress(
-                current=1,
-                total=1,
+            completion = TaskProgress(
+                current=max(bytes_downloaded, 1),
+                total=max(total_bytes, 1),
                 message="Download completed",
             )
-            return result
+            self._task_model.progress = completion
+            yield completion
+            return
         finally:
             if archive_path is not None and archive_path.exists():
                 try:
@@ -266,12 +310,13 @@ class CloudDownloadTask(BaseTask):
                         exc,
                     )
 
-    async def _download_archive(
+    async def _download_archive_stream(
         self,
         dlink: str,
         download_info: dict[str, Any],
-    ) -> tuple[Path, int, int]:
-        """Stream the remote archive to a temporary file, reporting progress."""
+        stream_result: dict[str, Any],
+    ) -> AsyncGenerator[tuple[int, int], None]:
+        """Stream the remote archive to a temporary file, yielding byte progress."""
 
         try:
             url = _select_download_url(dlink, download_info)
@@ -316,19 +361,16 @@ class CloudDownloadTask(BaseTask):
                     downloaded += len(chunk)
 
                     total_for_progress = total_bytes or max(downloaded, 1)
-                    self._update_progress(
-                        downloaded,
-                        total_for_progress,
-                        f"Downloading archive ({downloaded}/{total_for_progress} bytes)",
-                    )
+                    yield downloaded, total_for_progress
         except Exception:
             temp_path.unlink(missing_ok=True)
             response.close()
             raise
         finally:
             response.close()
-
-        return temp_path, downloaded, total_bytes
+        stream_result["path"] = temp_path
+        stream_result["bytes_downloaded"] = downloaded
+        stream_result["total_bytes"] = total_bytes
 
 
 def _generate_remote_project_name(local_name: str) -> str:

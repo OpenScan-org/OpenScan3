@@ -116,6 +116,7 @@ def _patch_cloud_dependencies(
         upload_links=links,
         remote_project=remote_project,
         mark_calls=mark_calls,
+        archive_size=archive_size,
     )
 
 
@@ -134,15 +135,20 @@ async def test_cloud_upload_task_success(monkeypatch: MonkeyPatch, project_manag
     )
     task_instance = CloudUploadTask(task_model)
 
-    result = await task_instance.run(project.name, token="override-token")
+    progress_updates: list = []
+
+    async for progress in task_instance.run(project.name, token="override-token"):
+        progress_updates.append(progress)
+
+    result = task_instance._task_model.result
 
     assert result.parts_uploaded == 2
     assert patched.uploads == [
         (b"part1", patched.upload_links[0]),
         (b"part2", patched.upload_links[1]),
     ]
-    assert task_instance._task_model.progress.current == 2
-    assert task_instance._task_model.progress.total == 2
+    assert task_instance._task_model.progress.current == patched.archive_size
+    assert task_instance._task_model.progress.total == patched.archive_size
     assert task_instance._task_model.progress.message == "Upload completed"
     assert patched.create_calls[0]["kwargs"]["token"] == "override-token"
     assert patched.start_calls[0][0] == patched.remote_project
@@ -164,8 +170,12 @@ async def test_cloud_upload_task_missing_project(monkeypatch: MonkeyPatch, proje
     )
     task_instance = CloudUploadTask(task_model)
 
+    async def _consume():
+        async for _ in task_instance.run("unknown"):
+            pass
+
     with pytest.raises(CloudServiceError):
-        await task_instance.run("unknown")
+        await _consume()
 
 
 @pytest.mark.asyncio
@@ -186,17 +196,23 @@ async def test_cloud_upload_task_pause_and_resume(monkeypatch: MonkeyPatch, proj
     task_instance = CloudUploadTask(task_model)
     task_instance.pause()
 
-    run_task = asyncio.create_task(task_instance.run(project.name))
+    async def _consume_task():
+        async for _ in task_instance.run(project.name):
+            pass
+
+    run_task = asyncio.create_task(_consume_task())
 
     await asyncio.sleep(0.05)
     assert task_instance._task_model.progress.current == 0
     assert task_instance._task_model.result is None
 
     task_instance.resume()
-    result = await run_task
+    await run_task
+
+    result = task_instance._task_model.result
 
     assert result.project == patched.remote_project
-    assert task_instance._task_model.progress.current == 2
+    assert task_instance._task_model.progress.current == patched.archive_size
     assert patched.mark_calls == [(project.name, True, patched.remote_project)]
 
 
@@ -219,7 +235,11 @@ async def test_cloud_upload_task_cancel(monkeypatch: MonkeyPatch, project_manage
     task_model = Task(name="cloud_upload_task", task_type="cloud_upload_task")
     task_instance = CloudUploadTask(task_model)
 
-    run_task = asyncio.create_task(task_instance.run(project.name))
+    async def _consume_task():
+        async for _ in task_instance.run(project.name):
+            pass
+
+    run_task = asyncio.create_task(_consume_task())
     await asyncio.sleep(0.12)
     task_instance.cancel()
 
