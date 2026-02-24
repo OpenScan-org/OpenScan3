@@ -262,8 +262,8 @@ async def focus_task_manager():
     TaskManager._instance = None
 
 
-@pytest.fixture(autouse=True)
-def cleanup_task_manager_storage(
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_task_manager_storage(
     monkeypatch: pytest.MonkeyPatch,
     task_manager_storage_path,
 ):
@@ -284,10 +284,17 @@ def cleanup_task_manager_storage(
     if task_manager_instance is not None:
         pending_handles = list(getattr(task_manager_instance, "_running_async_tasks", {}).values())
         pending_handles += list(getattr(task_manager_instance, "_running_blocking_tasks", {}).values())
+
+        to_await: list[asyncio.Task] = []
         for handle in pending_handles:
             loop = handle.get_loop()
             if loop.is_closed():
                 continue
-            handle.cancel()
+            if not handle.done():
+                handle.cancel()
+            to_await.append(handle)
+
+        if to_await:
+            await asyncio.gather(*to_await, return_exceptions=True)
 
     TaskManager._instance = None

@@ -374,7 +374,12 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str) -> T
 
         if existing_task and existing_task.status == TaskStatus.PAUSED:
             task = await scans.resume_scan(scan)
-        elif not existing_task or existing_task.status in [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.ERROR]:
+        elif not existing_task or existing_task.status in [
+            TaskStatus.COMPLETED,
+            TaskStatus.CANCELLED,
+            TaskStatus.ERROR,
+            TaskStatus.INTERRUPTED,
+        ]:
             task = await scans.start_scan(
                 project_manager,
                 scan,

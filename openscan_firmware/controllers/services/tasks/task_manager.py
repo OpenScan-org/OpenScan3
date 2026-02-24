@@ -225,6 +225,7 @@ class TaskManager:
             )
 
         try:
+            self._tasks_storage_path.mkdir(parents=True, exist_ok=True)
             with open(file_path, 'w') as f:
                 f.write(json_string)
             logger.debug(f"Persisted state for task {task_model.id} to {file_path}")

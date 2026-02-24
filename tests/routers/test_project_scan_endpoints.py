@@ -212,6 +212,53 @@ def test_resume_endpoint_persists_status(
     task_manager_mock.resume_task.assert_awaited_once_with(scan.task_id)
 
 
+def test_resume_endpoint_restarts_interrupted_scan(
+    api_client: TestClient,
+    api_project_manager: ProjectManager,
+    sample_scan_settings: ScanSetting,
+    latest_router_path,
+) -> None:
+    project, scan, camera_controller = _prepare_scan(api_project_manager, sample_scan_settings)
+    scan.task_id = "task-interrupted"
+    scan.status = TaskStatus.INTERRUPTED
+    scan.current_step = 7
+    asyncio.run(api_project_manager.save_scan_state(scan))
+
+    restarted_task = Task(name="scan_task", task_type="core", status=TaskStatus.RUNNING)
+
+    router_task_manager = MagicMock()
+    router_task_manager.get_task_info.return_value = Task(
+        name="scan_task",
+        task_type="core",
+        status=TaskStatus.INTERRUPTED,
+    )
+
+    module_path = latest_router_path("projects")
+
+    with patch("openscan_firmware.controllers.services.scans.start_scan", new_callable=AsyncMock) as start_scan_mock, \
+         patch("openscan_firmware.controllers.services.scans.get_project_manager", return_value=api_project_manager), \
+         patch(f"{module_path}.get_project_manager", return_value=api_project_manager), \
+         patch(f"{module_path}.get_camera_controller", return_value=camera_controller), \
+         patch(f"{module_path}.get_task_manager", return_value=router_task_manager):
+        start_scan_mock.return_value = restarted_task
+
+        response = api_client.patch(
+            f"/latest/projects/{project.name}/scans/{scan.index}/resume",
+            params={"camera_name": camera_controller.camera.name},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == TaskStatus.RUNNING.value
+
+    assert start_scan_mock.await_count == 1
+    start_args = start_scan_mock.await_args.args
+    start_kwargs = start_scan_mock.await_args.kwargs
+    assert start_args[0] is api_project_manager
+    assert start_args[1] == scan
+    assert start_args[2] is camera_controller
+    assert start_kwargs["start_from_step"] == scan.current_step
+
+
 def test_cancel_endpoint_persists_status(
     api_client: TestClient,
     api_project_manager: ProjectManager,
