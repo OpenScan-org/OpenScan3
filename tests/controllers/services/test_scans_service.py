@@ -27,6 +27,7 @@ async def test_start_scan_restarts_interrupted_task(sample_scan_model: Scan) -> 
     task_manager_mock = MagicMock()
     task_manager_mock.get_task_info.return_value = existing_task
     task_manager_mock.create_and_run_task = AsyncMock(return_value=new_task)
+    task_manager_mock.delete_task = AsyncMock()
 
     with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock):
         result = await scans.start_scan(project_manager, scan, camera_controller, start_from_step=3)

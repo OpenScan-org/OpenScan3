@@ -364,6 +364,83 @@ class TestScanTask:
     @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
     @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
     @patch('openscan_firmware.controllers.hardware.motors', create=True)
+    async def test_focus_stacking_pause_and_resume_mid_capture(
+        self,
+        mock_motors: MagicMock,
+        mock_generate_scan_path: MagicMock,
+        mock_get_project_manager: MagicMock,
+        mock_get_camera_controller: MagicMock,
+        task_manager_fixture: TaskManager,
+        mock_camera_controller: MagicMock,
+        sample_scan_model: Scan,
+        mock_project_manager: MagicMock,
+        fake_photo_data: PhotoData,
+    ):
+        """Ensure pausing during focus stacking resumes cleanly mid-stack."""
+
+        mock_get_camera_controller.return_value = mock_camera_controller
+        mock_get_project_manager.return_value = mock_project_manager
+
+        scan = sample_scan_model.model_copy(deep=True)
+        scan.settings.focus_stacks = 12
+        scan.settings.focus_range = (0.1, 0.4)
+        focus_positions = scan.settings.focus_positions
+
+        focus_settings = FocusTrackingSettings(AF=True, manual_focus=0.05)
+        mock_camera_controller.settings = focus_settings
+
+        path_points = {
+            PolarPoint3D(theta=0, fi=0): 0,
+            PolarPoint3D(theta=15, fi=15): 1,
+        }
+        mock_generate_scan_path.return_value = path_points
+        mock_motors.move_to_point = AsyncMock(return_value=None)
+
+        capture_event = asyncio.Event()
+        photo_counter = {"count": 0}
+        pause_trigger_index = 2
+
+        def slow_focus_photo(*args, **kwargs):
+            photo_counter["count"] += 1
+            if photo_counter["count"] == pause_trigger_index:
+                capture_event.set()
+            time.sleep(0.05)
+            return fake_photo_data
+
+        async def slow_add_photo(*args, **kwargs):
+            await asyncio.sleep(0.01)
+
+        mock_camera_controller.photo.side_effect = slow_focus_photo
+        mock_project_manager.add_photo_async.side_effect = slow_add_photo
+
+        tm = task_manager_fixture
+        task_model = await tm.create_and_run_task("scan_task", scan, 0)
+
+        await asyncio.wait_for(capture_event.wait(), timeout=2.0)
+        paused_task = await tm.pause_task(task_model.id)
+        assert paused_task.status == TaskStatus.PAUSED
+        assert mock_camera_controller.photo.call_count < scan.settings.focus_stacks
+
+        await asyncio.sleep(0.05)
+
+        resumed_task = await tm.resume_task(task_model.id)
+        assert resumed_task.status == TaskStatus.RUNNING
+
+        final_task_model = await tm.wait_for_task(task_model.id)
+        assert final_task_model.status == TaskStatus.COMPLETED
+
+        expected_photos = scan.settings.focus_stacks * len(path_points)
+        assert mock_camera_controller.photo.call_count == expected_photos
+        assert mock_project_manager.add_photo_async.await_count == expected_photos
+
+        expected_history = focus_positions * len(path_points) + [0.05]
+        assert focus_settings.history == expected_history
+
+    @pytest.mark.asyncio
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_task_cancel_while_paused(
         self,
         mock_motors: MagicMock,
