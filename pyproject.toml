@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openscan-firmware"
-version = "0.8.1"
+version = "0.8.2"
 description = "OpenScan3 - Raspberry Pi based photogrammetry scanner (FastAPI-based application)"
 readme = "README.md"
 requires-python = ">=3.11"
