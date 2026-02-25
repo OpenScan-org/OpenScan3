@@ -86,8 +86,29 @@ def _patch_cloud_dependencies(
 
     uploads: list[tuple[bytes, str]] = []
 
-    def fake_upload_file(chunk: io.BytesIO, link: str) -> None:
-        data = chunk.read()
+    def fake_upload_file(
+        chunk: io.BytesIO,
+        link: str,
+        *,
+        progress_callback: Callable[[int], None] | None = None,
+        stream_chunk_size: int = 512 * 1024,
+    ) -> None:
+        chunk.seek(0)
+        sent = bytearray()
+        while True:
+            piece = chunk.read(max(1, stream_chunk_size // 4))
+            if not piece:
+                break
+            sent.extend(piece)
+            if progress_callback:
+                step = max(1, len(piece) // 2)
+                offset = 0
+                while offset < len(piece):
+                    slice_len = min(step, len(piece) - offset)
+                    progress_callback(slice_len)
+                    offset += slice_len
+
+        data = bytes(sent)
         uploads.append((data, link))
         if upload_side_effect:
             upload_side_effect(data, link)
@@ -156,6 +177,37 @@ async def test_cloud_upload_task_success(monkeypatch: MonkeyPatch, project_manag
     assert patched.mark_calls == [(project.name, True, patched.remote_project)]
     assert project_manager.get_project_by_name(project.name).uploaded is True
     assert project_manager.get_project_by_name(project.name).cloud_project_name == patched.remote_project
+    uploading_updates = [p for p in progress_updates if "Uploading archive" in p.message]
+    assert uploading_updates, "expected streaming upload progress updates"
+    bytes_per_part = patched.archive_size // len(patched.upload_links)
+    assert any(0 < p.current < bytes_per_part for p in uploading_updates)
+
+
+@pytest.mark.asyncio
+async def test_cloud_upload_task_progress_increments_bytes(monkeypatch: MonkeyPatch, project_manager):
+    """Progress.current should increase multiple times within a single part."""
+
+    project = project_manager.add_project("demo-progress")
+    patched = _patch_cloud_dependencies(
+        monkeypatch,
+        project_manager,
+        remote_project="progress-remote.zip",
+        chunk_payloads=[b"a" * 100, b"b" * 100],
+    )
+
+    task_model = Task(name="cloud_upload_task", task_type="cloud_upload_task")
+    task_instance = CloudUploadTask(task_model)
+
+    byte_updates: list[int] = []
+
+    async for progress in task_instance.run(project.name):
+        if "Uploading archive" in progress.message:
+            byte_updates.append(progress.current)
+            assert task_instance._task_model.progress.current == progress.current
+
+    assert len(byte_updates) >= 2
+    assert byte_updates == sorted(byte_updates)
+    assert byte_updates[-1] == patched.archive_size
 
 
 @pytest.mark.asyncio

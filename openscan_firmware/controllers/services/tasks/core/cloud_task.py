@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 _DOWNLOAD_RETRY_ATTEMPTS = 3
 _DOWNLOAD_RETRY_DELAY_SECONDS = 3
 _DOWNLOAD_CHUNK_SIZE = 512 * 1024
+_UPLOAD_STREAM_CHUNK_SIZE = 512 * 1024
 
 
 class CloudUploadTask(BaseTask):
@@ -96,6 +97,7 @@ class CloudUploadTask(BaseTask):
 
             chunk_iterator = _iter_chunks(archive_file, settings.split_size)
             uploaded_bytes = 0
+            loop = asyncio.get_running_loop()
 
             start_progress = TaskProgress(
                 current=0,
@@ -127,19 +129,44 @@ class CloudUploadTask(BaseTask):
                     parts_required,
                     project.name,
                 )
-                await asyncio.to_thread(_upload_file, chunk, part_link)
+                progress_queue: asyncio.Queue[int | None] = asyncio.Queue()
 
-                uploaded_bytes = min(uploaded_bytes + chunk_size, total_bytes)
-                progress = TaskProgress(
-                    current=uploaded_bytes,
-                    total=total_bytes,
-                    message=(
-                        f"Uploading archive ({uploaded_bytes}/{total_bytes} bytes) "
-                        f"[{index}/{parts_required} parts]"
-                    ),
+                def _emit_progress(sent: int) -> None:
+                    loop.call_soon_threadsafe(progress_queue.put_nowait, sent)
+
+                upload_future = asyncio.create_task(
+                    asyncio.to_thread(
+                        _upload_file,
+                        chunk,
+                        part_link,
+                        progress_callback=_emit_progress,
+                        stream_chunk_size=_UPLOAD_STREAM_CHUNK_SIZE,
+                    )
                 )
-                self._task_model.progress = progress
-                yield progress
+
+                def _signal_completion(_fut: asyncio.Future[Any]) -> None:  # noqa: ANN001
+                    loop.call_soon_threadsafe(progress_queue.put_nowait, None)
+
+                upload_future.add_done_callback(_signal_completion)
+
+                while True:
+                    delta = await progress_queue.get()
+                    if delta is None:
+                        break
+
+                    uploaded_bytes = min(uploaded_bytes + delta, total_bytes)
+                    progress = TaskProgress(
+                        current=uploaded_bytes,
+                        total=total_bytes,
+                        message=(
+                            f"Uploading archive ({uploaded_bytes}/{total_bytes} bytes) "
+                            f"[{index}/{parts_required} parts]"
+                        ),
+                    )
+                    self._task_model.progress = progress
+                    yield progress
+
+                await upload_future
 
             start_response = await asyncio.to_thread(_start_project, remote_project_name, token)
             logger.info("[%s] Started cloud processing for project '%s'", self.id, project.name)
