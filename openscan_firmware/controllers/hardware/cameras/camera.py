@@ -7,6 +7,7 @@ Currently supporting only picamera2.
 """
 
 import abc
+import asyncio
 import logging
 from importlib import import_module
 from typing import IO, Dict
@@ -123,6 +124,10 @@ class CameraController(StatefulHardware):
             return handler[image_format]()
         except KeyError:
             raise ValueError(f"Unsupported image format: {image_format}")
+
+    async def photo_async(self, image_format: str = "jpeg") -> PhotoData:
+        """Capture a photo without blocking the asyncio event loop."""
+        return await asyncio.to_thread(self.photo, image_format)
 
     @abc.abstractmethod
     def preview(self) -> IO[bytes]:

@@ -124,10 +124,14 @@ async def get_photo(camera_name: str):
     controller = get_camera_controller(camera_name)
     try:
         if not controller.is_busy():
-            return Response(content=controller.photo().data.getvalue(), media_type="image/jpeg")
+            photo = await controller.photo_async()
+            return Response(content=photo.data.getvalue(), media_type="image/jpeg")
     except Exception as e:
         return Response(status_code=500, content=str(e))
-    return Response(status_code=409, content="Camera is busy. If this is a bug, please restart the camera.")
+    return Response(
+        status_code=409,
+        content="Camera is busy. If this is a bug, please restart the camera.",
+    )
 
 @router.post("/{camera_name}/restart")
 async def restart_camera(camera_name: str):
