@@ -103,8 +103,8 @@ async def new_project(project_name: str, project_description: Optional[str] = ""
     try:
         project_manager = get_project_manager()
         return project_manager.add_project(project_name, project_description)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Project {project_name} already exists.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/{project_name}/scan", response_model=Task)
@@ -374,7 +374,12 @@ async def resume_scan(project_name: str, scan_index: int, camera_name: str) -> T
 
         if existing_task and existing_task.status == TaskStatus.PAUSED:
             task = await scans.resume_scan(scan)
-        elif not existing_task or existing_task.status in [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.ERROR]:
+        elif not existing_task or existing_task.status in [
+            TaskStatus.COMPLETED,
+            TaskStatus.CANCELLED,
+            TaskStatus.ERROR,
+            TaskStatus.INTERRUPTED,
+        ]:
             task = await scans.start_scan(
                 project_manager,
                 scan,

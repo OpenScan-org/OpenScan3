@@ -52,16 +52,32 @@ async def start_scan(
     # This prevents creating a new task for a scan that is already running, paused, etc.
     if scan.task_id:
         existing_task = task_manager.get_task_info(scan.task_id)
-        if existing_task and existing_task.status not in [
+        restartable_statuses = {
             TaskStatus.COMPLETED,
             TaskStatus.CANCELLED,
             TaskStatus.ERROR,
-        ]:
-            logger.warning(
-                f"Scan {scan.index} already has an active task {scan.task_id} with status {existing_task.status}. "
-                f"Cannot start a new one."
-            )
-            return existing_task
+            TaskStatus.INTERRUPTED,
+        }
+
+        if existing_task:
+            if existing_task.status not in restartable_statuses:
+                logger.warning(
+                    f"Scan {scan.index} already has an active task {scan.task_id} with status {existing_task.status}. "
+                    f"Cannot start a new one."
+                )
+                return existing_task
+
+            if existing_task.status == TaskStatus.INTERRUPTED:
+                logger.info(
+                    "Restarting interrupted scan %s (task %s) from step %s.",
+                    scan.index,
+                    scan.task_id,
+                    start_from_step,
+                )
+
+            # Remove the stale terminal task so the TaskManager list reflects only the new run
+            await task_manager.delete_task(existing_task.id)
+            scan.task_id = None
 
     task_name = "scan_task"
     task = await task_manager.create_and_run_task(

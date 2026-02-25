@@ -79,6 +79,24 @@ async def test_pm_add_project_already_exists(project_manager: ProjectManager):
 
 
 @pytest.mark.asyncio
+async def test_pm_add_project_allows_unicode_characters(project_manager: ProjectManager):
+    """Ensure Unicode letters like umlauts are accepted."""
+    project_name = "Ägäis Projekt 42"
+
+    project = project_manager.add_project(name=project_name)
+
+    assert project.name == "Ägäis Projekt 42"
+    assert project_manager.get_project_by_name(project_name) is project
+
+
+@pytest.mark.asyncio
+async def test_pm_add_project_rejects_forbidden_characters(project_manager: ProjectManager):
+    """Ensure characters invalid on Windows filesystems are rejected."""
+    with pytest.raises(ValueError, match=r"Character ':' is not allowed"):
+        project_manager.add_project(name="Invalid:Project")
+
+
+@pytest.mark.asyncio
 async def test_pm_init_empty_dir(project_manager: ProjectManager):
     """Test ProjectManager initialization with an empty projects directory."""
     # The loading happens in __init__, so we check the result right after (synchronous call).

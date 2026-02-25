@@ -126,7 +126,7 @@ class ScanTask(BaseTask):
     task_category = "core"
     is_exclusive = True
 
-    async def run(self, scan: Scan, start_from_step: int = 0) -> AsyncGenerator[TaskProgress, None]:
+    async def run(self, scan: Scan | dict, start_from_step: int = 0) -> AsyncGenerator[TaskProgress, None]:
         """Run a scan asynchronously with pause/resume/cancel support.
 
         Args:
@@ -136,6 +136,9 @@ class ScanTask(BaseTask):
         Yields:
             TaskProgress objects describing current progress.
         """
+        if not isinstance(scan, Scan):
+            scan = Scan.model_validate(scan)
+
         # Initialize controllers and generate path
         camera_controller, project_manager = await self._initialize_controllers(scan)
         await self._ensure_project_thumbnail(camera_controller, project_manager, scan.project_name)
@@ -150,9 +153,17 @@ class ScanTask(BaseTask):
 
         await asyncio.to_thread(project_manager.save_scan_path, scan, path_dict)
 
+        resume_from_step = max(start_from_step, scan.current_step or 0)
+
         # Filter positions for resuming from specific step
-        if start_from_step > 0:
-            keys = list(path_dict.keys())[start_from_step:]
+        if resume_from_step > 0:
+            logger.info(
+                "Resuming scan %s for project %s from step %s",
+                scan.index,
+                scan.project_name,
+                resume_from_step,
+            )
+            keys = list(path_dict.keys())[resume_from_step:]
             path_dict = {pos: path_dict[pos] for pos in keys}
 
         # Setup focus stacking if needed
@@ -168,7 +179,7 @@ class ScanTask(BaseTask):
 
         try:
             # Execute main scan loop
-            async for progress in self._execute_scan_loop(start_from_step, total):
+            async for progress in self._execute_scan_loop(resume_from_step, total):
                 yield progress
         except Exception as e:
             logger.error(
@@ -308,6 +319,20 @@ class ScanTask(BaseTask):
                 logger.error("Error taking photo at position %s: %s", original_index, e, exc_info=True)
                 raise
 
+            if self.is_cancelled():
+                logger.info(
+                    "Scan %s for project %s was cancelled during capture.",
+                    self._ctx.scan.index,
+                    self._ctx.scan.project_name,
+                )
+                self._ctx.scan.status = TaskStatus.CANCELLED
+                yield TaskProgress(
+                    current=current_step + start_from_step + 1,
+                    total=total,
+                    message="Scan cancelled by request.",
+                )
+                break
+
             # Update scan progress
             self._ctx.scan.duration += (datetime.now() - step_start_time).total_seconds()
             self._ctx.scan.current_step = current_step + start_from_step + 1
@@ -399,14 +424,26 @@ class ScanTask(BaseTask):
                 )
 
                 asyncio.create_task(self._ctx.project_manager.add_photo_async(photo_data))
+                # Needed so the event loop can process pause/cancel signals between captures:
+                await asyncio.sleep(0)
             else:
                 # Focus stacking capture
                 focus_positions = self._ctx.focus_context["positions"]
+                total_focus_stacks = len(focus_positions)
                 for stack_index, focus in enumerate(focus_positions):
+                    display_index = stack_index + 1
+                    await self.wait_for_pause()
+                    if self.is_cancelled():
+                        logger.info(
+                            "Cancellation detected during focus stacking (%d/%d).",
+                            display_index,
+                            total_focus_stacks,
+                        )
+                        return
                     logger.debug(
                         "Focus stacking enabled, capturing photo %d / %d with focus %s",
-                        stack_index,
-                        len(focus_positions),
+                        display_index,
+                        total_focus_stacks,
                         focus,
                     )
                     self._ctx.camera_controller.settings.manual_focus = focus
@@ -421,6 +458,8 @@ class ScanTask(BaseTask):
                     )
 
                     asyncio.create_task(self._ctx.project_manager.add_photo_async(photo_data))
+                    # Let the event loop handle pause/cancel requests between focus captures
+                    await asyncio.sleep(0)
 
         except Exception as e:
             logger.error("Error taking photo at position %s: %s", index, e, exc_info=True)

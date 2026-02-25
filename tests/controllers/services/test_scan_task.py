@@ -14,13 +14,33 @@ from openscan_firmware.config.scan import ScanSetting
 from openscan_firmware.models.task import Task, TaskStatus, TaskProgress
 from openscan_firmware.models.scan import Scan
 from openscan_firmware.models.paths import CartesianPoint3D, PolarPoint3D
-from openscan_firmware.controllers.services.tasks.task_manager import TaskManager
+from openscan_firmware.controllers.services.tasks.task_manager import TaskManager, TASKS_STORAGE_PATH
 from openscan_firmware.controllers.services.projects import ProjectManager
 from openscan_firmware.controllers.hardware.motors import MotorController
 from openscan_firmware.models.motor import Motor
 from openscan_firmware.config.motor import MotorConfig
 from openscan_firmware.models.camera import PhotoData
 from openscan_firmware.models.camera import CameraMetadata
+from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask, ScanRuntime
+
+
+class FocusTrackingSettings:
+    """Camera settings helper that records manual focus assignments."""
+
+    def __init__(self, AF: bool = True, manual_focus: float = 0.0, orientation_flag: int = 1):
+        self.AF = AF
+        self.orientation_flag = orientation_flag
+        self._manual_focus = manual_focus
+        self.history: list[float] = []
+
+    @property
+    def manual_focus(self) -> float:
+        return self._manual_focus
+
+    @manual_focus.setter
+    def manual_focus(self, value: float) -> None:
+        self.history.append(value)
+        self._manual_focus = value
 
 
 @pytest_asyncio.fixture
@@ -344,6 +364,83 @@ class TestScanTask:
     @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
     @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
     @patch('openscan_firmware.controllers.hardware.motors', create=True)
+    async def test_focus_stacking_pause_and_resume_mid_capture(
+        self,
+        mock_motors: MagicMock,
+        mock_generate_scan_path: MagicMock,
+        mock_get_project_manager: MagicMock,
+        mock_get_camera_controller: MagicMock,
+        task_manager_fixture: TaskManager,
+        mock_camera_controller: MagicMock,
+        sample_scan_model: Scan,
+        mock_project_manager: MagicMock,
+        fake_photo_data: PhotoData,
+    ):
+        """Ensure pausing during focus stacking resumes cleanly mid-stack."""
+
+        mock_get_camera_controller.return_value = mock_camera_controller
+        mock_get_project_manager.return_value = mock_project_manager
+
+        scan = sample_scan_model.model_copy(deep=True)
+        scan.settings.focus_stacks = 12
+        scan.settings.focus_range = (0.1, 0.4)
+        focus_positions = scan.settings.focus_positions
+
+        focus_settings = FocusTrackingSettings(AF=True, manual_focus=0.05)
+        mock_camera_controller.settings = focus_settings
+
+        path_points = {
+            PolarPoint3D(theta=0, fi=0): 0,
+            PolarPoint3D(theta=15, fi=15): 1,
+        }
+        mock_generate_scan_path.return_value = path_points
+        mock_motors.move_to_point = AsyncMock(return_value=None)
+
+        capture_event = asyncio.Event()
+        photo_counter = {"count": 0}
+        pause_trigger_index = 2
+
+        def slow_focus_photo(*args, **kwargs):
+            photo_counter["count"] += 1
+            if photo_counter["count"] == pause_trigger_index:
+                capture_event.set()
+            time.sleep(0.05)
+            return fake_photo_data
+
+        async def slow_add_photo(*args, **kwargs):
+            await asyncio.sleep(0.01)
+
+        mock_camera_controller.photo.side_effect = slow_focus_photo
+        mock_project_manager.add_photo_async.side_effect = slow_add_photo
+
+        tm = task_manager_fixture
+        task_model = await tm.create_and_run_task("scan_task", scan, 0)
+
+        await asyncio.wait_for(capture_event.wait(), timeout=2.0)
+        paused_task = await tm.pause_task(task_model.id)
+        assert paused_task.status == TaskStatus.PAUSED
+        assert mock_camera_controller.photo.call_count < scan.settings.focus_stacks
+
+        await asyncio.sleep(0.05)
+
+        resumed_task = await tm.resume_task(task_model.id)
+        assert resumed_task.status == TaskStatus.RUNNING
+
+        final_task_model = await tm.wait_for_task(task_model.id)
+        assert final_task_model.status == TaskStatus.COMPLETED
+
+        expected_photos = scan.settings.focus_stacks * len(path_points)
+        assert mock_camera_controller.photo.call_count == expected_photos
+        assert mock_project_manager.add_photo_async.await_count == expected_photos
+
+        expected_history = focus_positions * len(path_points) + [0.05]
+        assert focus_settings.history == expected_history
+
+    @pytest.mark.asyncio
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
     async def test_scan_task_cancel_while_paused(
         self,
         mock_motors: MagicMock,
@@ -418,9 +515,163 @@ class TestScanTask:
         assert positions[-1] == 15.0  # max_focus
         assert positions[1] == 12.5  # middle value
 
+    @pytest.mark.asyncio
+    async def test_focus_stacking_sets_manual_focus_per_stack(
+        self,
+        mock_camera_controller: MagicMock,
+        sample_scan_model: Scan,
+        fake_photo_data: PhotoData,
+    ):
+        """Verify that each focus stack assigns the correct manual focus value."""
+
+        sample_scan_model.settings.focus_stacks = 3
+        sample_scan_model.settings.focus_range = (0.1, 0.3)
+        focus_positions = sample_scan_model.settings.focus_positions
+
+        focus_settings = FocusTrackingSettings(AF=True, manual_focus=0.05)
+        mock_camera_controller.settings = focus_settings
+        mock_camera_controller.photo.return_value = fake_photo_data
+
+        project_manager = MagicMock()
+        project_manager.add_photo_async = AsyncMock(return_value=None)
+
+        task_model = Task(name="scan_task", task_type="core")
+        scan_task = ScanTask(task_model)
+        scan_task._ctx = ScanRuntime(
+            scan=sample_scan_model,
+            camera_controller=mock_camera_controller,
+            project_manager=project_manager,
+            path_dict={},
+            focus_context={
+                "enabled": True,
+                "positions": focus_positions,
+                "previous_settings": (focus_settings.AF, focus_settings.manual_focus),
+            },
+        )
+
+        await scan_task._capture_photos_at_position(PolarPoint3D(theta=0, fi=0), 0)
+        await asyncio.sleep(0)  # flush add_photo_async tasks
+
+        assert focus_settings.history == focus_positions
+        assert project_manager.add_photo_async.call_count == len(focus_positions)
+
 
 class TestScanTaskIntegration:
     """Integration tests for ScanTask persistence behavior with real ProjectManager."""
+
+    @pytest.mark.asyncio
+    @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
+    @patch('openscan_firmware.controllers.services.tasks.core.scan_task.generate_scan_path')
+    @patch('openscan_firmware.controllers.hardware.motors', create=True)
+    async def test_scan_task_can_restart_after_interruption(
+            self,
+            mock_motors: MagicMock,
+            mock_generate_scan_path: MagicMock,
+            mock_get_project_manager: MagicMock,
+            mock_get_camera_controller: MagicMock,
+            task_manager_fixture: TaskManager,
+            mock_camera_controller: MagicMock,
+            sample_scan_model: Scan,
+            sample_scan_settings: ScanSetting,
+            tmp_path,
+            fake_photo_data: PhotoData,
+            monkeypatch,
+    ):
+        """Simulate shutdown, reload ScanTask from disk, and verify TaskManager.restart_task completes the scan."""
+
+        storage_dir = tmp_path / "tasks_storage"
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        task_manager_fixture._tasks_storage_path = storage_dir
+
+        real_project_manager = ProjectManager(path=tmp_path)
+
+        mock_get_camera_controller.return_value = mock_camera_controller
+        mock_get_project_manager.return_value = real_project_manager
+
+        project = real_project_manager.add_project(
+            sample_scan_model.project_name,
+            "Interrupted scan recovery",
+        )
+
+        scan = real_project_manager.add_scan(
+            sample_scan_model.project_name,
+            mock_camera_controller,
+            sample_scan_settings,
+            "Interrupted scan recovery",
+        )
+
+        total_points = 4
+        mock_generate_scan_path.return_value = {
+            PolarPoint3D(theta=i * 15, fi=i * 10): i for i in range(total_points)
+        }
+
+        mock_motors.move_to_point = AsyncMock()
+        mock_camera_controller.photo.return_value = fake_photo_data
+
+        with patch.object(real_project_manager, 'save_scan_state', new_callable=AsyncMock) as mock_save, \
+             patch.object(real_project_manager, 'add_photo_async', new_callable=AsyncMock) as mock_add_photo:
+
+            task_model = await task_manager_fixture.create_and_run_task(
+                "scan_task",
+                scan,
+                0,
+            )
+
+            await asyncio.sleep(0.05)
+
+            # The first run completes almost instantly with mocked hardware.
+            # We need to build a realistic "interrupted mid-scan" snapshot manually,
+            # as if the task was interrupted after processing 2 of 4 steps.
+            first_run_state = task_manager_fixture.get_task_info(task_model.id)
+            await task_manager_fixture.wait_for_task(task_model.id)
+
+            # Build a snapshot that looks like the task was interrupted mid-scan
+            pre_shutdown_snapshot = first_run_state.model_copy(deep=True)
+            pre_shutdown_snapshot.status = TaskStatus.RUNNING
+            pre_shutdown_snapshot.error = None
+            pre_shutdown_snapshot.completed_at = None
+
+            # Patch run_args: set scan.current_step to 2 (interrupted after step 2 of 4)
+            interrupted_step = 2
+            scan_arg = pre_shutdown_snapshot.run_args[0]
+            if isinstance(scan_arg, dict):
+                scan_arg["current_step"] = interrupted_step
+            else:
+                scan_arg.current_step = interrupted_step
+
+            task_file = storage_dir / f"{pre_shutdown_snapshot.id}.json"
+
+            # Clear all in-memory state to simulate a fresh startup
+            task_manager_fixture._running_async_tasks.clear()
+            task_manager_fixture._running_blocking_tasks.clear()
+            task_manager_fixture._running_task_instances.clear()
+            task_manager_fixture._active_exclusive_task_id = None
+            task_manager_fixture._tasks = {}
+            mock_save.reset_mock()
+            mock_add_photo.reset_mock()
+
+            # Write the interrupted snapshot to disk
+            task_file.write_text(pre_shutdown_snapshot.model_dump_json(indent=2))
+
+            task_manager_fixture.restore_tasks_from_persistence()
+
+            restored_task = task_manager_fixture.get_task_info(task_model.id)
+            assert restored_task is not None
+            assert restored_task.status == TaskStatus.INTERRUPTED
+            assert restored_task.error == "Task was interrupted by application shutdown."
+
+            restarted_task = await task_manager_fixture.restart_task(task_model.id)
+            assert restarted_task.status in (TaskStatus.RUNNING, TaskStatus.PENDING)
+
+            final_state = await task_manager_fixture.wait_for_task(task_model.id)
+            assert final_state.status == TaskStatus.COMPLETED
+
+            remaining_steps = total_points - interrupted_step
+            assert final_state.progress.current == final_state.progress.total == total_points
+
+            assert mock_add_photo.call_count == remaining_steps
+            assert mock_save.call_count >= remaining_steps
 
     @pytest.mark.asyncio
     @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
@@ -671,6 +922,7 @@ class TestScanTaskIntegration:
         # Create scan settings with focus stacking
         focus_scan_settings = sample_scan_settings
         focus_scan_settings.focus_stacks = 3
+        focus_positions = focus_scan_settings.focus_positions
 
         # Add scan with focus stacking settings
         scan = real_project_manager.add_scan(
@@ -691,9 +943,8 @@ class TestScanTaskIntegration:
         mock_camera_controller.photo.return_value = fake_photo_data
         
         # Mock camera settings for focus stacking
-        mock_camera_controller.settings = MagicMock()
-        mock_camera_controller.settings.AF = True
-        mock_camera_controller.settings.manual_focus = 10.0
+        focus_settings = FocusTrackingSettings(AF=True, manual_focus=10.0)
+        mock_camera_controller.settings = focus_settings
 
         # Mock save_scan_state and add_photo_async to avoid file I/O issues
         with patch.object(real_project_manager, 'save_scan_state', new_callable=AsyncMock) as mock_save, \
@@ -716,8 +967,12 @@ class TestScanTaskIntegration:
             assert mock_camera_controller.photo.call_count == expected_photos
             assert mock_add_photo.call_count == expected_photos
 
+            expected_sequence = focus_positions * test_positions
+            assert focus_settings.history[:-1] == expected_sequence
+            assert focus_settings.history[-1] == 10.0
+
             # Verify focus settings were restored
-            assert mock_camera_controller.settings.AF == True  # Should be restored
+            assert mock_camera_controller.settings.AF is True  # Should be restored
 
             # Verify save_scan_state was called
             assert mock_save.call_count >= test_positions

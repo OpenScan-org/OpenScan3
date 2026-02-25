@@ -32,6 +32,7 @@
   },
   "loggers": {
     "openscan": {"level": "DEBUG", "handlers": ["console", "buffer_to_text_file"], "propagate": false},
+    "openscan_firmware": {"level": "DEBUG", "handlers": ["console", "buffer_to_text_file"], "propagate": false},
     "uvicorn": {"level": "INFO", "handlers": ["console", "buffer_to_text_file"], "propagate": false},
     "httpx": {"level": "INFO", "handlers": ["console", "buffer_to_text_file"], "propagate": false},
     "root": {"level": "INFO", "handlers": ["console", "buffer_to_text_file"]}

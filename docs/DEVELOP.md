@@ -33,6 +33,12 @@ pytest -q -k "not picamera2"
 
 Note: On non‑Pi systems, camera features may be unavailable; skip camera tests as shown above.
 
+### Testing expectations
+
+- Run the quick suite (`pytest -q -k "not picamera2"`) before opening a pull request; it exercises everything that does not require Pi-only camera stacks.
+- Hardware or camera-focused tests should be guarded with markers so they can be skipped on desktop but must pass on Raspberry Pi CI targets.
+- When you fix a bug or add behavior, aim to provide a regression/unit test proving the change—optional for now because the suite is still inconsistent, but appreciated when feasible.
+
 
 ### Raspberry Pi (hardware development)
 
@@ -92,12 +98,3 @@ sudo systemctl restart openscan-firmware.service
 ```
 
 After loading the correct configuration, your OpenScan hardware should be ready to use via the web interface.
-
-
-### Core task overrides (advanced)
-
-- The firmware enforces a fixed list of required tasks (`scan_task`, `focus_stacking_task`, `cloud_upload_task`, `cloud_download_task`). Startup fails fast if any of those names are missing after autodiscovery.
-- To ship a custom implementation, keep the same `task_name` and either place the module in one of the scanned namespaces or extend the namespace list via your own package (Autodiscovery scans `openscan_firmware.controllers.services.tasks` plus `openscan_firmware.tasks.community`).
-- Enable autodiscovery by exporting `OPENSCAN_TASK_AUTODISCOVERY=1` (e.g., via `.env` or a systemd drop-in). If you need to replace an existing registration, also set `OPENSCAN_TASK_OVERRIDE_ON_CONFLICT=1`. Only flip this when you fully control the replacement task.
-- Example tasks (e.g., `examples/crop_task.py`) remain opt-in; leave them untouched if you only need the production features.
--

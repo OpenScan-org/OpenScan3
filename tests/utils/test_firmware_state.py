@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -45,7 +46,7 @@ def test_handle_startup_warns_on_unclean(caplog: pytest.LogCaptureFixture, firmw
     state_module.mark_unclean_shutdown()
 
     caplog.clear()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING), patch.object(state_module, "LOGGER", logging.getLogger("test.state")):
         updated = state_module.handle_startup()
 
     assert any("unclean" in record.message for record in caplog.records)
