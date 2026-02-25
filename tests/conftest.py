@@ -5,7 +5,7 @@ from importlib import import_module
 
 import pytest
 import pytest_asyncio
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from datetime import datetime
 from pathlib import Path
 import io
@@ -102,6 +102,9 @@ def mock_camera_controller() -> MagicMock:
     Image.new("RGB", (1, 1), color=(0, 0, 0)).save(preview_buffer, format="JPEG")
     controller.preview.return_value = preview_buffer.getvalue()
     controller.camera.name = "mock_camera"
+    async def _photo_async(image_format: str = "jpeg"):
+        return controller.photo(image_format)
+    controller.photo_async = AsyncMock(side_effect=_photo_async)
     return controller
 
 @pytest.fixture
