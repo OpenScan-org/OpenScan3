@@ -415,7 +415,9 @@ class ScanTask(BaseTask):
 
             if not self._ctx.focus_context or not self._ctx.focus_context["enabled"]:
                 # Single photo capture
-                photo_data = self._ctx.camera_controller.photo(self._ctx.scan.settings.image_format)
+                photo_data = await self._ctx.camera_controller.photo_async(
+                    self._ctx.scan.settings.image_format
+                )
                 photo_data.scan_metadata = ScanMetadata(
                     step=index,
                     polar_coordinates=current_point,
@@ -448,7 +450,9 @@ class ScanTask(BaseTask):
                     )
                     self._ctx.camera_controller.settings.manual_focus = focus
 
-                    photo_data = self._ctx.camera_controller.photo(self._ctx.scan.settings.image_format)
+                    photo_data = await self._ctx.camera_controller.photo_async(
+                        self._ctx.scan.settings.image_format
+                    )
                     photo_data.scan_metadata = ScanMetadata(
                         step=index,
                         polar_coordinates=current_point,
