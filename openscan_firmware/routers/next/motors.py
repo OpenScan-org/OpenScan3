@@ -150,7 +150,7 @@ async def move_motor_to_home_position(motor_name: str):
     if controller.endstop and not controller.is_busy():
         # Trigger Endstop
         controller.model.angle = 0
-        await controller.move_degrees(140)
+        await controller.move_to_endstop()
         # Wait for Endstop and move motor to home position
         await asyncio.sleep(3)
         await controller.move_to(90)
