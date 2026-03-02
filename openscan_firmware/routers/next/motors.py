@@ -9,6 +9,9 @@ from openscan_firmware.controllers.hardware.motors import get_motor_controller, 
 from openscan_firmware.models.paths import PolarPoint3D
 from .settings_utils import create_settings_endpoints
 
+from openscan_firmware.models.scanner import ScannerCalibrateMode
+from openscan_firmware.controllers.device import _scanner_device as device
+
 router = APIRouter(
     prefix="/motors",
     tags=["motors"],
@@ -135,8 +138,8 @@ async def override_motor_angle(
 
 
 @router.put("/{motor_name}/endstop-calibration", response_model=MotorStatusResponse)
-async def move_motor_to_home_position(motor_name: str):
-    """Move motor to home position
+async def motor_endstop_calibration(motor_name: str):
+    """Move motor to home through endstop sensing
 
     This endpoint moves the motor to the home position using the endstop calibration.
 
@@ -148,15 +151,29 @@ async def move_motor_to_home_position(motor_name: str):
     """
     controller = _get_motor_controller_or_404(motor_name)
     if controller.endstop and not controller.is_busy():
-        # Trigger Endstop
-        controller.model.angle = 0
-        await controller.move_to_endstop()
-        # Wait for Endstop and move motor to home position
-        await asyncio.sleep(3)
-        await controller.move_to(90)
+        await controller.calibrate()
         return controller.get_status()
     else:
         raise HTTPException(status_code=422, detail="No endstop configured or motor is busy!")
+
+@router.put("/{motor_name}/home", response_model=MotorStatusResponse)
+async def motor_move_home(motor_name: str):
+    """Move motor to home 
+
+    This endpoint moves the motor to the home position uning method depending on config param
+
+    Args:
+        motor_name: The name of the motor to move to the home position
+
+    Returns:
+        MotorStatusResponse: A response object containing the status of the motor after the move
+    """
+    controller = _get_motor_controller_or_404(motor_name)
+    if not controller.is_busy():
+        await controller.move_to_home()
+        return controller.get_status()
+    else:
+        raise HTTPException(status_code=422, detail="Motor is busy!")
 
 
 create_settings_endpoints(

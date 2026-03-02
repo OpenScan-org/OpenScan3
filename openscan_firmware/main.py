@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
 
     handle_startup(logger)
 
-    device_controller.initialize(device_controller.load_device_config())
+    await device_controller.initialize(device_controller.load_device_config())
 
     task_manager = get_task_manager()
 

@@ -5,7 +5,7 @@ import json
 import tempfile
 import shutil
 
-from openscan_firmware.models.scanner import ScannerDevice
+from openscan_firmware.models.scanner import ScannerDevice, ScannerStartupMode, ScannerCalibrateMode
 from openscan_firmware.controllers import device
 
 from openscan_firmware.utils.dir_paths import resolve_settings_dir
@@ -30,6 +30,9 @@ class DeviceStatusResponse(BaseModel):
     cameras: dict[str, CameraStatusResponse]
     motors: dict[str, MotorStatusResponse]
     lights: dict[str, LightStatusResponse]
+    motors_timeout: float
+    startup_mode: ScannerStartupMode
+    calibrate_mode: ScannerCalibrateMode
     initialized: bool
 
 class DeviceControlResponse(BaseModel):
