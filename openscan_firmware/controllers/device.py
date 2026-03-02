@@ -551,7 +551,7 @@ async def initialize(config: dict = _scanner_device.model_dump(mode='json'), det
     if _scanner_device.startup_mode == ScannerStartupMode.STARTUP_ENABLED:
         _scanner_device._idle = True
         logger.info("Starting in active mode.")
-        resumeFromIdle()
+        await resumeFromIdle()
     else:
         _scanner_device._idle = False
         logger.info("Starting in idle mode.")
