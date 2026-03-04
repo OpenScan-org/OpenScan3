@@ -159,7 +159,8 @@ async def test_endstop_integration_with_motor(endstop_config, motor_controller_i
     await asyncio.sleep(0.1)
 
 
-def test_device_controller_initializes_endstop_from_nested_config(monkeypatch):
+@pytest.mark.asyncio
+async def test_device_controller_initializes_endstop_from_nested_config(monkeypatch):
     """
     Integration test to ensure the device module correctly initializes an endstop
     from a nested configuration, preventing regression of the validation error.
@@ -189,20 +190,24 @@ def test_device_controller_initializes_endstop_from_nested_config(monkeypatch):
                     "bounce_time": 0.005
                 }
             }
-        }
+        },
+        "motors_timeout": 0,
+        "startup_mode": "startup_idle",
+        "calibrate_mode": "calibrate_manual",
     }
 
     # 2. Mock motor controller dependencies
     mock_motor_controller = MotorController(Motor(name="test_motor", settings=MotorConfig(**mock_device_config["motors"]["test_motor"])))
-    monkeypatch.setattr('openscan_firmware.controllers.device.create_motor_controller', lambda motor: None)
+    monkeypatch.setattr('openscan_firmware.controllers.device.create_motor_controller', lambda motor: mock_motor_controller)
     monkeypatch.setattr('openscan_firmware.controllers.device.get_motor_controller', lambda name: mock_motor_controller)
 
-    # 3. Mock the listener to avoid hardware interaction
+    # 3. Mock the listener and idle transitions to avoid hardware interaction
     monkeypatch.setattr(EndstopController, 'start_listener', lambda self: None)
+    monkeypatch.setattr(device_controller_module, 'goToIdle', lambda: None)
 
     # 4. Run the initialization logic from the device module
     try:
-        device_controller_module.initialize(mock_device_config)
+        await device_controller_module.initialize(mock_device_config)
     except Exception as e:
         pytest.fail(f"device.initialize failed with nested config: {e}")
 

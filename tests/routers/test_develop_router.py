@@ -87,7 +87,7 @@ def test_restart_triggers_device_initialize_on_reload(monkeypatch, tmp_path, lat
     def fake_load_config():  # noqa: ANN202
         return {"dummy": True}
 
-    def fake_initialize(config):  # noqa: ANN201
+    async def fake_initialize(config):  # noqa: ANN201
         init_calls.append(config)
 
     monkeypatch.setattr("openscan_firmware.controllers.device.load_device_config", fake_load_config)

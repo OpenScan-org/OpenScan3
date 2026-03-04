@@ -30,11 +30,13 @@ class _InactivityTimer:
         self.timeout_s = float(timeout_s)
         if self.timeout_s <= 0:
             self.enabled = False
-        self._reset_event.set()  # sveglia il loop
+        if not self._stopped:
+            self._reset_event.set()  # sveglia il loop
 
     def enable(self, enabled: bool = True) -> None:
         self.enabled = bool(enabled) and self.timeout_s > 0
-        self._reset_event.set()
+        if not self._stopped and self.enabled:
+            self._reset_event.set()
 
     def disable(self) -> None:
         self.enable(False)
@@ -85,11 +87,15 @@ class _InactivityTimer:
     # --- pause/resume (nesting-safe) ---
     def pause(self) -> None:
         self._pause_count += 1
+        if self._stopped or not self.enabled or self.timeout_s <= 0:
+            return
         self._reset_event.set()
 
     def resume(self) -> None:
         if self._pause_count > 0:
             self._pause_count -= 1
+        if self._stopped or not self.enabled or self.timeout_s <= 0:
+            return
         self._reset_event.set()
         if self._pause_count == 0:
             self.reset()

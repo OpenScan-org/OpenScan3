@@ -77,8 +77,8 @@ _scanner_device = ScannerDevice(
 
 # beware, PrivateAttr are NOT initialized in constructor
 # nor an error message is shown...
-_scanner_device._idle=False,
-_scanner_device._initialized=False,
+_scanner_device._idle=False
+_scanner_device._initialized=False
 
 # Path to device configuration file (persisted)
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent
@@ -157,8 +157,8 @@ def save_device_config() -> bool:
         return False
 
 
-def set_device_config(config_file) -> bool:
-    """Set the device configuration from a file and initialize hardware
+async def set_device_config(config_file) -> bool:
+    """Set the device configuration from a file and initialize hardware.
 
     Args:
         config_file: Path to the configuration file
@@ -167,7 +167,7 @@ def set_device_config(config_file) -> bool:
         bool: True if successful, False otherwise
     """
 
-    initialize(load_device_config(config_file))
+    await initialize(load_device_config(config_file))
     return True
 
 

@@ -26,28 +26,19 @@ class LightController(SwitchableHardware, SleepCapableHardware):
             on_change=self._apply_settings_to_hardware
         )
         self._is_on = False
+        # idle helpers must exist before first refresh
+        self.is_idle = lambda: False
+        self.send_event = None
         self._apply_settings_to_hardware(self.settings.model)
         logger.debug(f"Light controller for '{self.model.name}' initialized.")
-
-        # light disabled at startup
-        self._enabled = False
-        
-        # no idle callbacks
-        self.is_idle = lambda: True
-        self.send_event = None
         
     def _apply_settings_to_hardware(self, settings: LightConfig):
         """Apply settings to hardware and preserve light state."""
         self.model.settings = settings
 
-        was_on = self._is_on
-        if was_on:
-            self.turn_off()
-
         gpio.initialize_output_pins(self.settings.pins)
-
-        if was_on:
-            self.turn_on()
+        # Re-apply desired state synchronously; refresh handles idle logic
+        self.refresh()
 
         logger.info(f"Light '{self.model.name}' settings updated.")
         schedule_device_status_broadcast([f"lights.{self.model.name}.settings"])
@@ -77,29 +68,27 @@ class LightController(SwitchableHardware, SleepCapableHardware):
         self.is_idle = is_idle
         self.send_event = send_event
 
+    async def _wake_if_idle(self, event: HardwareEvent) -> None:
+        if not self.is_idle():
+            self.refresh()
+            return
+        logger.info("Device idle, must exit before toggling light")
+        if self.send_event is not None:
+            await self.send_event(event)
+
     @property
     def is_on(self) -> bool:
         return self._is_on
 
     async def turn_on(self):
         self._is_on = True
-        #resume from idle
-        if self.is_idle():
-            logger.info("Device idle, must exit before")
-            await self.send_event(HardwareEvent.LIGHT_EVENT)
-        else:
-            self.refresh()
+        await self._wake_if_idle(HardwareEvent.LIGHT_EVENT)
         logger.info(f"Light '{self.model.name}' turned on.")
         schedule_device_status_broadcast([f"lights.{self.model.name}.is_on"])
 
     async def turn_off(self):
         self._is_on = False
-        #resume from idle
-        if self.is_idle():
-            logger.info("Device idle, must exit before")
-            await self.send_event(HardwareEvent.LIGHT_EVENT)
-        else:
-            self.refresh()
+        await self._wake_if_idle(HardwareEvent.LIGHT_EVENT)
         logger.info(f"Light '{self.model.name}' turned off.")
         schedule_device_status_broadcast([f"lights.{self.model.name}.is_on"])
 
