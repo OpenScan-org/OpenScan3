@@ -44,9 +44,9 @@ class SleepCapableHardware(HardwareInterface[T], Protocol[T]):
     """Interface for hardware that can be put in sleep mode"""
 
     @abstractmethod
-    def setIdleCallbacks(self, is_idle: Callable[..., bool], send_event: Callable[HardwareEvent, Awaitable[None]]) -> None:
+    def set_idle_callbacks(self, is_idle: Callable[..., bool], send_event: Callable[HardwareEvent, Awaitable[None]]) -> None:
         """
-        setup an awake callback that the hardware can call
+        Setup an awake callback that the hardware can call
         before executing some actions
         Returns:
             None

@@ -50,7 +50,7 @@ def test_lightcontroller_initialization(light_config, request, idle_callbacks):
     light_config = request.getfixturevalue(light_config)
     light = Light(name="test_light", settings=light_config)
     controller = LightController(light)
-    controller.setIdleCallbacks(*idle_callbacks)
+    controller.set_idle_callbacks(*idle_callbacks)
     assert controller.model == light
     for field in ["pin", "pins", "pwm_support"]:
         assert getattr(controller.settings._settings, field) == getattr(light_config, field)
@@ -63,7 +63,7 @@ async def test_turn_on_light(light_config, request, idle_callbacks):
     light_config = request.getfixturevalue(light_config)
     light = Light(name="test_light", settings=light_config)
     controller = LightController(light)
-    controller.setIdleCallbacks(*idle_callbacks)
+    controller.set_idle_callbacks(*idle_callbacks)
     assert not controller.is_on
     await controller.turn_on()
     assert controller.is_on is True
@@ -73,7 +73,7 @@ def test_change_light_settings(light_config_with_pins, idle_callbacks):
     """Test if the light settings can be changed and are propagated to light model."""
     light = Light(name="test_light", settings=light_config_with_pins)
     controller = LightController(light)
-    controller.setIdleCallbacks(*idle_callbacks)
+    controller.set_idle_callbacks(*idle_callbacks)
     controller.settings.pwm_support = False
     assert controller.settings.pwm_support is False
     assert controller.model.settings.pwm_support is False
@@ -94,7 +94,7 @@ def test_light_config_duplicate_pin(request):
 def test_lightcontroller_get_status(light_config_with_pins, idle_callbacks):
     light = Light(name="test_light", settings=light_config_with_pins)
     controller = LightController(light)
-    controller.setIdleCallbacks(*idle_callbacks)
+    controller.set_idle_callbacks(*idle_callbacks)
     status = controller.get_status()
     assert isinstance(status, dict)
     assert status["name"] == "test_light"

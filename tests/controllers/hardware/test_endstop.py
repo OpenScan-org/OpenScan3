@@ -203,7 +203,7 @@ async def test_device_controller_initializes_endstop_from_nested_config(monkeypa
 
     # 3. Mock the listener and idle transitions to avoid hardware interaction
     monkeypatch.setattr(EndstopController, 'start_listener', lambda self: None)
-    monkeypatch.setattr(device_controller_module, 'goToIdle', lambda: None)
+    monkeypatch.setattr(device_controller_module, 'go_to_idle', lambda: None)
 
     # 4. Run the initialization logic from the device module
     try:

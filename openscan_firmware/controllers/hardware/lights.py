@@ -64,7 +64,7 @@ class LightController(SwitchableHardware, SleepCapableHardware):
                 gpio.set_output_pin(pin, self._is_on)
            
             
-    def setIdleCallbacks(self, is_idle: Callable[[], bool], send_event: Callable[[HardwareEvent], Awaitable[None]]) -> None:
+    def set_idle_callbacks(self, is_idle: Callable[[], bool], send_event: Callable[[HardwareEvent], Awaitable[None]]) -> None:
         self.is_idle = is_idle
         self.send_event = send_event
 

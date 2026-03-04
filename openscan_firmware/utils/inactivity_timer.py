@@ -144,30 +144,30 @@ class _InactivityTimer:
 
 class _InactivityTimerPaused:
     """
-    Single context manager (sync + async) for inactivityTimerPaused singleton
+    Single context manager (sync + async) for inactivity_timer_paused singleton
     usage :
-        with inactivityTimerPaused:
+        with inactivity_timer_paused:
             ...
-        async with inactivityTimerPaused:
+        async with inactivity_timer_paused:
             ...
     """
     def __init__(self):
         self._depth = 0  # nesting-safe
 
     def __enter__(self):
-        global inactivityTimer
+        global inactivity_timer
         self._depth += 1
         if self._depth == 1:
-            inactivityTimer.pause()
+            inactivity_timer.pause()
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        global inactivityTimer
+        global inactivity_timer
         if self._depth > 0:
             self._depth -= 1
         if self._depth == 0:
-            inactivityTimer.resume()
-            inactivityTimer.reset()
+            inactivity_timer.resume()
+            inactivity_timer.reset()
         return False
 
     async def __aenter__(self):
@@ -182,7 +182,7 @@ class _InactivityTimerPaused:
 # ==========================================================
 
 # Timer singleton (di default spento)
-inactivityTimer = _InactivityTimer(timeout_s=0.0, enabled=False, name="motors-inactivity")
+inactivity_timer = _InactivityTimer(timeout_s=0.0, enabled=False, name="motors-inactivity")
 
 # Context manager singleton (senza parentesi)
-inactivityTimerPaused = _InactivityTimerPaused()
+inactivity_timer_paused = _InactivityTimerPaused()
