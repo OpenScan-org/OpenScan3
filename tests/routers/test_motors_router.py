@@ -62,6 +62,8 @@ class DummyEndstopController(DummyMotorController):
         self.endstop = object() if has_endstop else None
         self.move_degrees = AsyncMock()
         self.move_to = AsyncMock()
+        self.move_to_home = AsyncMock()
+        self.calibrate = AsyncMock()
 
 
 @pytest.fixture(name="client")
@@ -165,7 +167,7 @@ async def test_override_motor_angle_missing_motor(monkeypatch: pytest.MonkeyPatc
 
 
 @pytest.mark.asyncio
-async def test_move_motor_to_home_position_success(monkeypatch: pytest.MonkeyPatch):
+async def test_motor_move_home_success(monkeypatch: pytest.MonkeyPatch):
     controller = DummyEndstopController(angle=45.0)
 
     monkeypatch.setattr(
@@ -175,22 +177,16 @@ async def test_move_motor_to_home_position_success(monkeypatch: pytest.MonkeyPat
         raising=False,
     )
 
-    fake_sleep = AsyncMock()
-    monkeypatch.setattr(motors_module.asyncio, "sleep", fake_sleep)
+    response = await motors_module.motor_move_home("rotor")
 
-    response = await motors_module.move_motor_to_home_position("rotor")
-
-    assert controller.model.angle == 0
-    controller.move_degrees.assert_awaited_once_with(140)
-    controller.move_to.assert_awaited_once_with(90)
-    fake_sleep.assert_awaited_once()
+    controller.move_to_home.assert_awaited_once_with()
     assert response["name"] == "rotor"
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("has_endstop,is_busy", ((False, False), (True, True)))
-async def test_move_motor_to_home_position_invalid(monkeypatch: pytest.MonkeyPatch, has_endstop: bool, is_busy: bool):
-    controller = DummyEndstopController(angle=45.0, has_endstop=has_endstop)
+@pytest.mark.parametrize("is_busy", (False, True))
+async def test_motor_move_home_busy_check(monkeypatch: pytest.MonkeyPatch, is_busy: bool):
+    controller = DummyEndstopController(angle=45.0, has_endstop=True)
     controller.set_busy(is_busy)
 
     monkeypatch.setattr(
@@ -200,12 +196,15 @@ async def test_move_motor_to_home_position_invalid(monkeypatch: pytest.MonkeyPat
         raising=False,
     )
 
-    with pytest.raises(HTTPException) as exc:
-        await motors_module.move_motor_to_home_position("rotor")
-
-    assert exc.value.status_code == 422
-    assert controller.move_degrees.await_count == 0
-    assert controller.move_to.await_count == 0
+    if is_busy:
+        with pytest.raises(HTTPException) as exc:
+            await motors_module.motor_move_home("rotor")
+        assert exc.value.status_code == 422
+        assert controller.move_to_home.await_count == 0
+    else:
+        response = await motors_module.motor_move_home("rotor")
+        assert response["name"] == "rotor"
+        controller.move_to_home.assert_awaited_once_with()
 
 
 # -----------------
@@ -330,8 +329,7 @@ def test_endstop_calibration_endpoint_success(monkeypatch: pytest.MonkeyPatch, c
     response = client.put("/next/motors/rotor/endstop-calibration")
 
     assert response.status_code == 200
-    controller.move_degrees.assert_awaited_once_with(140)
-    controller.move_to.assert_awaited_once_with(90)
+    controller.calibrate.assert_awaited_once_with()
 
 
 def test_endstop_calibration_endpoint_no_endstop(monkeypatch: pytest.MonkeyPatch, client: TestClient):

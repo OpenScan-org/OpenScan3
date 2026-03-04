@@ -90,6 +90,7 @@ def motor_controller_instance(motor_model_instance, motor_config_instance, mocke
     controller = MotorController(motor=motor_model_instance) # Corrected argument name
     controller.is_busy = MagicMock(return_value=False)
     controller._stop_requested = False
+    controller.set_idle_callbacks(lambda: False, AsyncMock())
     # If MotorController explicitly creates/uses an executor, e.g. self._executor,
     # you might need to mock it if it's not implicitly handled by mocking run_in_executor's loop.
     # controller._executor = MagicMock() # Example if it has its own executor instance
@@ -173,6 +174,7 @@ def motor_controller_clamping_instance(motor_model_clamping_instance, motor_conf
     controller = MotorController(motor=motor_model_clamping_instance) # Corrected argument name
     controller.is_busy = MagicMock(return_value=False)
     controller._stop_requested = False
+    controller.set_idle_callbacks(lambda: False, AsyncMock())
     # If MotorController explicitly creates/uses an executor, e.g. self._executor,
     # you might need to mock it if it's not implicitly handled by mocking run_in_executor's loop.
     # controller._executor = MagicMock() # Example if it has its own executor instance

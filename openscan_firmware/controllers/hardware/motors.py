@@ -29,7 +29,7 @@ from openscan_firmware.controllers.services.device_events import (
 )
 from openscan_firmware.models.paths import PolarPoint3D, PathMethod
 
-from openscan_firmware.utils.inactivity_timer import inactivityTimer, inactivityTimerPaused
+from openscan_firmware.utils.inactivity_timer import inactivity_timer, inactivity_timer_paused
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class MotorController(StatefulHardware, SleepCapableHardware):
     def is_calibrated(self):
         return self._calibrated
         
-    def setIdleCallbacks(self, is_idle: Callable[[], bool], send_event: Callable[[HardwareEvent], Awaitable[None]]) -> None:
+    def set_idle_callbacks(self, is_idle: Callable[[], bool], send_event: Callable[[HardwareEvent], Awaitable[None]]) -> None:
         self.is_idle = is_idle
         self.send_event = send_event
 
@@ -314,14 +314,14 @@ class MotorController(StatefulHardware, SleepCapableHardware):
         await self._execute_movement(step_count, 0.0)
 
     async def move_to_home(self) -> None:
-        """Internal method to move motor to home angle.
+        """Move motor to home angle.
 
-        Args:
-            none """
+        Sends a HOME_EVENT first, which may trigger calibration depending on
+        the device's calibrate_mode."""
         # just in case, even if it doesn't move because already at home...
-        inactivityTimer.reset()
+        inactivity_timer.reset()
 
-        # trigger an home event
+        # trigger a home event
         await self.send_event(HardwareEvent.HOME_EVENT)
         
         await self.move_to(self.settings.home_angle)
@@ -333,7 +333,7 @@ class MotorController(StatefulHardware, SleepCapableHardware):
             none """
         if self._calibrated:
             # just in case, even if it doesn't move because already calibrated...
-            inactivityTimer.reset()
+            inactivity_timer.reset()
             return
         await self.move_to_endstop()
         await asyncio.sleep(3)
@@ -430,7 +430,7 @@ class MotorController(StatefulHardware, SleepCapableHardware):
             # here we MUST wait exit of idle mode before proceeding, otherwise
             # motion could start with motors busy calibrating
 
-        async with inactivityTimerPaused:
+        async with inactivity_timer_paused:
 
             self._current_steps = abs(step_count)
             notify_busy_change("motors", self.model.name)

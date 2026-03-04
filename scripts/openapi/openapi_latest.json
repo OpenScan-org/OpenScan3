@@ -4583,6 +4583,19 @@
             "title": "Bounce Time",
             "description": "Debounce time for the button in seconds",
             "default": 0.005
+          },
+          "active_high": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active High",
+            "description": "Useful for normally closed switches",
+            "default": false
           }
         },
         "type": "object",
@@ -4777,6 +4790,14 @@
             "title": "Max Angle",
             "description": "Maximum allowed angle for the motor in degrees.",
             "default": 360
+          },
+          "home_angle": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Home Angle",
+            "description": "Angle for home position in degrees.",
+            "default": 90
           }
         },
         "type": "object",
@@ -5209,6 +5230,16 @@
         "type": "object",
         "title": "ScanSetting"
       },
+      "ScannerCalibrateMode": {
+        "type": "string",
+        "enum": [
+          "calibrate_manual",
+          "calibrate_on_home",
+          "calibrate_on_scan",
+          "calibrate_on_wake"
+        ],
+        "title": "ScannerCalibrateMode"
+      },
       "ScannerDevice": {
         "properties": {
           "name": {
@@ -5270,9 +5301,18 @@
             ],
             "title": "Endstops"
           },
-          "initialized": {
-            "type": "boolean",
-            "title": "Initialized"
+          "motors_timeout": {
+            "type": "number",
+            "title": "Motors Timeout",
+            "default": 0.0
+          },
+          "startup_mode": {
+            "$ref": "#/components/schemas/ScannerStartupMode",
+            "default": "startup_enabled"
+          },
+          "calibrate_mode": {
+            "$ref": "#/components/schemas/ScannerCalibrateMode",
+            "default": "calibrate_manual"
           }
         },
         "type": "object",
@@ -5283,8 +5323,7 @@
           "cameras",
           "motors",
           "lights",
-          "endstops",
-          "initialized"
+          "endstops"
         ],
         "title": "ScannerDevice"
       },
@@ -5292,7 +5331,8 @@
         "type": "string",
         "enum": [
           "classic",
-          "mini"
+          "mini",
+          "custom"
         ],
         "title": "ScannerModel"
       },
@@ -5300,9 +5340,18 @@
         "type": "string",
         "enum": [
           "greenshield",
-          "blackshield"
+          "blackshield",
+          "custom"
         ],
         "title": "ScannerShield"
+      },
+      "ScannerStartupMode": {
+        "type": "string",
+        "enum": [
+          "startup_idle",
+          "startup_enabled"
+        ],
+        "title": "ScannerStartupMode"
       },
       "StackingTaskStatus": {
         "properties": {

@@ -21,6 +21,7 @@ Setup instructions (desktop + Raspberry Pi) are in [`docs/DEVELOP.md`](docs/DEVE
 ## Code Style & Architecture
 - Public classes/functions need Google-style docstrings (FastAPI uses the first line as summary).
 - Prefer Pydantic BaseModel types for structured with Field(..., description="...") metadata so downstream API clients get rich schema docs.
+- Follow [PEP 8](https://peps.python.org/pep-0008/) for naming (snake_case for functions, CamelCase for classes/type aliases) and formatting.
 - Keep hardware abstractions modular: add controllers under `app/controllers/hardware/` and avoid firmware-specific coupling.
 
 ## Testing Expectations

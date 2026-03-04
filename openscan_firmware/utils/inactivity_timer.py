@@ -30,11 +30,13 @@ class _InactivityTimer:
         self.timeout_s = float(timeout_s)
         if self.timeout_s <= 0:
             self.enabled = False
-        self._reset_event.set()  # sveglia il loop
+        if not self._stopped:
+            self._reset_event.set()  # wake up the loop
 
     def enable(self, enabled: bool = True) -> None:
         self.enabled = bool(enabled) and self.timeout_s > 0
-        self._reset_event.set()
+        if not self._stopped and self.enabled:
+            self._reset_event.set()
 
     def disable(self) -> None:
         self.enable(False)
@@ -85,11 +87,15 @@ class _InactivityTimer:
     # --- pause/resume (nesting-safe) ---
     def pause(self) -> None:
         self._pause_count += 1
+        if self._stopped or not self.enabled or self.timeout_s <= 0:
+            return
         self._reset_event.set()
 
     def resume(self) -> None:
         if self._pause_count > 0:
             self._pause_count -= 1
+        if self._stopped or not self.enabled or self.timeout_s <= 0:
+            return
         self._reset_event.set()
         if self._pause_count == 0:
             self.reset()
@@ -138,30 +144,30 @@ class _InactivityTimer:
 
 class _InactivityTimerPaused:
     """
-    Single context manager (sync + async) for inactivityTimerPaused singleton
+    Single context manager (sync + async) for inactivity_timer_paused singleton
     usage :
-        with inactivityTimerPaused:
+        with inactivity_timer_paused:
             ...
-        async with inactivityTimerPaused:
+        async with inactivity_timer_paused:
             ...
     """
     def __init__(self):
         self._depth = 0  # nesting-safe
 
     def __enter__(self):
-        global inactivityTimer
+        global inactivity_timer
         self._depth += 1
         if self._depth == 1:
-            inactivityTimer.pause()
+            inactivity_timer.pause()
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        global inactivityTimer
+        global inactivity_timer
         if self._depth > 0:
             self._depth -= 1
         if self._depth == 0:
-            inactivityTimer.resume()
-            inactivityTimer.reset()
+            inactivity_timer.resume()
+            inactivity_timer.reset()
         return False
 
     async def __aenter__(self):
@@ -175,8 +181,8 @@ class _InactivityTimerPaused:
 # SINGLETONS
 # ==========================================================
 
-# Timer singleton (di default spento)
-inactivityTimer = _InactivityTimer(timeout_s=0.0, enabled=False, name="motors-inactivity")
+# Timer singleton (disabled by default)
+inactivity_timer = _InactivityTimer(timeout_s=0.0, enabled=False, name="motors-inactivity")
 
-# Context manager singleton (senza parentesi)
-inactivityTimerPaused = _InactivityTimerPaused()
+# Context manager singleton (callable without parentheses)
+inactivity_timer_paused = _InactivityTimerPaused()

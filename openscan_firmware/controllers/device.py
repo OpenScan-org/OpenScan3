@@ -58,7 +58,7 @@ from openscan_firmware.controllers.services.device_events import schedule_device
 from openscan_firmware.utils.dir_paths import resolve_settings_dir, resolve_settings_file
 from openscan_firmware.utils.firmware_state import mark_clean_shutdown
 
-from openscan_firmware.utils.inactivity_timer import inactivityTimer, inactivityTimerPaused
+from openscan_firmware.utils.inactivity_timer import inactivity_timer, inactivity_timer_paused
 
 import time
 
@@ -77,8 +77,8 @@ _scanner_device = ScannerDevice(
 
 # beware, PrivateAttr are NOT initialized in constructor
 # nor an error message is shown...
-_scanner_device._idle=False,
-_scanner_device._initialized=False,
+_scanner_device._idle=False
+_scanner_device._initialized=False
 
 # Path to device configuration file (persisted)
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent
@@ -144,7 +144,10 @@ def save_device_config() -> bool:
             "cameras": {name: cam.model_dump(mode='json') for name, cam in _scanner_device.cameras.items()},
             "motors": {name: motor.settings.model_dump(mode='json') for name, motor in _scanner_device.motors.items()},
             "lights": {name: light.settings.model_dump(mode='json') for name, light in _scanner_device.lights.items()},
-            "endstops": {name: endstop.model_dump(mode='json') for name, endstop in _scanner_device.endstops.items()}
+            "endstops": {name: endstop.model_dump(mode='json') for name, endstop in _scanner_device.endstops.items()},
+            "motors_timeout": _scanner_device.motors_timeout,
+            "startup_mode": _scanner_device.startup_mode.value if _scanner_device.startup_mode else None,
+            "calibrate_mode": _scanner_device.calibrate_mode.value if _scanner_device.calibrate_mode else None,
         }
 
         with open(DEVICE_CONFIG_FILE, "w") as f:
@@ -157,8 +160,8 @@ def save_device_config() -> bool:
         return False
 
 
-def set_device_config(config_file) -> bool:
-    """Set the device configuration from a file and initialize hardware
+async def set_device_config(config_file) -> bool:
+    """Set the device configuration from a file and initialize hardware.
 
     Args:
         config_file: Path to the configuration file
@@ -167,7 +170,7 @@ def set_device_config(config_file) -> bool:
         bool: True if successful, False otherwise
     """
 
-    initialize(load_device_config(config_file))
+    await initialize(load_device_config(config_file))
     return True
 
 
@@ -305,12 +308,12 @@ def _detect_cameras() -> Dict[str, Camera]:
 """ Inactivity code -- allow to send device (parts) to sleep when idle for some time
 """
 # check if device is idle
-def isIdle() -> bool:
+def is_idle() -> bool:
     global _scanner_device
     return _scanner_device._idle
     
 # send device to idle mode
-def goToIdle() -> None:
+def go_to_idle() -> None:
 
     global _scanner_device
     _scanner_device._idle = True
@@ -321,11 +324,11 @@ def goToIdle() -> None:
     for _, controller in get_all_light_controllers().items():
         controller.refresh()
 
-    inactivityTimer.stop()
+    inactivity_timer.stop()
     logger.info("Device gone to sleep")
     
 # resume device normal operation
-async def resumeFromIdle() -> None:
+async def resume_from_idle() -> None:
 
     global _scanner_device
 
@@ -341,19 +344,19 @@ async def resumeFromIdle() -> None:
         controller.refresh()
 
     await asyncio.sleep(0.1)
-    inactivityTimer.start()
+    inactivity_timer.start()
     
     logger.info("Device awakened from sleep")
 
 # recalibrate all motors
-async def recalibrateMotors():
+async def recalibrate_motors():
     logger.info("Calibratong motors")
     for _, controller in get_all_motor_controllers().items():
         if not controller._calibrated:
             await controller.calibrate()
 
 # handle hardware event from controllers
-async def handleIdleEvent(event: HardwareEvent):
+async def handle_idle_event(event: HardwareEvent):
 
     # don't if device is not fully initialized
     # to avoid exiting from idle mode when setting up initial state
@@ -362,10 +365,10 @@ async def handleIdleEvent(event: HardwareEvent):
         return
 
     # an event shall exit from idle mode
-    if isIdle():
-        await resumeFromIdle()
+    if is_idle():
+        await resume_from_idle()
         if _scanner_device.calibrate_mode == ScannerCalibrateMode.CALIBRATE_ON_WAKE:
-            await recalibrateMotors()
+            await recalibrate_motors()
 
     match event:
         case HardwareEvent.MOVE_EVENT:
@@ -375,7 +378,7 @@ async def handleIdleEvent(event: HardwareEvent):
         case HardwareEvent.HOME_EVENT:
             logger.info("HOME EVENT")
             if _scanner_device.calibrate_mode == ScannerCalibrateMode.CALIBRATE_ON_HOME:
-                await recalibrateMotors()
+                await recalibrate_motors()
 
         case HardwareEvent.LIGHT_EVENT:
             logger.info("LIGHT EVENT")
@@ -478,7 +481,7 @@ async def initialize(config: dict = _scanner_device.model_dump(mode='json'), det
     for name, motor in motor_objects.items():
         try:
             controller = create_motor_controller(motor)
-            controller.setIdleCallbacks(isIdle, handleIdleEvent)
+            controller.set_idle_callbacks(is_idle, handle_idle_event)
         except Exception as e:
             logger.error(f"Error initializing motor controller for {name}: {e}")
 
@@ -503,7 +506,7 @@ async def initialize(config: dict = _scanner_device.model_dump(mode='json'), det
     for name, light in light_objects.items():
         try:
             controller = create_light_controller(light)
-            controller.setIdleCallbacks(isIdle, handleIdleEvent)
+            controller.set_idle_callbacks(is_idle, handle_idle_event)
         except Exception as e:
             logger.error(f"Error initializing light controller for {name}: {e}")
 
@@ -537,25 +540,25 @@ async def initialize(config: dict = _scanner_device.model_dump(mode='json'), det
     # nor an error message is shown...
     _scanner_device._initialized=True
 
-    # initialize inactivityTimer
+    # initialize inactivity timer
     if _scanner_device.motors_timeout > 0:
-        inactivityTimer.set_timeout(_scanner_device.motors_timeout)
-        inactivityTimer.on_timeout=goToIdle
-        inactivityTimer.enable()
+        inactivity_timer.set_timeout(_scanner_device.motors_timeout)
+        inactivity_timer.on_timeout = go_to_idle
+        inactivity_timer.enable()
         logger.info(f"Inactivity timer set to {_scanner_device.motors_timeout} seconds.")
     else:
-        inactivityTimer.disable()
+        inactivity_timer.disable()
         logger.info("Inactivity timer disabled.")
         
-    # inizialize sleep mode
+    # initialize sleep mode
     if _scanner_device.startup_mode == ScannerStartupMode.STARTUP_ENABLED:
         _scanner_device._idle = True
         logger.info("Starting in active mode.")
-        await resumeFromIdle()
+        await resume_from_idle()
     else:
         _scanner_device._idle = False
         logger.info("Starting in idle mode.")
-        goToIdle()
+        go_to_idle()
 
     logger.info("Hardware initialized.")
     logger.debug(f"Initialized ScannerDevice: {_scanner_device.model_dump(mode='json')}.")

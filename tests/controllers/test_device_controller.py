@@ -151,7 +151,8 @@ def test_get_device_info_uses_controller_status(monkeypatch):
     assert "ring" in info["lights"] and info["lights"]["ring"]["ok"] is True
 
 
-def test_set_device_config_calls_initialize(monkeypatch):
+@pytest.mark.asyncio
+async def test_set_device_config_calls_initialize(monkeypatch):
     device = _import_device(monkeypatch)
 
     called = {}
@@ -160,13 +161,13 @@ def test_set_device_config_calls_initialize(monkeypatch):
         called["load"] = path or True
         return {"name": "Y", "model": None, "shield": None, "cameras": {}, "motors": {}, "lights": {}, "endstops": {}}
 
-    def fake_init(cfg):
+    async def fake_init(cfg, detect_cameras=False):
         called["init"] = cfg
 
     monkeypatch.setattr(device, "load_device_config", fake_load)
     monkeypatch.setattr(device, "initialize", fake_init)
 
-    ok = device.set_device_config("/tmp/some.json")
+    ok = await device.set_device_config("/tmp/some.json")
     assert ok is True
     assert called.get("load") == "/tmp/some.json"
     assert isinstance(called.get("init"), dict)
