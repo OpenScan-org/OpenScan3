@@ -31,7 +31,7 @@ class _InactivityTimer:
         if self.timeout_s <= 0:
             self.enabled = False
         if not self._stopped:
-            self._reset_event.set()  # sveglia il loop
+            self._reset_event.set()  # wake up the loop
 
     def enable(self, enabled: bool = True) -> None:
         self.enabled = bool(enabled) and self.timeout_s > 0
@@ -181,8 +181,8 @@ class _InactivityTimerPaused:
 # SINGLETONS
 # ==========================================================
 
-# Timer singleton (di default spento)
+# Timer singleton (disabled by default)
 inactivity_timer = _InactivityTimer(timeout_s=0.0, enabled=False, name="motors-inactivity")
 
-# Context manager singleton (senza parentesi)
+# Context manager singleton (callable without parentheses)
 inactivity_timer_paused = _InactivityTimerPaused()

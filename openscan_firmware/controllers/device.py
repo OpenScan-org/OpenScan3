@@ -144,7 +144,10 @@ def save_device_config() -> bool:
             "cameras": {name: cam.model_dump(mode='json') for name, cam in _scanner_device.cameras.items()},
             "motors": {name: motor.settings.model_dump(mode='json') for name, motor in _scanner_device.motors.items()},
             "lights": {name: light.settings.model_dump(mode='json') for name, light in _scanner_device.lights.items()},
-            "endstops": {name: endstop.model_dump(mode='json') for name, endstop in _scanner_device.endstops.items()}
+            "endstops": {name: endstop.model_dump(mode='json') for name, endstop in _scanner_device.endstops.items()},
+            "motors_timeout": _scanner_device.motors_timeout,
+            "startup_mode": _scanner_device.startup_mode.value if _scanner_device.startup_mode else None,
+            "calibrate_mode": _scanner_device.calibrate_mode.value if _scanner_device.calibrate_mode else None,
         }
 
         with open(DEVICE_CONFIG_FILE, "w") as f:

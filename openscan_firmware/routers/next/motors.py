@@ -6,11 +6,7 @@ from typing import Optional
 
 from openscan_firmware.config.motor import MotorConfig
 from openscan_firmware.controllers.hardware.motors import get_motor_controller, get_all_motor_controllers
-from openscan_firmware.models.paths import PolarPoint3D
 from .settings_utils import create_settings_endpoints
-
-from openscan_firmware.models.scanner import ScannerCalibrateMode
-from openscan_firmware.controllers.device import _scanner_device as device
 
 router = APIRouter(
     prefix="/motors",

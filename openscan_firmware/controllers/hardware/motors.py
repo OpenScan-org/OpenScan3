@@ -314,14 +314,14 @@ class MotorController(StatefulHardware, SleepCapableHardware):
         await self._execute_movement(step_count, 0.0)
 
     async def move_to_home(self) -> None:
-        """Internal method to move motor to home angle.
+        """Move motor to home angle.
 
-        Args:
-            none """
+        Sends a HOME_EVENT first, which may trigger calibration depending on
+        the device's calibrate_mode."""
         # just in case, even if it doesn't move because already at home...
         inactivity_timer.reset()
 
-        # trigger an home event
+        # trigger a home event
         await self.send_event(HardwareEvent.HOME_EVENT)
         
         await self.move_to(self.settings.home_angle)
