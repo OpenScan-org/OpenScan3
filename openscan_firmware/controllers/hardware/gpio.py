@@ -1,12 +1,13 @@
 import logging
 
-from gpiozero import DigitalOutputDevice, Button
+from gpiozero import DigitalOutputDevice, PWMOutputDevice, Button
 from typing import Dict, List, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
 # Track pins and buttons
 _output_pins = {}
+_pwm_pins = {}
 _buttons = {}
 
 
@@ -15,8 +16,10 @@ def initialize_output_pins(pins: List[int]):
     for pin in pins:
         if pin in _output_pins:
             logger.warning(f"Warning: Output pin {pin} already initialized.")
+        elif pin in _pwm_pins:
+            logger.error(f"Error: Cannot initialize pin {pin} as output. Already initialized as PWM.")
         elif pin in _buttons:
-            logger.error(f"Error: Cannot initialize pin {pin} as output. Already initialized as Button.")
+            logger.error(f"Error: Cannot initialize pin {pin} as output. Already initialized as button.")
         else:
             try:
                 _output_pins[pin] = DigitalOutputDevice(pin, initial_value=False)
@@ -26,7 +29,6 @@ def initialize_output_pins(pins: List[int]):
                 # Clean up if initialization failed partially
                 if pin in _output_pins:
                     del _output_pins[pin]
-
 
 def toggle_output_pin(pin: int):
     """Toggles the state of an output pin."""
@@ -44,20 +46,47 @@ def set_output_pin(pin: int, status: bool):
         logger.warning(f"Warning: Cannot set pin {pin}. Not initialized as output.")
 
 
-def get_initialized_pins() -> Dict[str, List[int]]:
-    """Returns a dictionary listing initialized output pins and buttons."""
-    return {
-        "output_pins": list(_output_pins.keys()),
-        "buttons": list(_buttons.keys())
-    }
-
-
 def get_output_pin(pin: int):
     """Returns the state of an output pin."""
     if pin in _output_pins:
         return _output_pins[pin].value
     else:
         logger.warning(f"Warning: Pin {pin} not initialized as output.")
+        return None
+
+
+def initialize_pwm_pins(pins: List[int], freq: int):
+    """Initializes one or more GPIO pins as pwm outputs."""
+    for pin in pins:
+        if pin in _pwm_pins:
+            logger.warning(f"Warning: PWM pin {pin} already initialized.")
+        elif pin in _output_pins:
+            logger.error(f"Error: Cannot initialize pin {pin} as PWM. Already initialized as output.")
+        elif pin in _buttons:
+            logger.error(f"Error: Cannot initialize pin {pin} as PWM. Already initialized as button.")
+        else:
+            try:
+                _pwm_pins[pin] = PWMOutputDevice(pin, active_high=True, initial_value=0.0, frequency=freq)
+                logger.debug(f"Initialized pin {pin} as PWM.")
+            except Exception as e:
+                logger.error(f"Error initializing PWM pin {pin}: {e}", exc_info=True)
+                # Clean up if initialization failed partially
+                if pin in _pwm_pins:
+                    del _pwm_pins[pin]
+
+def set_pwm_pin(pin: int, value: float):
+    """Sets the value of a PWM pin."""
+    if pin in _pwm_pins:
+        _pwm_pins[pin].value = value
+    else:
+        logger.warning(f"Warning: Cannot set pin {pin}. Not initialized as PWM.")
+
+def get_pwm_pin(pin: int):
+    """Returns the state of an output pin."""
+    if pin in _pwm_pins:
+        return _pwm_pins[pin].value
+    else:
+        logger.warning(f"Warning: Pin {pin} not initialized as PWM.")
         return None
 
 
@@ -76,6 +105,8 @@ def initialize_button(pin: int, pull_up: Optional[bool] = True, bounce_time: Opt
         logger.warning(f"Warning: Button on pin {pin} already initialized.")
     elif pin in _output_pins:
         logger.error(f"Error: Cannot initialize pin {pin} as Button. Already initialized as output.")
+    elif pin in _pwm_pins:
+        logger.error(f"Error: Cannot initialize pin {pin} as output. Already initialized as PWM.")
     else:
         try:
             _buttons[pin] = Button(pin, pull_up=pull_up, bounce_time=bounce_time, hold_time=0.01)
@@ -160,9 +191,27 @@ def is_button_pressed(pin: int) -> Optional[bool]:
          # Returning None indicates it's not a known button.
          return None
 
+def get_initialized_pins() -> Dict[str, List[int]]:
+    """Returns a dictionary listing initialized output pins and buttons."""
+    return {
+        "output_pins": list(_output_pins.keys()),
+        "pwm_pins": list(_pwm_pins.keys()),
+        "buttons": list(_buttons.keys())
+    }
+
 def cleanup_all_pins():
     """Closes all initialized GPIO devices (output pins and buttons)."""
     logger.debug("Cleaning up GPIO resources...")
+
+    # Close PWM pins
+    pins_to_remove = list(_pwm_pins.keys()) # Create a copy of keys to iterate over
+    for pin in pins_to_remove:
+        try:
+            _pwm_pins[pin].close()
+            del _pwm_pins[pin] # Remove from tracking dict after successful close
+            logger.debug(f"Output pin {pin} closed.")
+        except Exception as e:
+            logger.error(f"Error closing output pin {pin}: {e}", exc_info=True)
 
     # Close output pins
     pins_to_remove = list(_output_pins.keys()) # Create a copy of keys to iterate over
