@@ -2235,7 +2235,7 @@
           "projects"
         ],
         "summary": "Download Project",
-        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
+        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata. When ``photos_only`` is true,\nonly the recorded photo files are included without metadata or subfolders.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
         "operationId": "download_project",
         "parameters": [
           {
@@ -2246,6 +2246,18 @@
               "type": "string",
               "title": "Project Name"
             }
+          },
+          {
+            "name": "photos_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, stream only photo files without metadata or directory structure.",
+              "default": false,
+              "title": "Photos Only"
+            },
+            "description": "If true, stream only photo files without metadata or directory structure."
           }
         ],
         "responses": {
@@ -3076,6 +3088,45 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}/cleanup": {
+      "delete": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Delete a terminal task record",
+        "description": "Remove a terminal task from persistence and memory.",
+        "operationId": "delete_task",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "404": {
             "description": "Not found"
