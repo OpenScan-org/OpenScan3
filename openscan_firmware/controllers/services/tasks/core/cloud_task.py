@@ -63,8 +63,28 @@ class CloudUploadTask(BaseTask):
         if project is None:
             raise CloudServiceError(f"Project '{project_name}' not found")
 
+        logger.info("[%s] Preparing archive for project '%s'", self.id, project.name)
+
+        preparing_progress = TaskProgress(
+            current=0,
+            total=1,
+            message="Preparing upload: creating archive",
+        )
+        self._task_model.progress = preparing_progress
+        yield preparing_progress
+
+        archive_started = time.perf_counter()
         archive_file, archive_size = await asyncio.to_thread(_build_project_archive, project)
+        archive_duration = time.perf_counter() - archive_started
         photo_count = await asyncio.to_thread(_count_project_photos, project)
+        logger.info(
+            "[%s] Archive ready for '%s' (size=%s bytes, photos=%s) after %.2fs",
+            self.id,
+            project.name,
+            archive_size,
+            photo_count,
+            archive_duration,
+        )
         parts_required = max(1, (archive_size + settings.split_size - 1) // settings.split_size)
         total_bytes = max(int(archive_size), 1)
 
@@ -80,6 +100,13 @@ class CloudUploadTask(BaseTask):
         )
 
         try:
+            logger.info(
+                "[%s] Requesting cloud upload slots for '%s' (%s parts, split size=%s)",
+                self.id,
+                project.name,
+                parts_required,
+                settings.split_size,
+            )
             create_response = await asyncio.to_thread(
                 _create_project,
                 remote_project_name,
@@ -87,6 +114,12 @@ class CloudUploadTask(BaseTask):
                 filesize=archive_size,
                 parts=parts_required,
                 token=token,
+            )
+            logger.info(
+                "[%s] Received %s upload links for '%s'",
+                self.id,
+                len(create_response.get("ulink", []) if isinstance(create_response.get("ulink"), list) else []),
+                project.name,
             )
 
             upload_links = create_response.get("ulink")
@@ -122,12 +155,13 @@ class CloudUploadTask(BaseTask):
                 chunk.seek(0)
 
                 part_link = upload_links[index - 1]
-                logger.debug(
-                    "[%s] Uploading part %s/%s for project '%s'",
+                logger.info(
+                    "[%s] Uploading part %s/%s for project '%s' (%s bytes)",
                     self.id,
                     index,
                     parts_required,
                     project.name,
+                    chunk_size,
                 )
                 progress_queue: asyncio.Queue[int | None] = asyncio.Queue()
 
@@ -149,6 +183,7 @@ class CloudUploadTask(BaseTask):
 
                 upload_future.add_done_callback(_signal_completion)
 
+                part_started = time.perf_counter()
                 while True:
                     delta = await progress_queue.get()
                     if delta is None:
@@ -159,14 +194,21 @@ class CloudUploadTask(BaseTask):
                         current=uploaded_bytes,
                         total=total_bytes,
                         message=(
-                            f"Uploading archive ({uploaded_bytes}/{total_bytes} bytes) "
-                            f"[{index}/{parts_required} parts]"
+                            f"Uploading archive [{index}/{parts_required} parts]"
                         ),
                     )
                     self._task_model.progress = progress
                     yield progress
 
                 await upload_future
+                logger.info(
+                    "[%s] Finished part %s/%s for project '%s' in %.2fs",
+                    self.id,
+                    index,
+                    parts_required,
+                    project.name,
+                    time.perf_counter() - part_started,
+                )
 
             start_response = await asyncio.to_thread(_start_project, remote_project_name, token)
             logger.info("[%s] Started cloud processing for project '%s'", self.id, project.name)
