@@ -279,10 +279,35 @@ class ProjectManager:
 
     def _reset_incomplete_scans(self, project: Project) -> None:
         """Reset scans that were left in a transient state during startup."""
+        active_states = {TaskStatus.RUNNING, TaskStatus.PENDING, TaskStatus.PAUSED}
+
         for scan in project.scans.values():
+            dirty = False
+
             if scan.status in {TaskStatus.RUNNING, TaskStatus.PENDING}:
-                logger.debug(f"Resetting scan status {scan.index} for project {project.name}")
+                logger.debug(
+                    "Resetting scan %s for project %s from %s to interrupted",
+                    scan.index,
+                    project.name,
+                    scan.status.value,
+                )
                 scan.status = TaskStatus.INTERRUPTED
+                scan.task_id = None
+                dirty = True
+
+            stacking_status = scan.stacking_task_status
+            if stacking_status and stacking_status.status in active_states:
+                logger.debug(
+                    "Resetting stacking task for scan %s in project %s from %s to interrupted",
+                    scan.index,
+                    project.name,
+                    stacking_status.status.value if stacking_status.status else "unknown",
+                )
+                stacking_status.status = TaskStatus.INTERRUPTED
+                stacking_status.task_id = None
+                dirty = True
+
+            if dirty:
                 scan.last_updated = datetime.now()
                 _save_scan_json(project.path, scan)
 
