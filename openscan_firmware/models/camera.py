@@ -32,6 +32,7 @@ class CameraMetadata(BaseModel):
     camera_name: str
     camera_settings: CameraSettings
     raw_metadata: dict
+    sharpness_score: Optional[float] = Field(None, description="Laplacian variance sharpness score, if quality gate is enabled.")
 
 class PhotoData(BaseModel):
     """Represents a photo taken by the camera."""

@@ -414,15 +414,47 @@ class Picamera2Controller(CameraController):
         self._picam.start()
         logger.info(f"Picamera2 restarted.")
 
+    @staticmethod
+    def _compute_sharpness(array: np.ndarray) -> float:
+        """Compute Laplacian variance as a sharpness metric.
+
+        Converts to grayscale if needed, downsamples for speed, then
+        returns the variance of the Laplacian. Higher values indicate
+        sharper images. Runs in ~6ms on workstation, ~15-20ms on Pi.
+        """
+        if array.ndim == 3:
+            gray = cv2.cvtColor(array, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = array
+
+        # Downsample to ~1MP for fast evaluation
+        h, w = gray.shape[:2]
+        target_px = 1_000_000
+        if h * w > target_px * 1.5:
+            scale = (target_px / (h * w)) ** 0.5
+            gray = cv2.resize(gray, (int(w * scale), int(h * scale)),
+                              interpolation=cv2.INTER_AREA)
+
+        lap = cv2.Laplacian(gray, cv2.CV_64F)
+        return float(lap.var())
+
     def _capture_array(self, config):
         self._set_busy(True)
         self._configure_focus(camera_mode="photo")
         if self.settings.AF:
             self._picam.autofocus_cycle()
 
+        quality_gate = self.settings.quality_gate_enabled
+        gate_min = self.settings.quality_gate_min
+        max_attempts = (self.settings.quality_gate_retries + 1) if quality_gate else 3
+
         last_exc = None
+        best_array = None
+        best_metadata = None
+        best_sharpness = -1.0
+
         try:
-            for attempt in range(1, 4):
+            for attempt in range(1, max_attempts + 1):
                 try:
                     req = self._picam.switch_mode_and_capture_request(config, wait=True)
                     try:
@@ -431,19 +463,42 @@ class Picamera2Controller(CameraController):
                     finally:
                         req.release()
                     logger.debug(f"Captured array with metadata: {cam_metadata}")
-                    return array, cam_metadata
+
+                    if not quality_gate:
+                        return array, cam_metadata
+
+                    # Quality gate: check sharpness
+                    sharpness = self._compute_sharpness(array)
+                    cam_metadata["sharpness_score"] = sharpness
+
+                    if sharpness > best_sharpness:
+                        best_array = array
+                        best_metadata = cam_metadata
+                        best_sharpness = sharpness
+
+                    if sharpness >= gate_min:
+                        logger.info(f"Quality gate PASS: sharpness={sharpness:.2f} >= {gate_min} (attempt {attempt}/{max_attempts})")
+                        return array, cam_metadata
+
+                    logger.warning(f"Quality gate FAIL: sharpness={sharpness:.2f} < {gate_min} (attempt {attempt}/{max_attempts})")
+
                 except Exception as e:
                     last_exc = e
-                    logger.warning(f"_capture_array attempt {attempt}/3 failed: {e}")
-                    if attempt < 3:
-                        # Exponential backoff to give the system time to free/recover memory
-                        backoff = [1, 2, 4][attempt - 1]
+                    logger.warning(f"_capture_array attempt {attempt}/{max_attempts} failed: {e}")
+                    if attempt < max_attempts:
+                        backoff = min(2 ** (attempt - 1), 4)
                         time.sleep(backoff)
                         continue
                     break
-        except:
-            # All attempts failed; re-raise the last exception for upstream handling
-            raise last_exc
+
+            # Return best quality gate capture, or raise if all captures failed
+            if best_array is not None:
+                logger.warning(f"Quality gate: max retries exceeded, returning best capture (sharpness={best_sharpness:.2f})")
+                return best_array, best_metadata
+
+            if last_exc is not None:
+                raise last_exc
+
         finally:
             # Always switch back to preview focus and clear busy flag
             self._configure_focus(camera_mode="preview")
@@ -565,9 +620,11 @@ class Picamera2Controller(CameraController):
 
         Returns:
             CameraMetadata: The prepared metadata."""
+        sharpness = raw_metadata.pop("sharpness_score", None) if isinstance(raw_metadata, dict) else None
         camera_metadata = CameraMetadata(camera_name=self.camera.name,
                                          camera_settings=self.settings.model,
-                                         raw_metadata=raw_metadata)
+                                         raw_metadata=raw_metadata,
+                                         sharpness_score=sharpness)
         return camera_metadata
 
     def _create_artifact(self, data, data_format, camera_metadata) -> PhotoData:

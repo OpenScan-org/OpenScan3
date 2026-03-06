@@ -35,3 +35,9 @@ class CameraSettings(BaseModel):
 
     preview_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")
     photo_resolution: Optional[Tuple[int, int]] = Field(None, description="Preview resolution (x,y). Changing resolution can break cropping.")
+
+    quality_gate_enabled: Optional[bool] = Field(False, description="Enable Laplacian variance sharpness check after capture. "
+                                                                     "If the captured image is below quality_gate_min, the capture is retried.")
+    quality_gate_min: Optional[float] = Field(20.0, ge=0.0, description="Minimum Laplacian variance for a capture to pass the quality gate. "
+                                                                         "Lower values are more permissive. Only used when quality_gate_enabled is True.")
+    quality_gate_retries: Optional[int] = Field(3, ge=0, le=10, description="Maximum number of retry attempts when a capture fails the quality gate.")
