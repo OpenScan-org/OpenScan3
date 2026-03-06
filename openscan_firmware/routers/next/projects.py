@@ -442,12 +442,39 @@ def _serialize_project_for_zip(project: Project) -> str:
     return json.dumps(project_dict, indent=2)
 
 
+def _add_project_photos_to_zip(zip_stream, project: Project) -> int:
+    """Add all recorded photo files of a project to a flat zip archive."""
+    added = 0
+    for scan in sorted(project.scans.values(), key=lambda scan_obj: scan_obj.index):
+        scan_dir = os.path.join(project.path, f"scan{scan.index:02d}")
+        for photo_filename in scan.photos:
+            photo_path = os.path.join(scan_dir, photo_filename)
+            if not os.path.exists(photo_path):
+                logger.warning(
+                    "Photo %s missing on disk for project %s scan %s",
+                    photo_filename,
+                    project.name,
+                    scan.index,
+                )
+                continue
+            zip_stream.add_path(photo_path, arcname=photo_filename)
+            added += 1
+    return added
+
+
 @router.get("/{project_name}/zip")
-async def download_project(project_name: str):
+async def download_project(
+    project_name: str,
+    photos_only: bool = Query(
+        False,
+        description="If true, stream only photo files without metadata or directory structure.",
+    ),
+):
     """Download a project as a ZIP file stream
 
     This endpoint streams the entire project directory as a ZIP file,
-    including all scans, photos, and metadata.
+    including all scans, photos, and metadata. When ``photos_only`` is true,
+    only the recorded photo files are included without metadata or subfolders.
 
     Args:
         project_name: Name of the project to download
@@ -464,15 +491,24 @@ async def download_project(project_name: str):
         if not project:
             raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
-        # Create ZipStream from project path
-        zs = ZipStream.from_path(project.path)
+        if photos_only:
+            zs = ZipStream(sized=True)
+            zs.comment = f"OpenScan3 Project Photos: {project_name}"
+            added_files = _add_project_photos_to_zip(zs, project)
+            if added_files == 0:
+                raise HTTPException(status_code=404, detail="No photos available for this project")
+            filename = f"{project_name}_photos.zip"
+        else:
+            # Create ZipStream from project path
+            zs = ZipStream.from_path(project.path)
 
-        # Add project metadata
-        zs.add(_serialize_project_for_zip(project), "project_metadata.json")
+            # Add project metadata
+            zs.add(_serialize_project_for_zip(project), "project_metadata.json")
+            filename = f"{project_name}.zip"
 
         # Return streaming response
         headers = {
-            "Content-Disposition": f"attachment; filename={project_name}.zip",
+            "Content-Disposition": f"attachment; filename={filename}",
         }
         if getattr(zs, "last_modified", None):
             headers["Last-Modified"] = str(zs.last_modified)

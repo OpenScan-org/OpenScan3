@@ -8,8 +8,7 @@ from pydantic import BaseModel
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.models.camera import Camera, CameraType
 from openscan_firmware.controllers.hardware.cameras.camera import get_all_camera_controllers, get_camera_controller
-#from openscan_firmware.controllers.services.scans import get_active_scan_manager
-from openscan_firmware.controllers.hardware.motors import get_all_motor_controllers
+
 from .settings_utils import create_settings_endpoints
 
 router = APIRouter(
@@ -88,22 +87,11 @@ async def get_preview(
 
     async def generate():
         while True:
-            # Check if any motors are busy
-            motor_busy = any(
-                motor_controller.is_busy()
-                for motor_controller in get_all_motor_controllers().values()
-            )
-
-
-            # Stop preview (wait) if motor or scan is busy, otherwise continue with 0.02s delay
-            # if motor_busy or scan_busy:
-             #   await asyncio.sleep(0.1)  # Small sleep to prevent busy waiting
-             #   continue  # Skip frame generation and yield
-            if not controller.is_busy():
-                try:
-                    frame = controller.preview()
-                except RuntimeError:
-                    break
+            try:
+                frame = await controller.preview_async()
+            except RuntimeError:
+                break
+            if frame is not None:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             await asyncio.sleep(frame_delay)
@@ -123,15 +111,10 @@ async def get_photo(camera_name: str):
     """
     controller = get_camera_controller(camera_name)
     try:
-        if not controller.is_busy():
-            photo = await controller.photo_async()
-            return Response(content=photo.data.getvalue(), media_type="image/jpeg")
+        photo = await controller.photo_async()
+        return Response(content=photo.data.getvalue(), media_type="image/jpeg")
     except Exception as e:
         return Response(status_code=500, content=str(e))
-    return Response(
-        status_code=409,
-        content="Camera is busy. If this is a bug, please restart the camera.",
-    )
 
 @router.post("/{camera_name}/restart")
 async def restart_camera(camera_name: str):

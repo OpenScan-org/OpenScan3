@@ -86,8 +86,29 @@ def _patch_cloud_dependencies(
 
     uploads: list[tuple[bytes, str]] = []
 
-    def fake_upload_file(chunk: io.BytesIO, link: str) -> None:
-        data = chunk.read()
+    def fake_upload_file(
+        chunk: io.BytesIO,
+        link: str,
+        *,
+        progress_callback: Callable[[int], None] | None = None,
+        stream_chunk_size: int = 512 * 1024,
+    ) -> None:
+        chunk.seek(0)
+        sent = bytearray()
+        while True:
+            piece = chunk.read(max(1, stream_chunk_size // 4))
+            if not piece:
+                break
+            sent.extend(piece)
+            if progress_callback:
+                step = max(1, len(piece) // 2)
+                offset = 0
+                while offset < len(piece):
+                    slice_len = min(step, len(piece) - offset)
+                    progress_callback(slice_len)
+                    offset += slice_len
+
+        data = bytes(sent)
         uploads.append((data, link))
         if upload_side_effect:
             upload_side_effect(data, link)
@@ -116,6 +137,7 @@ def _patch_cloud_dependencies(
         upload_links=links,
         remote_project=remote_project,
         mark_calls=mark_calls,
+        archive_size=archive_size,
     )
 
 
@@ -134,15 +156,20 @@ async def test_cloud_upload_task_success(monkeypatch: MonkeyPatch, project_manag
     )
     task_instance = CloudUploadTask(task_model)
 
-    result = await task_instance.run(project.name, token="override-token")
+    progress_updates: list = []
+
+    async for progress in task_instance.run(project.name, token="override-token"):
+        progress_updates.append(progress)
+
+    result = task_instance._task_model.result
 
     assert result.parts_uploaded == 2
     assert patched.uploads == [
         (b"part1", patched.upload_links[0]),
         (b"part2", patched.upload_links[1]),
     ]
-    assert task_instance._task_model.progress.current == 2
-    assert task_instance._task_model.progress.total == 2
+    assert task_instance._task_model.progress.current == patched.archive_size
+    assert task_instance._task_model.progress.total == patched.archive_size
     assert task_instance._task_model.progress.message == "Upload completed"
     assert patched.create_calls[0]["kwargs"]["token"] == "override-token"
     assert patched.start_calls[0][0] == patched.remote_project
@@ -150,6 +177,37 @@ async def test_cloud_upload_task_success(monkeypatch: MonkeyPatch, project_manag
     assert patched.mark_calls == [(project.name, True, patched.remote_project)]
     assert project_manager.get_project_by_name(project.name).uploaded is True
     assert project_manager.get_project_by_name(project.name).cloud_project_name == patched.remote_project
+    uploading_updates = [p for p in progress_updates if "Uploading archive" in p.message]
+    assert uploading_updates, "expected streaming upload progress updates"
+    bytes_per_part = patched.archive_size // len(patched.upload_links)
+    assert any(0 < p.current < bytes_per_part for p in uploading_updates)
+
+
+@pytest.mark.asyncio
+async def test_cloud_upload_task_progress_increments_bytes(monkeypatch: MonkeyPatch, project_manager):
+    """Progress.current should increase multiple times within a single part."""
+
+    project = project_manager.add_project("demo-progress")
+    patched = _patch_cloud_dependencies(
+        monkeypatch,
+        project_manager,
+        remote_project="progress-remote.zip",
+        chunk_payloads=[b"a" * 100, b"b" * 100],
+    )
+
+    task_model = Task(name="cloud_upload_task", task_type="cloud_upload_task")
+    task_instance = CloudUploadTask(task_model)
+
+    byte_updates: list[int] = []
+
+    async for progress in task_instance.run(project.name):
+        if "Uploading archive" in progress.message:
+            byte_updates.append(progress.current)
+            assert task_instance._task_model.progress.current == progress.current
+
+    assert len(byte_updates) >= 2
+    assert byte_updates == sorted(byte_updates)
+    assert byte_updates[-1] == patched.archive_size
 
 
 @pytest.mark.asyncio
@@ -164,8 +222,12 @@ async def test_cloud_upload_task_missing_project(monkeypatch: MonkeyPatch, proje
     )
     task_instance = CloudUploadTask(task_model)
 
+    async def _consume():
+        async for _ in task_instance.run("unknown"):
+            pass
+
     with pytest.raises(CloudServiceError):
-        await task_instance.run("unknown")
+        await _consume()
 
 
 @pytest.mark.asyncio
@@ -186,17 +248,23 @@ async def test_cloud_upload_task_pause_and_resume(monkeypatch: MonkeyPatch, proj
     task_instance = CloudUploadTask(task_model)
     task_instance.pause()
 
-    run_task = asyncio.create_task(task_instance.run(project.name))
+    async def _consume_task():
+        async for _ in task_instance.run(project.name):
+            pass
+
+    run_task = asyncio.create_task(_consume_task())
 
     await asyncio.sleep(0.05)
     assert task_instance._task_model.progress.current == 0
     assert task_instance._task_model.result is None
 
     task_instance.resume()
-    result = await run_task
+    await run_task
+
+    result = task_instance._task_model.result
 
     assert result.project == patched.remote_project
-    assert task_instance._task_model.progress.current == 2
+    assert task_instance._task_model.progress.current == patched.archive_size
     assert patched.mark_calls == [(project.name, True, patched.remote_project)]
 
 
@@ -219,7 +287,11 @@ async def test_cloud_upload_task_cancel(monkeypatch: MonkeyPatch, project_manage
     task_model = Task(name="cloud_upload_task", task_type="cloud_upload_task")
     task_instance = CloudUploadTask(task_model)
 
-    run_task = asyncio.create_task(task_instance.run(project.name))
+    async def _consume_task():
+        async for _ in task_instance.run(project.name):
+            pass
+
+    run_task = asyncio.create_task(_consume_task())
     await asyncio.sleep(0.12)
     task_instance.cancel()
 
