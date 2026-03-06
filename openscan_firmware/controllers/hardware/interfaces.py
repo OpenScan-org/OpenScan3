@@ -1,5 +1,12 @@
-from typing import Protocol, runtime_checkable, Dict, Callable, Tuple, TypeVar
+from typing import Protocol, runtime_checkable, Dict, Callable, Awaitable, Tuple, TypeVar
 from abc import abstractmethod
+
+from enum import Enum, auto
+
+class HardwareEvent(Enum):
+    MOVE_EVENT = auto()
+    HOME_EVENT = auto()
+    LIGHT_EVENT = auto()
 
 T = TypeVar('T')
 M = TypeVar('M')
@@ -32,6 +39,19 @@ class StatefulHardware(HardwareInterface[T], Protocol[T]):
         """
         ...
 
+@runtime_checkable
+class SleepCapableHardware(HardwareInterface[T], Protocol[T]):
+    """Interface for hardware that can be put in sleep mode"""
+
+    @abstractmethod
+    def set_idle_callbacks(self, is_idle: Callable[..., bool], send_event: Callable[HardwareEvent, Awaitable[None]]) -> None:
+        """
+        Setup an awake callback that the hardware can call
+        before executing some actions
+        Returns:
+            None
+        """
+        ...
 
 @runtime_checkable
 class SwitchableHardware(HardwareInterface[T], Protocol[T]):

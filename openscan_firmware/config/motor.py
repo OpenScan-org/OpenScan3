@@ -15,9 +15,14 @@ class MotorConfig(BaseModel):
 
     min_angle: float = Field(0, ge=0, le=360, description="Minimum allowed angle for the motor in degrees.")
     max_angle: float = Field(360, ge=0, le=360, description="Maximum allowed angle for the motor in degrees.")
+    home_angle: float = Field(90, ge=0, le=360, description="Angle for home position in degrees.")
 
     @model_validator(mode='after')
-    def check_min_max_angles(self) -> Self:
+    def check_angles(self) -> Self:
         if self.min_angle > self.max_angle:
             raise ValueError("min_angle cannot be greater than max_angle.")
+        if  self.home_angle  < self.min_angle or self.home_angle > self.max_angle:
+            raise ValueError("home angle must be between min_angle and max_angle.")
         return self
+
+   

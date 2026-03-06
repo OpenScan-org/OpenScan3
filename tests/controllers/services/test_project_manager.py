@@ -314,7 +314,9 @@ async def test_pm_save_scan_state_persists_stacking_status(
     reloaded_scan = reloaded_manager.get_scan_by_index(project_name, scan.index)
 
     assert reloaded_scan is not None
-    assert reloaded_scan.stacking_task_status == scan.stacking_task_status
+    assert reloaded_scan.stacking_task_status is not None
+    assert reloaded_scan.stacking_task_status.task_id is None
+    assert reloaded_scan.stacking_task_status.status == TaskStatus.INTERRUPTED
 
 
 def test_pm_ensure_scan_sizes_updates_total_size(

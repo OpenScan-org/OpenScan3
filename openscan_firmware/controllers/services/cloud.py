@@ -7,7 +7,7 @@ import math
 import pathlib
 from dataclasses import dataclass
 from tempfile import TemporaryFile
-from typing import Any, BinaryIO, Iterator, Sequence
+from typing import Any, BinaryIO, Callable, Iterator, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import requests
@@ -430,11 +430,27 @@ async def download_project(
     return task
 
 
-def _upload_file(file_obj: BinaryIO, ulink: str) -> None:
+def _upload_file(
+    file_obj: BinaryIO,
+    ulink: str,
+    *,
+    progress_callback: Callable[[int], None] | None = None,
+    stream_chunk_size: int = 512 * 1024,
+) -> None:
     file_obj.seek(0)
+
+    def _iter_stream():
+        while True:
+            data = file_obj.read(stream_chunk_size)
+            if not data:
+                break
+            if progress_callback:
+                progress_callback(len(data))
+            yield data
+
     response = requests.post(
         ulink,
-        data=file_obj,
+        data=_iter_stream(),
         headers={"Content-Type": "application/octet-stream"},
         timeout=REQUEST_TIMEOUT,
     )

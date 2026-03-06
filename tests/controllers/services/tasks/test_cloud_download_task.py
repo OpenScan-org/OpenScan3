@@ -47,10 +47,14 @@ async def test_cloud_download_task_success(monkeypatch, project_manager, tmp_pat
     archive_path.write_bytes(b"zip-bytes")
     expected_size = archive_path.stat().st_size
 
-    async def fake_download(self, dlink: str, download_info: dict):  # noqa: ANN001
+    async def fake_stream(self, dlink: str, download_info: dict, stream_result: dict):  # noqa: ANN001
         assert dlink == "https://download/link"
         assert download_info == {"dlink": "https://download/link", "status": "finished"}
-        return archive_path, archive_path.stat().st_size, archive_path.stat().st_size
+        downloaded = archive_path.stat().st_size
+        stream_result["path"] = archive_path
+        stream_result["bytes_downloaded"] = downloaded
+        stream_result["total_bytes"] = downloaded
+        yield downloaded, downloaded
 
     download_calls: list[tuple[str, str]] = []
 
@@ -64,15 +68,19 @@ async def test_cloud_download_task_success(monkeypatch, project_manager, tmp_pat
         fake_get_project_info,
     )
     monkeypatch.setattr(
-        "openscan_firmware.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive",
-        fake_download,
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive_stream",
+        fake_stream,
     )
     monkeypatch.setattr(project_manager, "add_download", fake_add_download, raising=False)
 
     task_model = Task(name="cloud_download_task", task_type="cloud_download_task")
     task_instance = CloudDownloadTask(task_model)
 
-    result = await task_instance.run("demo")
+    progress_updates = []
+    async for progress in task_instance.run("demo"):
+        progress_updates.append(progress)
+
+    result = task_instance._task_model.result
 
     assert responses == ["demo-remote.zip"]
     assert download_calls[0][0] == "demo"
@@ -80,7 +88,7 @@ async def test_cloud_download_task_success(monkeypatch, project_manager, tmp_pat
     assert result.project == "demo-remote.zip"
     assert result.bytes_downloaded == expected_size
     assert project.downloaded is True
-    assert task_instance._task_model.progress.current == 1
+    assert task_instance._task_model.progress.current == expected_size
     assert task_instance._task_model.progress.message == "Download completed"
     assert not archive_path.exists()
 
@@ -101,8 +109,12 @@ async def test_cloud_download_task_missing_project(monkeypatch, project_manager)
     task_model = Task(name="cloud_download_task", task_type="cloud_download_task")
     task_instance = CloudDownloadTask(task_model)
 
+    async def _consume():
+        async for _ in task_instance.run("unknown"):
+            pass
+
     with pytest.raises(CloudServiceError):
-        await task_instance.run("unknown")
+        await _consume()
 
 
 @pytest.mark.asyncio
@@ -124,8 +136,12 @@ async def test_cloud_download_task_no_download_link(monkeypatch, project_manager
     task_model = Task(name="cloud_download_task", task_type="cloud_download_task")
     task_instance = CloudDownloadTask(task_model)
 
+    async def _consume():
+        async for _ in task_instance.run(project.name):
+            pass
+
     with pytest.raises(CloudServiceError, match="not ready"):
-        await task_instance.run(project.name)
+        await _consume()
 
     assert attempts == 3
 
@@ -140,26 +156,36 @@ async def test_cloud_download_task_cancel(monkeypatch, project_manager, tmp_path
     archive_path = tmp_path / "archive.zip"
     archive_path.write_bytes(b"zip-bytes")
 
-    async def slow_download(self, dlink: str, download_info: dict):  # noqa: ANN001
+    async def slow_stream(self, dlink: str, download_info: dict, stream_result: dict):  # noqa: ANN001
         await asyncio.sleep(0.05)
         if self.is_cancelled():
             raise CloudServiceError("Download cancelled")
         assert download_info == {"dlink": "https://download/link", "status": "finished"}
-        return archive_path, archive_path.stat().st_size, archive_path.stat().st_size
+        downloaded = archive_path.stat().st_size
+        stream_result["path"] = archive_path
+        stream_result["bytes_downloaded"] = downloaded
+        stream_result["total_bytes"] = downloaded
+        yield downloaded // 2, downloaded
+        await asyncio.sleep(0)
+        yield downloaded, downloaded
 
     monkeypatch.setattr(
         "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_info",
         fake_get_project_info,
     )
     monkeypatch.setattr(
-        "openscan_firmware.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive",
-        slow_download,
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.CloudDownloadTask._download_archive_stream",
+        slow_stream,
     )
 
     task_model = Task(name="cloud_download_task", task_type="cloud_download_task")
     task_instance = CloudDownloadTask(task_model)
 
-    run_task = asyncio.create_task(task_instance.run(project.name))
+    async def _consume():
+        async for _ in task_instance.run(project.name):
+            pass
+
+    run_task = asyncio.create_task(_consume())
     await asyncio.sleep(0.01)
     task_instance.cancel()
 

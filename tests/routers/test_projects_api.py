@@ -1,24 +1,32 @@
 """
 Tests for the projects API endpoints.
 """
+import asyncio
+import io
 import os
 import shutil
 import sys
 import tempfile
+import time
 import types
 import uuid
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import AsyncClient, ASGITransport
 
 from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
+from openscan_firmware.controllers.services.tasks import task_manager as task_manager_module
+from openscan_firmware.controllers.services.tasks.core.cloud_task import CloudUploadTask
+from openscan_firmware.controllers.services.tasks.task_manager import TaskManager
 from openscan_firmware.main import app
 from openscan_firmware.models.project import Project
-from openscan_firmware.models.task import Task
+from openscan_firmware.models.task import Task, TaskStatus
 from openscan_firmware.config.scan import ScanSetting
 
 
@@ -32,6 +40,7 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
 
     module_path_v0_6 = "openscan_firmware.routers.v0_6.projects"
     module_path_v0_7 = "openscan_firmware.routers.v0_7.projects"
+    module_path_v0_8 = "openscan_firmware.routers.v0_8.projects"
     next_module_path = "openscan_firmware.routers.next.projects"
 
     monkeypatch.setattr(
@@ -39,7 +48,7 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
         lambda path=None: pm,
         raising=False,
     )
-    for module_path in (module_path_v0_6, module_path_v0_7, next_module_path):
+    for module_path in (module_path_v0_6, module_path_v0_7, module_path_v0_8, next_module_path):
         monkeypatch.setattr(
             module_path + ".get_project_manager",
             lambda: pm,
@@ -70,6 +79,127 @@ def test_project(project_manager: ProjectManager) -> Project:
     project = project_manager.add_project("test-project-123")
     return project
 
+
+def _prepare_cloud_upload_dependencies(monkeypatch: pytest.MonkeyPatch, project_manager: ProjectManager):
+    fake_settings = SimpleNamespace(split_size=50)
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud._require_cloud_settings",
+        lambda: SimpleNamespace(token="dummy"),
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._require_cloud_settings",
+        lambda: fake_settings,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_manager",
+        lambda: project_manager,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.get_project_manager",
+        lambda: project_manager,
+    )
+    fake_archive = io.BytesIO(b"a" * 120)
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._build_project_archive",
+        lambda _project: (fake_archive, 120),
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._count_project_photos",
+        lambda _project: 2,
+    )
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._generate_remote_project_name",
+        lambda name: f"{name}-remote.zip",
+    )
+
+    def fake_create_project(*_, **__):
+        return {"ulink": ["https://upload/1", "https://upload/2", "https://upload/3"]}
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._create_project",
+        fake_create_project,
+    )
+
+    payloads = [b"a" * 40, b"b" * 40, b"c" * 40]
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._iter_chunks",
+        lambda *_: iter([io.BytesIO(p) for p in payloads]),
+    )
+
+    def fake_upload_file(chunk: io.BytesIO, *_args, progress_callback=None, **__):
+        chunk.seek(0)
+        data = chunk.read()
+        if progress_callback:
+            step = 10
+            for offset in range(0, len(data), step):
+                progress_callback(min(step, len(data) - offset))
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._upload_file",
+        fake_upload_file,
+    )
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._start_project",
+        lambda *_, **__: {"status": "started"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_upload_endpoint_returns_task_with_streaming_progress(
+    monkeypatch: pytest.MonkeyPatch,
+    project_manager: ProjectManager,
+    tmp_path_factory,
+):
+    project = project_manager.add_project("api-upload")
+
+    _prepare_cloud_upload_dependencies(monkeypatch, project_manager)
+
+    storage_dir = tmp_path_factory.mktemp("task_storage")
+    monkeypatch.setattr(
+        task_manager_module,
+        "TASKS_STORAGE_PATH",
+        storage_dir,
+        raising=False,
+    )
+    TaskManager._instance = None
+    tm = TaskManager()
+    tm.register_task("cloud_upload_task", CloudUploadTask)
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.get_task_manager",
+        lambda: tm,
+    )
+
+    app.dependency_overrides[get_project_manager] = lambda: project_manager
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
+        response = await async_client.post(f"/next/projects/{project.name}/upload")
+
+    assert response.status_code == 200
+    body = response.json()
+    task_id = body["id"]
+
+    async def _collect_progress():
+        progress_values = []
+        for _ in range(50):
+            task = tm.get_task_info(task_id)
+            if task.progress.current:
+                progress_values.append(task.progress.current)
+            if task.status == TaskStatus.COMPLETED:
+                break
+            await asyncio.sleep(0.01)
+        return progress_values, tm.get_task_info(task_id)
+
+    progress_values, final_task = await _collect_progress()
+    assert progress_values, "expected progress updates from API-triggered upload"
+    assert progress_values == sorted(progress_values)
+    assert final_task.progress.current == final_task.progress.total
+    assert final_task.progress.total == 120
+    assert final_task.status == TaskStatus.COMPLETED
+
+    app.dependency_overrides.clear()
 
 def test_get_project_thumbnail_missing(client: TestClient, test_project: Project):
     response = client.get(f"/next/projects/{test_project.name}/thumbnail")

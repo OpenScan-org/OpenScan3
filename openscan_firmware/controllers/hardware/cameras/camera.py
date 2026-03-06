@@ -9,8 +9,9 @@ Currently supporting only picamera2.
 import abc
 import asyncio
 import logging
+import threading
 from importlib import import_module
-from typing import IO, Dict
+from typing import IO, Dict, Optional
 
 
 from openscan_firmware.models.camera import Camera, CameraType, PhotoData
@@ -73,6 +74,7 @@ class CameraController(StatefulHardware):
         # Create settings with callback for hardware updates
         self.settings = Settings(camera.settings, on_change=self._on_settings_change)
         self._busy = False
+        self._hw_lock = threading.Lock()
 
     def get_status(self):
         """Get camera status"""
@@ -108,6 +110,9 @@ class CameraController(StatefulHardware):
     def photo(self, image_format: str = "jpeg") -> PhotoData:
         """Capture a single photo with high resolution.
 
+        Acquires the hardware lock so a concurrent preview frame is never
+        in-flight while the high-res capture runs.
+
         Args:
             image_format (str, optional): Image format. Defaults to "jpeg".
 
@@ -120,14 +125,33 @@ class CameraController(StatefulHardware):
             "rgb_array": self.capture_rgb_array,
             "yuv_array": self.capture_yuv_array,
         }
-        try:
-            return handler[image_format]()
-        except KeyError:
-            raise ValueError(f"Unsupported image format: {image_format}")
+        with self._hw_lock:
+            try:
+                return handler[image_format]()
+            except KeyError:
+                raise ValueError(f"Unsupported image format: {image_format}")
 
     async def photo_async(self, image_format: str = "jpeg") -> PhotoData:
         """Capture a photo without blocking the asyncio event loop."""
         return await asyncio.to_thread(self.photo, image_format)
+
+    async def preview_async(self) -> Optional[IO[bytes]]:
+        """Capture a preview without blocking the event loop.
+
+        Returns:
+            JPEG bytes or None if the camera hardware is currently locked by
+            a higher-priority operation (e.g. photo capture).
+        """
+        return await asyncio.to_thread(self._preview_non_blocking)
+
+    def _preview_non_blocking(self) -> Optional[IO[bytes]]:
+        """Try to capture a preview frame without waiting for the hardware lock."""
+        if not self._hw_lock.acquire(blocking=False):
+            return None
+        try:
+            return self.preview()
+        finally:
+            self._hw_lock.release()
 
     @abc.abstractmethod
     def preview(self) -> IO[bytes]:

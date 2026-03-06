@@ -169,7 +169,7 @@ async def set_config_file(config_data: DeviceConfigRequest):
             )
 
         # Set device config
-        if device.set_device_config(config_file):
+        if await device.set_device_config(config_file):
             return DeviceControlResponse(
                 success=True,
                 message="Configuration loaded successfully",
@@ -198,7 +198,7 @@ async def reinitialize_hardware(detect_cameras: bool = False):
         dict: A dictionary containing the status of the operation
     """
     try:
-        device.initialize(detect_cameras=detect_cameras)
+        await device.initialize(detect_cameras=detect_cameras)
         return DeviceControlResponse(
             success=True,
             message="Hardware reinitialized successfully",

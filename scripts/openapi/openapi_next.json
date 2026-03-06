@@ -704,9 +704,55 @@
         "tags": [
           "motors"
         ],
-        "summary": "Move Motor To Home Position",
-        "description": "Move motor to home position\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
-        "operationId": "move_motor_to_home_position",
+        "summary": "Motor Endstop Calibration",
+        "description": "Move motor to home through endstop sensing\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "motor_endstop_calibration",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motors/{motor_name}/home": {
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Motor Move Home",
+        "description": "Move motor to home \n\nThis endpoint moves the motor to the home position uning method depending on config param\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "motor_move_home",
         "parameters": [
           {
             "name": "motor_name",
@@ -2189,7 +2235,7 @@
           "projects"
         ],
         "summary": "Download Project",
-        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
+        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata. When ``photos_only`` is true,\nonly the recorded photo files are included without metadata or subfolders.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
         "operationId": "download_project",
         "parameters": [
           {
@@ -2200,6 +2246,18 @@
               "type": "string",
               "title": "Project Name"
             }
+          },
+          {
+            "name": "photos_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, stream only photo files without metadata or directory structure.",
+              "default": false,
+              "title": "Photos Only"
+            },
+            "description": "If true, stream only photo files without metadata or directory structure."
           }
         ],
         "responses": {
@@ -3030,6 +3088,45 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}/cleanup": {
+      "delete": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Delete a terminal task record",
+        "description": "Remove a terminal task from persistence and memory.",
+        "operationId": "delete_task",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "404": {
             "description": "Not found"
@@ -4673,6 +4770,16 @@
             "type": "object",
             "title": "Lights"
           },
+          "motors_timeout": {
+            "type": "number",
+            "title": "Motors Timeout"
+          },
+          "startup_mode": {
+            "$ref": "#/components/schemas/ScannerStartupMode"
+          },
+          "calibrate_mode": {
+            "$ref": "#/components/schemas/ScannerCalibrateMode"
+          },
           "initialized": {
             "type": "boolean",
             "title": "Initialized"
@@ -4686,6 +4793,9 @@
           "cameras",
           "motors",
           "lights",
+          "motors_timeout",
+          "startup_mode",
+          "calibrate_mode",
           "initialized"
         ],
         "title": "DeviceStatusResponse"
@@ -4783,6 +4893,19 @@
             "title": "Bounce Time",
             "description": "Debounce time for the button in seconds",
             "default": 0.005
+          },
+          "active_high": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active High",
+            "description": "Useful for normally closed switches",
+            "default": false
           }
         },
         "type": "object",
@@ -4977,6 +5100,14 @@
             "title": "Max Angle",
             "description": "Maximum allowed angle for the motor in degrees.",
             "default": 360
+          },
+          "home_angle": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Home Angle",
+            "description": "Angle for home position in degrees.",
+            "default": 90
           }
         },
         "type": "object",
@@ -5409,6 +5540,16 @@
         "type": "object",
         "title": "ScanSetting"
       },
+      "ScannerCalibrateMode": {
+        "type": "string",
+        "enum": [
+          "calibrate_manual",
+          "calibrate_on_home",
+          "calibrate_on_scan",
+          "calibrate_on_wake"
+        ],
+        "title": "ScannerCalibrateMode"
+      },
       "ScannerDevice": {
         "properties": {
           "name": {
@@ -5470,9 +5611,18 @@
             ],
             "title": "Endstops"
           },
-          "initialized": {
-            "type": "boolean",
-            "title": "Initialized"
+          "motors_timeout": {
+            "type": "number",
+            "title": "Motors Timeout",
+            "default": 0.0
+          },
+          "startup_mode": {
+            "$ref": "#/components/schemas/ScannerStartupMode",
+            "default": "startup_enabled"
+          },
+          "calibrate_mode": {
+            "$ref": "#/components/schemas/ScannerCalibrateMode",
+            "default": "calibrate_manual"
           }
         },
         "type": "object",
@@ -5483,8 +5633,7 @@
           "cameras",
           "motors",
           "lights",
-          "endstops",
-          "initialized"
+          "endstops"
         ],
         "title": "ScannerDevice"
       },
@@ -5492,7 +5641,8 @@
         "type": "string",
         "enum": [
           "classic",
-          "mini"
+          "mini",
+          "custom"
         ],
         "title": "ScannerModel"
       },
@@ -5500,9 +5650,18 @@
         "type": "string",
         "enum": [
           "greenshield",
-          "blackshield"
+          "blackshield",
+          "custom"
         ],
         "title": "ScannerShield"
+      },
+      "ScannerStartupMode": {
+        "type": "string",
+        "enum": [
+          "startup_idle",
+          "startup_enabled"
+        ],
+        "title": "ScannerStartupMode"
       },
       "SoftwareInfoResponse": {
         "properties": {

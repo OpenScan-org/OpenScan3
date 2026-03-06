@@ -12,13 +12,13 @@ The camera is in (hypothetical) vertical position facing down, the rotor motor i
 """
 
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable, Awaitable
 import time
 import math
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from openscan_firmware.controllers.hardware.interfaces import StatefulHardware, create_controller_registry
+from openscan_firmware.controllers.hardware.interfaces import HardwareEvent, StatefulHardware, SleepCapableHardware, create_controller_registry
 from openscan_firmware.config.motor import MotorConfig
 from openscan_firmware.models.motor import Motor
 from openscan_firmware.controllers.hardware import gpio
@@ -29,10 +29,11 @@ from openscan_firmware.controllers.services.device_events import (
 )
 from openscan_firmware.models.paths import PolarPoint3D, PathMethod
 
+from openscan_firmware.utils.inactivity_timer import inactivity_timer, inactivity_timer_paused
 
 logger = logging.getLogger(__name__)
 
-class MotorController(StatefulHardware):
+class MotorController(StatefulHardware, SleepCapableHardware):
     """Motor controller
 
     Attributes:
@@ -53,6 +54,14 @@ class MotorController(StatefulHardware):
         self._target_angle = None
         self._stop_requested = False
         self.endstop = None
+        
+        # no idle callbacks
+        self.is_idle = lambda: True
+        self.send_event = None
+        
+        # not calibrated at startup
+        self._calibrated = False
+        
         self._apply_settings_to_hardware(self.settings.model)
         logger.debug(f"Motor controller for '{self.model.name}' initialized.")
 
@@ -70,6 +79,7 @@ class MotorController(StatefulHardware):
             self.settings.step_pin,
             self.settings.enable_pin
         ])
+        gpio.set_output_pin(self.settings.enable_pin, self.is_idle())
 
         logger.info(f"Motor '{self.model.name}' settings updated.")
 
@@ -91,10 +101,24 @@ class MotorController(StatefulHardware):
             status["endstop"] = self.endstop.get_status()
         return status
 
-
     def get_config(self) -> MotorConfig:
         return self.settings.model
 
+    def refresh(self):
+        if self.is_idle():
+            logger.info(f"Motor '{self.model.name}' idle.")
+            self._calibrated = False
+            gpio.set_output_pin(self.settings.enable_pin, True)
+        else:
+            logger.info(f"Motor '{self.model.name}' active.")
+            gpio.set_output_pin(self.settings.enable_pin, False)
+        
+    def is_calibrated(self):
+        return self._calibrated
+        
+    def set_idle_callbacks(self, is_idle: Callable[[], bool], send_event: Callable[[HardwareEvent], Awaitable[None]]) -> None:
+        self.is_idle = is_idle
+        self.send_event = send_event
 
     def stop(self) -> None:
         """Request to stop the current motor movement."""
@@ -268,6 +292,54 @@ class MotorController(StatefulHardware):
         logger.debug(f"Motor {self.model.name} will move {step_count} steps.")
         await self._execute_movement(step_count, target_angle)
 
+    async def move_to_endstop(self) -> None:
+        """Internal method to move motor to endstop.
+
+        Args:
+            none """
+
+        if self.endstop is None:
+            return
+
+        logger.debug(f"Will move motor {self.model.name} to endstop")
+
+        spr = self.settings.steps_per_rotation
+        direction = self.settings.direction
+
+        # Some high count degrees, rotor could be in a weird position
+        degrees_to_move = 270
+
+        step_count = int(degrees_to_move * spr / 360) * direction
+        logger.debug(f"Motor {self.model.name} will move {step_count} steps.")
+        await self._execute_movement(step_count, 0.0)
+
+    async def move_to_home(self) -> None:
+        """Move motor to home angle.
+
+        Sends a HOME_EVENT first, which may trigger calibration depending on
+        the device's calibrate_mode."""
+        # just in case, even if it doesn't move because already at home...
+        inactivity_timer.reset()
+
+        # trigger a home event
+        await self.send_event(HardwareEvent.HOME_EVENT)
+        
+        await self.move_to(self.settings.home_angle)
+
+    async def calibrate(self) -> None:
+        """Internal method to move motor to home angle after calibrating to endstop.
+
+        Args:
+            none """
+        if self._calibrated:
+            # just in case, even if it doesn't move because already calibrated...
+            inactivity_timer.reset()
+            return
+        await self.move_to_endstop()
+        await asyncio.sleep(3)
+        await self.move_to(self.settings.home_angle)
+        self._calibrated = True
+
     def _pre_calculate_step_times(self, steps: int, min_interval=0.0001) -> List[float]:
         """
         Pre-calculate the exact time for each step in the movement.
@@ -341,110 +413,125 @@ class MotorController(StatefulHardware):
 
         return step_times
 
-    async def _execute_movement(self, step_count: int, requested_degrees: float) -> None:
+    async def _execute_movement(self, step_count: int, requested_degrees: float) -> int:
         """Execute the movement using pre-calculated step timings
         Args:
             step_count: Number of steps to move"""
-        self._current_steps = abs(step_count)
-        notify_busy_change("motors", self.model.name)
+            
+        logger.debug("_execute_movement")
 
-        # This function will run in a thread
-        def do_movement() -> int:
-            # Set direction
-            if step_count > 0:
-                gpio.set_output_pin(self.settings.direction_pin, True)
-            else:
-                gpio.set_output_pin(self.settings.direction_pin, False)
+        # if idle, resume
+        # beware, if enabe "calibrate_on_resume" behaviour the routine can be re-entered
+        # so order of _enable and so become important to avoid deadlocks
+        if self.is_idle():
+            logger.debug("Device idle, must exit before")
+            await self.send_event(HardwareEvent.MOVE_EVENT)
+            
+            # here we MUST wait exit of idle mode before proceeding, otherwise
+            # motion could start with motors busy calibrating
 
-            steps = abs(step_count)
-            if steps == 0:
-                return 0
+        async with inactivity_timer_paused:
 
-            # Pre-calculate the timing for each step - ensure minimum 100μs between steps
-            step_times = self._pre_calculate_step_times(steps, min_interval=0.0001)
+            self._current_steps = abs(step_count)
+            notify_busy_change("motors", self.model.name)
 
-            # Use a consistent pulse width
-            pulse_width = 0.000010  # 10 microseconds
-
-            # Execute the movement
-            executed_steps = 0
-            start_time = time.time()
-
-            # Batch steps for efficiency if steps are very close together
-            i = 0
-            batch_size = 16  # Max steps to batch check
-
-            while i < len(step_times):
-                # Check for stop request
-                if self._stop_requested:
-                    logger.debug(f"Motor {self.model.name}: Stop requested after {executed_steps} steps.")
-                    break
-
-                # Current time relative to start
-                current_time = time.time() - start_time
-
-                # Check all steps in current batch window
-                next_step_idx = None
-                for j in range(i, min(i + batch_size, len(step_times))):
-                    if current_time >= step_times[j]:
-                        next_step_idx = j
-
-                if next_step_idx is not None:
-                    # Execute all steps that should have happened by now
-                    for j in range(i, next_step_idx + 1):
-                        # Take a step with clean pulse
-                        gpio.set_output_pin(self.settings.step_pin, True)
-                        time.sleep(pulse_width)
-                        gpio.set_output_pin(self.settings.step_pin, False)
-                        executed_steps += 1
-
-                    # Update index to next position
-                    i = next_step_idx + 1
-
-                    # Add a small delay after pulse to avoid overwhelming the GPIO
-                    time.sleep(0.000010)  # 10μs
+            # This function will run in a thread
+            def do_movement() -> int:
+                # Set direction
+                if step_count > 0:
+                    gpio.set_output_pin(self.settings.direction_pin, True)
                 else:
-                    # No steps ready yet, calculate time to next step
-                    if i < len(step_times):
-                        wait_time = step_times[i] - current_time
+                    gpio.set_output_pin(self.settings.direction_pin, False)
 
-                        # Use a variable sleep strategy:
-                        # - For longer waits, use standard sleep
-                        # - For very short waits, use a shorter sleep
-                        if wait_time > 0.001:  # >1ms
-                            time.sleep(0.9 * wait_time)  # Sleep for 90% of wait time
-                        else:
-                            # For very short waits, just do a minimal sleep
-                            time.sleep(0.00005)  # 50μs
-                    else:
-                        # No more steps
+                steps = abs(step_count)
+                if steps == 0:
+                    return 0
+
+                # Pre-calculate the timing for each step - ensure minimum 100μs between steps
+                step_times = self._pre_calculate_step_times(steps, min_interval=0.0001)
+
+                # Use a consistent pulse width
+                pulse_width = 0.000010  # 10 microseconds
+
+                # Execute the movement
+                executed_steps = 0
+                start_time = time.time()
+
+                # Batch steps for efficiency if steps are very close together
+                i = 0
+                batch_size = 16  # Max steps to batch check
+
+                while i < len(step_times):
+                    # Check for stop request
+                    if self._stop_requested:
+                        logger.debug(f"Motor {self.model.name}: Stop requested after {executed_steps} steps.")
                         break
 
-            return executed_steps
+                    # Current time relative to start
+                    current_time = time.time() - start_time
 
-        try:
-            # Run movement in thread and get actual steps executed
-            actual_executed_steps = await asyncio.get_event_loop().run_in_executor(
-                self._executor,
-                do_movement
-            )
+                    # Check all steps in current batch window
+                    next_step_idx = None
+                    for j in range(i, min(i + batch_size, len(step_times))):
+                        if current_time >= step_times[j]:
+                            next_step_idx = j
 
-            # Calculate executed degrees based on actual steps
-            spr = self.settings.steps_per_rotation
-            dir_multiplier = 1 if step_count >= 0 else -1
-            executed_degrees = (actual_executed_steps / spr * 360) * dir_multiplier * self.settings.direction
+                    if next_step_idx is not None:
+                        # Execute all steps that should have happened by now
+                        for j in range(i, next_step_idx + 1):
+                            # Take a step with clean pulse
+                            gpio.set_output_pin(self.settings.step_pin, True)
+                            time.sleep(pulse_width)
+                            gpio.set_output_pin(self.settings.step_pin, False)
+                            executed_steps += 1
 
-            # Update the angle based on actual executed movement
-            self.model.angle = (self.model.angle + executed_degrees) % 360
-            logger.debug(f"Motor {self.model.name} moved {executed_degrees:.2f} degrees.")
-        except asyncio.CancelledError:
-            logger.info(f"Motor {self.model.name} movement cancelled.")
-            raise
-        finally:
-            # CRITICAL: Always reset busy state, even if cancelled
-            self._current_steps = 0
-            self._target_angle = None
-            notify_busy_change("motors", self.model.name)
+                        # Update index to next position
+                        i = next_step_idx + 1
+
+                        # Add a small delay after pulse to avoid overwhelming the GPIO
+                        time.sleep(0.000010)  # 10μs
+                    else:
+                        # No steps ready yet, calculate time to next step
+                        if i < len(step_times):
+                            wait_time = step_times[i] - current_time
+
+                            # Use a variable sleep strategy:
+                            # - For longer waits, use standard sleep
+                            # - For very short waits, use a shorter sleep
+                            if wait_time > 0.001:  # >1ms
+                                time.sleep(0.9 * wait_time)  # Sleep for 90% of wait time
+                            else:
+                                # For very short waits, just do a minimal sleep
+                                time.sleep(0.00005)  # 50μs
+                        else:
+                            # No more steps
+                            break
+
+                return executed_steps
+
+            try:
+                # Run movement in thread and get actual steps executed
+                actual_executed_steps = await asyncio.get_event_loop().run_in_executor(
+                    self._executor,
+                    do_movement
+                )
+
+                # Calculate executed degrees based on actual steps
+                spr = self.settings.steps_per_rotation
+                dir_multiplier = 1 if step_count >= 0 else -1
+                executed_degrees = (actual_executed_steps / spr * 360) * dir_multiplier * self.settings.direction
+
+                # Update the angle based on actual executed movement
+                self.model.angle = (self.model.angle + executed_degrees) % 360
+                logger.debug(f"Motor {self.model.name} moved {executed_degrees:.2f} degrees.")
+            except asyncio.CancelledError:
+                logger.info(f"Motor {self.model.name} movement cancelled.")
+                raise
+            finally:
+                # CRITICAL: Always reset busy state, even if cancelled
+                self._current_steps = 0
+                self._target_angle = None
+                notify_busy_change("motors", self.model.name)
 
 create_motor_controller, get_motor_controller, remove_motor_controller, _motor_registry = create_controller_registry(MotorController)
 
