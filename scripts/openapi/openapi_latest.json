@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenScan3 API v0.7",
-    "version": "0.7"
+    "title": "OpenScan3 API v0.8",
+    "version": "0.8"
   },
   "paths": {
     "/cameras/": {
@@ -216,6 +216,67 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/awb-calibration": {
+      "post": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Run automatic white balance calibration and lock the gains.",
+        "description": "Expose the camera controller's automatic white balance calibration if available.\n\nArgs:\n    camera_name: Target camera identifier.\n    params: Optional tuning parameters forwarded to the controller implementation.\n\nReturns:\n    AutoCalibrateAwbResponse: Locked gains after the calibration.\n\nRaises:\n    HTTPException: When the controller is busy, unsupported, or calibration fails.",
+        "operationId": "auto_calibrate_awb",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoCalibrateAwbRequest",
+                "default": {
+                  "warmup_frames": 12,
+                  "stable_frames": 4,
+                  "eps": 0.01,
+                  "timeout_s": 2.0
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoCalibrateAwbResponse"
+                }
               }
             }
           },
@@ -580,14 +641,118 @@
         }
       }
     },
+    "/motors/{motor_name}/angle-override": {
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Override Motor Angle",
+        "description": "Override the internal motor angle model.\n\nThis endpoint forces the controller's model to a specific angle without moving hardware. The\ndefault of 90\u00b0 assumes the motor was manually aligned beforehand. Changing this value without\nconfirming the actual motor position can desynchronize the model from reality and cause motion\nissues. The override is rejected while the controller reports a busy state to avoid writing an\ninconsistent angle during movements.\n\nArgs:\n    motor_name: Identifier of the motor whose model should be overwritten.\n    angle: The new angle to store in the model (defaults to 90\u00b0).\n\nReturns:\n    MotorStatusResponse: Updated status after overriding the model angle.",
+        "operationId": "override_motor_angle",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          },
+          {
+            "name": "angle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "description": "Angle value that will overwrite the controller's internal model. Only change this after verifying the physical motor position because no positional feedback is available.",
+              "default": 90.0,
+              "title": "Angle"
+            },
+            "description": "Angle value that will overwrite the controller's internal model. Only change this after verifying the physical motor position because no positional feedback is available."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/motors/{motor_name}/endstop-calibration": {
       "put": {
         "tags": [
           "motors"
         ],
-        "summary": "Move Motor To Home Position",
-        "description": "Move motor to home position\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
-        "operationId": "move_motor_to_home_position",
+        "summary": "Motor Endstop Calibration",
+        "description": "Move motor to home through endstop sensing\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "motor_endstop_calibration",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motors/{motor_name}/home": {
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Motor Move Home",
+        "description": "Move motor to home \n\nThis endpoint moves the motor to the home position uning method depending on config param\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "motor_move_home",
         "parameters": [
           {
             "name": "motor_name",
@@ -2070,7 +2235,7 @@
           "projects"
         ],
         "summary": "Download Project",
-        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
+        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata. When ``photos_only`` is true,\nonly the recorded photo files are included without metadata or subfolders.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
         "operationId": "download_project",
         "parameters": [
           {
@@ -2081,6 +2246,18 @@
               "type": "string",
               "title": "Project Name"
             }
+          },
+          {
+            "name": "photos_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, stream only photo files without metadata or directory structure.",
+              "default": false,
+              "title": "Photos Only"
+            },
+            "description": "If true, stream only photo files without metadata or directory structure."
           }
         ],
         "responses": {
@@ -2395,7 +2572,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SoftwareInfoResponse"
+                }
               }
             }
           },
@@ -2909,6 +3088,45 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}/cleanup": {
+      "delete": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Delete a terminal task record",
+        "description": "Remove a terminal task from persistence and memory.",
+        "operationId": "delete_task",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "404": {
             "description": "Not found"
@@ -3818,6 +4036,58 @@
   },
   "components": {
     "schemas": {
+      "AutoCalibrateAwbRequest": {
+        "properties": {
+          "warmup_frames": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Warmup Frames",
+            "description": "Number of frames to discard before reading AWB metadata.",
+            "default": 12
+          },
+          "stable_frames": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Stable Frames",
+            "description": "Consecutive frames that must meet the stability tolerance.",
+            "default": 4
+          },
+          "eps": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Eps",
+            "description": "Maximum delta between gain values to consider them stable.",
+            "default": 0.01
+          },
+          "timeout_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Timeout S",
+            "description": "Maximum time budget for the calibration loop in seconds.",
+            "default": 2.0
+          }
+        },
+        "type": "object",
+        "title": "AutoCalibrateAwbRequest"
+      },
+      "AutoCalibrateAwbResponse": {
+        "properties": {
+          "red_gain": {
+            "type": "number",
+            "title": "Red Gain"
+          },
+          "blue_gain": {
+            "type": "number",
+            "title": "Blue Gain"
+          }
+        },
+        "type": "object",
+        "required": [
+          "red_gain",
+          "blue_gain"
+        ],
+        "title": "AutoCalibrateAwbResponse"
+      },
       "Body_add_config_json_device_configurations__post": {
         "properties": {
           "config_data": {
@@ -4500,6 +4770,16 @@
             "type": "object",
             "title": "Lights"
           },
+          "motors_timeout": {
+            "type": "number",
+            "title": "Motors Timeout"
+          },
+          "startup_mode": {
+            "$ref": "#/components/schemas/ScannerStartupMode"
+          },
+          "calibrate_mode": {
+            "$ref": "#/components/schemas/ScannerCalibrateMode"
+          },
           "initialized": {
             "type": "boolean",
             "title": "Initialized"
@@ -4513,9 +4793,39 @@
           "cameras",
           "motors",
           "lights",
+          "motors_timeout",
+          "startup_mode",
+          "calibrate_mode",
           "initialized"
         ],
         "title": "DeviceStatusResponse"
+      },
+      "DiskUsage": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total bytes available on the filesystem."
+          },
+          "used": {
+            "type": "integer",
+            "title": "Used",
+            "description": "Bytes currently used (total - free)."
+          },
+          "free": {
+            "type": "integer",
+            "title": "Free",
+            "description": "Free bytes remaining on the filesystem."
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "used",
+          "free"
+        ],
+        "title": "DiskUsage",
+        "description": "Filesystem usage snapshot for a directory."
       },
       "Endstop": {
         "properties": {
@@ -5352,6 +5662,79 @@
           "startup_enabled"
         ],
         "title": "ScannerStartupMode"
+      },
+      "SoftwareInfoResponse": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Scanner model identifier, if configured."
+          },
+          "firmware_version": {
+            "type": "string",
+            "title": "Firmware Version",
+            "description": "Currently running firmware version string."
+          },
+          "last_shutdown_was_unclean": {
+            "type": "boolean",
+            "title": "Last Shutdown Was Unclean",
+            "description": "Indicates whether the previous shutdown finished cleanly."
+          },
+          "runtime_dir": {
+            "type": "string",
+            "title": "Runtime Dir",
+            "description": "Absolute path used for runtime state files."
+          },
+          "runtime_disk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiskUsage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Disk usage snapshot for the runtime directory filesystem."
+          },
+          "projects_disk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiskUsage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Disk usage snapshot for the projects directory filesystem."
+          },
+          "uptime_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptime Seconds",
+            "description": "Current system uptime in seconds, if available."
+          }
+        },
+        "type": "object",
+        "required": [
+          "firmware_version",
+          "last_shutdown_was_unclean",
+          "runtime_dir"
+        ],
+        "title": "SoftwareInfoResponse",
+        "description": "Information block served by /next/openscan."
       },
       "StackingTaskStatus": {
         "properties": {

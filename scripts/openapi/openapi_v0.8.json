@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenScan3 API v0.5",
-    "version": "0.5"
+    "title": "OpenScan3 API v0.8",
+    "version": "0.8"
   },
   "paths": {
     "/cameras/": {
@@ -86,7 +86,7 @@
           "cameras"
         ],
         "summary": "Get Preview",
-        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
+        "description": "Get a camera preview stream in lower resolution\n\nNote: The preview is not rotated by orientation_flag and has to be rotated by client.\n\nArgs:\n    camera_name: The name of the camera to get the preview stream from\n    mode: Either ``stream`` for the MJPEG stream or ``snapshot`` for a single JPEG frame\n    fps: Target frames per second for the stream, clamped between 1 and 50 (only used in stream mode)\n\nReturns:\n    StreamingResponse: A streaming response containing the preview stream",
         "operationId": "get_preview",
         "parameters": [
           {
@@ -96,6 +96,29 @@
             "schema": {
               "type": "string",
               "title": "Camera Name"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(stream|snapshot)$",
+              "default": "stream",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "fps",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Fps"
             }
           }
         ],
@@ -193,6 +216,67 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/awb-calibration": {
+      "post": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Run automatic white balance calibration and lock the gains.",
+        "description": "Expose the camera controller's automatic white balance calibration if available.\n\nArgs:\n    camera_name: Target camera identifier.\n    params: Optional tuning parameters forwarded to the controller implementation.\n\nReturns:\n    AutoCalibrateAwbResponse: Locked gains after the calibration.\n\nRaises:\n    HTTPException: When the controller is busy, unsupported, or calibration fails.",
+        "operationId": "auto_calibrate_awb",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoCalibrateAwbRequest",
+                "default": {
+                  "warmup_frames": 12,
+                  "stable_frames": 4,
+                  "eps": 0.01,
+                  "timeout_s": 2.0
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoCalibrateAwbResponse"
+                }
               }
             }
           },
@@ -557,14 +641,118 @@
         }
       }
     },
+    "/motors/{motor_name}/angle-override": {
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Override Motor Angle",
+        "description": "Override the internal motor angle model.\n\nThis endpoint forces the controller's model to a specific angle without moving hardware. The\ndefault of 90\u00b0 assumes the motor was manually aligned beforehand. Changing this value without\nconfirming the actual motor position can desynchronize the model from reality and cause motion\nissues. The override is rejected while the controller reports a busy state to avoid writing an\ninconsistent angle during movements.\n\nArgs:\n    motor_name: Identifier of the motor whose model should be overwritten.\n    angle: The new angle to store in the model (defaults to 90\u00b0).\n\nReturns:\n    MotorStatusResponse: Updated status after overriding the model angle.",
+        "operationId": "override_motor_angle",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          },
+          {
+            "name": "angle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "description": "Angle value that will overwrite the controller's internal model. Only change this after verifying the physical motor position because no positional feedback is available.",
+              "default": 90.0,
+              "title": "Angle"
+            },
+            "description": "Angle value that will overwrite the controller's internal model. Only change this after verifying the physical motor position because no positional feedback is available."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/motors/{motor_name}/endstop-calibration": {
       "put": {
         "tags": [
           "motors"
         ],
-        "summary": "Move Motor To Home Position",
-        "description": "Move motor to home position\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
-        "operationId": "move_motor_to_home_position",
+        "summary": "Motor Endstop Calibration",
+        "description": "Move motor to home through endstop sensing\n\nThis endpoint moves the motor to the home position using the endstop calibration.\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "motor_endstop_calibration",
+        "parameters": [
+          {
+            "name": "motor_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Motor Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotorStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motors/{motor_name}/home": {
+      "put": {
+        "tags": [
+          "motors"
+        ],
+        "summary": "Motor Move Home",
+        "description": "Move motor to home \n\nThis endpoint moves the motor to the home position uning method depending on config param\n\nArgs:\n    motor_name: The name of the motor to move to the home position\n\nReturns:\n    MotorStatusResponse: A response object containing the status of the motor after the move",
+        "operationId": "motor_move_home",
         "parameters": [
           {
             "name": "motor_name",
@@ -1318,6 +1506,49 @@
         }
       }
     },
+    "/projects/{project_name}/thumbnail": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project Thumbnail",
+        "operationId": "get_project_thumbnail",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_name}/scan": {
       "post": {
         "tags": [
@@ -1462,84 +1693,6 @@
         }
       }
     },
-    "/projects/{project_name}/download": {
-      "post": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Download Project From Cloud",
-        "description": "Schedule an asynchronous cloud download for a project's reconstruction.\n\nArgs:\n    project_name: The name of the project\n    token_override: Optional token override\n    remote_project: Optional explicit remote project name, defaults to the stored cloud name\n\nReturns:\n    Task: The TaskManager model describing the scheduled download",
-        "operationId": "download_project_from_cloud",
-        "parameters": [
-          {
-            "name": "project_name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Name"
-            }
-          },
-          {
-            "name": "token_override",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token Override"
-            }
-          },
-          {
-            "name": "remote_project",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Remote Project"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/projects/{project_name}/{scan_index}/photos": {
       "delete": {
         "tags": [
@@ -1590,6 +1743,136 @@
                 "schema": {
                   "$ref": "#/components/schemas/DeleteResponse"
                 }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/{scan_index}/photo": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Scan Photo",
+        "description": "Fetch a stored scan photo either as JSON payload or direct file download.",
+        "operationId": "get_scan_photo",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Photo filename including extension, e.g. scan01_001.jpg",
+              "title": "Filename"
+            },
+            "description": "Photo filename including extension, e.g. scan01_001.jpg"
+          },
+          {
+            "name": "file_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Return only the raw file instead of JSON payload",
+              "default": false,
+              "title": "File Only"
+            },
+            "description": "Return only the raw file instead of JSON payload"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/scans/{scan_index}/path": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Scan Path",
+        "operationId": "get_scan_path",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "scan_index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scan Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -1952,8 +2235,64 @@
           "projects"
         ],
         "summary": "Download Project",
-        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
+        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata. When ``photos_only`` is true,\nonly the recorded photo files are included without metadata or subfolders.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
         "operationId": "download_project",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "photos_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, stream only photo files without metadata or directory structure.",
+              "default": false,
+              "title": "Photos Only"
+            },
+            "description": "If true, stream only photo files without metadata or directory structure."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_name}/model/zip": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Download Project Model",
+        "description": "Download the reconstructed model directory of a project as a ZIP file.",
+        "operationId": "download_project_model",
         "parameters": [
           {
             "name": "project_name",
@@ -2233,7 +2572,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SoftwareInfoResponse"
+                }
               }
             }
           },
@@ -2747,6 +3088,45 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}/cleanup": {
+      "delete": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Delete a terminal task record",
+        "description": "Remove a terminal task from persistence and memory.",
+        "operationId": "delete_task",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "404": {
             "description": "Not found"
@@ -3325,7 +3705,7 @@
           "cloud"
         ],
         "summary": "Reset Cloud Project",
-        "description": "Reset the remote project and clear the local linkage.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
+        "description": "Reset the remote project and clear the local linkage.\n\nInvokes the cloud backend's `resetProject` action, which removes the\ncurrent reconstruction job (queue progress, generated models and downloads)\nand frees the remote project name for another upload.\nLocally the project is marked as not uploaded anymore, the cached\n`cloud_project_name` is cleared, and the `downloaded` flag is reset to\nFalse so a subsequent download reflects the new state. The on-disk files\nstay untouched.\n\nArgs:\n    project_name: The name of the project to reset the remote project for\n\nReturns:\n    dict[str, Any]: A response object containing the result of the reset operation",
         "operationId": "reset_cloud_project",
         "parameters": [
           {
@@ -3347,6 +3727,84 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Reset Cloud Project Cloud Projects  Project Name  Delete"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cloud/projects/{project_name}/download": {
+      "post": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Download Project From Cloud",
+        "description": "Schedule an asynchronous cloud download for a project's reconstruction.\n\nArgs:\n    project_name: Local project name whose reconstruction should be downloaded.\n    token_override: Optional token override forwarded to the download task.\n    remote_project: Optional explicit remote project identifier; defaults to stored linkage.\n\nReturns:\n    Task: The TaskManager model describing the scheduled download.",
+        "operationId": "download_project_from_cloud",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Name"
+            }
+          },
+          {
+            "name": "token_override",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token Override"
+            }
+          },
+          {
+            "name": "remote_project",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Remote Project"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -3578,6 +4036,58 @@
   },
   "components": {
     "schemas": {
+      "AutoCalibrateAwbRequest": {
+        "properties": {
+          "warmup_frames": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Warmup Frames",
+            "description": "Number of frames to discard before reading AWB metadata.",
+            "default": 12
+          },
+          "stable_frames": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Stable Frames",
+            "description": "Consecutive frames that must meet the stability tolerance.",
+            "default": 4
+          },
+          "eps": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Eps",
+            "description": "Maximum delta between gain values to consider them stable.",
+            "default": 0.01
+          },
+          "timeout_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Timeout S",
+            "description": "Maximum time budget for the calibration loop in seconds.",
+            "default": 2.0
+          }
+        },
+        "type": "object",
+        "title": "AutoCalibrateAwbRequest"
+      },
+      "AutoCalibrateAwbResponse": {
+        "properties": {
+          "red_gain": {
+            "type": "number",
+            "title": "Red Gain"
+          },
+          "blue_gain": {
+            "type": "number",
+            "title": "Blue Gain"
+          }
+        },
+        "type": "object",
+        "required": [
+          "red_gain",
+          "blue_gain"
+        ],
+        "title": "AutoCalibrateAwbResponse"
+      },
       "Body_add_config_json_device_configurations__post": {
         "properties": {
           "config_data": {
@@ -3833,7 +4343,7 @@
             ],
             "title": "Crop Width",
             "description": "Cropping width in percent.",
-            "default": 0
+            "default": 10
           },
           "crop_height": {
             "anyOf": [
@@ -3848,7 +4358,7 @@
             ],
             "title": "Crop Height",
             "description": "Cropping on height in percent.",
-            "default": 0
+            "default": 10
           },
           "orientation_flag": {
             "anyOf": [
@@ -3862,7 +4372,7 @@
               }
             ],
             "title": "Orientation Flag",
-            "description": "Orientation in exif flag format.For imx519 use 8.For Hawkeye in Mini use 5.",
+            "description": "Orientation in exif flag format.For imx519 in Mini use 8.For Hawkeye in Mini use 6.For imx519 in Classic use 1.",
             "default": 8
           },
           "preview_resolution": {
@@ -4031,12 +4541,14 @@
           "user": {
             "type": "string",
             "title": "User",
-            "description": "HTTP basic auth username for the cloud API."
+            "description": "HTTP basic auth username for the cloud API.",
+            "default": "openscan"
           },
           "password": {
             "type": "string",
             "title": "Password",
-            "description": "HTTP basic auth password for the cloud API."
+            "description": "HTTP basic auth password for the cloud API.",
+            "default": "free"
           },
           "token": {
             "type": "string",
@@ -4049,7 +4561,8 @@
             "minLength": 1,
             "format": "uri",
             "title": "Host",
-            "description": "Base URL of the cloud service."
+            "description": "Base URL of the cloud service.",
+            "default": "http://openscanfeedback.dnsuser.de:1334"
           },
           "split_size": {
             "type": "integer",
@@ -4061,10 +4574,7 @@
         },
         "type": "object",
         "required": [
-          "user",
-          "password",
-          "token",
-          "host"
+          "token"
         ],
         "title": "CloudSettings",
         "description": "Settings that describe how to talk to the OpenScan cloud backend."
@@ -4260,6 +4770,16 @@
             "type": "object",
             "title": "Lights"
           },
+          "motors_timeout": {
+            "type": "number",
+            "title": "Motors Timeout"
+          },
+          "startup_mode": {
+            "$ref": "#/components/schemas/ScannerStartupMode"
+          },
+          "calibrate_mode": {
+            "$ref": "#/components/schemas/ScannerCalibrateMode"
+          },
           "initialized": {
             "type": "boolean",
             "title": "Initialized"
@@ -4273,9 +4793,39 @@
           "cameras",
           "motors",
           "lights",
+          "motors_timeout",
+          "startup_mode",
+          "calibrate_mode",
           "initialized"
         ],
         "title": "DeviceStatusResponse"
+      },
+      "DiskUsage": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total bytes available on the filesystem."
+          },
+          "used": {
+            "type": "integer",
+            "title": "Used",
+            "description": "Bytes currently used (total - free)."
+          },
+          "free": {
+            "type": "integer",
+            "title": "Free",
+            "description": "Free bytes remaining on the filesystem."
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "used",
+          "free"
+        ],
+        "title": "DiskUsage",
+        "description": "Filesystem usage snapshot for a directory."
       },
       "Endstop": {
         "properties": {
@@ -4343,6 +4893,19 @@
             "title": "Bounce Time",
             "description": "Debounce time for the button in seconds",
             "default": 0.005
+          },
+          "active_high": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active High",
+            "description": "Useful for normally closed switches",
+            "default": false
           }
         },
         "type": "object",
@@ -4395,7 +4958,8 @@
                 "type": "null"
               }
             ],
-            "title": "Pin"
+            "title": "Pin",
+            "description": "Single GPIO pin controlling the light output."
           },
           "pins": {
             "anyOf": [
@@ -4409,11 +4973,13 @@
                 "type": "null"
               }
             ],
-            "title": "Pins"
+            "title": "Pins",
+            "description": "Multiple GPIO pins driving grouped light outputs."
           },
-          "pwm": {
+          "pwm_support": {
             "type": "boolean",
-            "title": "Pwm",
+            "title": "Pwm Support",
+            "description": "Indicates whether this light hardware can handle PWM (otherwise only on/off).",
             "default": false
           }
         },
@@ -4475,15 +5041,18 @@
         "properties": {
           "direction_pin": {
             "type": "integer",
-            "title": "Direction Pin"
+            "title": "Direction Pin",
+            "description": "GPIO pin controlling the motor direction signal."
           },
           "enable_pin": {
             "type": "integer",
-            "title": "Enable Pin"
+            "title": "Enable Pin",
+            "description": "GPIO pin toggling the motor driver enable line."
           },
           "step_pin": {
             "type": "integer",
-            "title": "Step Pin"
+            "title": "Step Pin",
+            "description": "GPIO pin used to emit step pulses."
           },
           "acceleration": {
             "type": "integer",
@@ -4531,6 +5100,14 @@
             "title": "Max Angle",
             "description": "Maximum allowed angle for the motor in degrees.",
             "default": 360
+          },
+          "home_angle": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Home Angle",
+            "description": "Angle for home position in degrees.",
+            "default": 90
           }
         },
         "type": "object",
@@ -4600,6 +5177,57 @@
           "fibonacci"
         ],
         "title": "PathMethod"
+      },
+      "PhotoResponse": {
+        "properties": {
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "scan_index": {
+            "type": "integer",
+            "title": "Scan Index"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "photo_data": {
+            "type": "string",
+            "format": "binary",
+            "title": "Photo Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_name",
+          "scan_index",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "photo_data"
+        ],
+        "title": "PhotoResponse"
       },
       "PolarPoint3D": {
         "properties": {
@@ -4775,6 +5403,21 @@
             "title": "Duration",
             "default": 0.0
           },
+          "total_size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Size Bytes",
+            "description": "Total size of all files belonging to the scan, in bytes.",
+            "default": 0
+          },
+          "photos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Photos",
+            "description": "Relative filenames (with extension) of all photos captured for this scan."
+          },
           "task_id": {
             "anyOf": [
               {
@@ -4810,7 +5453,9 @@
       "ScanSetting": {
         "properties": {
           "path_method": {
-            "$ref": "#/components/schemas/PathMethod"
+            "$ref": "#/components/schemas/PathMethod",
+            "description": "Scanning path generator (e.g. fibonacci or spriral).",
+            "default": "fibonacci"
           },
           "points": {
             "type": "integer",
@@ -4828,7 +5473,9 @@
               "rgb_array",
               "yuv_array"
             ],
-            "title": "Image Format"
+            "title": "Image Format",
+            "description": "Output image format (JPEG, DNG, RGB array or YUV array).",
+            "default": "jpeg"
           },
           "min_theta": {
             "type": "number",
@@ -4891,11 +5538,17 @@
           }
         },
         "type": "object",
-        "required": [
-          "path_method",
-          "image_format"
-        ],
         "title": "ScanSetting"
+      },
+      "ScannerCalibrateMode": {
+        "type": "string",
+        "enum": [
+          "calibrate_manual",
+          "calibrate_on_home",
+          "calibrate_on_scan",
+          "calibrate_on_wake"
+        ],
+        "title": "ScannerCalibrateMode"
       },
       "ScannerDevice": {
         "properties": {
@@ -4958,9 +5611,18 @@
             ],
             "title": "Endstops"
           },
-          "initialized": {
-            "type": "boolean",
-            "title": "Initialized"
+          "motors_timeout": {
+            "type": "number",
+            "title": "Motors Timeout",
+            "default": 0.0
+          },
+          "startup_mode": {
+            "$ref": "#/components/schemas/ScannerStartupMode",
+            "default": "startup_enabled"
+          },
+          "calibrate_mode": {
+            "$ref": "#/components/schemas/ScannerCalibrateMode",
+            "default": "calibrate_manual"
           }
         },
         "type": "object",
@@ -4971,8 +5633,7 @@
           "cameras",
           "motors",
           "lights",
-          "endstops",
-          "initialized"
+          "endstops"
         ],
         "title": "ScannerDevice"
       },
@@ -4980,7 +5641,8 @@
         "type": "string",
         "enum": [
           "classic",
-          "mini"
+          "mini",
+          "custom"
         ],
         "title": "ScannerModel"
       },
@@ -4988,9 +5650,91 @@
         "type": "string",
         "enum": [
           "greenshield",
-          "blackshield"
+          "blackshield",
+          "custom"
         ],
         "title": "ScannerShield"
+      },
+      "ScannerStartupMode": {
+        "type": "string",
+        "enum": [
+          "startup_idle",
+          "startup_enabled"
+        ],
+        "title": "ScannerStartupMode"
+      },
+      "SoftwareInfoResponse": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Scanner model identifier, if configured."
+          },
+          "firmware_version": {
+            "type": "string",
+            "title": "Firmware Version",
+            "description": "Currently running firmware version string."
+          },
+          "last_shutdown_was_unclean": {
+            "type": "boolean",
+            "title": "Last Shutdown Was Unclean",
+            "description": "Indicates whether the previous shutdown finished cleanly."
+          },
+          "runtime_dir": {
+            "type": "string",
+            "title": "Runtime Dir",
+            "description": "Absolute path used for runtime state files."
+          },
+          "runtime_disk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiskUsage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Disk usage snapshot for the runtime directory filesystem."
+          },
+          "projects_disk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiskUsage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Disk usage snapshot for the projects directory filesystem."
+          },
+          "uptime_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptime Seconds",
+            "description": "Current system uptime in seconds, if available."
+          }
+        },
+        "type": "object",
+        "required": [
+          "firmware_version",
+          "last_shutdown_was_unclean",
+          "runtime_dir"
+        ],
+        "title": "SoftwareInfoResponse",
+        "description": "Information block served by /next/openscan."
       },
       "StackingTaskStatus": {
         "properties": {
