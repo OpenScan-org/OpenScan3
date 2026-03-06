@@ -3,6 +3,9 @@ import logging
 from gpiozero import DigitalOutputDevice, PWMOutputDevice, Button
 from typing import Dict, List, Optional, Callable
 
+# hardware PWM module
+from openscan_firmware.utils.pwm_hardware import hwpwm
+
 logger = logging.getLogger(__name__)
 
 # Track pins and buttons
@@ -66,8 +69,14 @@ def initialize_pwm_pins(pins: List[int], freq: int):
             logger.error(f"Error: Cannot initialize pin {pin} as PWM. Already initialized as button.")
         else:
             try:
-                _pwm_pins[pin] = PWMOutputDevice(pin, active_high=True, initial_value=0.0, frequency=freq)
-                logger.debug(f"Initialized pin {pin} as PWM.")
+                if hwpwm.supports(pin):
+                    _pwm_pins[pin] = pin
+                    hwpwm.setup(pin)
+                    hwpwm.set_frequency(pin, freq)
+                    logger.info(f"Initialized pin {pin} as hardware PWM.")
+                else:
+                    _pwm_pins[pin] = PWMOutputDevice(pin, active_high=True, initial_value=0.0, frequency=freq)
+                    logger.info(f"Initialized pin {pin} as software PWM.")
             except Exception as e:
                 logger.error(f"Error initializing PWM pin {pin}: {e}", exc_info=True)
                 # Clean up if initialization failed partially
@@ -77,14 +86,30 @@ def initialize_pwm_pins(pins: List[int], freq: int):
 def set_pwm_pin(pin: int, value: float):
     """Sets the value of a PWM pin."""
     if pin in _pwm_pins:
-        _pwm_pins[pin].value = value
+        dev = _pwm_pins[pin]
+    
+        # on hw pwm we store just pin number here, not the device
+        if isinstance(dev, int):
+            # hw pwm
+            hwpwm.set_duty_cycle(dev, value)
+        else:
+            # soft pwm
+            _pwm_pins[pin].value = value
     else:
         logger.warning(f"Warning: Cannot set pin {pin}. Not initialized as PWM.")
 
 def get_pwm_pin(pin: int):
     """Returns the state of an output pin."""
     if pin in _pwm_pins:
-        return _pwm_pins[pin].value
+        dev = _pwm_pins[pin]
+    
+        # on hw pwm we store just pin number here, not the device
+        if isinstance(dev, int):
+            # hw pwm
+            return hwpwm.get_duty_cycle(dev)
+        else:
+            # soft pwm
+            return _pwm_pins[pin].value
     else:
         logger.warning(f"Warning: Pin {pin} not initialized as PWM.")
         return None
