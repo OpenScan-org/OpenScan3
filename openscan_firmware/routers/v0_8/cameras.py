@@ -147,6 +147,56 @@ async def get_photo(camera_name: str):
     except Exception as e:
         return Response(status_code=500, content=str(e))
 
+
+@router.get("/{camera_name}/raw")
+async def get_raw(camera_name: str):
+    """Get a raw DNG capture from a camera.
+
+    Captures a full-resolution raw Bayer frame and returns it as a DNG file.
+    The DNG contains unprocessed sensor data suitable for high-quality demosaicing
+    on the workstation. No in-camera sharpening, noise reduction, or white balance
+    is applied.
+
+    Quality gate settings (``quality_gate_enabled``, ``quality_gate_min``,
+    ``quality_gate_retries``) on the camera are honoured. When enabled, the
+    sharpness score of the accepted frame is returned in the
+    ``X-Sharpness-Score`` response header.
+
+    Args:
+        camera_name: The name of the camera to capture from.
+
+    Returns:
+        Response: DNG file bytes with media type ``image/x-adobe-dng``.
+
+    Raises:
+        HTTPException 404: Camera not found.
+        HTTPException 409: Camera is busy.
+        HTTPException 500: Capture failed.
+    """
+    try:
+        controller = get_camera_controller(camera_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if controller.is_busy():
+        raise HTTPException(status_code=409, detail="Camera is busy. If this is a bug, please restart the camera.")
+
+    try:
+        photo = await controller.photo_async(image_format="dng")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    headers = {"Content-Disposition": f'attachment; filename="{camera_name}_raw.dng"'}
+    sharpness = photo.camera_metadata.sharpness_score if photo.camera_metadata else None
+    if sharpness is not None:
+        headers["X-Sharpness-Score"] = str(round(sharpness, 4))
+
+    return Response(
+        content=photo.data.getvalue(),
+        media_type="image/x-adobe-dng",
+        headers=headers,
+    )
+
 @router.post("/{camera_name}/restart")
 async def restart_camera(camera_name: str):
     """Restart a camera
