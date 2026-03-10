@@ -50,6 +50,7 @@ def test_capture_jpg():
 
     assert artifact.data is not None
     assert artifact.camera_metadata is not None
+    assert artifact.data.getvalue().startswith(b"\xff\xd8")
 
 def test_capture_dng():
     start = time.time()
@@ -80,6 +81,17 @@ def test_capture_yuv_array():
     artifact = camera_controller.capture_yuv_array()
     print(f"Captured yuv array in {time.time() - start} seconds.")
     print(f"Shape of the captured array: {artifact.data.shape}")
+    print(artifact.camera_metadata)
+
+    assert artifact.data is not None
+    assert artifact.camera_metadata is not None
+
+
+def test_capture_grayscale_jpeg():
+    start = time.time()
+    artifact = camera_controller.capture_grayscale_jpeg()
+    print(f"Captured grayscale jpeg in {time.time() - start} seconds.")
+
     print(artifact.camera_metadata)
 
     assert artifact.data is not None

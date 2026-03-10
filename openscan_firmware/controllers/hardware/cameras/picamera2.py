@@ -533,6 +533,27 @@ class Picamera2Controller(CameraController):
         return self._create_artifact(jpeg_data, "jpeg", cam_metadata)
 
 
+    def capture_grayscale_jpeg(self) -> PhotoData:
+        """Capture a grayscale JPEG using the YUV config.
+
+        Captures in YUV420 format and extracts the luma (Y) plane, producing a
+        grayscale JPEG without ever allocating colour data. Significantly reduces
+        transfer size for pipelines that only need luminance (e.g. photogrammetry).
+
+        Returns:
+            PhotoData: Grayscale JPEG data.
+        """
+        array, cam_metadata = self._capture_array(self.yuv_config)
+        # YUV420 planar layout: first (H) rows are the Y plane, next H//2 rows are U+V
+        h = array.shape[0] * 2 // 3
+        y_plane = array[:h, :]
+        _, jpeg_buf = cv2.imencode(
+            '.jpg', y_plane,
+            [cv2.IMWRITE_JPEG_QUALITY, self.settings.jpeg_quality]
+        )
+        return self._create_artifact(io.BytesIO(jpeg_buf.tobytes()), "jpeg", cam_metadata)
+
+
     def capture_dng(self) -> PhotoData:
         """Capture a dng.
 

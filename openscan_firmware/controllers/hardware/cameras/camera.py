@@ -121,6 +121,7 @@ class CameraController(StatefulHardware):
         """
         handler = {
             "jpeg": self.capture_jpeg,
+            "grayscale_jpeg": self.capture_grayscale_jpeg,
             "dng": self.capture_dng,
             "rgb_array": self.capture_rgb_array,
             "yuv_array": self.capture_yuv_array,
@@ -181,6 +182,15 @@ class CameraController(StatefulHardware):
     def capture_jpeg(self) -> PhotoData:
         """Capture an image and encode it to jpeg."""
         raise NotImplementedError
+
+    def capture_grayscale_jpeg(self) -> PhotoData:
+        """Capture a grayscale JPEG.
+
+        Converts to grayscale on the device before returning, reducing transfer
+        size significantly compared to a full-colour JPEG. Default implementation
+        raises NotImplementedError; override in subclasses that support it.
+        """
+        raise NotImplementedError("This camera controller does not support grayscale_jpeg capture.")
 
 
 def _create_camera_controller_instance(camera: Camera) -> 'CameraController':
