@@ -42,6 +42,7 @@ dependencies = [
   "anyio==4.10.0",
   "piexif==1.1.3",
   "pydantic_core==2.33.1",
+  "zxing-cpp==2.2.0",
 ]
 
 [project.optional-dependencies]

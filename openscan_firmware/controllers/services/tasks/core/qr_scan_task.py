@@ -11,8 +11,13 @@ their time holding the QR code in front of the camera.
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 from typing import AsyncGenerator
+
+import numpy as np
+
+from PIL import Image
 
 from openscan_firmware.controllers.services.tasks.base_task import BaseTask
 from openscan_firmware.models.task import TaskProgress
@@ -21,6 +26,10 @@ logger = logging.getLogger(__name__)
 
 # How often to grab a frame (seconds)
 _SCAN_INTERVAL = 0.5
+# Give the camera a short warm-up before we start scanning
+_STARTUP_DELAY = 3.0
+# Downscale preview frames to keep zxing fast but detailed
+_MAX_PREVIEW_EDGE = 1400
 
 
 class QrScanTask(BaseTask):
@@ -58,14 +67,23 @@ class QrScanTask(BaseTask):
             TaskProgress updates for the frontend.
         """
         # Lazy imports to avoid side effects at module load time
-        import cv2
+        import numpy as np
         from openscan_firmware.controllers.hardware.cameras.camera import get_camera_controller
         from openscan_firmware.utils.wifi import parse_wifi_qr, connect_wifi
+        from openscan_firmware.utils.qr_reader import ZxingQRReader, StableQRConsensus
+
+        yield TaskProgress(current=0, total=0, message="QR scan starting – warming up the camera")
+
+        if _STARTUP_DELAY > 0:
+            await asyncio.sleep(_STARTUP_DELAY)
 
         controller = get_camera_controller(camera_name)
-        detector = cv2.QRCodeDetector()
+        reader = ZxingQRReader()
+        # Two confirmations within the last five frames are enough; this keeps the
+        # scan responsive even when individual preview frames fail.
+        consensus = StableQRConsensus(reader, required_hits=2, window=5)
 
-        yield TaskProgress(current=0, total=0, message="QR scan started – hold a WiFi QR code in front of the camera")
+        yield TaskProgress(current=0, total=0, message="QR scan ready – hold a WiFi QR code in front of the camera")
 
         attempt = 0
         while True:
@@ -76,19 +94,29 @@ class QrScanTask(BaseTask):
                 logger.info("QR scan task cancelled at attempt %d", attempt)
                 return
 
-            # Capture a full-resolution frame via the async path.
-            # photo_async("rgb_array") gives us a numpy array suitable for cv2.
+            # Capture a preview frame (JPEG) and convert it to an RGB numpy array
             try:
-                photo_data = await controller.photo_async("rgb_array")
-                frame = photo_data.data
+                frame_for_decode = await _capture_preview_array(controller)
+                if frame_for_decode is None:
+                    logger.debug("QR scan attempt %d: preview frame unavailable", attempt)
+                    yield TaskProgress(current=attempt, total=0, message="Waiting for preview frame...")
+                    await asyncio.sleep(_SCAN_INTERVAL)
+                    continue
+
+                logger.debug(
+                    "QR scan attempt %d captured preview frame with shape=%s dtype=%s",
+                    attempt,
+                    getattr(frame_for_decode, "shape", None),
+                    getattr(frame_for_decode, "dtype", None),
+                )
             except Exception as exc:
-                logger.warning("Frame capture failed on attempt %d: %s", attempt, exc)
-                yield TaskProgress(current=attempt, total=0, message=f"Capture error: {exc}")
+                logger.warning("Preview capture failed on attempt %d: %s", attempt, exc)
+                yield TaskProgress(current=attempt, total=0, message=f"Preview error: {exc}")
                 await asyncio.sleep(_SCAN_INTERVAL)
                 continue
 
-            # Detect QR codes in the frame
-            decoded_text, points, _ = detector.detectAndDecode(frame)
+            # Detect QR codes in the frame using the robust reader with consensus
+            decoded_text = consensus.feed(frame_for_decode)
 
             if decoded_text and decoded_text.startswith("WIFI:"):
                 logger.info("WiFi QR code detected: %s", decoded_text[:30] + "...")
@@ -118,6 +146,59 @@ class QrScanTask(BaseTask):
 
             elif decoded_text:
                 logger.debug("Non-WiFi QR code found: %s", decoded_text[:50])
+            else:
+                if attempt == 1 or attempt % 10 == 0:
+                    logger.info(
+                        "QR scan attempt %d: no QR code detected yet (camera '%s').",
+                        attempt,
+                        camera_name,
+                    )
+                else:
+                    logger.debug("QR scan attempt %d: no QR code detected.", attempt)
 
             yield TaskProgress(current=attempt, total=0, message=f"Scanning... (attempt {attempt})")
             await asyncio.sleep(_SCAN_INTERVAL)
+
+
+async def _capture_preview_array(controller) -> "np.ndarray | None":
+    """Fetch a preview frame from the controller and return it as an RGB numpy array."""
+    preview_io = await controller.preview_async()
+    if preview_io is None:
+        return None
+
+    if isinstance(preview_io, bytes):
+        data = preview_io
+        preview_io = None
+    else:
+        try:
+            data = preview_io.read()
+        finally:
+            try:
+                preview_io.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            img = img.convert("RGB")
+            img = _downscale_image(img, _MAX_PREVIEW_EDGE)
+            frame = np.array(img)
+    except Exception as exc:
+        logger.debug("Failed to decode preview JPEG: %s", exc)
+        return None
+
+    return frame
+
+
+def _downscale_image(image: Image.Image, max_edge: int) -> Image.Image:
+    if max_edge <= 0:
+        return image
+
+    width, height = image.size
+    current_edge = max(width, height)
+    if current_edge <= max_edge:
+        return image
+
+    scale = max_edge / float(current_edge)
+    new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
+    return image.resize(new_size, Image.LANCZOS)
