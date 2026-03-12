@@ -20,7 +20,8 @@ import numpy as np
 from PIL import Image
 
 from openscan_firmware.controllers.services.tasks.base_task import BaseTask
-from openscan_firmware.models.task import TaskProgress
+from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
+from openscan_firmware.models.task import TaskProgress, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,8 @@ class QrScanTask(BaseTask):
 
         if _STARTUP_DELAY > 0:
             await asyncio.sleep(_STARTUP_DELAY)
+
+        await _cleanup_stale_qr_tasks()
 
         controller = get_camera_controller(camera_name)
         reader = ZxingQRReader()
@@ -202,3 +205,36 @@ def _downscale_image(image: Image.Image, max_edge: int) -> Image.Image:
     scale = max_edge / float(current_edge)
     new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
     return image.resize(new_size, Image.LANCZOS)
+
+
+async def _cleanup_stale_qr_tasks() -> None:
+    """Remove cancelled/interrupted QR tasks and trim error history to last three."""
+    task_manager = get_task_manager()
+    relevant = [task for task in task_manager.get_all_tasks_info() if task.task_type == QrScanTask.task_name]
+
+    stale_statuses = {TaskStatus.CANCELLED, TaskStatus.INTERRUPTED}
+    removed = 0
+
+    for task in relevant:
+        if task.status not in stale_statuses:
+            continue
+        try:
+            await task_manager.delete_task(task.id)
+            removed += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to delete stale QR task %s: %s", task.id, exc)
+
+    error_tasks = sorted(
+        (task for task in relevant if task.status == TaskStatus.ERROR),
+        key=lambda task: task.created_at,
+        reverse=True,
+    )
+    for task in error_tasks[3:]:
+        try:
+            await task_manager.delete_task(task.id)
+            removed += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to delete old QR task error %s: %s", task.id, exc)
+
+    if removed:
+        logger.info("Cleaned up %d stale QR WiFi scan tasks", removed)
