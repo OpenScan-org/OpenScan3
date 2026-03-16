@@ -556,6 +556,94 @@ class TestScanTask:
         assert project_manager.add_photo_async.call_count == len(focus_positions)
 
 
+    @pytest.mark.asyncio
+    async def test_single_capture_uses_configured_image_format(
+        self,
+        sample_scan_model: Scan,
+        fake_photo_data: PhotoData,
+    ):
+        """Ensure single captures request the ScanSetting.image_format from the camera."""
+
+        scan = sample_scan_model.model_copy(deep=True)
+        scan.settings.image_format = "dng"
+
+        photo_payload = fake_photo_data.model_copy(deep=True)
+        photo_payload.format = "dng"
+
+        camera_controller = MagicMock()
+        camera_controller.photo = MagicMock(return_value=photo_payload)
+        camera_controller.photo_async = AsyncMock()
+        camera_controller.settings = MagicMock()
+
+        project_manager = MagicMock()
+        project_manager.add_photo_async = AsyncMock(return_value=None)
+
+        task_model = Task(name="scan_task", task_type="core")
+        scan_task = ScanTask(task_model)
+        scan_task._ctx = ScanRuntime(
+            scan=scan,
+            camera_controller=camera_controller,
+            project_manager=project_manager,
+            path_dict={PolarPoint3D(theta=0, fi=0): 0},
+            focus_context=None,
+        )
+
+        await scan_task._capture_photos_at_position(PolarPoint3D(theta=0, fi=0), 0)
+        await asyncio.sleep(0)
+
+        camera_controller.photo.assert_called_once()
+        assert camera_controller.photo.call_args.args == ("dng",)
+
+
+    @pytest.mark.asyncio
+    async def test_focus_stacking_uses_configured_image_format(
+        self,
+        sample_scan_model: Scan,
+        fake_photo_data: PhotoData,
+    ):
+        """Ensure focus stacked captures request the ScanSetting.image_format via photo_async."""
+
+        scan = sample_scan_model.model_copy(deep=True)
+        scan.settings.image_format = "rgb_array"
+        scan.settings.focus_stacks = 3
+        focus_positions = scan.settings.focus_positions
+
+        focus_settings = FocusTrackingSettings(AF=True, manual_focus=0.0)
+
+        base_payload = fake_photo_data.model_copy(deep=True)
+        base_payload.format = "rgb_array"
+
+        camera_controller = MagicMock()
+        camera_controller.photo = AsyncMock()
+        camera_controller.photo_async = AsyncMock(return_value=base_payload)
+        camera_controller.settings = focus_settings
+
+        project_manager = MagicMock()
+        project_manager.add_photo_async = AsyncMock(return_value=None)
+
+        task_model = Task(name="scan_task", task_type="core")
+        scan_task = ScanTask(task_model)
+        scan_task._ctx = ScanRuntime(
+            scan=scan,
+            camera_controller=camera_controller,
+            project_manager=project_manager,
+            path_dict={PolarPoint3D(theta=0, fi=0): 0},
+            focus_context={
+                "enabled": True,
+                "positions": focus_positions,
+                "previous_settings": (focus_settings.AF, focus_settings.manual_focus),
+            },
+        )
+
+        await scan_task._capture_photos_at_position(PolarPoint3D(theta=0, fi=0), 0)
+        await asyncio.sleep(0)
+
+        assert camera_controller.photo.await_count == 0
+        assert camera_controller.photo_async.await_count == len(focus_positions)
+        for awaited_call in camera_controller.photo_async.await_args_list:
+            assert awaited_call.args == ("rgb_array",)
+
+
 class TestScanTaskIntegration:
     """Integration tests for ScanTask persistence behavior with real ProjectManager."""
 
