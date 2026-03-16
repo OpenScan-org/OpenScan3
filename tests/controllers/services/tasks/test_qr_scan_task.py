@@ -137,7 +137,7 @@ async def test_qr_scan_task_wifi_connect_failure_marks_error(monkeypatch, qr_tas
     final = await qr_task_manager.wait_for_task(task.id)
 
     assert final.status == TaskStatus.ERROR
-    assert "Failed to connect" in (final.result or {}).get("error", "")
+    assert "Failed to apply WiFi credentials" in (final.result or {}).get("error", "")
 
 
 @pytest.mark.asyncio

@@ -41,15 +41,11 @@ class ZxingQRReader:
         if frame is None or frame.size == 0:
             return None
 
-        logger.debug("Attempting QR decode; frame shape: %s dtype: %s", getattr(frame, "shape", None), getattr(frame, "dtype", None))
-
         base = self._ensure_uint8(frame)
         if self.max_edge:
             base = self._resize_max_edge(base, self.max_edge)
 
         variants = self._variants(base)
-        logger.debug("Generated %d QR variants for decoding", len(variants))
-
         for variant in variants:
             try:
                 results = zxingcpp.read_barcodes(variant)
@@ -66,7 +62,7 @@ class ZxingQRReader:
                     logger.info("QR decode succeeded (length %d)", len(text))
                     return text
 
-        logger.debug("QR decode attempt finished with no matches")
+        #logger.debug("QR decode attempt finished with no matches")
         return None
 
     def _variants(self, frame: np.ndarray) -> list[np.ndarray]:

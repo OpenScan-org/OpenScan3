@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import time
 from typing import AsyncGenerator
 
 import numpy as np
@@ -31,6 +32,10 @@ _SCAN_INTERVAL = 0.5
 _STARTUP_DELAY = 3.0
 # Downscale preview frames to keep zxing fast but detailed
 _MAX_PREVIEW_EDGE = 1400
+# Throttle how often we emit "no QR yet" info messages to keep logs calm
+_NO_HIT_INFO_INTERVAL = 30
+# Emit TaskProgress updates at most every N seconds while idle scanning
+_PROGRESS_UPDATE_INTERVAL = 30.0
 
 
 class QrScanTask(BaseTask):
@@ -89,6 +94,7 @@ class QrScanTask(BaseTask):
         yield TaskProgress(current=0, total=0, message="QR scan ready – hold a WiFi QR code in front of the camera")
 
         attempt = 0
+        last_progress_emit = 0.0
         while True:
             attempt += 1
 
@@ -106,12 +112,6 @@ class QrScanTask(BaseTask):
                     await asyncio.sleep(_SCAN_INTERVAL)
                     continue
 
-                logger.debug(
-                    "QR scan attempt %d captured preview frame with shape=%s dtype=%s",
-                    attempt,
-                    getattr(frame_for_decode, "shape", None),
-                    getattr(frame_for_decode, "dtype", None),
-                )
             except Exception as exc:
                 logger.warning("Preview capture failed on attempt %d: %s", attempt, exc)
                 yield TaskProgress(current=attempt, total=0, message=f"Preview error: {exc}")
@@ -122,11 +122,10 @@ class QrScanTask(BaseTask):
             decoded_text = consensus.feed(frame_for_decode)
 
             if decoded_text and decoded_text.startswith("WIFI:"):
-                logger.info("WiFi QR code detected: %s", decoded_text[:30] + "...")
-                yield TaskProgress(current=attempt, total=0, message="WiFi QR code detected! Connecting...")
-
                 try:
                     credentials = parse_wifi_qr(decoded_text)
+                    logger.info("WiFi QR code detected for SSID '%s'", credentials.ssid)
+                    yield TaskProgress(current=attempt, total=0, message="WiFi QR code detected! Connecting...")
                     output = await asyncio.to_thread(connect_wifi, credentials)
                     result_msg = f"Connected to '{credentials.ssid}'"
                     logger.info(result_msg)
@@ -149,17 +148,11 @@ class QrScanTask(BaseTask):
 
             elif decoded_text:
                 logger.debug("Non-WiFi QR code found: %s", decoded_text[:50])
-            else:
-                if attempt == 1 or attempt % 10 == 0:
-                    logger.info(
-                        "QR scan attempt %d: no QR code detected yet (camera '%s').",
-                        attempt,
-                        camera_name,
-                    )
-                else:
-                    logger.debug("QR scan attempt %d: no QR code detected.", attempt)
 
-            yield TaskProgress(current=attempt, total=0, message=f"Scanning... (attempt {attempt})")
+            now = time.monotonic()
+            if last_progress_emit == 0.0 or (now - last_progress_emit) >= _PROGRESS_UPDATE_INTERVAL:
+                yield TaskProgress(current=attempt, total=0, message=f"Scanning... (attempt {attempt})")
+                last_progress_emit = now
             await asyncio.sleep(_SCAN_INTERVAL)
 
 
@@ -237,4 +230,4 @@ async def _cleanup_stale_qr_tasks() -> None:
             logger.warning("Failed to delete old QR task error %s: %s", task.id, exc)
 
     if removed:
-        logger.info("Cleaned up %d stale QR WiFi scan tasks", removed)
+        logger.debug("Cleaned up %d stale QR WiFi scan tasks", removed)
