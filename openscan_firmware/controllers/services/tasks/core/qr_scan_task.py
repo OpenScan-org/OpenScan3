@@ -36,6 +36,10 @@ _MAX_PREVIEW_EDGE = 1400
 _NO_HIT_INFO_INTERVAL = 30
 # Emit TaskProgress updates at most every N seconds while idle scanning
 _PROGRESS_UPDATE_INTERVAL = 30.0
+# Cooldown between connection attempts for the same SSID (seconds)
+_CONNECT_RETRY_COOLDOWN = 6.0
+# Sleep after a failed connection attempt before resuming scanning
+_CONNECT_ERROR_BACKOFF = 2.0
 
 
 class QrScanTask(BaseTask):
@@ -95,6 +99,8 @@ class QrScanTask(BaseTask):
 
         attempt = 0
         last_progress_emit = 0.0
+        last_credentials = None
+        last_connect_attempt = 0.0
         while True:
             attempt += 1
 
@@ -124,8 +130,28 @@ class QrScanTask(BaseTask):
             if decoded_text and decoded_text.startswith("WIFI:"):
                 try:
                     credentials = parse_wifi_qr(decoded_text)
-                    logger.info("WiFi QR code detected for SSID '%s'", credentials.ssid)
-                    yield TaskProgress(current=attempt, total=0, message="WiFi QR code detected! Connecting...")
+                except ValueError as exc:
+                    logger.warning("Ignoring invalid WiFi QR code: %s", exc)
+                    continue
+
+                now = time.monotonic()
+                same_credentials = last_credentials is not None and credentials == last_credentials
+                within_cooldown = same_credentials and (now - last_connect_attempt) < _CONNECT_RETRY_COOLDOWN
+
+                if within_cooldown:
+                    logger.debug(
+                        "Skipping connection attempt for SSID '%s' due to cooldown.",
+                        credentials.ssid,
+                    )
+                    continue
+
+                last_credentials = credentials
+                last_connect_attempt = now
+
+                logger.info("WiFi QR code detected for SSID '%s'", credentials.ssid)
+                yield TaskProgress(current=attempt, total=0, message="WiFi QR code detected! Connecting...")
+
+                try:
                     output = await asyncio.to_thread(connect_wifi, credentials)
                     result_msg = f"Connected to '{credentials.ssid}'"
                     logger.info(result_msg)
@@ -140,11 +166,19 @@ class QrScanTask(BaseTask):
                     yield TaskProgress(current=1, total=1, message=result_msg)
                     return
 
+                except asyncio.CancelledError:
+                    raise
                 except Exception as exc:
                     error_msg = f"Failed to apply WiFi credentials: {exc}"
                     logger.error(error_msg)
                     self._task_model.result = {"error": error_msg}
-                    raise RuntimeError(error_msg) from exc
+                    yield TaskProgress(
+                        current=attempt,
+                        total=0,
+                        message=f"{error_msg} – retrying shortly",
+                    )
+                    await asyncio.sleep(_CONNECT_ERROR_BACKOFF)
+                    continue
 
             elif decoded_text:
                 logger.debug("Non-WiFi QR code found: %s", decoded_text[:50])

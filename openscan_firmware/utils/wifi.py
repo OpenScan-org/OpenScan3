@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
+import time
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,12 @@ def parse_wifi_qr(raw: str) -> WifiCredentials:
     )
 
 
-def connect_wifi(credentials: WifiCredentials) -> str:
+def connect_wifi(
+    credentials: WifiCredentials,
+    *,
+    max_attempts: int = 2,
+    rescan_delay: float = 1.0,
+) -> str:
     """Connect to a WiFi network using NetworkManager (nmcli).
 
     This requires the process to have sufficient privileges (typically root)
@@ -86,6 +92,10 @@ def connect_wifi(credentials: WifiCredentials) -> str:
 
     Args:
         credentials: The WiFi credentials to use.
+        max_attempts: How many times to attempt the connection before giving up.
+            On retries the helper performs an ``nmcli device wifi rescan`` first.
+        rescan_delay: Seconds to wait after triggering the rescan to give the
+            kernel time to refresh the scan list. Ignored if non-positive.
 
     Returns:
         The stdout output from nmcli on success.
@@ -93,6 +103,7 @@ def connect_wifi(credentials: WifiCredentials) -> str:
     Raises:
         RuntimeError: If nmcli is not available or the connection attempt fails.
     """
+    attempts = max(1, max_attempts)
     cmd = [
         "nmcli", "device", "wifi", "connect", credentials.ssid,
         "password", credentials.password,
@@ -102,22 +113,50 @@ def connect_wifi(credentials: WifiCredentials) -> str:
         cmd.extend(["hidden", "yes"])
 
     logger.info("Attempting to connect to WiFi network '%s'", credentials.ssid)
-    logger.debug("Running: %s", " ".join(cmd[:5]) + " ****")  # mask password
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    for attempt in range(1, attempts + 1):
+        logger.debug(
+            "Running (attempt %d/%d): %s",
+            attempt,
+            attempts,
+            " ".join(cmd[:5]) + " ****",
+        )
 
-    if result.returncode != 0:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode == 0:
+            logger.info("Successfully connected to WiFi network '%s'", credentials.ssid)
+            return result.stdout.strip()
+
         error_msg = result.stderr.strip() or result.stdout.strip()
         logger.error("nmcli failed (rc=%d): %s", result.returncode, error_msg)
+
+        should_retry = (
+            attempt < attempts and
+            "not in the scan list" in error_msg.lower()
+        )
+
+        if should_retry:
+            logger.warning(
+                "Access point not in scan list; triggering nmcli rescan before retry %d/%d.",
+                attempt + 1,
+                attempts,
+            )
+            _rescan_wifi_devices()
+            if rescan_delay > 0:
+                time.sleep(rescan_delay)
+            continue
+
         raise RuntimeError(f"Failed to connect to '{credentials.ssid}': {error_msg}")
 
-    logger.info("Successfully connected to WiFi network '%s'", credentials.ssid)
-    return result.stdout.strip()
+    raise RuntimeError(
+        f"Failed to connect to '{credentials.ssid}' after {attempts} attempts: {error_msg}"
+    )
 
 
 def is_wifi_connected() -> bool:
@@ -140,3 +179,17 @@ def is_wifi_connected() -> bool:
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
         logger.warning("Could not check WiFi status: %s", exc)
     return False
+
+
+def _rescan_wifi_devices() -> None:
+    """Trigger an nmcli rescan, ignoring errors but logging them."""
+    try:
+        subprocess.run(
+            ["nmcli", "device", "wifi", "rescan"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        logger.warning("nmcli rescan failed: %s", exc)
