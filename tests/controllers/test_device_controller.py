@@ -173,6 +173,292 @@ async def test_set_device_config_calls_initialize(monkeypatch):
     assert isinstance(called.get("init"), dict)
 
 
+@pytest.mark.asyncio
+async def test_set_device_config_persists_loaded_config(monkeypatch, tmp_path):
+    device = _import_device(monkeypatch)
+
+    config_file = tmp_path / "device_config.json"
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(device, "DEVICE_CONFIG_FILE", config_file, raising=True)
+
+    preset = tmp_path / "preset.json"
+    preset.write_text(json.dumps({
+        "name": "Preset",
+        "model": "mini",
+        "shield": "greenshield",
+        "cameras": {},
+        "motors": {},
+        "lights": {},
+        "endstops": {},
+        "motors_timeout": 5.0,
+        "startup_mode": device.ScannerStartupMode.STARTUP_IDLE.value,
+        "calibrate_mode": device.ScannerCalibrateMode.CALIBRATE_ON_WAKE.value,
+    }))
+
+    async def fake_initialize(config, detect_cameras=False):
+        device._scanner_device = device.ScannerDevice(
+            name=config["name"],
+            model=None,
+            shield=None,
+            cameras={},
+            motors={},
+            lights={},
+            endstops={},
+            motors_timeout=config["motors_timeout"],
+            startup_mode=device.ScannerStartupMode(config["startup_mode"]),
+            calibrate_mode=device.ScannerCalibrateMode(config["calibrate_mode"]),
+        )
+        device._scanner_device._initialized = True
+
+    monkeypatch.setattr(device, "initialize", fake_initialize, raising=True)
+
+    ok = await device.set_device_config(str(preset))
+    assert ok is True
+
+    persisted = json.loads(config_file.read_text())
+    assert persisted["name"] == "Preset"
+    assert persisted["motors_timeout"] == 5.0
+    assert persisted["startup_mode"] == device.ScannerStartupMode.STARTUP_IDLE.value
+    assert persisted["calibrate_mode"] == device.ScannerCalibrateMode.CALIBRATE_ON_WAKE.value
+
+
+def _write_minimal_preset(target: Path):
+    content = {
+        "name": "Preset",
+        "model": "mini",
+        "shield": "greenshield",
+        "cameras": {},
+        "motors": {},
+        "lights": {},
+        "endstops": {},
+    }
+    target.write_text(json.dumps(content))
+
+
+def test_load_device_config_ignores_existing_scanner_state(monkeypatch, tmp_path):
+    device = _import_device(monkeypatch)
+
+    config_path = tmp_path / "device_config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(device, "DEVICE_CONFIG_FILE", config_path)
+
+    preset = tmp_path / "preset.json"
+    _write_minimal_preset(preset)
+
+    device._scanner_device.motors_timeout = 180.0
+    device._scanner_device.startup_mode = device.ScannerStartupMode.STARTUP_IDLE
+    device._scanner_device.calibrate_mode = device.ScannerCalibrateMode.CALIBRATE_ON_WAKE
+
+    loaded = device.load_device_config(str(preset))
+
+    assert loaded["motors_timeout"] == 0.0
+    assert loaded["startup_mode"] == device.ScannerStartupMode.STARTUP_ENABLED.value
+    assert loaded["calibrate_mode"] == device.ScannerCalibrateMode.CALIBRATE_MANUAL.value
+
+
+def test_load_device_config_overwrites_persisted_values(monkeypatch, tmp_path):
+    device = _import_device(monkeypatch)
+
+    config_path = tmp_path / "device_config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(device, "DEVICE_CONFIG_FILE", config_path)
+
+    config_path.write_text(json.dumps({
+        "name": "Custom",
+        "model": "custom",
+        "shield": "custom",
+        "cameras": {},
+        "motors": {},
+        "lights": {},
+        "endstops": {},
+        "motors_timeout": 999.0,
+        "startup_mode": device.ScannerStartupMode.STARTUP_IDLE.value,
+        "calibrate_mode": device.ScannerCalibrateMode.CALIBRATE_ON_WAKE.value,
+    }))
+
+    preset = tmp_path / "preset.json"
+    _write_minimal_preset(preset)
+
+    loaded = device.load_device_config(str(preset))
+
+    persisted = json.loads(config_path.read_text())
+    for cfg in (loaded, persisted):
+        assert cfg["motors_timeout"] == 0.0
+        assert cfg["startup_mode"] == device.ScannerStartupMode.STARTUP_ENABLED.value
+        assert cfg["calibrate_mode"] == device.ScannerCalibrateMode.CALIBRATE_MANUAL.value
+
+
+@pytest.mark.asyncio
+async def test_initialize_recreates_controllers_on_reinitialize(monkeypatch, tmp_path):
+    device = _import_device(monkeypatch)
+
+    # fresh scanner state and redirected config path
+    monkeypatch.setattr(device, "_scanner_device", device._create_default_scanner_device(), raising=True)
+    config_path = tmp_path / "device_config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(device, "DEVICE_CONFIG_FILE", config_path, raising=True)
+
+    config_payload = {
+        "name": "Preset",
+        "model": "mini",
+        "shield": "greenshield",
+        "cameras": {},
+        "motors": {
+            "rotor": {
+                "direction_pin": 5,
+                "enable_pin": 23,
+                "step_pin": 6,
+                "acceleration": 20000,
+                "max_speed": 5000,
+                "direction": 1,
+                "steps_per_rotation": 42667,
+                "min_angle": 0,
+                "max_angle": 360,
+                "home_angle": 90,
+            },
+            "turntable": {
+                "direction_pin": 9,
+                "enable_pin": 22,
+                "step_pin": 11,
+                "acceleration": 5000,
+                "max_speed": 5000,
+                "direction": 1,
+                "steps_per_rotation": 3200,
+                "min_angle": 0,
+                "max_angle": 360,
+                "home_angle": 0,
+            },
+        },
+        "lights": {
+            "ring": {
+                "pins": [17, 27],
+                "pwm_support": False,
+            }
+        },
+        "endstops": {},
+        "motors_timeout": 0.0,
+        "startup_mode": device.ScannerStartupMode.STARTUP_ENABLED.value,
+        "calibrate_mode": device.ScannerCalibrateMode.CALIBRATE_MANUAL.value,
+    }
+    config_path.write_text(json.dumps(config_payload))
+
+    controllers = {"motors": {}, "lights": {}}
+    creation_log = {"motors": [], "lights": []}
+    removal_log = {"motors": [], "lights": []}
+
+    class DummyMotorController:
+        def __init__(self, model):
+            self.model = model
+            self.angle = getattr(model, "angle", 0.0)
+
+        def set_idle_callbacks(self, *_, **__):
+            return None
+
+        def refresh(self):
+            return None
+
+        def get_status(self):
+            return {
+                "name": self.model.name,
+                "angle": self.model.angle,
+                "busy": False,
+                "target_angle": None,
+                "settings": self.model.settings,
+                "endstop": None,
+            }
+
+    class DummyLightController:
+        def __init__(self, model):
+            self.model = model
+
+        def set_idle_callbacks(self, *_, **__):
+            return None
+
+        def refresh(self):
+            return None
+
+        async def turn_on(self):
+            return None
+
+        def get_status(self):
+            settings = self.model.settings
+            payload = settings.model_dump() if hasattr(settings, "model_dump") else {}
+            return {"name": self.model.name, "is_on": False, "settings": payload}
+
+    def _create_motor_controller(motor):
+        controller = DummyMotorController(motor)
+        controllers["motors"][motor.name] = controller
+        creation_log["motors"].append(motor.name)
+        return controller
+
+    def _remove_motor_controller(name):
+        removal_log["motors"].append(name)
+        controllers["motors"].pop(name, None)
+        return True
+
+    def _create_light_controller(light):
+        controller = DummyLightController(light)
+        controllers["lights"][light.name] = controller
+        creation_log["lights"].append(light.name)
+        return controller
+
+    def _remove_light_controller(name):
+        removal_log["lights"].append(name)
+        controllers["lights"].pop(name, None)
+        return True
+
+    monkeypatch.setattr(device, "create_motor_controller", _create_motor_controller, raising=True)
+    monkeypatch.setattr(device, "remove_motor_controller", _remove_motor_controller, raising=True)
+    monkeypatch.setattr(device, "get_all_motor_controllers", lambda: controllers["motors"].copy(), raising=True)
+
+    monkeypatch.setattr(device, "create_light_controller", _create_light_controller, raising=True)
+    monkeypatch.setattr(device, "remove_light_controller", _remove_light_controller, raising=True)
+    monkeypatch.setattr(device, "get_all_light_controllers", lambda: controllers["lights"].copy(), raising=True)
+
+    monkeypatch.setattr(device, "create_camera_controller", lambda *_, **__: None, raising=True)
+    monkeypatch.setattr(device, "remove_camera_controller", lambda *_: True, raising=True)
+    monkeypatch.setattr(device, "get_all_camera_controllers", lambda: {}, raising=True)
+    monkeypatch.setattr(device, "get_available_camera_types", lambda: {}, raising=True)
+    monkeypatch.setattr(device, "_detect_cameras", lambda: {}, raising=True)
+
+    dummy_timer = types.SimpleNamespace(
+        set_timeout=lambda *_: None,
+        enable=lambda: None,
+        disable=lambda: None,
+        start=lambda: None,
+        stop=lambda: None,
+        reset=lambda: None,
+        on_timeout=None,
+    )
+    monkeypatch.setattr(device, "inactivity_timer", dummy_timer, raising=True)
+    monkeypatch.setattr(device, "cleanup_all_pins", lambda: None, raising=True)
+    monkeypatch.setattr(device, "schedule_device_status_broadcast", lambda *_, **__: None, raising=True)
+    monkeypatch.setattr(device, "get_project_manager", lambda: types.SimpleNamespace(), raising=True)
+    monkeypatch.setattr(device, "load_persistent_cloud_settings", lambda: None, raising=True)
+    monkeypatch.setattr(device, "load_cloud_settings_from_env", lambda: None, raising=True)
+    monkeypatch.setattr(device, "set_cloud_settings", lambda *_: None, raising=True)
+    monkeypatch.setattr(device, "set_active_source", lambda *_: None, raising=True)
+
+    await device.initialize(config=config_payload, detect_cameras=False)
+
+    assert creation_log["motors"] == ["rotor", "turntable"]
+    assert creation_log["lights"] == ["ring"]
+    first_status = device.get_device_info()
+    assert set(first_status["motors"].keys()) == {"rotor", "turntable"}
+    assert set(first_status["lights"].keys()) == {"ring"}
+
+    await device.initialize(detect_cameras=False)
+
+    assert removal_log["motors"] == ["rotor", "turntable"]
+    assert removal_log["lights"] == ["ring"]
+    assert creation_log["motors"] == ["rotor", "turntable", "rotor", "turntable"]
+    assert creation_log["lights"] == ["ring", "ring"]
+
+    second_status = device.get_device_info()
+    assert set(second_status["motors"].keys()) == {"rotor", "turntable"}
+    assert set(second_status["lights"].keys()) == {"ring"}
+
+
 def test_reboot_and_shutdown_call_system(monkeypatch):
     device = _import_device(monkeypatch)
 
