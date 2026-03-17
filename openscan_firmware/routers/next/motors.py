@@ -30,6 +30,7 @@ class MotorStatusResponse(BaseModel):
     busy: bool
     target_angle: Optional[float]
     settings: MotorConfig
+    calibrated: bool
     endstop: Optional[dict]
 
 
@@ -134,7 +135,13 @@ async def override_motor_angle(
 
 
 @router.put("/{motor_name}/endstop-calibration", response_model=MotorStatusResponse)
-async def motor_endstop_calibration(motor_name: str):
+async def motor_endstop_calibration(
+    motor_name: str,
+    force: bool = Query(
+        False,
+        description="Force recalibration even if the controller already considers the motor calibrated.",
+    ),
+):
     """Move motor to home through endstop sensing
 
     This endpoint moves the motor to the home position using the endstop calibration.
@@ -147,7 +154,7 @@ async def motor_endstop_calibration(motor_name: str):
     """
     controller = _get_motor_controller_or_404(motor_name)
     if controller.endstop and not controller.is_busy():
-        await controller.calibrate()
+        await controller.calibrate(force=force)
         return controller.get_status()
     else:
         raise HTTPException(status_code=422, detail="No endstop configured or motor is busy!")

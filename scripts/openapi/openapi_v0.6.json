@@ -4597,6 +4597,10 @@
           "settings": {
             "$ref": "#/components/schemas/MotorConfig"
           },
+          "calibrated": {
+            "type": "boolean",
+            "title": "Calibrated"
+          },
           "endstop": {
             "anyOf": [
               {
@@ -4617,6 +4621,7 @@
           "busy",
           "target_angle",
           "settings",
+          "calibrated",
           "endstop"
         ],
         "title": "MotorStatusResponse"
