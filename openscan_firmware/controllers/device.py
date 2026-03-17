@@ -635,14 +635,14 @@ def reboot(with_saving = False):
     if with_saving:
         save_device_config()
     cleanup_and_exit()
-    os.system("sudo reboot")
+    os.system("systemctl reboot")
 
 
 def shutdown(with_saving = False):
     if with_saving:
         save_device_config()
     cleanup_and_exit()
-    os.system("sudo shutdown now")
+    os.system("systemctl poweroff")
 
 
 def cleanup_and_exit():
