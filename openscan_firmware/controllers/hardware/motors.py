@@ -95,6 +95,7 @@ class MotorController(StatefulHardware, SleepCapableHardware):
             "busy": self.is_busy(),
             "target_angle": self._target_angle,
             "settings": self.get_config(),
+            "calibrated": self.is_calibrated(),
             "endstop": None
         }
         if self.endstop is not None:
@@ -326,15 +327,18 @@ class MotorController(StatefulHardware, SleepCapableHardware):
         
         await self.move_to(self.settings.home_angle)
 
-    async def calibrate(self) -> None:
+    async def calibrate(self, *, force: bool = False) -> None:
         """Internal method to move motor to home angle after calibrating to endstop.
 
         Args:
-            none """
-        if self._calibrated:
+            force: Force calibration even if controller believes it is already calibrated.
+        """
+        if self._calibrated and not force:
             # just in case, even if it doesn't move because already calibrated...
             inactivity_timer.reset()
             return
+        # mark as not calibrated until the routine finishes successfully
+        self._calibrated = False
         await self.move_to_endstop()
         await asyncio.sleep(3)
         await self.move_to(self.settings.home_angle)

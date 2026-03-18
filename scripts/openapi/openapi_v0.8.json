@@ -716,6 +716,18 @@
               "type": "string",
               "title": "Motor Name"
             }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Force recalibration even if the controller already considers the motor calibrated.",
+              "default": false,
+              "title": "Force"
+            },
+            "description": "Force recalibration even if the controller already considers the motor calibrated."
           }
         ],
         "responses": {
@@ -5147,6 +5159,10 @@
           "settings": {
             "$ref": "#/components/schemas/MotorConfig"
           },
+          "calibrated": {
+            "type": "boolean",
+            "title": "Calibrated"
+          },
           "endstop": {
             "anyOf": [
               {
@@ -5167,6 +5183,7 @@
           "busy",
           "target_angle",
           "settings",
+          "calibrated",
           "endstop"
         ],
         "title": "MotorStatusResponse"

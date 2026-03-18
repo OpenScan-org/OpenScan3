@@ -716,6 +716,18 @@
               "type": "string",
               "title": "Motor Name"
             }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Force recalibration even if the controller already considers the motor calibrated.",
+              "default": false,
+              "title": "Force"
+            },
+            "description": "Force recalibration even if the controller already considers the motor calibrated."
           }
         ],
         "responses": {
@@ -3475,6 +3487,54 @@
         }
       }
     },
+    "/develop/qr-scan": {
+      "post": {
+        "tags": [
+          "develop"
+        ],
+        "summary": "Start Qr Scan",
+        "description": "Start a background task that scans for WiFi QR codes via the camera.\n\nThe task runs indefinitely, capturing frames and looking for QR codes.\nWhen it finds an Android/iOS WiFi share QR code it connects to the\nnetwork via nmcli and completes.  Cancel the task to stop scanning.\n\nArgs:\n    camera_name: Name of the camera controller to use for captures.\n\nReturns:\n    Task: The created task model (poll via /tasks/{id} for progress).",
+        "operationId": "start_qr_scan",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Name of the camera controller to use",
+              "title": "Camera Name"
+            },
+            "description": "Name of the camera controller to use"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/develop/{method}": {
       "get": {
         "tags": [
@@ -5147,6 +5207,10 @@
           "settings": {
             "$ref": "#/components/schemas/MotorConfig"
           },
+          "calibrated": {
+            "type": "boolean",
+            "title": "Calibrated"
+          },
           "endstop": {
             "anyOf": [
               {
@@ -5167,6 +5231,7 @@
           "busy",
           "target_angle",
           "settings",
+          "calibrated",
           "endstop"
         ],
         "title": "MotorStatusResponse"

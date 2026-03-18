@@ -103,6 +103,8 @@ def connect_wifi(
     Raises:
         RuntimeError: If nmcli is not available or the connection attempt fails.
     """
+    ensure_wifi_radio_enabled()
+
     attempts = max(1, max_attempts)
     cmd = [
         "nmcli", "device", "wifi", "connect", credentials.ssid,
@@ -193,3 +195,37 @@ def _rescan_wifi_devices() -> None:
         )
     except subprocess.CalledProcessError as exc:
         logger.warning("nmcli rescan failed: %s", exc)
+
+
+def _run_nmcli_command(command: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
+    """Run an nmcli command and normalize common subprocess errors."""
+    try:
+        return subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=True,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError("nmcli is not available on this system") from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.strip() if exc.stderr else str(exc)
+        raise RuntimeError(f"Failed to run '{' '.join(command)}': {stderr}") from exc
+
+
+def is_wifi_radio_enabled(timeout: float = 5.0) -> bool:
+    """Return True if NetworkManager reports the WiFi radio as enabled."""
+    result = _run_nmcli_command(["nmcli", "radio", "wifi"], timeout=timeout)
+    state = result.stdout.strip().lower()
+    return state == "enabled"
+
+
+def ensure_wifi_radio_enabled(timeout: float = 5.0) -> None:
+    """Enable the WiFi radio if it is currently disabled."""
+    if is_wifi_radio_enabled(timeout=timeout):
+        logger.debug("WiFi radio already enabled – skipping toggle.")
+        return
+
+    logger.info("WiFi radio disabled – enabling via nmcli.")
+    _run_nmcli_command(["nmcli", "radio", "wifi", "on"], timeout=timeout)
