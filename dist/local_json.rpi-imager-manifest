@@ -52,7 +52,7 @@
         {
           "name": "OpenScan3 (Arducam IMX519 16MP)",
           "description": "Optimised for the Arducam IMX519 camera with drivers and tuning blobs pre-installed.",
-          "url": "https://github.com/OpenScan-org/OpenScan3/releases/download/v0.10.0/OpenScan3_v0.10.0_imx519.zip",
+          "url": "file:///replace/me/OpenScan3_v0.10.0_imx519.zip",
           "release_date": "2026-03-17",
           "devices": [
             "pi5",
@@ -73,7 +73,7 @@
         {
           "name": "OpenScan3 (Arducam Hawkeye 64MP)",
           "description": "Experimental build that ships the Arducam HawkEye drivers and tuning blobs pre-installed.",
-          "url": "https://github.com/OpenScan-org/OpenScan3/releases/download/v0.10.0/OpenScan3_v0.10.0_hawkeye-experimental.zip",
+          "url": "file:///replace/me/OpenScan3_v0.10.0_hawkeye-experimental.zip",
           "release_date": "2026-03-17",
           "devices": [
             "pi5",
@@ -94,7 +94,7 @@
         {
           "name": "OpenScan3 (Generic Picamera/USB/HQ/DLSR)",
           "description": "Baseline OpenScan3 firmware for Raspberry Pi Camera Module 3 or other cameras.",
-          "url": "https://github.com/OpenScan-org/OpenScan3/releases/download/v0.10.0/OpenScan3_v0.10.0_generic.zip",
+          "url": "file:///replace/me/OpenScan3_v0.10.0_generic.zip",
           "release_date": "2026-03-17",
           "devices": [
             "pi5",
@@ -116,7 +116,7 @@
         {
           "name": "OpenScan3 (Arducam IMX519 16MP) (Develop)",
           "description": "Developer image for the Arducam IMX519 camera, please read docs before use!",
-          "url": "https://github.com/OpenScan-org/OpenScan3/releases/download/v0.10.0/OpenScan3_v0.10.0_imx519_DEVELOP.zip",
+          "url": "file:///replace/me/OpenScan3_v0.10.0_imx519_DEVELOP.zip",
           "release_date": "2026-03-17",
           "devices": [
             "pi5",
@@ -137,7 +137,7 @@
         {
           "name": "OpenScan3 (Arducam Hawkeye 64MP) (Develop)",
           "description": "Developer image for the Arducam Hawkeye, please read docs before use!",
-          "url": "https://github.com/OpenScan-org/OpenScan3/releases/download/v0.10.0/OpenScan3_v0.10.0_hawkeye-experimental_DEVELOP.zip",
+          "url": "file:///replace/me/OpenScan3_v0.10.0_hawkeye-experimental_DEVELOP.zip",
           "release_date": "2026-03-17",
           "devices": [
             "pi5",
@@ -158,7 +158,7 @@
         {
           "name": "OpenScan3 (Generic camera) (Develop)",
           "description": "Developer image for generic cameras (Picamera, DLSR, etc.), please read docs before use!",
-          "url": "https://github.com/OpenScan-org/OpenScan3/releases/download/v0.10.0/OpenScan3_v0.10.0_generic_DEVELOP.zip",
+          "url": "file:///replace/me/OpenScan3_v0.10.0_generic_DEVELOP.zip",
           "release_date": "2026-03-17",
           "devices": [
             "pi5",
