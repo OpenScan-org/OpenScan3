@@ -93,6 +93,30 @@ async def hello_world_async(total_steps: int, delay: float):
     return task
 
 
+@router.post("/qr-scan", response_model=Task, status_code=status.HTTP_202_ACCEPTED)
+async def start_qr_scan(
+    camera_name: str = Query(description="Name of the camera controller to use"),
+):
+    """Start a background task that scans for WiFi QR codes via the camera.
+
+    The task runs indefinitely, capturing frames and looking for QR codes.
+    When it finds an Android/iOS WiFi share QR code it connects to the
+    network via nmcli and completes.  Cancel the task to stop scanning.
+
+    Args:
+        camera_name: Name of the camera controller to use for captures.
+
+    Returns:
+        Task: The created task model (poll via /tasks/{id} for progress).
+    """
+    task_manager = get_task_manager()
+    task = await task_manager.create_and_run_task(
+        "qr_scan_task",
+        camera_name=camera_name,
+    )
+    return task
+
+
 @router.get("/{method}", response_model=list[paths.CartesianPoint3D])
 async def get_path(method: paths.PathMethod, points: int):
     """Get a list of coordinates by path method and number of points"""

@@ -21,6 +21,7 @@ class MotorStatusResponse(BaseModel):
     busy: bool
     target_angle: Optional[float]
     settings: MotorConfig
+    calibrated: bool
     endstop: Optional[dict]
 
 

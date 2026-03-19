@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openscan-firmware"
-version = "0.9.0"
+version = "0.10.0"
 description = "OpenScan3 - Raspberry Pi based photogrammetry scanner (FastAPI-based application)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -42,6 +42,7 @@ dependencies = [
   "anyio==4.10.0",
   "piexif==1.1.3",
   "pydantic_core==2.33.1",
+  "zxing-cpp>=2.2.0",
 ]
 
 [project.optional-dependencies]

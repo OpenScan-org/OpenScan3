@@ -135,12 +135,16 @@ class TaskManager:
             CloudUploadTask as CoreCloudUploadTask,
             CloudDownloadTask as CoreCloudDownloadTask,
         )
+        from openscan_firmware.controllers.services.tasks.core.qr_scan_task import (
+            QrScanTask as CoreQrScanTask,
+        )
 
         fallback_tasks = {
             "scan_task": CoreScanTask,
             "focus_stacking_task": CoreFocusStackingTask,
             "cloud_upload_task": CoreCloudUploadTask,
             "cloud_download_task": CoreCloudDownloadTask,
+            "qr_scan_task": CoreQrScanTask,
         }
 
         for task_name, task_cls in fallback_tasks.items():

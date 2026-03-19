@@ -10,6 +10,7 @@ import logging
 import os
 import pathlib
 import asyncio
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional
 from importlib import resources
@@ -65,20 +66,26 @@ import time
 logger = logging.getLogger(__name__)
 
 # Current scanner model
-_scanner_device = ScannerDevice(
-    name="Unknown device",
-    model=None,
-    shield=None,
-    cameras={},
-    motors={},
-    lights={},
-    endstops={},
-)
 
-# beware, PrivateAttr are NOT initialized in constructor
-# nor an error message is shown...
-_scanner_device._idle=False
-_scanner_device._initialized=False
+def _create_default_scanner_device() -> ScannerDevice:
+    device = ScannerDevice(
+        name="Unknown device",
+        model=None,
+        shield=None,
+        cameras={},
+        motors={},
+        lights={},
+        endstops={},
+    )
+    # beware, PrivateAttr are NOT initialized in constructor
+    # nor an error message is shown...
+    device._idle = False
+    device._initialized = False
+    return device
+
+
+_scanner_device = _create_default_scanner_device()
+_FACTORY_DEFAULT_CONFIG = _create_default_scanner_device().model_dump(mode="json")
 
 # Path to device configuration file (persisted)
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent
@@ -96,8 +103,8 @@ def load_device_config(config_file=None) -> dict:
     Returns:
         bool: True if configuration was loaded successfully
     """
-    # populate default config dictionary
-    config_dict = _scanner_device.model_dump(mode='json')
+    # populate default config dictionary from factory defaults
+    config_dict = deepcopy(_FACTORY_DEFAULT_CONFIG)
 
     # Determine which configuration file to load
     if config_file is None:
@@ -126,6 +133,11 @@ def load_device_config(config_file=None) -> dict:
             logger.info(f"Loaded device configuration for: {config_dict['name']} with {config_dict['shield']}")
     except Exception as e:
         logger.error(f"Error loading device configuration: {e}")
+
+    # enforce safe defaults for critical settings
+    config_dict.setdefault("motors_timeout", 0.0)
+    config_dict.setdefault("startup_mode", ScannerStartupMode.STARTUP_ENABLED.value)
+    config_dict.setdefault("calibrate_mode", ScannerCalibrateMode.CALIBRATE_MANUAL.value)
 
     return config_dict
 
@@ -170,7 +182,13 @@ async def set_device_config(config_file) -> bool:
         bool: True if successful, False otherwise
     """
 
-    await initialize(load_device_config(config_file))
+    config = load_device_config(config_file)
+    await initialize(config)
+
+    if not save_device_config():
+        logger.error("Failed to persist device configuration after loading %s", config_file)
+        return False
+
     return True
 
 
@@ -386,8 +404,23 @@ async def handle_idle_event(event: HardwareEvent):
         case _:
             logger.info("UNKNOWN EVENT")
  
-async def initialize(config: dict = _scanner_device.model_dump(mode='json'), detect_cameras = False):
-    """Detect and load hardware components"""
+async def initialize(config: dict | None = None, detect_cameras: bool = False):
+    """Detect and load hardware components.
+
+    Args:
+        config: Optional configuration dictionary. When not provided, loads the
+            currently active device configuration from disk.
+        detect_cameras: Whether to force camera auto-detection.
+    """
+
+    if config is None:
+        config = load_device_config()
+
+    await _initialize_with_config(config, detect_cameras)
+
+
+async def _initialize_with_config(config: dict, detect_cameras: bool = False):
+    """Internal helper that assumes the configuration dict is already resolved."""
     global _scanner_device
     # Load environment variables
     load_dotenv()
@@ -602,14 +635,14 @@ def reboot(with_saving = False):
     if with_saving:
         save_device_config()
     cleanup_and_exit()
-    os.system("sudo reboot")
+    os.system("systemctl reboot")
 
 
 def shutdown(with_saving = False):
     if with_saving:
         save_device_config()
     cleanup_and_exit()
-    os.system("sudo shutdown now")
+    os.system("systemctl poweroff")
 
 
 def cleanup_and_exit():
