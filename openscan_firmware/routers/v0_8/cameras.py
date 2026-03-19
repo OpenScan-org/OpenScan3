@@ -131,18 +131,27 @@ async def get_preview(
 
 
 @router.get("/{camera_name}/photo")
-async def get_photo(camera_name: str):
+async def get_photo(
+    camera_name: str,
+    grayscale: bool = Query(
+        default=False,
+        description="Return a grayscale JPEG. Conversion happens on the device, "
+                    "reducing transfer size significantly. Recommended for photogrammetry pipelines.",
+    ),
+):
     """Get a camera photo
 
     Args:
         camera_name: The name of the camera to get the photo from
+        grayscale: If true, return a grayscale JPEG (converted on-device)
 
     Returns:
         Response: A response containing the photo
     """
     controller = get_camera_controller(camera_name)
     try:
-        photo = await controller.photo_async()
+        image_format = "grayscale_jpeg" if grayscale else "jpeg"
+        photo = await controller.photo_async(image_format)
         return Response(content=photo.data.getvalue(), media_type="image/jpeg")
     except Exception as e:
         return Response(status_code=500, content=str(e))
