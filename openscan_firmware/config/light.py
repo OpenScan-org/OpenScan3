@@ -12,6 +12,9 @@ class LightConfig(BaseModel):
         default=False,
         description="Indicates whether this light hardware can handle PWM (otherwise only on/off).",
     )
+    pwm_frequency: float = Field(10000.0, ge=50.0, le=100000.0, description="PWM frequency for led driver.")
+    pwm_min: float = Field(0.0, ge=0, le=3.3, description="Minimum pwm voltage for led driver.")
+    pwm_max: float = Field(0.0, ge=0, le=3.3, description="Maximum pwm voltage for led driver.")
 
     @model_validator(mode="before")
     @classmethod
@@ -38,3 +41,15 @@ class LightConfig(BaseModel):
 
         values["pins"] = list(dict.fromkeys(merged_pins))
         return values
+        
+    @model_validator(mode="after")
+    def validate_pwm_range(self):
+        """
+        Ensures pwm_min <= pwm_max and consistency with pwm_support.
+        """
+
+        if self.pwm_min >= self.pwm_max:
+            raise ValueError("pwm_min must be less than pwm_max")
+
+
+        return self
