@@ -20,6 +20,7 @@ import numpy as np
 
 from PIL import Image
 
+from openscan_firmware.config.firmware import get_firmware_settings, save_firmware_settings
 from openscan_firmware.controllers.services.tasks.base_task import BaseTask
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
 from openscan_firmware.models.task import TaskProgress, TaskStatus
@@ -107,6 +108,7 @@ class QrScanTask(BaseTask):
             await self.wait_for_pause()
             if self.is_cancelled():
                 logger.info("QR scan task cancelled at attempt %d", attempt)
+                _disable_qr_wifi_autostart_after_cancel()
                 return
 
             # Capture a preview frame (JPEG) and convert it to an RGB numpy array
@@ -265,3 +267,14 @@ async def _cleanup_stale_qr_tasks() -> None:
 
     if removed:
         logger.debug("Cleaned up %d stale QR WiFi scan tasks", removed)
+
+
+def _disable_qr_wifi_autostart_after_cancel() -> None:
+    """Persistently disable QR WiFi auto-start after a manual cancellation."""
+    settings = get_firmware_settings()
+    if not settings.qr_wifi_scan_enabled:
+        return
+
+    settings.qr_wifi_scan_enabled = False
+    save_firmware_settings(settings)
+    logger.info("Disabled QR WiFi auto-start after QR scan task was cancelled")
