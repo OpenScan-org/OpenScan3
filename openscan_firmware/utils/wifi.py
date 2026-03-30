@@ -167,6 +167,30 @@ def is_wifi_connected() -> bool:
     Returns:
         True if at least one WiFi device reports a connected state.
     """
+    return "wifi" in _get_connected_device_types()
+
+
+def is_ethernet_connected() -> bool:
+    """Check whether any Ethernet device is currently connected.
+
+    Returns:
+        True if at least one Ethernet device reports a connected state.
+    """
+    return "ethernet" in _get_connected_device_types()
+
+
+def is_network_ready_for_qr_scan() -> bool:
+    """Return True when WiFi or Ethernet is already connected.
+
+    Returns:
+        True when a network connection already exists and QR setup is unnecessary.
+    """
+    connected_types = _get_connected_device_types()
+    return "wifi" in connected_types or "ethernet" in connected_types
+
+
+def _get_connected_device_types() -> set[str]:
+    """Return connected NetworkManager device types from nmcli."""
     try:
         result = subprocess.run(
             ["nmcli", "-t", "-f", "TYPE,STATE", "device"],
@@ -174,13 +198,17 @@ def is_wifi_connected() -> bool:
             text=True,
             timeout=5,
         )
-        for line in result.stdout.splitlines():
-            parts = line.split(":")
-            if len(parts) >= 2 and parts[0] == "wifi" and parts[1] == "connected":
-                return True
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
-        logger.warning("Could not check WiFi status: %s", exc)
-    return False
+        logger.warning("Could not check network status: %s", exc)
+        return set()
+
+    connected_types: set[str] = set()
+    for line in result.stdout.splitlines():
+        parts = line.split(":")
+        if len(parts) >= 2 and parts[1] == "connected":
+            connected_types.add(parts[0])
+
+    return connected_types
 
 
 def _rescan_wifi_devices() -> None:

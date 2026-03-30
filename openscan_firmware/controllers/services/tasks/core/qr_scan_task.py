@@ -41,6 +41,8 @@ _PROGRESS_UPDATE_INTERVAL = 30.0
 _CONNECT_RETRY_COOLDOWN = 6.0
 # Sleep after a failed connection attempt before resuming scanning
 _CONNECT_ERROR_BACKOFF = 2.0
+# Re-check whether QR setup is still needed at most every N seconds
+_NETWORK_READY_CHECK_INTERVAL = 5.0
 
 
 class QrScanTask(BaseTask):
@@ -80,7 +82,7 @@ class QrScanTask(BaseTask):
         # Lazy imports to avoid side effects at module load time
         import numpy as np
         from openscan_firmware.controllers.hardware.cameras.camera import get_camera_controller
-        from openscan_firmware.utils.wifi import parse_wifi_qr, connect_wifi
+        from openscan_firmware.utils.wifi import parse_wifi_qr, connect_wifi, is_network_ready_for_qr_scan
         from openscan_firmware.utils.qr_reader import ZxingQRReader, StableQRConsensus
 
         yield TaskProgress(current=0, total=0, message="QR scan starting – warming up the camera")
@@ -102,6 +104,7 @@ class QrScanTask(BaseTask):
         last_progress_emit = 0.0
         last_credentials = None
         last_connect_attempt = 0.0
+        last_network_check = 0.0
         while True:
             attempt += 1
 
@@ -110,6 +113,16 @@ class QrScanTask(BaseTask):
                 logger.info("QR scan task cancelled at attempt %d", attempt)
                 _disable_qr_wifi_autostart_after_cancel()
                 return
+
+            now = time.monotonic()
+            should_check_network = last_network_check == 0.0 or (now - last_network_check) >= _NETWORK_READY_CHECK_INTERVAL
+            if should_check_network:
+                last_network_check = now
+                if is_network_ready_for_qr_scan():
+                    logger.info("Network already connected while QR scan task was running. Stopping QR scan task.")
+                    self._task_model.result = {"reason": "network_already_connected"}
+                    yield TaskProgress(current=1, total=1, message="Network connected. QR scan no longer needed.")
+                    return
 
             # Capture a preview frame (JPEG) and convert it to an RGB numpy array
             try:
@@ -180,7 +193,7 @@ class QrScanTask(BaseTask):
                         message=f"{error_msg} – retrying shortly",
                     )
                     await asyncio.sleep(_CONNECT_ERROR_BACKOFF)
-                    continue
+                    raise RuntimeError(error_msg)
 
             elif decoded_text:
                 logger.debug("Non-WiFi QR code found: %s", decoded_text[:50])

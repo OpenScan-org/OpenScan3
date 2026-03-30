@@ -69,14 +69,14 @@ from openscan_firmware.controllers import device as device_controller
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
 from openscan_firmware.utils.firmware_state import handle_startup
 from openscan_firmware.config.firmware import get_firmware_settings
-from openscan_firmware.utils.wifi import is_wifi_connected
+from openscan_firmware.utils.wifi import is_network_ready_for_qr_scan
 
 
 logger = logging.getLogger(__name__)
 
 
 async def _maybe_start_qr_wifi_scan(task_manager) -> None:
-    """Start the QR WiFi scan task if enabled in firmware settings and no WiFi is connected.
+    """Start the QR WiFi scan task only when no usable network is connected.
 
     This is called once during application startup.  The task runs indefinitely
     in the background until a WiFi QR code is found or the task is cancelled.
@@ -87,8 +87,8 @@ async def _maybe_start_qr_wifi_scan(task_manager) -> None:
         logger.info("QR WiFi scan is disabled in firmware settings – skipping auto-start.")
         return
 
-    if is_wifi_connected():
-        logger.info("WiFi is already connected – skipping QR WiFi scan auto-start.")
+    if is_network_ready_for_qr_scan():
+        logger.info("Network is already connected (WiFi/LAN) – skipping QR WiFi scan auto-start.")
         return
 
     # Find the first available camera to use for scanning
@@ -99,7 +99,7 @@ async def _maybe_start_qr_wifi_scan(task_manager) -> None:
         return
 
     camera_name = next(iter(cameras))
-    logger.info("No WiFi connection detected. Starting QR WiFi scan task with camera '%s'.", camera_name)
+    logger.info("No network connection detected. Starting QR WiFi scan task with camera '%s'.", camera_name)
 
     try:
         await task_manager.create_and_run_task("qr_scan_task", camera_name=camera_name)
@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI):
     # Now that tasks are registered, restore any persisted tasks
     task_manager.restore_tasks_from_persistence()
 
-    # Auto-start QR WiFi scan if enabled and no WiFi is connected
+    # Auto-start QR WiFi scan if enabled and no network is connected
     await _maybe_start_qr_wifi_scan(task_manager)
 
     yield  # application runs here
