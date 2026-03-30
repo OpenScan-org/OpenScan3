@@ -36,7 +36,10 @@ def test_get_firmware_settings_returns_current_settings(monkeypatch, firmware_cl
     response = firmware_client.get("/latest/firmware/settings")
 
     assert response.status_code == 200
-    assert response.json() == {"qr_wifi_scan_enabled": True}
+    assert response.json() == {
+        "qr_wifi_scan_enabled": True,
+        "enable_cloud": False,
+    }
 
 
 def test_put_firmware_settings_replaces_payload(monkeypatch, firmware_client):
@@ -45,17 +48,22 @@ def test_put_firmware_settings_replaces_payload(monkeypatch, firmware_client):
 
     def fake_save(settings):
         captured["qr_wifi_scan_enabled"] = settings.qr_wifi_scan_enabled
+        captured["enable_cloud"] = settings.enable_cloud
 
     monkeypatch.setattr(f"{module_path}.save_firmware_settings", fake_save)
 
     response = firmware_client.put(
         "/latest/firmware/settings",
-        json={"qr_wifi_scan_enabled": False},
+        json={"qr_wifi_scan_enabled": False, "enable_cloud": True},
     )
 
     assert response.status_code == 200
-    assert response.json() == {"qr_wifi_scan_enabled": False}
+    assert response.json() == {
+        "qr_wifi_scan_enabled": False,
+        "enable_cloud": True,
+    }
     assert captured["qr_wifi_scan_enabled"] is False
+    assert captured["enable_cloud"] is True
 
 
 def test_patch_firmware_setting_updates_single_key(monkeypatch, firmware_client):
@@ -80,7 +88,10 @@ def test_patch_firmware_setting_updates_single_key(monkeypatch, firmware_client)
     )
 
     assert response.status_code == 200
-    assert response.json() == {"qr_wifi_scan_enabled": False}
+    assert response.json() == {
+        "qr_wifi_scan_enabled": False,
+        "enable_cloud": False,
+    }
     assert saved["qr_wifi_scan_enabled"] is False
 
 
