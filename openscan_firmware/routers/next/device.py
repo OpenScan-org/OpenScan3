@@ -1,14 +1,13 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel, ValidationError, Field, ConfigDict
+from pydantic import BaseModel, ValidationError
 from pathlib import Path
 import os
 import json
 import tempfile
 import shutil
 import logging
-from typing import Any
 
-from openscan_firmware.models.scanner import ScannerDevice, ScannerStartupMode, ScannerCalibrateMode
+from openscan_firmware.models.scanner import ScannerDeviceConfig, ScannerStartupMode, ScannerCalibrateMode
 from openscan_firmware.controllers import device
 
 from openscan_firmware.utils.dir_paths import resolve_settings_dir
@@ -46,21 +45,15 @@ class DeviceControlResponse(BaseModel):
     status: DeviceStatusResponse
 
 
-class DeviceConfigPayload(BaseModel):
-    """Schema reflecting the persisted device configuration format."""
+class DeviceConfigResponse(BaseModel):
+    status: str
+    filename: str
+    path: str
+    config: ScannerDeviceConfig
 
-    model_config = ConfigDict(extra="ignore")
 
-    name: str
-    model: str | None = None
-    shield: str | None = None
-    cameras: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    motors: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    lights: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    endstops: dict[str, dict[str, Any]] | None = None
-    motors_timeout: float = 0.0
-    startup_mode: ScannerStartupMode | str = ScannerStartupMode.STARTUP_ENABLED
-    calibrate_mode: ScannerCalibrateMode | str = ScannerCalibrateMode.CALIBRATE_MANUAL
+def _runtime_status_response() -> DeviceStatusResponse:
+    return DeviceStatusResponse.model_validate(device.get_device_info())
 
 
 @router.get("/info", response_model=DeviceStatusResponse)
@@ -95,7 +88,7 @@ async def list_config_files():
         raise HTTPException(status_code=500, detail=f"Error listing configuration files: {str(e)}")
 
 
-@router.get("/configurations/current")
+@router.get("/configurations/current", response_model=DeviceConfigResponse)
 async def get_current_config():
     """Return the currently active device configuration file."""
     try:
@@ -112,7 +105,7 @@ async def get_current_config():
         raise HTTPException(status_code=500, detail=f"Error loading current configuration: {exc}")
 
 
-@router.get("/configurations/{filename}")
+@router.get("/configurations/{filename}", response_model=DeviceConfigResponse)
 async def get_config_file(filename: str):
     """Return a specific configuration JSON file by filename."""
     try:
@@ -151,7 +144,7 @@ async def get_config_file(filename: str):
 
 
 @router.post("/configurations/", response_model=DeviceControlResponse)
-async def add_config_json(config_data: DeviceConfigPayload, filename: DeviceConfigRequest):
+async def add_config_json(config_data: ScannerDeviceConfig, filename: DeviceConfigRequest):
     """Add a device configuration from a JSON object
 
     This endpoint accepts a JSON object with the device configuration,
@@ -169,7 +162,7 @@ async def add_config_json(config_data: DeviceConfigPayload, filename: DeviceConf
         # Create a temporary file to save the configuration
         with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_file:
             # Convert the model to a dictionary and save it as JSON
-            config_dict = config_data.dict()
+            config_dict = config_data.model_dump(mode="json")
             json.dump(config_dict, temp_file, indent=4)
             temp_path = temp_file.name
 
@@ -183,19 +176,19 @@ async def add_config_json(config_data: DeviceConfigPayload, filename: DeviceConf
         # Move the temporary file to the target path
         shutil.move(temp_path, target_path)
 
-        status = device.get_device_info()
+        status = _runtime_status_response()
         logger.info(
             "Configuration saved",
             extra={
                 "filename": target_filename,
-                "motors": list(status.get("motors", {}).keys()),
+                "motors": list(status.motors.keys()),
             },
         )
 
         return DeviceControlResponse(
             success=True,
             message="Configuration saved successfully",
-            status=DeviceStatusResponse.model_validate(status)
+            status=status
         )
 
     except Exception as e:
@@ -214,11 +207,10 @@ async def save_device_config():
     """
     logger.info("Saving current runtime configuration to disk")
     if device.save_device_config():
-        status = device.get_device_info()
         return DeviceControlResponse(
             success=True,
             message="Configuration saved successfully",
-            status=DeviceStatusResponse.model_validate(status)
+            status=_runtime_status_response()
         )
     else:
         logger.error("save_device_config returned False")
@@ -265,12 +257,12 @@ async def set_config_file(config_data: DeviceConfigRequest):
 
         # Set device config
         if await device.set_device_config(config_file):
-            status = device.get_device_info()
+            status = _runtime_status_response()
             logger.info("Configuration loaded", extra={"active": config_file})
             return DeviceControlResponse(
                 success=True,
                 message="Configuration loaded successfully",
-                status=DeviceStatusResponse.model_validate(status)
+                status=status
             )
         else:
             logger.error("set_device_config returned False", extra={"active": config_file})
@@ -298,19 +290,19 @@ async def reinitialize_hardware(detect_cameras: bool = False):
     logger.info("Reinitializing hardware", extra={"detect_cameras": detect_cameras})
     try:
         await device.initialize(detect_cameras=detect_cameras)
-        status = device.get_device_info()
+        status = _runtime_status_response()
         logger.info(
             "Hardware reinitialized",
             extra={
                 "detect_cameras": detect_cameras,
-                "motors": list(status.get("motors", {}).keys()),
-                "lights": list(status.get("lights", {}).keys()),
+                "motors": list(status.motors.keys()),
+                "lights": list(status.lights.keys()),
             },
         )
         return DeviceControlResponse(
             success=True,
             message="Hardware reinitialized successfully",
-            status=DeviceStatusResponse.model_validate(status)
+            status=status
         )
     except Exception as e:
         logger.exception("Error reloading hardware", extra={"detect_cameras": detect_cameras})
