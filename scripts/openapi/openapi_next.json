@@ -1338,6 +1338,130 @@
         }
       }
     },
+    "/firmware/settings": {
+      "get": {
+        "tags": [
+          "firmware"
+        ],
+        "summary": "Get Settings",
+        "description": "Return persisted firmware settings.",
+        "operationId": "get_settings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirmwareSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "firmware"
+        ],
+        "summary": "Replace Settings",
+        "description": "Replace the entire firmware settings payload.",
+        "operationId": "replace_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirmwareSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirmwareSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firmware/settings/{key}": {
+      "patch": {
+        "tags": [
+          "firmware"
+        ],
+        "summary": "Update Setting",
+        "description": "Update a single firmware settings key.",
+        "operationId": "update_setting",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirmwareSettingPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirmwareSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/": {
       "get": {
         "tags": [
@@ -5022,6 +5146,37 @@
         ],
         "title": "EndstopConfig",
         "description": "Configuration for a motor endstop.\n\nArgs:\n    pin (int): GPIO pin number used for the endstop.\n    angular_position (float): Angle at which the endstop is triggered (degrees).\n    motor_name (str): Name of the assigned motor.\n    pull_up (Optional[bool]): Whether to use a pull-up resistor (default: True).\n    bounce_time (Optional[float]): Debounce time for the button in seconds (default: 0.005)."
+      },
+      "FirmwareSettingPatchRequest": {
+        "properties": {
+          "value": {
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "FirmwareSettingPatchRequest"
+      },
+      "FirmwareSettings": {
+        "properties": {
+          "qr_wifi_scan_enabled": {
+            "type": "boolean",
+            "title": "Qr Wifi Scan Enabled",
+            "description": "Automatically scan for WiFi QR codes on startup when no WiFi or Ethernet connection is active.",
+            "default": true
+          },
+          "enable_cloud": {
+            "type": "boolean",
+            "title": "Enable Cloud",
+            "description": "Enable integrations with OpenScan Cloud services.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "FirmwareSettings",
+        "description": "Global firmware behaviour toggles.\n\nAttributes:\n    qr_wifi_scan_enabled: When True the firmware automatically starts the\n        QR WiFi scan task on startup if no usable network connection is\n        detected.\n    enable_cloud: When True the firmware enables cloud-facing features and\n        UX affordances."
       },
       "HTTPValidationError": {
         "properties": {
