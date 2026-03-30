@@ -26,14 +26,13 @@ class FirmwareSettings(BaseModel):
 
     Attributes:
         qr_wifi_scan_enabled: When True the firmware automatically starts the
-            QR WiFi scan task on startup if no WiFi connection is detected.
-            Users who only use LAN can set this to False to prevent the
-            background task from running.
+            QR WiFi scan task on startup if no usable network connection is
+            detected.
     """
 
     qr_wifi_scan_enabled: bool = Field(
         default=True,
-        description="Automatically scan for WiFi QR codes on startup when no WiFi is connected.",
+        description="Automatically scan for WiFi QR codes on startup when no WiFi or Ethernet connection is active.",
     )
 
 
