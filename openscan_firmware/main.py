@@ -11,32 +11,6 @@ from openscan_firmware.config.logger import setup_logging
 from openscan_firmware import __version__
 
 from openscan_firmware.routers import websocket as websocket_router
-from openscan_firmware.routers.v0_6 import (
-    cameras as cameras_v0_6,
-    motors as motors_v0_6,
-    lights as lights_v0_6,
-    projects as projects_v0_6,
-    gpio as gpio_v0_6,
-    openscan as openscan_v0_6,
-    device as device_v0_6,
-    tasks as tasks_v0_6,
-    develop as develop_v0_6,
-    cloud as cloud_v0_6,
-    focus_stacking as focus_stacking_v0_6,
-)
-from openscan_firmware.routers.v0_7 import (
-    cameras as cameras_v0_7,
-    motors as motors_v0_7,
-    lights as lights_v0_7,
-    projects as projects_v0_7,
-    gpio as gpio_v0_7,
-    openscan as openscan_v0_7,
-    device as device_v0_7,
-    tasks as tasks_v0_7,
-    develop as develop_v0_7,
-    cloud as cloud_v0_7,
-    focus_stacking as focus_stacking_v0_7,
-)
 from openscan_firmware.routers.v0_8 import (
     cameras as cameras_v0_8,
     motors as motors_v0_8,
@@ -183,36 +157,6 @@ app.add_middleware(
 # Create versioned sub-apps and mount them under /vX.Y and /latest
 # Root app intentionally has no docs; each sub-app exposes its own docs.
 
-v0_6_ROUTERS = [
-    cameras_v0_6.router,
-    motors_v0_6.router,
-    lights_v0_6.router,
-    projects_v0_6.router,
-    gpio_v0_6.router,
-    openscan_v0_6.router,
-    device_v0_6.router,
-    tasks_v0_6.router,
-    develop_v0_6.router,
-    cloud_v0_6.router,
-    websocket_router.router,
-    focus_stacking_v0_6.router,
-]
-
-v0_7_ROUTERS = [
-    cameras_v0_7.router,
-    motors_v0_7.router,
-    lights_v0_7.router,
-    projects_v0_7.router,
-    gpio_v0_7.router,
-    openscan_v0_7.router,
-    device_v0_7.router,
-    tasks_v0_7.router,
-    develop_v0_7.router,
-    cloud_v0_7.router,
-    focus_stacking_v0_7.router,
-    websocket_router.router,
-]
-
 v0_8_ROUTERS = [
     cameras_v0_8.router,
     motors_v0_8.router,
@@ -246,8 +190,6 @@ next_ROUTERS = [
 
 
 ROUTERS_BY_VERSION: dict[str, list] = {
-    "0.6": v0_6_ROUTERS,
-    "0.7": v0_7_ROUTERS,
     "0.8": v0_8_ROUTERS,
     "next": next_ROUTERS,
 }
@@ -311,10 +253,7 @@ def _use_route_names_as_operation_ids(app: FastAPI) -> None:
 
 # Supported API versions and latest alias
 # Define the supported API versions and explicitly set the latest alias.
-# We keep 0.6 for backwards compatibility but expose v0.7 as the /latest endpoints.
 SUPPORTED_VERSIONS = [
-    "0.6",
-    "0.7",
     "0.8",
 ]
 LATEST = "0.8"
