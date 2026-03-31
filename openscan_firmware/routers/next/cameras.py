@@ -1,12 +1,20 @@
 import asyncio
+import io
+import time
+from dataclasses import dataclass
+from threading import Lock
+from typing import Literal, Optional
+from uuid import uuid4
 
-from fastapi import APIRouter, Body, HTTPException, Query
+import numpy as np
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
 from openscan_firmware.config.camera import CameraSettings
-from openscan_firmware.models.camera import Camera, CameraType
+from openscan_firmware.models.camera import Camera, CameraMetadata, CameraType, PhotoData
+from openscan_firmware.models.scan import ScanMetadata
 from openscan_firmware.controllers.hardware.cameras.camera import (
     get_all_camera_controllers,
     get_camera_controller,
@@ -19,6 +27,129 @@ router = APIRouter(
     tags=["cameras"],
     responses={404: {"description": "Not found"}},
 )
+
+PhotoFormat = Literal["jpeg", "dng", "rgb_array", "yuv_array"]
+_PAYLOAD_TTL_SECONDS = 90
+_MAX_PAYLOAD_CACHE_ENTRIES = 8
+_MAX_PAYLOAD_CACHE_BYTES = 256 * 1024 * 1024
+
+
+@dataclass
+class _CachedPhotoPayload:
+    camera_name: str
+    content: bytes
+    media_type: str
+    filename: str
+    size_bytes: int
+    expires_at_monotonic: float
+
+
+_photo_payload_cache: dict[str, _CachedPhotoPayload] = {}
+_photo_payload_cache_lock = Lock()
+
+
+class PhotoMetadataResponse(BaseModel):
+    format: PhotoFormat
+    media_type: str
+    filename: str
+    camera_metadata: CameraMetadata
+    scan_metadata: Optional[ScanMetadata] = None
+    payload_url: str
+    expires_in_s: int
+
+
+def _prune_expired_payloads(now_monotonic: float) -> None:
+    expired_ids = [
+        payload_id
+        for payload_id, payload in _photo_payload_cache.items()
+        if payload.expires_at_monotonic <= now_monotonic
+    ]
+    for payload_id in expired_ids:
+        _photo_payload_cache.pop(payload_id, None)
+
+
+def _enforce_payload_cache_size_limit() -> None:
+    # Evict entries that expire first to keep newer payloads available.
+    sorted_ids = sorted(
+        _photo_payload_cache,
+        key=lambda payload_id: _photo_payload_cache[payload_id].expires_at_monotonic,
+    )
+
+    while len(_photo_payload_cache) > _MAX_PAYLOAD_CACHE_ENTRIES and sorted_ids:
+        _photo_payload_cache.pop(sorted_ids.pop(0), None)
+
+    total_size_bytes = sum(payload.size_bytes for payload in _photo_payload_cache.values())
+    while total_size_bytes > _MAX_PAYLOAD_CACHE_BYTES and sorted_ids:
+        payload_id = sorted_ids.pop(0)
+        removed = _photo_payload_cache.pop(payload_id, None)
+        if removed is not None:
+            total_size_bytes -= removed.size_bytes
+
+
+def _serialize_photo_payload(photo: PhotoData) -> tuple[bytes, str, str]:
+    if photo.format == "jpeg":
+        media_type = "image/jpeg"
+        filename = "photo.jpg"
+    elif photo.format == "dng":
+        media_type = "image/x-adobe-dng"
+        filename = "photo.dng"
+    elif photo.format in ("rgb_array", "yuv_array"):
+        media_type = "application/x-npy"
+        filename = f"photo_{photo.format}.npy"
+    else:
+        raise ValueError(f"Unsupported photo format: {photo.format}")
+
+    if photo.format in ("jpeg", "dng"):
+        if isinstance(photo.data, io.BytesIO):
+            content = photo.data.getvalue()
+        elif isinstance(photo.data, (bytes, bytearray)):
+            content = bytes(photo.data)
+        elif hasattr(photo.data, "seek") and hasattr(photo.data, "read"):
+            photo.data.seek(0)
+            content = photo.data.read()
+        else:
+            raise TypeError(f"Expected byte stream for {photo.format}, got {type(photo.data).__name__}")
+    else:
+        if not isinstance(photo.data, np.ndarray):
+            raise TypeError(f"Expected numpy array for {photo.format}, got {type(photo.data).__name__}")
+        buffer = io.BytesIO()
+        np.save(buffer, photo.data)
+        content = buffer.getvalue()
+
+    return content, media_type, filename
+
+
+def _store_photo_payload(
+    camera_name: str,
+    content: bytes,
+    media_type: str,
+    filename: str,
+) -> tuple[str, int]:
+    now_monotonic = time.monotonic()
+    payload_id = uuid4().hex
+    expires_at_monotonic = now_monotonic + _PAYLOAD_TTL_SECONDS
+    with _photo_payload_cache_lock:
+        _prune_expired_payloads(now_monotonic)
+        _photo_payload_cache[payload_id] = _CachedPhotoPayload(
+            camera_name=camera_name,
+            content=content,
+            media_type=media_type,
+            filename=filename,
+            size_bytes=len(content),
+            expires_at_monotonic=expires_at_monotonic,
+        )
+        _enforce_payload_cache_size_limit()
+    return payload_id, _PAYLOAD_TTL_SECONDS
+
+
+def _get_cached_photo_payload(camera_name: str, payload_id: str) -> _CachedPhotoPayload:
+    now_monotonic = time.monotonic()
+    with _photo_payload_cache_lock:
+        _prune_expired_payloads(now_monotonic)
+        payload = _photo_payload_cache.get(payload_id)
+        if payload is None or payload.camera_name != camera_name:
+            raise HTTPException(status_code=404, detail="Photo payload not found or expired.")
+    return payload
 
 
 class CameraStatusResponse(BaseModel):
@@ -131,7 +262,12 @@ async def get_preview(
 
 
 @router.get("/{camera_name}/photo")
-async def get_photo(camera_name: str):
+async def get_photo(
+    camera_name: str,
+    request: Request,
+    image_format: PhotoFormat = Query(default="jpeg"),
+    with_metadata: bool = Query(default=False),
+):
     """Get a camera photo
 
     Args:
@@ -142,10 +278,54 @@ async def get_photo(camera_name: str):
     """
     controller = get_camera_controller(camera_name)
     try:
-        photo = await controller.photo_async()
-        return Response(content=photo.data.getvalue(), media_type="image/jpeg")
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+        photo = await controller.photo_async(image_format=image_format)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    try:
+        content, media_type, filename = _serialize_photo_payload(photo)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if not with_metadata:
+        return Response(content=content, media_type=media_type)
+
+    payload_id, expires_in_s = _store_photo_payload(
+        camera_name=camera_name,
+        content=content,
+        media_type=media_type,
+        filename=filename,
+    )
+    payload_url = str(
+        request.url_for(
+            "get_photo_payload",
+            camera_name=camera_name,
+            payload_id=payload_id,
+        )
+    )
+    return PhotoMetadataResponse(
+        format=photo.format,
+        media_type=media_type,
+        filename=filename,
+        camera_metadata=photo.camera_metadata,
+        scan_metadata=photo.scan_metadata,
+        payload_url=payload_url,
+        expires_in_s=expires_in_s,
+    )
+
+
+@router.get("/{camera_name}/photo/payload/{payload_id}", name="get_photo_payload")
+async def get_photo_payload(camera_name: str, payload_id: str):
+    payload = _get_cached_photo_payload(camera_name=camera_name, payload_id=payload_id)
+    return Response(
+        content=payload.content,
+        media_type=payload.media_type,
+        headers={"Content-Disposition": f'inline; filename="{payload.filename}"'},
+    )
 
 @router.post("/{camera_name}/restart")
 async def restart_camera(camera_name: str):
