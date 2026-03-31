@@ -24,7 +24,16 @@ from openscan_firmware.controllers.hardware.interfaces import HardwareEvent
 from openscan_firmware.models.camera import Camera, CameraType
 from openscan_firmware.models.motor import Motor, Endstop
 from openscan_firmware.models.light import Light
-from openscan_firmware.models.scanner import ScannerDevice, ScannerModel, ScannerShield, ScannerStartupMode, ScannerCalibrateMode
+from openscan_firmware.models.scanner import (
+    ScannerDevice,
+    ScannerDeviceConfig,
+    PersistedCameraConfig,
+    PersistedEndstopConfig,
+    ScannerModel,
+    ScannerShield,
+    ScannerStartupMode,
+    ScannerCalibrateMode,
+)
 
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.config.motor import MotorConfig
@@ -56,7 +65,11 @@ from openscan_firmware.controllers.hardware.gpio import cleanup_all_pins
 
 from openscan_firmware.controllers.services.projects import get_project_manager
 from openscan_firmware.controllers.services.device_events import schedule_device_status_broadcast
-from openscan_firmware.utils.dir_paths import resolve_settings_dir, resolve_settings_file
+from openscan_firmware.utils.dir_paths import (
+    resolve_settings_dir,
+    resolve_settings_file,
+    resolve_settings_path,
+)
 from openscan_firmware.utils.firmware_state import mark_clean_shutdown
 
 from openscan_firmware.utils.inactivity_timer import inactivity_timer, inactivity_timer_paused
@@ -85,12 +98,45 @@ def _create_default_scanner_device() -> ScannerDevice:
 
 
 _scanner_device = _create_default_scanner_device()
-_FACTORY_DEFAULT_CONFIG = _create_default_scanner_device().model_dump(mode="json")
+_FACTORY_DEFAULT_CONFIG = ScannerDeviceConfig(
+    name="Unknown device",
+    model=None,
+    shield=None,
+    cameras={},
+    motors={},
+    lights={},
+    endstops={},
+).model_dump(mode="json")
 
 # Path to device configuration file (persisted)
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent
 SETTINGS_DIR = resolve_settings_dir("device")
 DEVICE_CONFIG_FILE = resolve_settings_file("device", "device_config.json")
+
+
+def _runtime_to_persisted_config() -> ScannerDeviceConfig:
+    return ScannerDeviceConfig(
+        name=_scanner_device.name,
+        model=_scanner_device.model.value if _scanner_device.model else None,
+        shield=_scanner_device.shield.value if _scanner_device.shield else None,
+        cameras={
+            name: PersistedCameraConfig(
+                type=cam.type,
+                path=cam.path,
+                settings=cam.settings,
+            )
+            for name, cam in _scanner_device.cameras.items()
+        },
+        motors={name: motor.settings for name, motor in _scanner_device.motors.items()},
+        lights={name: light.settings for name, light in _scanner_device.lights.items()},
+        endstops={
+            name: PersistedEndstopConfig(settings=endstop.settings)
+            for name, endstop in _scanner_device.endstops.items()
+        },
+        motors_timeout=_scanner_device.motors_timeout,
+        startup_mode=_scanner_device.startup_mode.value if _scanner_device.startup_mode else None,
+        calibrate_mode=_scanner_device.calibrate_mode.value if _scanner_device.calibrate_mode else None,
+    )
 
 
 def load_device_config(config_file=None) -> dict:
@@ -134,12 +180,8 @@ def load_device_config(config_file=None) -> dict:
     except Exception as e:
         logger.error(f"Error loading device configuration: {e}")
 
-    # enforce safe defaults for critical settings
-    config_dict.setdefault("motors_timeout", 0.0)
-    config_dict.setdefault("startup_mode", ScannerStartupMode.STARTUP_ENABLED.value)
-    config_dict.setdefault("calibrate_mode", ScannerCalibrateMode.CALIBRATE_MANUAL.value)
-
-    return config_dict
+    persisted_config = ScannerDeviceConfig.model_validate(config_dict)
+    return persisted_config.model_dump(mode="json")
 
 
 def save_device_config() -> bool:
@@ -149,18 +191,7 @@ def save_device_config() -> bool:
     try:
         os.makedirs(os.path.dirname(DEVICE_CONFIG_FILE), exist_ok=True)
 
-        config_to_save = {
-            "name": _scanner_device.name,
-            "model": _scanner_device.model.value if _scanner_device.model else None,
-            "shield": _scanner_device.shield.value if _scanner_device.shield else None,
-            "cameras": {name: cam.model_dump(mode='json') for name, cam in _scanner_device.cameras.items()},
-            "motors": {name: motor.settings.model_dump(mode='json') for name, motor in _scanner_device.motors.items()},
-            "lights": {name: light.settings.model_dump(mode='json') for name, light in _scanner_device.lights.items()},
-            "endstops": {name: endstop.model_dump(mode='json') for name, endstop in _scanner_device.endstops.items()},
-            "motors_timeout": _scanner_device.motors_timeout,
-            "startup_mode": _scanner_device.startup_mode.value if _scanner_device.startup_mode else None,
-            "calibrate_mode": _scanner_device.calibrate_mode.value if _scanner_device.calibrate_mode else None,
-        }
+        config_to_save = _runtime_to_persisted_config().model_dump(mode="json")
 
         with open(DEVICE_CONFIG_FILE, "w") as f:
             json.dump(config_to_save, f, indent=4)
@@ -176,19 +207,38 @@ async def set_device_config(config_file) -> bool:
     """Set the device configuration from a file and initialize hardware.
 
     Args:
-        config_file: Path to the configuration file
+        config_file: Path or filename to the configuration file
 
     Returns:
         bool: True if successful, False otherwise
     """
 
-    config = load_device_config(config_file)
+    resolved_path = resolve_settings_path("device", config_file)
+    if not resolved_path.exists():
+        logger.error(
+            "Requested device configuration file does not exist",
+            extra={"requested": str(config_file), "resolved_path": str(resolved_path)},
+        )
+        return False
+
+    logger.info(
+        "Loading device configuration from file",
+        extra={"requested": str(config_file), "resolved_path": str(resolved_path)},
+    )
+
+    config = load_device_config(str(resolved_path))
     await initialize(config)
 
     if not save_device_config():
-        logger.error("Failed to persist device configuration after loading %s", config_file)
+        logger.error(
+            "Failed to persist device configuration after loading %s", resolved_path
+        )
         return False
 
+    logger.info(
+        "Device configuration applied",
+        extra={"requested": str(config_file), "resolved_path": str(resolved_path)},
+    )
     return True
 
 
@@ -404,7 +454,7 @@ async def handle_idle_event(event: HardwareEvent):
         case _:
             logger.info("UNKNOWN EVENT")
  
-async def initialize(config: dict | None = None, detect_cameras: bool = False):
+async def initialize(config: dict | ScannerDeviceConfig | None = None, detect_cameras: bool = False):
     """Detect and load hardware components.
 
     Args:
@@ -419,9 +469,10 @@ async def initialize(config: dict | None = None, detect_cameras: bool = False):
     await _initialize_with_config(config, detect_cameras)
 
 
-async def _initialize_with_config(config: dict, detect_cameras: bool = False):
+async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cameras: bool = False):
     """Internal helper that assumes the configuration dict is already resolved."""
     global _scanner_device
+    config_dict = ScannerDeviceConfig.model_validate(config).model_dump(mode="json")
     # Load environment variables
     load_dotenv()
 
@@ -438,33 +489,33 @@ async def _initialize_with_config(config: dict, detect_cameras: bool = False):
         logger.debug("Cleaned up old controllers.")
 
     # Detect hardware
-    if detect_cameras or config["cameras"] == {}:
+    if detect_cameras or config_dict["cameras"] == {}:
         camera_objects = _detect_cameras()
     else:
         camera_objects = {}
-        for cam_name in config["cameras"]:
+        for cam_name in config_dict["cameras"]:
             camera = Camera(
                 name=cam_name,
-                type=CameraType(config["cameras"][cam_name]["type"]),
-                path=config["cameras"][cam_name]["path"],
-                settings=_load_camera_config(config["cameras"][cam_name]["settings"])
+                type=CameraType(config_dict["cameras"][cam_name]["type"]),
+                path=config_dict["cameras"][cam_name]["path"],
+                settings=_load_camera_config(config_dict["cameras"][cam_name]["settings"])
             )
             camera_objects[cam_name] = camera
 
     # Create motor objects
     motor_objects = {}
-    for motor_name in config["motors"]:
+    for motor_name in config_dict["motors"]:
         motor = Motor(name=motor_name,
-        settings=_load_motor_config(config["motors"][motor_name]))
+        settings=_load_motor_config(config_dict["motors"][motor_name]))
         motor_objects[motor_name] = motor
         logger.debug(f"Loaded motor {motor_name} with settings: {motor.settings}")
 
     # Create light objects
     light_objects = {}
-    for light_name in config["lights"]:
+    for light_name in config_dict["lights"]:
         light = Light(
             name=light_name,
-            settings=_load_light_config(config["lights"][light_name])
+            settings=_load_light_config(config_dict["lights"][light_name])
         )
         light_objects[light_name] = light
         logger.debug(f"Loaded light {light_name} with settings: {light.settings}")
@@ -520,10 +571,10 @@ async def _initialize_with_config(config: dict, detect_cameras: bool = False):
 
     # Create endstop objects
     endstop_objects = {}
-    if "endstops" in config:
-        for endstop_name in config["endstops"]:
+    if "endstops" in config_dict:
+        for endstop_name in config_dict["endstops"]:
             try:
-                settings = _load_endstop_config(config["endstops"][endstop_name]["settings"])
+                settings = _load_endstop_config(config_dict["endstops"][endstop_name]["settings"])
                 endstop = Endstop(name=endstop_name, settings=settings)
                 controller = get_motor_controller(settings.motor_name)
                 if not controller:
@@ -554,19 +605,19 @@ async def _initialize_with_config(config: dict, detect_cameras: bool = False):
         await controller.turn_on()
 
     _scanner_device = ScannerDevice(
-        name=config["name"],
-        model=ScannerModel(config.get("model")) if config.get("model") else None,
-        shield=ScannerShield(config.get("shield")) if config.get("shield") else None,
+        name=config_dict["name"],
+        model=ScannerModel(config_dict.get("model")) if config_dict.get("model") else None,
+        shield=ScannerShield(config_dict.get("shield")) if config_dict.get("shield") else None,
         cameras=camera_objects,
         motors=motor_objects,
         lights=light_objects,
         endstops=endstop_objects,
 
         # motors timeout in seconds - 0 to disable
-        motors_timeout=config["motors_timeout"],
+        motors_timeout=config_dict["motors_timeout"],
         
-        startup_mode=config["startup_mode"],
-        calibrate_mode=config["calibrate_mode"],
+        startup_mode=config_dict["startup_mode"],
+        calibrate_mode=config_dict["calibrate_mode"],
     )
     
     # beware, PrivateAttr are NOT initialized in constructor

@@ -152,8 +152,19 @@ def test_get_device_info_uses_controller_status(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_set_device_config_calls_initialize(monkeypatch):
+async def test_set_device_config_calls_initialize(monkeypatch, tmp_path):
     device = _import_device(monkeypatch)
+
+    preset = tmp_path / "some.json"
+    preset.write_text(json.dumps({
+        "name": "Y",
+        "model": None,
+        "shield": None,
+        "cameras": {},
+        "motors": {},
+        "lights": {},
+        "endstops": {},
+    }))
 
     called = {}
 
@@ -167,9 +178,9 @@ async def test_set_device_config_calls_initialize(monkeypatch):
     monkeypatch.setattr(device, "load_device_config", fake_load)
     monkeypatch.setattr(device, "initialize", fake_init)
 
-    ok = await device.set_device_config("/tmp/some.json")
+    ok = await device.set_device_config(str(preset))
     assert ok is True
-    assert called.get("load") == "/tmp/some.json"
+    assert called.get("load") == str(preset)
     assert isinstance(called.get("init"), dict)
 
 
@@ -470,12 +481,13 @@ def test_reboot_and_shutdown_call_system(monkeypatch):
 
     monkeypatch.setattr(device.os, "system", fake_system)
     monkeypatch.setattr(device, "save_device_config", lambda: True)
+    monkeypatch.setattr(device, "cleanup_and_exit", lambda: None)
 
     device.reboot(with_saving=True)
     device.shutdown(with_saving=True)
 
     assert any("reboot" in c for c in sys_calls)
-    assert any("shutdown" in c for c in sys_calls)
+    assert any(("shutdown" in c) or ("poweroff" in c) for c in sys_calls)
 
 
 def test_get_available_configs_lists_jsons(monkeypatch, tmp_path):

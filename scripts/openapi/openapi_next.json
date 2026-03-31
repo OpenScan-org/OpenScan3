@@ -1338,6 +1338,130 @@
         }
       }
     },
+    "/firmware/settings": {
+      "get": {
+        "tags": [
+          "firmware"
+        ],
+        "summary": "Get Settings",
+        "description": "Return persisted firmware settings.",
+        "operationId": "get_settings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirmwareSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "firmware"
+        ],
+        "summary": "Replace Settings",
+        "description": "Replace the entire firmware settings payload.",
+        "operationId": "replace_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirmwareSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirmwareSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firmware/settings/{key}": {
+      "patch": {
+        "tags": [
+          "firmware"
+        ],
+        "summary": "Update Setting",
+        "description": "Update a single firmware settings key.",
+        "operationId": "update_setting",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirmwareSettingPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirmwareSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/": {
       "get": {
         "tags": [
@@ -2742,52 +2866,30 @@
         }
       }
     },
-    "/device/configurations/": {
-      "post": {
+    "/device/configurations/current": {
+      "get": {
         "tags": [
           "device"
         ],
-        "summary": "Add Config Json",
-        "description": "Add a device configuration from a JSON object\n\nThis endpoint accepts a JSON object with the device configuration,\nvalidates it and saves it to a file.\n\nArgs:\n    config_data: The device configuration to add\n    filename: The filename to save the configuration as\n\nReturns:\n    dict: A dictionary containing the status of the operation",
-        "operationId": "add_config_json",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_add_config_json_device_configurations__post"
-              }
-            }
-          },
-          "required": true
-        },
+        "summary": "Get Current Config",
+        "description": "Return the currently active device configuration file.",
+        "operationId": "get_current_config",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeviceControlResponse"
+                  "$ref": "#/components/schemas/DeviceConfigResponse"
                 }
               }
             }
           },
           "404": {
             "description": "Not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
         }
-      }
-    },
-    "/device/configurations/current": {
+      },
       "put": {
         "tags": [
           "device"
@@ -2851,6 +2953,97 @@
           },
           "404": {
             "description": "Not found"
+          }
+        }
+      }
+    },
+    "/device/configurations/{filename}": {
+      "get": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Get Config File",
+        "description": "Return a specific configuration JSON file by filename.",
+        "operationId": "get_config_file",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceConfigResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/device/configurations/": {
+      "post": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Add Config Json",
+        "description": "Add a device configuration from a JSON object\n\nThis endpoint accepts a JSON object with the device configuration,\nvalidates it and saves it to a file.\n\nArgs:\n    config_data: The device configuration to add\n    filename: The filename to save the configuration as\n\nReturns:\n    dict: A dictionary containing the status of the operation",
+        "operationId": "add_config_json",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_config_json_device_configurations__post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -3684,6 +3877,29 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Delete Cloud Settings",
+        "description": "Delete persisted cloud settings and disable cloud features.",
+        "operationId": "delete_cloud_settings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
       }
     },
     "/cloud/projects": {
@@ -4151,7 +4367,7 @@
       "Body_add_config_json_device_configurations__post": {
         "properties": {
           "config_data": {
-            "$ref": "#/components/schemas/ScannerDevice"
+            "$ref": "#/components/schemas/ScannerDeviceConfig-Input"
           },
           "filename": {
             "$ref": "#/components/schemas/DeviceConfigRequest"
@@ -4196,32 +4412,6 @@
           "degrees"
         ],
         "title": "Body_move_motor_by_degree_motors__motor_name__angle_patch"
-      },
-      "Camera": {
-        "properties": {
-          "type": {
-            "$ref": "#/components/schemas/CameraType"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "path": {
-            "type": "string",
-            "title": "Path"
-          },
-          "settings": {
-            "$ref": "#/components/schemas/CameraSettings"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "name",
-          "path",
-          "settings"
-        ],
-        "title": "Camera"
       },
       "CameraSettings": {
         "properties": {
@@ -4773,6 +4963,33 @@
         ],
         "title": "DeviceConfigRequest"
       },
+      "DeviceConfigResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "config": {
+            "$ref": "#/components/schemas/ScannerDeviceConfig-Output"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "filename",
+          "path",
+          "config"
+        ],
+        "title": "DeviceConfigResponse"
+      },
       "DeviceControlResponse": {
         "properties": {
           "success": {
@@ -4802,11 +5019,25 @@
             "title": "Name"
           },
           "model": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Model"
           },
           "shield": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Shield"
           },
           "cameras": {
@@ -4848,8 +5079,6 @@
         "type": "object",
         "required": [
           "name",
-          "model",
-          "shield",
           "cameras",
           "motors",
           "lights",
@@ -4886,30 +5115,6 @@
         ],
         "title": "DiskUsage",
         "description": "Filesystem usage snapshot for a directory."
-      },
-      "Endstop": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "settings": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EndstopConfig"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "settings"
-        ],
-        "title": "Endstop"
       },
       "EndstopConfig": {
         "properties": {
@@ -4977,6 +5182,98 @@
         "title": "EndstopConfig",
         "description": "Configuration for a motor endstop.\n\nArgs:\n    pin (int): GPIO pin number used for the endstop.\n    angular_position (float): Angle at which the endstop is triggered (degrees).\n    motor_name (str): Name of the assigned motor.\n    pull_up (Optional[bool]): Whether to use a pull-up resistor (default: True).\n    bounce_time (Optional[float]): Debounce time for the button in seconds (default: 0.005)."
       },
+      "EndstopStatusResponse": {
+        "properties": {
+          "assigned_motor": {
+            "type": "string",
+            "title": "Assigned Motor"
+          },
+          "position": {
+            "type": "number",
+            "title": "Position"
+          },
+          "pin": {
+            "type": "integer",
+            "title": "Pin"
+          },
+          "is_pressed": {
+            "type": "boolean",
+            "title": "Is Pressed"
+          },
+          "pull_up": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pull Up"
+          },
+          "active_high": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active High"
+          },
+          "bounce_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bounce Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assigned_motor",
+          "position",
+          "pin",
+          "is_pressed"
+        ],
+        "title": "EndstopStatusResponse"
+      },
+      "FirmwareSettingPatchRequest": {
+        "properties": {
+          "value": {
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "FirmwareSettingPatchRequest"
+      },
+      "FirmwareSettings": {
+        "properties": {
+          "qr_wifi_scan_enabled": {
+            "type": "boolean",
+            "title": "Qr Wifi Scan Enabled",
+            "description": "Automatically scan for WiFi QR codes on startup when no WiFi or Ethernet connection is active.",
+            "default": true
+          },
+          "enable_cloud": {
+            "type": "boolean",
+            "title": "Enable Cloud",
+            "description": "Enable integrations with OpenScan Cloud services.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "FirmwareSettings",
+        "description": "Global firmware behaviour toggles.\n\nAttributes:\n    qr_wifi_scan_enabled: When True the firmware automatically starts the\n        QR WiFi scan task on startup if no usable network connection is\n        detected.\n    enable_cloud: When True the firmware enables cloud-facing features and\n        UX affordances."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4989,23 +5286,6 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
-      },
-      "Light": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "settings": {
-            "$ref": "#/components/schemas/LightConfig"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "settings"
-        ],
-        "title": "Light"
       },
       "LightConfig": {
         "properties": {
@@ -5067,35 +5347,6 @@
           "settings"
         ],
         "title": "LightStatusResponse"
-      },
-      "Motor": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "settings": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MotorConfig"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "angle": {
-            "type": "number",
-            "title": "Angle",
-            "default": 90.0
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "settings"
-        ],
-        "title": "Motor"
       },
       "MotorConfig": {
         "properties": {
@@ -5214,14 +5465,12 @@
           "endstop": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/EndstopStatusResponse"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Endstop"
+            ]
           }
         },
         "type": "object",
@@ -5242,6 +5491,46 @@
           "fibonacci"
         ],
         "title": "PathMethod"
+      },
+      "PersistedCameraConfig": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CameraType"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Type"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/CameraSettings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "path"
+        ],
+        "title": "PersistedCameraConfig"
+      },
+      "PersistedEndstopConfig": {
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/EndstopConfig"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings"
+        ],
+        "title": "PersistedEndstopConfig"
       },
       "PhotoResponse": {
         "properties": {
@@ -5615,7 +5904,7 @@
         ],
         "title": "ScannerCalibrateMode"
       },
-      "ScannerDevice": {
+      "ScannerDeviceConfig-Input": {
         "properties": {
           "name": {
             "type": "string",
@@ -5624,40 +5913,42 @@
           "model": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ScannerModel"
+                "type": "string"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Model"
           },
           "shield": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ScannerShield"
+                "type": "string"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Shield"
           },
           "cameras": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/Camera"
+              "$ref": "#/components/schemas/PersistedCameraConfig"
             },
             "type": "object",
             "title": "Cameras"
           },
           "motors": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/Motor"
+              "$ref": "#/components/schemas/MotorConfig"
             },
             "type": "object",
             "title": "Motors"
           },
           "lights": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/Light"
+              "$ref": "#/components/schemas/LightConfig"
             },
             "type": "object",
             "title": "Lights"
@@ -5666,7 +5957,7 @@
             "anyOf": [
               {
                 "additionalProperties": {
-                  "$ref": "#/components/schemas/Endstop"
+                  "$ref": "#/components/schemas/PersistedEndstopConfig"
                 },
                 "type": "object"
               },
@@ -5682,43 +5973,136 @@
             "default": 0.0
           },
           "startup_mode": {
-            "$ref": "#/components/schemas/ScannerStartupMode",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScannerStartupMode"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Startup Mode",
             "default": "startup_enabled"
           },
           "calibrate_mode": {
-            "$ref": "#/components/schemas/ScannerCalibrateMode",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScannerCalibrateMode"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Calibrate Mode",
             "default": "calibrate_manual"
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "model",
-          "shield",
-          "cameras",
-          "motors",
-          "lights",
-          "endstops"
+          "name"
         ],
-        "title": "ScannerDevice"
+        "title": "ScannerDeviceConfig",
+        "description": "Persisted scanner configuration payload stored as JSON."
       },
-      "ScannerModel": {
-        "type": "string",
-        "enum": [
-          "classic",
-          "mini",
-          "custom"
+      "ScannerDeviceConfig-Output": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "shield": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shield"
+          },
+          "cameras": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PersistedCameraConfig"
+            },
+            "type": "object",
+            "title": "Cameras"
+          },
+          "motors": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MotorConfig"
+            },
+            "type": "object",
+            "title": "Motors"
+          },
+          "lights": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LightConfig"
+            },
+            "type": "object",
+            "title": "Lights"
+          },
+          "endstops": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/PersistedEndstopConfig"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endstops"
+          },
+          "motors_timeout": {
+            "type": "number",
+            "title": "Motors Timeout",
+            "default": 0.0
+          },
+          "startup_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScannerStartupMode"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Startup Mode",
+            "default": "startup_enabled"
+          },
+          "calibrate_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScannerCalibrateMode"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Calibrate Mode",
+            "default": "calibrate_manual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
         ],
-        "title": "ScannerModel"
-      },
-      "ScannerShield": {
-        "type": "string",
-        "enum": [
-          "greenshield",
-          "blackshield",
-          "custom"
-        ],
-        "title": "ScannerShield"
+        "title": "ScannerDeviceConfig",
+        "description": "Persisted scanner configuration payload stored as JSON."
       },
       "ScannerStartupMode": {
         "type": "string",

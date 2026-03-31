@@ -50,6 +50,7 @@ class DummyMotorController:
             "busy": self._busy,
             "target_angle": None,
             "settings": self._config,
+            "calibrated": True,
             "endstop": None,
         }
 
@@ -329,7 +330,7 @@ def test_endstop_calibration_endpoint_success(monkeypatch: pytest.MonkeyPatch, c
     response = client.put("/next/motors/rotor/endstop-calibration")
 
     assert response.status_code == 200
-    controller.calibrate.assert_awaited_once_with()
+    controller.calibrate.assert_awaited_once_with(force=False)
 
 
 def test_endstop_calibration_endpoint_no_endstop(monkeypatch: pytest.MonkeyPatch, client: TestClient):

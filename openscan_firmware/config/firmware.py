@@ -28,11 +28,17 @@ class FirmwareSettings(BaseModel):
         qr_wifi_scan_enabled: When True the firmware automatically starts the
             QR WiFi scan task on startup if no usable network connection is
             detected.
+        enable_cloud: When True the firmware enables cloud-facing features and
+            UX affordances.
     """
 
     qr_wifi_scan_enabled: bool = Field(
         default=True,
         description="Automatically scan for WiFi QR codes on startup when no WiFi or Ethernet connection is active.",
+    )
+    enable_cloud: bool = Field(
+        default=False,
+        description="Enable integrations with OpenScan Cloud services.",
     )
 
 
