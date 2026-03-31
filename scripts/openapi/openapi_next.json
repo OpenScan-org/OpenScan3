@@ -3877,6 +3877,29 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "cloud"
+        ],
+        "summary": "Delete Cloud Settings",
+        "description": "Delete persisted cloud settings and disable cloud features.",
+        "operationId": "delete_cloud_settings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
       }
     },
     "/cloud/projects": {
