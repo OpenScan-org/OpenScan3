@@ -81,6 +81,21 @@ def resolve_settings_file(subdirectory: str, filename: str) -> Path:
     return resolve_settings_dir(subdirectory) / filename
 
 
+def resolve_settings_path(subdirectory: str, path_or_filename: str | os.PathLike | None) -> Path:
+    """Resolve a settings-relative path, supporting absolute overrides."""
+
+    if path_or_filename is None:
+        return resolve_settings_dir(subdirectory)
+
+    candidate = Path(path_or_filename)
+    if candidate.exists() or candidate.is_absolute():
+        return candidate
+
+    base_dir = resolve_settings_dir(subdirectory)
+    resolved = base_dir / candidate
+    return resolved
+
+
 def load_settings_json(filename: str, subdirectory: str | None = None) -> dict[str, Any] | None:
     """Load a JSON settings file from the resolved settings directory."""
     settings_dir = resolve_settings_dir(subdirectory)

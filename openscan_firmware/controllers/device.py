@@ -65,7 +65,11 @@ from openscan_firmware.controllers.hardware.gpio import cleanup_all_pins
 
 from openscan_firmware.controllers.services.projects import get_project_manager
 from openscan_firmware.controllers.services.device_events import schedule_device_status_broadcast
-from openscan_firmware.utils.dir_paths import resolve_settings_dir, resolve_settings_file
+from openscan_firmware.utils.dir_paths import (
+    resolve_settings_dir,
+    resolve_settings_file,
+    resolve_settings_path,
+)
 from openscan_firmware.utils.firmware_state import mark_clean_shutdown
 
 from openscan_firmware.utils.inactivity_timer import inactivity_timer, inactivity_timer_paused
@@ -203,19 +207,38 @@ async def set_device_config(config_file) -> bool:
     """Set the device configuration from a file and initialize hardware.
 
     Args:
-        config_file: Path to the configuration file
+        config_file: Path or filename to the configuration file
 
     Returns:
         bool: True if successful, False otherwise
     """
 
-    config = load_device_config(config_file)
+    resolved_path = resolve_settings_path("device", config_file)
+    if not resolved_path.exists():
+        logger.error(
+            "Requested device configuration file does not exist",
+            extra={"requested": str(config_file), "resolved_path": str(resolved_path)},
+        )
+        return False
+
+    logger.info(
+        "Loading device configuration from file",
+        extra={"requested": str(config_file), "resolved_path": str(resolved_path)},
+    )
+
+    config = load_device_config(str(resolved_path))
     await initialize(config)
 
     if not save_device_config():
-        logger.error("Failed to persist device configuration after loading %s", config_file)
+        logger.error(
+            "Failed to persist device configuration after loading %s", resolved_path
+        )
         return False
 
+    logger.info(
+        "Device configuration applied",
+        extra={"requested": str(config_file), "resolved_path": str(resolved_path)},
+    )
     return True
 
 

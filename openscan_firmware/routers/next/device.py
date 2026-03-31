@@ -29,8 +29,8 @@ class DeviceConfigRequest(BaseModel):
 
 class DeviceStatusResponse(BaseModel):
     name: str
-    model: str
-    shield: str
+    model: str | None = None
+    shield: str | None = None
     cameras: dict[str, CameraStatusResponse]
     motors: dict[str, MotorStatusResponse]
     lights: dict[str, LightStatusResponse]
@@ -53,7 +53,9 @@ class DeviceConfigResponse(BaseModel):
 
 
 def _runtime_status_response() -> DeviceStatusResponse:
-    return DeviceStatusResponse.model_validate(device.get_device_info())
+    raw_info = device.get_device_info()
+    logger.debug("Device info payload before validation: %s", raw_info)
+    return DeviceStatusResponse.model_validate(raw_info)
 
 
 @router.get("/info", response_model=DeviceStatusResponse)
@@ -109,7 +111,7 @@ async def get_current_config():
 async def get_config_file(filename: str):
     """Return a specific configuration JSON file by filename."""
     try:
-        logger.debug("Reading configuration file request", extra={"filename": filename})
+        logger.debug("Reading configuration file request", extra={"config_filename": filename})
         normalized = filename if filename.endswith(".json") else f"{filename}.json"
         safe_name = Path(normalized).name
         config_path = resolve_settings_dir("device") / safe_name
@@ -158,11 +160,20 @@ async def add_config_json(config_data: ScannerDeviceConfig, filename: DeviceConf
         dict: A dictionary containing the status of the operation
     """
     try:
-        logger.info("Persisting uploaded configuration", extra={"filename": filename.config_file})
+        logger.info("Persisting uploaded configuration", extra={"config_filename": filename.config_file})
         # Create a temporary file to save the configuration
         with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_file:
             # Convert the model to a dictionary and save it as JSON
             config_dict = config_data.model_dump(mode="json")
+            payload_preview = json.dumps(config_dict, ensure_ascii=False)
+            max_payload_chars = 2000
+            if len(payload_preview) > max_payload_chars:
+                payload_preview = f"{payload_preview[:max_payload_chars]}... [truncated]"
+            logger.info(
+                "Incoming configuration payload for %s: %s",
+                filename.config_file,
+                payload_preview,
+            )
             json.dump(config_dict, temp_file, indent=4)
             temp_path = temp_file.name
 
@@ -170,7 +181,9 @@ async def add_config_json(config_data: ScannerDeviceConfig, filename: DeviceConf
         settings_dir = resolve_settings_dir("device")
         os.makedirs(settings_dir, exist_ok=True)
 
-        target_filename = f"{filename.config_file}.json"
+        target_filename = filename.config_file
+        if not target_filename.endswith(".json"):
+            target_filename = f"{target_filename}.json"
         target_path = os.path.join(settings_dir, target_filename)
 
         # Move the temporary file to the target path
@@ -180,7 +193,8 @@ async def add_config_json(config_data: ScannerDeviceConfig, filename: DeviceConf
         logger.info(
             "Configuration saved",
             extra={
-                "filename": target_filename,
+                "config_filename": target_filename,
+                "config_path": target_path,
                 "motors": list(status.motors.keys()),
             },
         )
@@ -192,7 +206,7 @@ async def add_config_json(config_data: ScannerDeviceConfig, filename: DeviceConf
         )
 
     except Exception as e:
-        logger.exception("Error while saving configuration", extra={"filename": filename.config_file})
+        logger.exception("Error while saving configuration", extra={"config_filename": filename.config_file})
         raise HTTPException(status_code=500, detail=f"Error setting device configuration: {str(e)}")
 
 
