@@ -67,6 +67,25 @@ async def get_device_info():
     """
     try:
         info = device.get_device_info()
+        if info.get("model") is None or info.get("shield") is None:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "Device configuration is not loaded.",
+                    "errors": [
+                        {
+                            "loc": ["model"],
+                            "msg": "Input should be a valid string",
+                            "input": info.get("model"),
+                        },
+                        {
+                            "loc": ["shield"],
+                            "msg": "Input should be a valid string",
+                            "input": info.get("shield"),
+                        },
+                    ],
+                },
+            )
         return DeviceStatusResponse.model_validate(info)
     except ValidationError as exc:
         raise HTTPException(
