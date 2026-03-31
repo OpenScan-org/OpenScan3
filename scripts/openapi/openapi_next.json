@@ -164,6 +164,84 @@
               "type": "string",
               "title": "Camera Name"
             }
+          },
+          {
+            "name": "image_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "jpeg",
+                "dng",
+                "rgb_array",
+                "yuv_array"
+              ],
+              "type": "string",
+              "default": "jpeg",
+              "title": "Image Format"
+            }
+          },
+          {
+            "name": "with_metadata",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "With Metadata"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/photo/payload/{payload_id}": {
+      "get": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Get Photo Payload",
+        "operationId": "get_photo_payload",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          },
+          {
+            "name": "payload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Payload Id"
+            }
           }
         ],
         "responses": {
