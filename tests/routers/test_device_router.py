@@ -114,6 +114,7 @@ def test_get_current_config_returns_payload(monkeypatch, tmp_path, device_client
         "cameras": {},
         "motors": {},
         "lights": {},
+        "endstops": None,
         "motors_timeout": 3.5,
         "startup_mode": "startup_enabled",
         "calibrate_mode": "calibrate_manual",
@@ -145,6 +146,7 @@ def test_get_named_config_reads_disk(monkeypatch, tmp_path, device_client, devic
         "cameras": {},
         "motors": {},
         "lights": {},
+        "endstops": None,
         "motors_timeout": 1.0,
         "startup_mode": "startup_enabled",
         "calibrate_mode": "calibrate_manual",
@@ -286,13 +288,6 @@ def test_reinitialize_endpoint_calls_controller(monkeypatch, device_client, devi
         "initialized": True,
     }
     monkeypatch.setattr(f"{module_path}.device.get_device_info", lambda: status_payload, raising=False)
-
-    class _PassthroughStatus:
-        @staticmethod
-        def model_validate(payload):
-            return payload
-
-    monkeypatch.setattr(f"{module_path}.DeviceStatusResponse", _PassthroughStatus, raising=False)
 
     detected_args: list[bool] = []
 
