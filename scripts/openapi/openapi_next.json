@@ -4996,11 +4996,25 @@
             "title": "Name"
           },
           "model": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Model"
           },
           "shield": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Shield"
           },
           "cameras": {
@@ -5042,8 +5056,6 @@
         "type": "object",
         "required": [
           "name",
-          "model",
-          "shield",
           "cameras",
           "motors",
           "lights",
@@ -5146,6 +5158,67 @@
         ],
         "title": "EndstopConfig",
         "description": "Configuration for a motor endstop.\n\nArgs:\n    pin (int): GPIO pin number used for the endstop.\n    angular_position (float): Angle at which the endstop is triggered (degrees).\n    motor_name (str): Name of the assigned motor.\n    pull_up (Optional[bool]): Whether to use a pull-up resistor (default: True).\n    bounce_time (Optional[float]): Debounce time for the button in seconds (default: 0.005)."
+      },
+      "EndstopStatusResponse": {
+        "properties": {
+          "assigned_motor": {
+            "type": "string",
+            "title": "Assigned Motor"
+          },
+          "position": {
+            "type": "number",
+            "title": "Position"
+          },
+          "pin": {
+            "type": "integer",
+            "title": "Pin"
+          },
+          "is_pressed": {
+            "type": "boolean",
+            "title": "Is Pressed"
+          },
+          "pull_up": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pull Up"
+          },
+          "active_high": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active High"
+          },
+          "bounce_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bounce Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assigned_motor",
+          "position",
+          "pin",
+          "is_pressed"
+        ],
+        "title": "EndstopStatusResponse"
       },
       "FirmwareSettingPatchRequest": {
         "properties": {
@@ -5369,14 +5442,12 @@
           "endstop": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/EndstopStatusResponse"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Endstop"
+            ]
           }
         },
         "type": "object",

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from openscan_firmware.config.motor import MotorConfig
+from openscan_firmware.config.endstop import EndstopConfig
 from openscan_firmware.controllers.hardware.motors import get_motor_controller, get_all_motor_controllers
 from .settings_utils import create_settings_endpoints
 
@@ -24,6 +25,16 @@ def _get_motor_controller_or_404(motor_name: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+class EndstopStatusResponse(BaseModel):
+    assigned_motor: str
+    position: float
+    pin: int
+    is_pressed: bool
+    pull_up: bool | None = None
+    active_high: bool | None = None
+    bounce_time: float | None = None
+
+
 class MotorStatusResponse(BaseModel):
     name: str
     angle: float
@@ -31,7 +42,7 @@ class MotorStatusResponse(BaseModel):
     target_angle: Optional[float]
     settings: MotorConfig
     calibrated: bool
-    endstop: Optional[dict]
+    endstop: Optional[EndstopStatusResponse]
 
 
 @router.get("/", response_model=dict[str, MotorStatusResponse])

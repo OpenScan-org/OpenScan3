@@ -82,16 +82,17 @@ class EndstopController:
 
 
     def get_status(self) -> dict:
-        """ Returns the current status of the endstop.
-
-        Returns:
-            dict: A dictionary containing the status of the endstop.
-        """
+        """Returns the current status and config snapshot of the endstop."""
         pressed = is_button_pressed(self.settings.pin)
-        return {"assigned_motor": self.settings.motor_name,
-                "position": self.settings.angular_position,
-                "pin": self.settings.pin,
-                "is_pressed": pressed if self.settings.active_high else (not pressed)}
+        return {
+            "assigned_motor": self.settings.motor_name,
+            "position": self.settings.angular_position,
+            "pin": self.settings.pin,
+            "is_pressed": pressed if self.settings.active_high else (not pressed),
+            "pull_up": self.settings.pull_up,
+            "active_high": self.settings.active_high,
+            "bounce_time": self.settings.bounce_time,
+        }
 
 
     async def _move_back_task(self):
