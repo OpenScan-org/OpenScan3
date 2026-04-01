@@ -5,9 +5,13 @@ These may be removed or changed at any time.
 """
 
 import base64
+import subprocess
 import time
+from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status, Response, Query
+from fastapi.responses import PlainTextResponse
 
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
 from openscan_firmware.models.task import TaskStatus, Task
@@ -17,6 +21,8 @@ from openscan_firmware.controllers.hardware.motors import move_to_point
 
 from openscan_firmware.utils.paths import paths
 from openscan_firmware.cli import DEFAULT_RELOAD_TRIGGER
+
+CAMERA_REPORT_SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "camera_report.sh"
 
 
 router = APIRouter(
@@ -41,6 +47,46 @@ async def restart_application() -> dict[str, str]:
     # Ensure mtime changes even on file systems with coarse-grained timestamps
     DEFAULT_RELOAD_TRIGGER.touch()
     return {"detail": "Reload triggered"}
+
+
+@router.get("/camera-report")
+async def get_camera_report(
+    format: Literal["json", "text"] = Query(default="json"),
+):
+    """Run the camera diagnostics script and return a bundled report."""
+    if not CAMERA_REPORT_SCRIPT.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera report script not found: {CAMERA_REPORT_SCRIPT}",
+        )
+
+    result = subprocess.run(
+        ["bash", str(CAMERA_REPORT_SCRIPT)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    report = result.stdout.strip()
+    stderr = result.stderr.strip()
+
+    if format == "text":
+        text_output = report or stderr or "No output produced."
+        status_code = status.HTTP_200_OK if result.returncode == 0 else status.HTTP_500_INTERNAL_SERVER_ERROR
+        return PlainTextResponse(content=text_output, status_code=status_code)
+
+    payload = {
+        "ok": result.returncode == 0,
+        "return_code": result.returncode,
+        "script": str(CAMERA_REPORT_SCRIPT),
+        "report": report,
+        "stderr": stderr,
+    }
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=payload)
+
+    return payload
 
 
 @router.get("/crop_image", summary="Run crop task and return visualization image", response_class=Response)
