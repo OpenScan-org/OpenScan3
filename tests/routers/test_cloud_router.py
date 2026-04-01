@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from openscan_firmware.config.cloud import CloudSettings, set_cloud_settings
+from openscan_firmware.config.firmware import FirmwareSettings
 from openscan_firmware.controllers.services.cloud_settings import set_active_source
 from openscan_firmware.models.project import Project
 from openscan_firmware.models.task import Task
@@ -216,3 +217,35 @@ def test_reset_cloud_project(client, monkeypatch, latest_router_path):
     assert response.json()["remote_project"] == "demo-remote.zip"
     assert stub_pm.calls == [("demo", False, None)]
     assert project.cloud_project_name is None
+
+
+def test_delete_cloud_settings_disables_firmware_flag(client, monkeypatch, latest_router_path):
+    module_path = latest_router_path("cloud")
+
+    delete_calls = {"delete": False}
+    monkeypatch.setattr(f"{module_path}.delete_persistent_cloud_settings", lambda: delete_calls.__setitem__("delete", True) or True)
+    monkeypatch.setattr(f"{module_path}.set_cloud_settings", lambda value: delete_calls.__setitem__("cloud", value))
+    monkeypatch.setattr(f"{module_path}.set_active_source", lambda source: delete_calls.__setitem__("source", source))
+
+    firmware_settings = FirmwareSettings(qr_wifi_scan_enabled=True, enable_cloud=True)
+    monkeypatch.setattr(f"{module_path}.get_firmware_settings", lambda: firmware_settings)
+
+    saved_settings: dict[str, FirmwareSettings] = {}
+
+    def fake_save(settings: FirmwareSettings):
+        saved_settings["settings"] = settings
+
+    monkeypatch.setattr(f"{module_path}.save_firmware_settings", fake_save)
+    monkeypatch.setattr(f"{module_path}.get_masked_active_settings", lambda: None)
+    monkeypatch.setattr(f"{module_path}.get_active_source", lambda: None)
+    monkeypatch.setattr(f"{module_path}.settings_file_exists", lambda: False)
+
+    response = client.delete("/cloud/settings")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {"settings": None, "source": None, "persisted": False}
+    assert delete_calls["delete"] is True
+    assert delete_calls["cloud"] is None
+    assert delete_calls["source"] is None
+    assert saved_settings["settings"].enable_cloud is False

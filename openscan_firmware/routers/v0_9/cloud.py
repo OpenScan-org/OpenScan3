@@ -12,6 +12,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from openscan_firmware.config.cloud import CloudSettings, mask_secret, set_cloud_settings
+from openscan_firmware.config.firmware import (
+    get_firmware_settings,
+    save_firmware_settings,
+)
 from openscan_firmware.controllers.services import cloud as cloud_service
 from openscan_firmware.controllers.services.cloud import CloudServiceError
 from openscan_firmware.controllers.services.cloud_settings import (
@@ -19,9 +23,10 @@ from openscan_firmware.controllers.services.cloud_settings import (
     get_masked_active_settings,
     save_persistent_cloud_settings,
     set_active_source,
+    delete_persistent_cloud_settings,
     settings_file_exists,
 )
-from openscan_firmware.controllers.services.projects import get_project_manager, ProjectManager
+from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
 from openscan_firmware.models.project import Project
 from openscan_firmware.models.task import Task
@@ -156,6 +161,16 @@ def _mask_tokens(text: str | None) -> str | None:
     )
 
 
+def _disable_cloud_features() -> None:
+    settings = get_firmware_settings()
+    if not settings.enable_cloud:
+        return
+
+    updated_settings = settings.model_copy(update={"enable_cloud": False})
+    save_firmware_settings(updated_settings)
+    logger.info("Disabled firmware cloud features after cloud settings deletion.")
+
+
 @router.get("/status", response_model=CloudStatusResponse)
 async def get_cloud_status() -> CloudStatusResponse:
     """Return aggregated status information for the cloud backend.
@@ -228,6 +243,17 @@ async def update_cloud_settings(new_settings: CloudSettings) -> CloudSettingsRes
     return _build_settings_response()
 
 
+@router.delete("/settings", response_model=CloudSettingsResponse)
+async def delete_cloud_settings() -> CloudSettingsResponse:
+    """Delete persisted cloud settings and disable cloud features."""
+
+    set_cloud_settings(None)
+    set_active_source(None)
+    await asyncio.to_thread(delete_persistent_cloud_settings)
+    _disable_cloud_features()
+    return _build_settings_response()
+
+
 @router.get("/projects", response_model=list[CloudProjectStatus])
 async def list_cloud_projects() -> list[CloudProjectStatus]:
     """Return all local projects enriched with cloud metadata.
@@ -269,6 +295,14 @@ async def get_cloud_project(project_name: str) -> CloudProjectStatus:
 async def reset_cloud_project(project_name: str) -> dict[str, Any]:
     """Reset the remote project and clear the local linkage.
 
+    Invokes the cloud backend's `resetProject` action, which removes the
+    current reconstruction job (queue progress, generated models and downloads)
+    and frees the remote project name for another upload.
+    Locally the project is marked as not uploaded anymore, the cached
+    `cloud_project_name` is cleared, and the `downloaded` flag is reset to
+    False so a subsequent download reflects the new state. The on-disk files
+    stay untouched.
+
     Args:
         project_name: The name of the project to reset the remote project for
 
@@ -291,4 +325,33 @@ async def reset_cloud_project(project_name: str) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     project_manager.mark_uploaded(project_name, False)
+    project_manager.mark_downloaded(project_name, False)
     return {"project": project_name, "remote_project": remote_name, "response": response}
+
+
+@router.post("/projects/{project_name}/download", response_model=Task)
+async def download_project_from_cloud(
+    project_name: str,
+    token_override: str | None = None,
+    remote_project: str | None = None,
+) -> Task:
+    """Schedule an asynchronous cloud download for a project's reconstruction.
+
+    Args:
+        project_name: Local project name whose reconstruction should be downloaded.
+        token_override: Optional token override forwarded to the download task.
+        remote_project: Optional explicit remote project identifier; defaults to stored linkage.
+
+    Returns:
+        Task: The TaskManager model describing the scheduled download.
+    """
+
+    try:
+        task = await cloud_service.download_project(
+            project_name,
+            token=token_override,
+            remote_project=remote_project,
+        )
+    except CloudServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return task

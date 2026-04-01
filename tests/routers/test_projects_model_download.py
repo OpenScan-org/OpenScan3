@@ -28,11 +28,6 @@ def project_manager(
         raising=False,
     )
     monkeypatch.setattr(
-        "openscan_firmware.routers.v0_6.projects.get_project_manager",
-        lambda: manager,
-        raising=False,
-    )
-    monkeypatch.setattr(
         "openscan_firmware.routers.next.projects.get_project_manager",
         lambda: manager,
         raising=False,

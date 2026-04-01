@@ -1,21 +1,52 @@
 import asyncio
-from fastapi import APIRouter, Body, HTTPException
-from fastapi.responses import StreamingResponse
-
-from typing import Tuple
-
-from openscan_firmware import __version__
-from openscan_firmware.controllers.device import get_scanner_model
-from typing import AsyncGenerator
-from starlette.responses import FileResponse
-from starlette.background import BackgroundTask
-from openscan_firmware.config.logger import DEFAULT_LOGS_PATH, flush_memory_handlers
 import os
 import zipfile
 import glob
-from tempfile import NamedTemporaryFile
-from datetime import datetime
 from collections import deque
+from datetime import datetime
+from shutil import disk_usage
+from tempfile import NamedTemporaryFile
+from typing import AsyncGenerator, Optional, Tuple
+
+from fastapi import APIRouter, Body, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
+from starlette.responses import FileResponse
+
+from openscan_firmware import __version__
+from openscan_firmware.config.logger import DEFAULT_LOGS_PATH, flush_memory_handlers
+from openscan_firmware.controllers.device import get_scanner_model
+from openscan_firmware.utils.dir_paths import resolve_projects_dir, resolve_runtime_dir
+from openscan_firmware.utils.firmware_state import get_firmware_state
+
+class DiskUsage(BaseModel):
+    """Filesystem usage snapshot for a directory."""
+
+    total: int = Field(..., description="Total bytes available on the filesystem.")
+    used: int = Field(..., description="Bytes currently used (total - free).")
+    free: int = Field(..., description="Free bytes remaining on the filesystem.")
+
+
+class SoftwareInfoResponse(BaseModel):
+    """Information block served by /next/openscan."""
+
+    model: Optional[str] = Field(None, description="Scanner model identifier, if configured.")
+    firmware_version: str = Field(..., description="Currently running firmware version string.")
+    last_shutdown_was_unclean: bool = Field(
+        ..., description="Indicates whether the previous shutdown finished cleanly."
+    )
+    runtime_dir: str = Field(..., description="Absolute path used for runtime state files.")
+    runtime_disk: Optional[DiskUsage] = Field(
+        None, description="Disk usage snapshot for the runtime directory filesystem."
+    )
+    projects_disk: Optional[DiskUsage] = Field(
+        None, description="Disk usage snapshot for the projects directory filesystem."
+    )
+    uptime_seconds: Optional[float] = Field(
+        None, description="Current system uptime in seconds, if available."
+    )
+
 
 router = APIRouter(
     prefix="",
@@ -23,11 +54,37 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-@router.get("/")
-async def get_software_info():
+@router.get("/", response_model=SoftwareInfoResponse)
+async def get_software_info() -> SoftwareInfoResponse:
     """Get information about the scanner software"""
-    return {"model": get_scanner_model(),
-            "firmware_version": __version__}
+    state = get_firmware_state()
+    runtime_dir = resolve_runtime_dir()
+    projects_dir = resolve_projects_dir()
+    return SoftwareInfoResponse(
+        model=get_scanner_model(),
+        firmware_version=__version__,
+        last_shutdown_was_unclean=state.get("last_shutdown_was_unclean", False),
+        runtime_dir=str(runtime_dir),
+        runtime_disk=_probe_disk_usage(runtime_dir),
+        projects_disk=_probe_disk_usage(projects_dir),
+        uptime_seconds=_read_uptime_seconds(),
+    )
+
+
+def _probe_disk_usage(path) -> Optional[DiskUsage]:
+    try:
+        usage = disk_usage(path)
+    except (OSError, FileNotFoundError):
+        return None
+    return DiskUsage(total=usage.total, used=usage.total - usage.free, free=usage.free)
+
+
+def _read_uptime_seconds() -> Optional[float]:
+    try:
+        with open("/proc/uptime", "r", encoding="ascii") as handle:
+            return float(handle.read().split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
 
 
 

@@ -1,6 +1,6 @@
 from typing import List, Any, Dict
 
-from fastapi import APIRouter, HTTPException, status, Body
+from fastapi import APIRouter, HTTPException, Response, status, Body
 
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
 from openscan_firmware.models.task import Task, TaskStatus
@@ -59,6 +59,25 @@ async def cancel_task(task_id: str):
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task
+
+
+@router.delete(
+    "/{task_id}/cleanup",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a terminal task record",
+)
+async def delete_task(task_id: str) -> Response:
+    """Remove a terminal task from persistence and memory."""
+    task_manager = get_task_manager()
+    try:
+        await task_manager.delete_task(task_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{task_id}/pause", response_model=Task, summary="Pause a Task")

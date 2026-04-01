@@ -5,7 +5,14 @@ import json
 import tempfile
 import shutil
 
-from openscan_firmware.models.scanner import ScannerDevice, ScannerStartupMode, ScannerCalibrateMode
+from openscan_firmware.models.scanner import (
+    ScannerDevice,
+    ScannerDeviceConfig,
+    PersistedCameraConfig,
+    PersistedEndstopConfig,
+    ScannerStartupMode,
+    ScannerCalibrateMode,
+)
 from openscan_firmware.controllers import device
 
 from openscan_firmware.utils.dir_paths import resolve_settings_dir
@@ -39,6 +46,41 @@ class DeviceControlResponse(BaseModel):
     success: bool
     message: str
     status: DeviceStatusResponse
+
+
+def _runtime_status_response() -> DeviceStatusResponse:
+    return DeviceStatusResponse.model_validate(device.get_device_info())
+
+
+def _v08_payload_to_persisted_config(config_data: ScannerDevice) -> ScannerDeviceConfig:
+    return ScannerDeviceConfig(
+        name=config_data.name,
+        model=config_data.model.value if config_data.model else None,
+        shield=config_data.shield.value if config_data.shield else None,
+        cameras={
+            name: PersistedCameraConfig(
+                type=camera.type,
+                path=camera.path,
+                settings=camera.settings,
+            )
+            for name, camera in config_data.cameras.items()
+        },
+        motors={
+            name: motor.settings
+            for name, motor in config_data.motors.items()
+        },
+        lights={
+            name: light.settings
+            for name, light in config_data.lights.items()
+        },
+        endstops={
+            name: PersistedEndstopConfig(settings=endstop.settings)
+            for name, endstop in (config_data.endstops or {}).items()
+        },
+        motors_timeout=config_data.motors_timeout,
+        startup_mode=config_data.startup_mode.value if config_data.startup_mode else None,
+        calibrate_mode=config_data.calibrate_mode.value if config_data.calibrate_mode else None,
+    )
 
 
 @router.get("/info", response_model=DeviceStatusResponse)
@@ -91,7 +133,7 @@ async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequ
         # Create a temporary file to save the configuration
         with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_file:
             # Convert the model to a dictionary and save it as JSON
-            config_dict = config_data.dict()
+            config_dict = _v08_payload_to_persisted_config(config_data).model_dump(mode="json")
             json.dump(config_dict, temp_file, indent=4)
             temp_path = temp_file.name
 
@@ -108,7 +150,7 @@ async def add_config_json(config_data: ScannerDevice, filename: DeviceConfigRequ
         return DeviceControlResponse(
             success=True,
             message="Configuration saved successfully",
-            status=DeviceStatusResponse.model_validate(device.get_device_info())
+            status=_runtime_status_response()
         )
 
     except Exception as e:
@@ -128,7 +170,7 @@ async def save_device_config():
         return DeviceControlResponse(
             success=True,
             message="Configuration saved successfully",
-            status=DeviceStatusResponse.model_validate(device.get_device_info())
+            status=_runtime_status_response()
         )
     else:
         raise HTTPException(status_code=500, detail="Failed to save device configuration")
@@ -176,7 +218,7 @@ async def set_config_file(config_data: DeviceConfigRequest):
             return DeviceControlResponse(
                 success=True,
                 message="Configuration loaded successfully",
-                status=DeviceStatusResponse.model_validate(device.get_device_info())
+                status=_runtime_status_response()
             )
         else:
             raise HTTPException(status_code=500, detail="Failed to load device configuration")
@@ -205,7 +247,7 @@ async def reinitialize_hardware(detect_cameras: bool = False):
         return DeviceControlResponse(
             success=True,
             message="Hardware reinitialized successfully",
-            status=DeviceStatusResponse.model_validate(device.get_device_info())
+            status=_runtime_status_response()
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reloading hardware: {str(e)}")

@@ -88,7 +88,9 @@ class CameraController(StatefulHardware):
 
     def _on_settings_change(self, settings: CameraSettings):
         self.camera.settings = settings
-        self._apply_settings_to_hardware(settings)
+        # Serialize settings updates with preview/photo hardware operations.
+        with self._hw_lock:
+            self._apply_settings_to_hardware(settings)
         schedule_device_status_broadcast([f"cameras.{self.camera.name}.settings"])
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):

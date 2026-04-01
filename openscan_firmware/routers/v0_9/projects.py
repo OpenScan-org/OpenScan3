@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 import pathlib
-from typing import Optional, List
+from typing import Optional, List, Any
 import asyncio
 import os
 import json
+import mimetypes
 from datetime import datetime
 import logging
 
@@ -36,6 +37,16 @@ class DeleteResponse(BaseModel):
     deleted: list[str]
 
 
+class PhotoResponse(BaseModel):
+    project_name: str
+    scan_index: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    metadata: Optional[dict[str, Any]] = None
+    photo_data: bytes
+
+
 @router.get("/", response_model=dict[str, Project])
 async def get_projects():
     """Get all projects with serialized data
@@ -62,6 +73,20 @@ async def get_project(project_name: str):
     if not project:
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
     return project
+
+
+@router.get("/{project_name}/thumbnail")
+async def get_project_thumbnail(project_name: str):
+    project_manager = get_project_manager()
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+    thumbnail_path = os.path.join(project.path, "thumbnail.jpg")
+    if not os.path.exists(thumbnail_path):
+        raise HTTPException(status_code=404, detail="thumbnail.jpg not found")
+
+    return FileResponse(thumbnail_path, media_type="image/jpeg", filename="thumbnail.jpg")
 
 
 @router.post("/{project_name}", response_model=Project)
@@ -134,33 +159,6 @@ async def upload_project_to_cloud(project_name: str, token_override: Optional[st
     return task
 
 
-@router.post("/{project_name}/download", response_model=Task)
-async def download_project_from_cloud(
-    project_name: str,
-    token_override: Optional[str] = None,
-    remote_project: Optional[str] = None,
-) -> Task:
-    """Schedule an asynchronous cloud download for a project's reconstruction.
-
-    Args:
-        project_name: The name of the project
-        token_override: Optional token override
-        remote_project: Optional explicit remote project name, defaults to the stored cloud name
-
-    Returns:
-        Task: The TaskManager model describing the scheduled download
-    """
-    try:
-        task = await cloud.download_project(
-            project_name,
-            token=token_override,
-            remote_project=remote_project,
-        )
-    except cloud.CloudServiceError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return task
-
-
 @router.delete("/{project_name}/{scan_index}/photos", response_model=DeleteResponse)
 async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
     """Delete photos from a scan in a project
@@ -211,6 +209,68 @@ async def delete_project(project_name: str):
         message="Project deleted successfully",
         deleted=[project_name]
     )
+
+
+@router.get("/{project_name}/{scan_index:int}/photo", response_model=PhotoResponse)
+async def get_scan_photo(
+    project_name: str,
+    scan_index: int,
+    filename: str = Query(..., description="Photo filename including extension, e.g. scan01_001.jpg"),
+    file_only: bool = Query(False, description="Return only the raw file instead of JSON payload"),
+):
+    """Fetch a stored scan photo either as JSON payload or direct file download."""
+    project_manager = get_project_manager()
+    try:
+        scan, photo_path, metadata = project_manager.get_photo_file(project_name, scan_index, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    content_type, _ = mimetypes.guess_type(photo_path)
+    media_type = content_type or "application/octet-stream"
+
+    if file_only:
+        return FileResponse(photo_path, media_type=media_type, filename=filename)
+
+    def _read_file_bytes(path: str) -> bytes:
+        with open(path, "rb") as handle:
+            return handle.read()
+
+    photo_bytes = await asyncio.to_thread(_read_file_bytes, photo_path)
+
+    return PhotoResponse(
+        project_name=scan.project_name,
+        scan_index=scan.index,
+        filename=filename,
+        content_type=media_type,
+        size_bytes=len(photo_bytes),
+        metadata=metadata,
+        photo_data=photo_bytes,
+    )
+
+
+@router.get("/{project_name}/scans/{scan_index:int}/path")
+async def get_scan_path(project_name: str, scan_index: int):
+    project_manager = get_project_manager()
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+    scan = project_manager.get_scan_by_index(project_name, scan_index)
+    if not scan:
+        raise HTTPException(status_code=404, detail=f"Scan {scan_index} not found")
+
+    scan_dir = os.path.join(project.path, f"scan{scan_index:02d}")
+    path_file = os.path.join(scan_dir, "path.json")
+    if not os.path.exists(path_file):
+        raise HTTPException(status_code=404, detail="path.json not found")
+
+    def _read_json(path: str) -> dict:
+        with open(path, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    return await asyncio.to_thread(_read_json, path_file)
 
 
 @router.delete("/{project_name}/scans/{scan_index}", response_model=DeleteResponse)
@@ -382,12 +442,39 @@ def _serialize_project_for_zip(project: Project) -> str:
     return json.dumps(project_dict, indent=2)
 
 
+def _add_project_photos_to_zip(zip_stream, project: Project) -> int:
+    """Add all recorded photo files of a project to a flat zip archive."""
+    added = 0
+    for scan in sorted(project.scans.values(), key=lambda scan_obj: scan_obj.index):
+        scan_dir = os.path.join(project.path, f"scan{scan.index:02d}")
+        for photo_filename in scan.photos:
+            photo_path = os.path.join(scan_dir, photo_filename)
+            if not os.path.exists(photo_path):
+                logger.warning(
+                    "Photo %s missing on disk for project %s scan %s",
+                    photo_filename,
+                    project.name,
+                    scan.index,
+                )
+                continue
+            zip_stream.add_path(photo_path, arcname=photo_filename)
+            added += 1
+    return added
+
+
 @router.get("/{project_name}/zip")
-async def download_project(project_name: str):
+async def download_project(
+    project_name: str,
+    photos_only: bool = Query(
+        False,
+        description="If true, stream only photo files without metadata or directory structure.",
+    ),
+):
     """Download a project as a ZIP file stream
 
     This endpoint streams the entire project directory as a ZIP file,
-    including all scans, photos, and metadata.
+    including all scans, photos, and metadata. When ``photos_only`` is true,
+    only the recorded photo files are included without metadata or subfolders.
 
     Args:
         project_name: Name of the project to download
@@ -404,15 +491,24 @@ async def download_project(project_name: str):
         if not project:
             raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
 
-        # Create ZipStream from project path
-        zs = ZipStream.from_path(project.path)
+        if photos_only:
+            zs = ZipStream(sized=True)
+            zs.comment = f"OpenScan3 Project Photos: {project_name}"
+            added_files = _add_project_photos_to_zip(zs, project)
+            if added_files == 0:
+                raise HTTPException(status_code=404, detail="No photos available for this project")
+            filename = f"{project_name}_photos.zip"
+        else:
+            # Create ZipStream from project path
+            zs = ZipStream.from_path(project.path)
 
-        # Add project metadata
-        zs.add(_serialize_project_for_zip(project), "project_metadata.json")
+            # Add project metadata
+            zs.add(_serialize_project_for_zip(project), "project_metadata.json")
+            filename = f"{project_name}.zip"
 
         # Return streaming response
         headers = {
-            "Content-Disposition": f"attachment; filename={project_name}.zip",
+            "Content-Disposition": f"attachment; filename={filename}",
         }
         if getattr(zs, "last_modified", None):
             headers["Last-Modified"] = str(zs.last_modified)
@@ -428,6 +524,45 @@ async def download_project(project_name: str):
         raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{project_name}/model/zip")
+async def download_project_model(project_name: str):
+    """Download the reconstructed model directory of a project as a ZIP file."""
+
+    try:
+        from zipstream import ZipStream
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency issue
+        raise HTTPException(status_code=500, detail="zipstream is not installed") from exc
+
+    project_manager = get_project_manager()
+    project = project_manager.get_project_by_name(project_name)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+
+    model_dir = pathlib.Path(project.path) / "model"
+    if not model_dir.exists() or not model_dir.is_dir():
+        raise HTTPException(
+            status_code=404,
+            detail=f"No reconstructed model present for project {project_name}",
+        )
+
+    zs = ZipStream(sized=True)
+    zs.comment = f"OpenScan3 Project Model: {project_name}"
+    zs.add_path(str(model_dir), "model")
+    zs.add(_serialize_project_for_zip(project), "project_metadata.json")
+
+    headers = {
+        "Content-Disposition": f"attachment; filename={project_name}_model.zip",
+    }
+    if getattr(zs, "last_modified", None):
+        headers["Last-Modified"] = str(zs.last_modified)
+
+    return StreamingResponse(
+        zs,
+        media_type="application/zip",
+        headers=headers,
+    )
 
 
 @router.get("/{project_name}/scans/zip")

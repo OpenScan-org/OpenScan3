@@ -50,6 +50,18 @@ def save_persistent_cloud_settings(settings: CloudSettings) -> Path:
     return target
 
 
+def delete_persistent_cloud_settings() -> bool:
+    """Remove persisted cloud settings if they exist."""
+
+    target = get_settings_path()
+    if not target.exists():
+        return False
+
+    target.unlink()
+    logger.debug("Deleted cloud settings at %s", target)
+    return True
+
+
 def load_persistent_cloud_settings() -> CloudSettings | None:
     """Load cloud settings from disk if available."""
 

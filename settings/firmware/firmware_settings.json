@@ -1,3 +1,4 @@
 {
-    "qr_wifi_scan_enabled": true
+    "qr_wifi_scan_enabled": true,
+    "enable_cloud": false
 }

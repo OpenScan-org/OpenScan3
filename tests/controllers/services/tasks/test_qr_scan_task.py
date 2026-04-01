@@ -141,6 +141,53 @@ async def test_qr_scan_task_wifi_connect_failure_marks_error(monkeypatch, qr_tas
 
 
 @pytest.mark.asyncio
+async def test_qr_scan_task_stops_when_network_becomes_ready(monkeypatch, qr_task_manager):
+    """Ensure the QR scan task exits when LAN/WiFi becomes available while running."""
+
+    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    monkeypatch.setattr(qr_module, "_STARTUP_DELAY", 0)
+    monkeypatch.setattr(qr_module, "_SCAN_INTERVAL", 0)
+    monkeypatch.setattr(qr_module, "_NETWORK_READY_CHECK_INTERVAL", 0)
+    monkeypatch.setattr(qr_module, "_cleanup_stale_qr_tasks", AsyncMock())
+    monkeypatch.setattr(qr_module, "_capture_preview_array", AsyncMock(return_value=fake_frame))
+
+    controller = type("DummyController", (), {"preview_async": AsyncMock(return_value=b"bytes")})()
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller",
+        lambda name: controller,
+    )
+
+    class NeverFoundConsensus:
+        def __init__(self, _reader, required_hits, window):
+            pass
+
+        def feed(self, _frame):
+            return None
+
+    monkeypatch.setattr("openscan_firmware.utils.qr_reader.ZxingQRReader", lambda: object())
+    monkeypatch.setattr("openscan_firmware.utils.qr_reader.StableQRConsensus", NeverFoundConsensus)
+
+    checks = {"count": 0}
+
+    def fake_is_network_ready_for_qr_scan() -> bool:
+        checks["count"] += 1
+        return checks["count"] >= 3
+
+    monkeypatch.setattr(
+        "openscan_firmware.utils.wifi.is_network_ready_for_qr_scan",
+        fake_is_network_ready_for_qr_scan,
+    )
+
+    monkeypatch.setattr(qr_module, "get_task_manager", lambda: qr_task_manager)
+
+    task = await qr_task_manager.create_and_run_task("qr_scan_task", camera_name="mock_cam")
+    final = await qr_task_manager.wait_for_task(task.id)
+
+    assert final.status == TaskStatus.COMPLETED
+    assert final.result == {"reason": "network_already_connected"}
+
+
+@pytest.mark.asyncio
 async def test_cleanup_stale_qr_tasks_removes_cancelled_and_limits_errors(monkeypatch, qr_task_manager):
     """Verify cleanup removes stale statuses and keeps only the latest three errors."""
 

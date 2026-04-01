@@ -58,7 +58,7 @@ async def turn_on_light(light_name: str):
     """
     try:
         controller = get_light_controller(light_name)
-        controller.turn_on()
+        await controller.turn_on()
         return controller.get_status()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -76,7 +76,7 @@ async def turn_off_light(light_name: str):
     """
     try:
         controller = get_light_controller(light_name)
-        controller.turn_off()
+        await controller.turn_off()
         return controller.get_status()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -95,9 +95,9 @@ async def toggle_light(light_name: str):
     try:
         controller = get_light_controller(light_name)
         if controller.is_on:
-            controller.turn_off()
+            await controller.turn_off()
         else:
-            controller.turn_on()
+            await controller.turn_on()
         return controller.get_status()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

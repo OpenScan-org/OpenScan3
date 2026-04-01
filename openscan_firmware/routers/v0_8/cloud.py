@@ -12,6 +12,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from openscan_firmware.config.cloud import CloudSettings, mask_secret, set_cloud_settings
+from openscan_firmware.config.firmware import (
+    get_firmware_settings,
+    save_firmware_settings,
+)
 from openscan_firmware.controllers.services import cloud as cloud_service
 from openscan_firmware.controllers.services.cloud import CloudServiceError
 from openscan_firmware.controllers.services.cloud_settings import (
@@ -19,6 +23,7 @@ from openscan_firmware.controllers.services.cloud_settings import (
     get_masked_active_settings,
     save_persistent_cloud_settings,
     set_active_source,
+    delete_persistent_cloud_settings,
     settings_file_exists,
 )
 from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
@@ -156,6 +161,16 @@ def _mask_tokens(text: str | None) -> str | None:
     )
 
 
+def _disable_cloud_features() -> None:
+    settings = get_firmware_settings()
+    if not settings.enable_cloud:
+        return
+
+    updated_settings = settings.model_copy(update={"enable_cloud": False})
+    save_firmware_settings(updated_settings)
+    logger.info("Disabled firmware cloud features after cloud settings deletion.")
+
+
 @router.get("/status", response_model=CloudStatusResponse)
 async def get_cloud_status() -> CloudStatusResponse:
     """Return aggregated status information for the cloud backend.
@@ -225,6 +240,17 @@ async def update_cloud_settings(new_settings: CloudSettings) -> CloudSettingsRes
     set_cloud_settings(new_settings)
     await asyncio.to_thread(save_persistent_cloud_settings, new_settings)
     set_active_source("persistent")
+    return _build_settings_response()
+
+
+@router.delete("/settings", response_model=CloudSettingsResponse)
+async def delete_cloud_settings() -> CloudSettingsResponse:
+    """Delete persisted cloud settings and disable cloud features."""
+
+    set_cloud_settings(None)
+    set_active_source(None)
+    await asyncio.to_thread(delete_persistent_cloud_settings)
+    _disable_cloud_features()
     return _build_settings_response()
 
 
