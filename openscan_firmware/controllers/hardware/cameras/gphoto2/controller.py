@@ -8,6 +8,7 @@ from typing import IO
 
 import cv2  # type: ignore[import]
 import numpy as np
+import piexif  # type: ignore[import]
 
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.models.camera import Camera, CameraMetadata, PhotoData
@@ -57,6 +58,7 @@ class GPhoto2Controller(CameraController):
         self._set_busy(True)
         try:
             content, extra = self._session.capture_image()
+            content = self._embed_orientation_flag(content)
             return self._create_photo_data(io.BytesIO(content), "jpeg", extra)
         finally:
             self._set_busy(False)
@@ -101,6 +103,22 @@ class GPhoto2Controller(CameraController):
             format=data_format,
             camera_metadata=metadata,
         )
+
+    def _embed_orientation_flag(self, jpeg_bytes: bytes) -> bytes:
+        orientation = self.settings.orientation_flag
+        if orientation is None:
+            return jpeg_bytes
+        try:
+            flag = int(orientation)
+            exif_bytes = piexif.dump({"0th": {piexif.ImageIFD.Orientation: flag}})
+            return piexif.insert(exif_bytes, jpeg_bytes)
+        except Exception as exc:
+            logger.warning(
+                "Failed to embed orientation flag (%s) into gphoto2 JPEG: %s",
+                orientation,
+                exc,
+            )
+            return jpeg_bytes
 
 
 # Backward-compatible class name used in existing imports.
