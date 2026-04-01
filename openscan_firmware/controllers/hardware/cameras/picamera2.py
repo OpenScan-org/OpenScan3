@@ -551,7 +551,7 @@ class Picamera2Controller(CameraController):
 
         self._configure_focus(camera_mode="preview")
 
-        logger.debug(f"Captured dng with metadata: {metadata}")
+        logger.debug(f"Captured dng with metadata: {camera_metadata}")
 
         self._set_busy(False)
 
