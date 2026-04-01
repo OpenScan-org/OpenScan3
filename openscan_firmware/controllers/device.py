@@ -342,7 +342,7 @@ def _detect_cameras() -> Dict[str, Camera]:
                 type=CameraType.GPHOTO2,
                 name=camera_name,
                 path=camera_path,
-                settings=None,
+                settings=CameraSettings(),
             )
     except Exception as e:
         logger.error(f"Error loading GPhoto2 cameras: {e}")
