@@ -373,6 +373,46 @@ def _detect_cameras() -> Dict[str, Camera]:
         logger.info("Skipping Picamera2 detection: module not available on this system.")
     return cameras
 
+
+def _build_configured_camera_objects(config_cameras: dict) -> Dict[str, Camera]:
+    camera_objects: Dict[str, Camera] = {}
+    for cam_name, cam_conf in config_cameras.items():
+        camera = Camera(
+            name=cam_name,
+            type=CameraType(cam_conf["type"]),
+            path=cam_conf["path"],
+            settings=_load_camera_config(cam_conf["settings"]),
+        )
+        camera_objects[cam_name] = camera
+    return camera_objects
+
+
+def _merge_detected_with_configured(
+    configured: Dict[str, Camera],
+    detected: Dict[str, Camera],
+) -> Dict[str, Camera]:
+    """Merge freshly detected cameras into configured cameras.
+
+    - Keep configured cameras and settings as baseline.
+    - Add newly detected cameras that are not configured yet.
+    - For existing names, keep configured settings but refresh type/path from detection.
+    """
+    merged = dict(configured)
+
+    for name, detected_camera in detected.items():
+        if name in merged:
+            configured_camera = merged[name]
+            merged[name] = Camera(
+                name=name,
+                type=detected_camera.type,
+                path=detected_camera.path,
+                settings=configured_camera.settings,
+            )
+            continue
+        merged[name] = detected_camera
+
+    return merged
+
 """ Inactivity code -- allow to send device (parts) to sleep when idle for some time
 """
 # check if device is idle
@@ -489,18 +529,19 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
         logger.debug("Cleaned up old controllers.")
 
     # Detect hardware
-    if detect_cameras or config_dict["cameras"] == {}:
+    configured_cameras = _build_configured_camera_objects(config_dict["cameras"])
+
+    if detect_cameras or not configured_cameras:
         camera_objects = _detect_cameras()
     else:
-        camera_objects = {}
-        for cam_name in config_dict["cameras"]:
-            camera = Camera(
-                name=cam_name,
-                type=CameraType(config_dict["cameras"][cam_name]["type"]),
-                path=config_dict["cameras"][cam_name]["path"],
-                settings=_load_camera_config(config_dict["cameras"][cam_name]["settings"])
-            )
-            camera_objects[cam_name] = camera
+        camera_objects = configured_cameras
+        # Always attempt best-effort augmentation so newly attached USB cameras
+        # appear without requiring a full config reset.
+        detected_cameras = _detect_cameras()
+        camera_objects = _merge_detected_with_configured(camera_objects, detected_cameras)
+        newly_added = [name for name in camera_objects.keys() if name not in configured_cameras]
+        if newly_added:
+            logger.info("Detected additional cameras not in config: %s", ", ".join(newly_added))
 
     # Create motor objects
     motor_objects = {}
