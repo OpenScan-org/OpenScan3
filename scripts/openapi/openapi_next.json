@@ -3646,6 +3646,55 @@
         }
       }
     },
+    "/develop/camera-report": {
+      "get": {
+        "tags": [
+          "develop"
+        ],
+        "summary": "Get Camera Report",
+        "description": "Run the camera diagnostics script and return a bundled report.",
+        "operationId": "get_camera_report",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "json",
+                "text"
+              ],
+              "type": "string",
+              "default": "json",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/develop/crop_image": {
       "get": {
         "tags": [

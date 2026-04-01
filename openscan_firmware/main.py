@@ -24,6 +24,21 @@ from openscan_firmware.routers.v0_8 import (
     cloud as cloud_v0_8,
     focus_stacking as focus_stacking_v0_8,
 )
+# v0.9 routers
+from openscan_firmware.routers.v0_9 import (
+    cameras as cameras_v0_9,
+    motors as motors_v0_9,
+    lights as lights_v0_9,
+    firmware as firmware_v0_9,
+    projects as projects_v0_9,
+    gpio as gpio_v0_9,
+    openscan as openscan_v0_9,
+    device as device_v0_9,
+    tasks as tasks_v0_9,
+    develop as develop_v0_9,
+    cloud as cloud_v0_9,
+    focus_stacking as focus_stacking_v0_9,
+)
 # next routers
 from openscan_firmware.routers.next import (
     cameras as cameras_next,
@@ -188,9 +203,26 @@ next_ROUTERS = [
     focus_stacking_next.router,
 ]
 
+v0_9_ROUTERS = [
+    cameras_v0_9.router,
+    motors_v0_9.router,
+    lights_v0_9.router,
+    firmware_v0_9.router,
+    projects_v0_9.router,
+    gpio_v0_9.router,
+    openscan_v0_9.router,
+    device_v0_9.router,
+    tasks_v0_9.router,
+    develop_v0_9.router,
+    cloud_v0_9.router,
+    websocket_router.router,
+    focus_stacking_v0_9.router,
+]
+
 
 ROUTERS_BY_VERSION: dict[str, list] = {
     "0.8": v0_8_ROUTERS,
+    "0.9": v0_9_ROUTERS,
     "next": next_ROUTERS,
 }
 
@@ -255,8 +287,9 @@ def _use_route_names_as_operation_ids(app: FastAPI) -> None:
 # Define the supported API versions and explicitly set the latest alias.
 SUPPORTED_VERSIONS = [
     "0.8",
+    "0.9",
 ]
-LATEST = "0.8"
+LATEST = "0.9"
 
 for v in SUPPORTED_VERSIONS:
     app.mount(f"/v{v}", make_version_app(v))
