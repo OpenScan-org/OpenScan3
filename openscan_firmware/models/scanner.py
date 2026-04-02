@@ -14,6 +14,7 @@ from openscan_firmware.models.motor import Motor, Endstop
 class ScannerModel(Enum):
     CLASSIC = "classic"
     MINI = "mini"
+    MIDI = "midi"
     CUSTOM = "custom"
 
 class ScannerShield(Enum):
