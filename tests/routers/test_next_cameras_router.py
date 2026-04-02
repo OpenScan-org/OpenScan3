@@ -292,6 +292,28 @@ async def test_get_photo_with_metadata_returns_payload_url_for_raw_cr2(
 
 
 @pytest.mark.asyncio
+async def test_get_photo_with_metadata_encodes_camera_name_in_payload_url(
+    monkeypatch,
+    cameras_client,
+    cameras_router_path,
+):
+    module_path = cameras_router_path("cameras")
+    photo = _make_photo_data(io.BytesIO(b"jpeg-bytes"), "jpeg")
+    controller = _FakeCameraController(photo)
+    monkeypatch.setattr(f"{module_path}.get_camera_controller", lambda _name: controller)
+
+    response = await cameras_client.get(
+        "/next/cameras/Canon%20EOS%20700D/photo",
+        params={"image_format": "jpeg", "with_metadata": "true"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "Canon%20EOS%20700D" in payload["payload_url"]
+    assert "Canon EOS 700D" not in payload["payload_url"]
+
+
+@pytest.mark.asyncio
 async def test_get_photo_rgb_array_returns_npy_payload(monkeypatch, cameras_client, cameras_router_path):
     module_path = cameras_router_path("cameras")
     array = np.array([[1, 2], [3, 4]], dtype=np.uint8)

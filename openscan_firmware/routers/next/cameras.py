@@ -4,6 +4,7 @@ import time
 from dataclasses import dataclass
 from threading import Lock
 from typing import Literal, Optional
+from urllib.parse import quote, urlsplit, urlunsplit
 from uuid import uuid4
 
 import numpy as np
@@ -161,6 +162,12 @@ def _store_photo_payload(
         )
         _enforce_payload_cache_size_limit()
     return payload_id, _PAYLOAD_TTL_SECONDS
+
+
+def _encode_url_path(url: str) -> str:
+    split = urlsplit(url)
+    encoded_path = quote(split.path, safe="/")
+    return urlunsplit((split.scheme, split.netloc, encoded_path, split.query, split.fragment))
 
 
 def _get_cached_photo_payload(camera_name: str, payload_id: str) -> _CachedPhotoPayload:
@@ -321,11 +328,13 @@ async def get_photo(
         media_type=media_type,
         filename=filename,
     )
-    payload_url = str(
-        request.url_for(
-            "get_photo_payload",
-            camera_name=camera_name,
-            payload_id=payload_id,
+    payload_url = _encode_url_path(
+        str(
+            request.url_for(
+                "get_photo_payload",
+                camera_name=camera_name,
+                payload_id=payload_id,
+            )
         )
     )
     return PhotoMetadataResponse(
