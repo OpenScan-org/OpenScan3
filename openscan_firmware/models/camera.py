@@ -39,7 +39,7 @@ class PhotoData(BaseModel):
         ...,
         description="Image data (JPEG/DNG) or as numpy array"
     )
-    format:  Literal['jpeg','dng','rgb_array', 'yuv_array']
+    format:  Literal['jpeg', 'raw', 'dng', 'rgb_array', 'yuv_array']
     camera_metadata: CameraMetadata
     scan_metadata: Optional[ScanMetadata] = None
 

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 60
 ALLOWED_PHOTO_SUFFIXES = {".jpg", ".jpeg"}
-UNSUPPORTED_PHOTO_SUFFIXES = {".png", ".dng", ".npy"}
+UNSUPPORTED_PHOTO_SUFFIXES = {".png", ".dng", ".raw", ".cr2", ".cr3", ".crw", ".npy"}
 
 
 class CloudServiceError(RuntimeError):

@@ -67,7 +67,7 @@ class GPhoto2Controller(CameraController):
         self._set_busy(True)
         try:
             content, extra = self._profile.capture_dng(self._session)
-            return self._create_photo_data(io.BytesIO(content), "dng", extra)
+            return self._create_photo_data(io.BytesIO(content), "raw", extra)
         finally:
             self._set_busy(False)
 

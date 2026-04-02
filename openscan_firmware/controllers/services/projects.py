@@ -191,6 +191,7 @@ async def _save_photo_async(photo_data: PhotoData, photo_path: str) -> str:
     handlers = {
         "jpeg": (_save_photo_jpeg, ".jpg"),
         "dng": (_save_photo_dng, ".dng"),
+        "raw": (_save_photo_dng, _raw_extension_from_metadata(photo_data)),
         "rgb_array": (_save_photo_rgb, ".npy"),
         "yuv_array": (_save_photo_yuv, ".npy"),
     }
@@ -204,6 +205,15 @@ async def _save_photo_async(photo_data: PhotoData, photo_path: str) -> str:
     await saver(photo_data, final_path)
     logger.info("Saved %s to %s", photo_data.format, final_path)
     return final_path
+
+
+def _raw_extension_from_metadata(photo_data: PhotoData) -> str:
+    raw_metadata = photo_data.camera_metadata.raw_metadata if photo_data.camera_metadata else {}
+    capture_name = str(raw_metadata.get("capture_name", "")).lower()
+    for ext in (".cr2", ".cr3", ".crw", ".dng", ".raw"):
+        if capture_name.endswith(ext):
+            return ext
+    return ".raw"
 
 async def _save_photo_jpeg(photo_data: PhotoData, file_path: str):
     """Save a JPEG photo to a file.

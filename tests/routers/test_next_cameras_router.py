@@ -262,6 +262,36 @@ async def test_get_photo_with_metadata_returns_payload_url_for_dng(
 
 
 @pytest.mark.asyncio
+async def test_get_photo_with_metadata_returns_payload_url_for_raw_cr2(
+    monkeypatch,
+    cameras_client,
+    cameras_router_path,
+):
+    module_path = cameras_router_path("cameras")
+    photo = _make_photo_data(io.BytesIO(b"raw-bytes"), "raw")
+    photo.camera_metadata.raw_metadata["capture_name"] = "IMG_0001.CR2"
+    controller = _FakeCameraController(photo)
+    monkeypatch.setattr(f"{module_path}.get_camera_controller", lambda _name: controller)
+
+    response = await cameras_client.get(
+        "/next/cameras/cam0/photo",
+        params={"image_format": "raw", "with_metadata": "true"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["format"] == "raw"
+    assert payload["media_type"] == "image/x-canon-cr2"
+    assert payload["filename"] == "photo.cr2"
+    assert controller.requested_formats == ["raw"]
+
+    payload_response = await cameras_client.get(payload["payload_url"])
+    assert payload_response.status_code == 200
+    assert payload_response.headers["content-type"] == "image/x-canon-cr2"
+    assert payload_response.content == b"raw-bytes"
+
+
+@pytest.mark.asyncio
 async def test_get_photo_rgb_array_returns_npy_payload(monkeypatch, cameras_client, cameras_router_path):
     module_path = cameras_router_path("cameras")
     array = np.array([[1, 2], [3, 4]], dtype=np.uint8)

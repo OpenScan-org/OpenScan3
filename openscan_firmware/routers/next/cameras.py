@@ -28,7 +28,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-PhotoFormat = Literal["jpeg", "dng", "rgb_array", "yuv_array"]
+PhotoFormat = Literal["jpeg", "raw", "dng", "rgb_array", "yuv_array"]
 _PAYLOAD_TTL_SECONDS = 90
 _MAX_PAYLOAD_CACHE_ENTRIES = 8
 _MAX_PAYLOAD_CACHE_BYTES = 256 * 1024 * 1024
@@ -90,16 +90,15 @@ def _serialize_photo_payload(photo: PhotoData) -> tuple[bytes, str, str]:
     if photo.format == "jpeg":
         media_type = "image/jpeg"
         filename = "photo.jpg"
-    elif photo.format == "dng":
-        media_type = "image/x-adobe-dng"
-        filename = "photo.dng"
+    elif photo.format in ("raw", "dng"):
+        media_type, filename = _infer_raw_file_info(photo)
     elif photo.format in ("rgb_array", "yuv_array"):
         media_type = "application/x-npy"
         filename = f"photo_{photo.format}.npy"
     else:
         raise ValueError(f"Unsupported photo format: {photo.format}")
 
-    if photo.format in ("jpeg", "dng"):
+    if photo.format in ("jpeg", "raw", "dng"):
         if isinstance(photo.data, io.BytesIO):
             content = photo.data.getvalue()
         elif isinstance(photo.data, (bytes, bytearray)):
@@ -117,6 +116,28 @@ def _serialize_photo_payload(photo: PhotoData) -> tuple[bytes, str, str]:
         content = buffer.getvalue()
 
     return content, media_type, filename
+
+
+def _infer_raw_file_info(photo: PhotoData) -> tuple[str, str]:
+    raw_metadata = photo.camera_metadata.raw_metadata if photo.camera_metadata else {}
+    capture_name = str(raw_metadata.get("capture_name", "")).lower()
+
+    if capture_name.endswith(".cr2"):
+        return "image/x-canon-cr2", "photo.cr2"
+    if capture_name.endswith(".cr3"):
+        return "image/x-canon-cr3", "photo.cr3"
+    if capture_name.endswith(".crw"):
+        return "image/x-canon-crw", "photo.crw"
+    if capture_name.endswith(".dng"):
+        return "image/x-adobe-dng", "photo.dng"
+    if capture_name.endswith(".raw"):
+        return "application/octet-stream", "photo.raw"
+
+    # Legacy fallback for controllers that still report dng without capture_name.
+    if photo.format == "dng":
+        return "image/x-adobe-dng", "photo.dng"
+
+    return "application/octet-stream", "photo.raw"
 
 
 def _store_photo_payload(
