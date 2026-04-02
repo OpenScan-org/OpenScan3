@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from .profile import CameraIdentity, GPhoto2Profile
-from .profiles import CanonEOS700DProfile, GenericGPhoto2Profile
+from .profiles import CanonEOS700DProfile, NikonD7100Profile, GenericGPhoto2Profile
 
 _PROFILE_CLASSES: list[type[GPhoto2Profile]] = [
     CanonEOS700DProfile,
+    NikonD7100Profile,
     GenericGPhoto2Profile,
 ]
 
