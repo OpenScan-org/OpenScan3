@@ -14,7 +14,9 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, status, Response, Query
 from fastapi.responses import PlainTextResponse
 
+from openscan_firmware.controllers.hardware.cameras.camera import get_all_camera_controllers
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
+from openscan_firmware.models.camera import CameraType
 from openscan_firmware.models.task import TaskStatus, Task
 
 from openscan_firmware.models.paths import PolarPoint3D
@@ -145,10 +147,52 @@ def _collect_gphoto2_diagnostics() -> dict:
                 "cameras": [],
             }
 
+    gphoto2_controllers = []
+    for controller in get_all_camera_controllers().values():
+        camera_model = getattr(controller, "camera", None)
+        if camera_model is None:
+            continue
+        if getattr(camera_model, "type", None) != CameraType.GPHOTO2:
+            continue
+        gphoto2_controllers.append(controller)
+
+    def _find_active_controller(model: str | None, path: str | None):
+        for ctrl in gphoto2_controllers:
+            cam = getattr(ctrl, "camera", None)
+            if cam is None:
+                continue
+            if path and getattr(cam, "path", None) == path:
+                return ctrl
+            if model and getattr(cam, "name", None) == model:
+                return ctrl
+        return None
+
     cameras: list[dict] = []
     for row in rows:
         model = row.get("model")
         path = row.get("path")
+        active_controller = _find_active_controller(model, path)
+        if active_controller is not None:
+            get_diag = getattr(active_controller, "get_diagnostics", None)
+            if callable(get_diag):
+                try:
+                    cameras.append(get_diag())
+                    continue
+                except Exception as exc:
+                    cameras.append(
+                        {
+                            "model": model,
+                            "path": path,
+                            "summary": None,
+                            "about": None,
+                            "config_groups": [],
+                            "relevant_config": [],
+                            "in_use_by_openscan": True,
+                            "error": f"controller diagnostics failed: {exc}",
+                        }
+                    )
+                    continue
+
         camera_diag = {
             "model": model,
             "path": path,
@@ -156,6 +200,7 @@ def _collect_gphoto2_diagnostics() -> dict:
             "about": None,
             "config_groups": [],
             "relevant_config": [],
+            "in_use_by_openscan": False,
             "error": None,
         }
         camera = None

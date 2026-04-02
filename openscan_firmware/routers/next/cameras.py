@@ -1,5 +1,6 @@
 import asyncio
 import io
+import logging
 import time
 from dataclasses import dataclass
 from threading import Lock
@@ -28,6 +29,8 @@ router = APIRouter(
     tags=["cameras"],
     responses={404: {"description": "Not found"}},
 )
+
+logger = logging.getLogger(__name__)
 
 PhotoFormat = Literal["jpeg", "raw", "dng", "rgb_array", "yuv_array"]
 _PAYLOAD_TTL_SECONDS = 90
@@ -308,10 +311,13 @@ async def get_photo(
     try:
         photo = await controller.photo_async(image_format=image_format)
     except ValueError as exc:
+        logger.warning("Photo request failed for camera '%s' (bad request): %s", camera_name, exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
+        logger.warning("Photo request failed for camera '%s' (runtime): %s", camera_name, exc)
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
+        logger.exception("Photo request failed for camera '%s' (unexpected error).", camera_name)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     try:

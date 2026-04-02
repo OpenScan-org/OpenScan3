@@ -85,7 +85,20 @@ class GPhoto2Session:
 
     def capture_image(self, gp_file_type: int = gp.GP_FILE_TYPE_NORMAL) -> tuple[bytes, dict[str, Any]]:
         camera = self.ensure_connected()
-        file_path = camera.capture(gp.GP_CAPTURE_IMAGE)
+        try:
+            file_path = camera.capture(gp.GP_CAPTURE_IMAGE)
+        except Exception as exc:
+            message = str(exc)
+            # Nikon (and some other DSLRs) can fail with "Unspecified error"
+            # on camera.capture(), but succeed via trigger + event polling.
+            if "Unspecified error" in message or "[-1]" in message:
+                logger.debug(
+                    "camera.capture failed with '%s'; trying trigger-capture fallback.",
+                    message,
+                )
+                file_path = self._trigger_capture_and_wait_for_file(camera)
+            else:
+                raise
         camera_file = camera.file_get(file_path.folder, file_path.name, gp_file_type)
         payload = bytes(camera_file.get_data_and_size())
         metadata = {
@@ -94,6 +107,25 @@ class GPhoto2Session:
             "gp_file_type": gp_file_type,
         }
         return payload, metadata
+
+    def _trigger_capture_and_wait_for_file(self, camera: Any, timeout_s: float = 12.0):
+        start = time.monotonic()
+
+        if hasattr(camera, "trigger_capture"):
+            camera.trigger_capture()
+        else:
+            gp.gp_camera_trigger_capture(camera)
+
+        while time.monotonic() - start < timeout_s:
+            event_type, event_data = camera.wait_for_event(1000)
+            if event_type == gp.GP_EVENT_FILE_ADDED and event_data is not None:
+                return event_data
+            if event_type == gp.GP_EVENT_TIMEOUT:
+                continue
+            if event_type == gp.GP_EVENT_UNKNOWN:
+                continue
+
+        raise RuntimeError("Trigger-capture fallback timed out waiting for GP_EVENT_FILE_ADDED.")
 
     def set_config_value(self, key: str, value: Any) -> bool:
         camera = self.ensure_connected()

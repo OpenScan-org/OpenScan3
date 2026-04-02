@@ -40,6 +40,87 @@ class GPhoto2Controller(CameraController):
     def cleanup(self):
         self._session.close()
 
+    def get_diagnostics(self) -> dict:
+        """Return diagnostics gathered from the active gphoto2 controller session."""
+        relevant_keys = [
+            "/main/settings/capturetarget",
+            "/main/settings/capture",
+            "/main/settings/recordingmedia",
+            "/main/settings/remotemode",
+            "/main/capturesettings/shutterspeed",
+            "/main/capturesettings/aperture",
+            "/main/capturesettings/autoexposuremode",
+            "/main/capturesettings/focusmode",
+            "/main/imgsettings/imageformat",
+            "/main/imgsettings/imagequality",
+            "/main/imgsettings/iso",
+            "/main/status/liveviewstatus",
+            "/main/status/liveviewselector",
+            "/main/other/applicationmode",
+            "capturetarget",
+            "capture",
+            "recordingmedia",
+            "remotemode",
+            "shutterspeed",
+            "aperture",
+            "autoexposuremode",
+            "focusmode",
+            "imageformat",
+            "imagequality",
+            "iso",
+            "liveviewstatus",
+            "liveviewselector",
+            "applicationmode",
+        ]
+        with self._hw_lock:
+            camera = self._session.ensure_connected()
+            summary = None
+            about = None
+            groups: list[str] = []
+            relevant: list[dict] = []
+
+            try:
+                summary = str(getattr(camera.get_summary(), "text", "")).strip() or None
+            except Exception:
+                summary = None
+            try:
+                about = str(getattr(camera.get_about(), "text", "")).strip() or None
+            except Exception:
+                about = None
+
+            try:
+                config = camera.get_config()
+                child_count = config.count_children()
+                for child_idx in range(child_count):
+                    child = config.get_child(child_idx)
+                    groups.append(f"{child.get_name()}: {child.get_label()}")
+            except Exception:
+                groups = []
+
+            seen_paths: set[str] = set()
+            for key in relevant_keys:
+                details = self._session.get_config_details(key)
+                if details is None:
+                    continue
+                key_path = str(details.get("key", key))
+                if key_path in seen_paths:
+                    continue
+                seen_paths.add(key_path)
+                relevant.append(details)
+
+            identity = self._session.identity
+            return {
+                "model": identity.model or self.camera.name,
+                "path": identity.port or self.camera.path,
+                "summary": summary,
+                "about": about,
+                "config_groups": groups,
+                "relevant_config": relevant,
+                "profile": self._profile.profile_id,
+                "in_use_by_openscan": True,
+                "error": None,
+            }
+
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         self._set_busy(True)
         try:
