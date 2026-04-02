@@ -5682,6 +5682,7 @@
         "enum": [
           "classic",
           "mini",
+          "midi",
           "custom"
         ],
         "title": "ScannerModel"
