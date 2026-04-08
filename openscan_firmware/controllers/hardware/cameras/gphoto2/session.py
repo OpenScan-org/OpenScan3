@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from dataclasses import dataclass, field
 from typing import Any
 
 import gphoto2 as gp
@@ -11,6 +12,29 @@ import gphoto2 as gp
 from .profile import CameraIdentity
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ConfigReadResult:
+    requested_key: str
+    matched_key: str | None
+    success: bool
+    value: Any | None = None
+    details: dict[str, Any] | None = None
+    choices: list[Any] = field(default_factory=list)
+    error: str | None = None
+    attempted_keys: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ConfigWriteResult:
+    requested_key: str
+    requested_value: Any
+    matched_key: str | None
+    actual_value: Any | None
+    success: bool
+    error: str | None = None
+    attempted_keys: list[str] = field(default_factory=list)
 
 
 class GPhoto2Session:
@@ -108,6 +132,10 @@ class GPhoto2Session:
         }
         return payload, metadata
 
+    def trigger_capture_and_wait_for_file(self, timeout_s: float = 12.0):
+        camera = self.ensure_connected()
+        return self._trigger_capture_and_wait_for_file(camera, timeout_s=timeout_s)
+
     def _trigger_capture_and_wait_for_file(self, camera: Any, timeout_s: float = 12.0):
         start = time.monotonic()
 
@@ -127,31 +155,59 @@ class GPhoto2Session:
 
         raise RuntimeError("Trigger-capture fallback timed out waiting for GP_EVENT_FILE_ADDED.")
 
-    def set_config_value(self, key: str, value: Any) -> bool:
+    def write_config(self, key: str, value: Any) -> ConfigWriteResult:
         camera = self.ensure_connected()
-        config = self._get_config_with_retry(camera, key_context=key)
+        config, config_error = self._get_config_with_retry(camera, key_context=key)
         if config is None:
-            return False
+            return ConfigWriteResult(
+                requested_key=key,
+                requested_value=value,
+                matched_key=None,
+                actual_value=None,
+                success=False,
+                error=config_error or f"Failed to read config tree for key '{key}'.",
+                attempted_keys=[key],
+            )
+
         child = self._find_widget(config, key)
         if child is None:
-            return False
-        # Normalize enum-like choices to avoid trivial casing mismatches.
-        choices = self._extract_choices(child)
-        if choices:
-            selected = self._match_choice(choices, value)
-        else:
-            selected = value
+            return ConfigWriteResult(
+                requested_key=key,
+                requested_value=value,
+                matched_key=None,
+                actual_value=None,
+                success=False,
+                error=f"Config key '{key}' was not found.",
+                attempted_keys=[key],
+            )
 
+        choices = self._extract_choices(child)
+        selected = self._match_choice(choices, value) if choices else value
         current = self._safe_call(child, "get_value")
         if current is not None and str(current) == str(selected):
-            return True
+            return ConfigWriteResult(
+                requested_key=key,
+                requested_value=value,
+                matched_key=key,
+                actual_value=current,
+                success=True,
+                attempted_keys=[key],
+            )
 
         try:
             child.set_value(selected)
             camera.set_config(config)
         except Exception as exc:
             logger.debug("Setting config '%s' to '%s' failed: %s", key, selected, exc)
-            return False
+            return ConfigWriteResult(
+                requested_key=key,
+                requested_value=value,
+                matched_key=key,
+                actual_value=current,
+                success=False,
+                error=f"Writing key '{key}' failed: {exc}",
+                attempted_keys=[key],
+            )
 
         verified = self._safe_call(child, "get_value")
         if verified is not None and str(verified) != str(selected):
@@ -161,26 +217,91 @@ class GPhoto2Session:
                 selected,
                 verified,
             )
-            return False
-        return True
+            return ConfigWriteResult(
+                requested_key=key,
+                requested_value=value,
+                matched_key=key,
+                actual_value=verified,
+                success=False,
+                error=(
+                    f"Config key '{key}' did not persist expected value "
+                    f"(requested={selected} actual={verified})."
+                ),
+                attempted_keys=[key],
+            )
 
-    def set_first_config_value(self, keys: list[str], value: Any) -> bool:
+        return ConfigWriteResult(
+            requested_key=key,
+            requested_value=value,
+            matched_key=key,
+            actual_value=verified if verified is not None else selected,
+            success=True,
+            attempted_keys=[key],
+        )
+
+    def write_first_config(self, keys: list[str], value: Any) -> ConfigWriteResult:
+        last_result: ConfigWriteResult | None = None
         for key in keys:
             try:
-                if self.set_config_value(key, value):
-                    return True
-            except Exception:
+                result = self.write_config(key, value)
+            except Exception as exc:
                 logger.debug("Setting config '%s' failed.", key, exc_info=True)
-        return False
+                result = ConfigWriteResult(
+                    requested_key=key,
+                    requested_value=value,
+                    matched_key=None,
+                    actual_value=None,
+                    success=False,
+                    error=f"Writing key '{key}' raised an exception: {exc}",
+                    attempted_keys=[key],
+                )
+            if result.success:
+                return ConfigWriteResult(
+                    requested_key=keys[0] if keys else key,
+                    requested_value=value,
+                    matched_key=result.matched_key,
+                    actual_value=result.actual_value,
+                    success=True,
+                    attempted_keys=list(keys),
+                )
+            last_result = result
 
-    def get_config_details(self, key: str) -> dict[str, Any] | None:
+        error = (
+            last_result.error
+            if last_result is not None and last_result.error
+            else "No provided config key accepted the requested value."
+        )
+        return ConfigWriteResult(
+            requested_key=keys[0] if keys else "",
+            requested_value=value,
+            matched_key=None,
+            actual_value=None,
+            success=False,
+            error=error,
+            attempted_keys=list(keys),
+        )
+
+    def read_config(self, key: str) -> ConfigReadResult:
         camera = self.ensure_connected()
-        config = self._get_config_with_retry(camera, key_context=key)
+        config, config_error = self._get_config_with_retry(camera, key_context=key)
         if config is None:
-            return None
+            return ConfigReadResult(
+                requested_key=key,
+                matched_key=None,
+                success=False,
+                error=config_error or f"Failed to read config tree for key '{key}'.",
+                attempted_keys=[key],
+            )
+
         child = self._find_widget(config, key)
         if child is None:
-            return None
+            return ConfigReadResult(
+                requested_key=key,
+                matched_key=None,
+                success=False,
+                error=f"Config key '{key}' was not found.",
+                attempted_keys=[key],
+            )
 
         details: dict[str, Any] = {
             "key": key,
@@ -191,32 +312,86 @@ class GPhoto2Session:
             "value": self._safe_call(child, "get_value"),
             "choices": self._extract_choices(child),
         }
-        return details
+        return ConfigReadResult(
+            requested_key=key,
+            matched_key=key,
+            success=True,
+            value=details.get("value"),
+            details=details,
+            choices=list(details.get("choices") or []),
+            attempted_keys=[key],
+        )
 
-    def get_first_config_details(self, keys: list[str]) -> dict[str, Any] | None:
+    def read_first_config(self, keys: list[str]) -> ConfigReadResult:
+        last_result: ConfigReadResult | None = None
         for key in keys:
             try:
-                details = self.get_config_details(key)
-            except Exception:
+                result = self.read_config(key)
+            except Exception as exc:
                 logger.debug("Reading config '%s' failed.", key)
-                continue
-            if details is not None:
-                return details
-        return None
+                result = ConfigReadResult(
+                    requested_key=key,
+                    matched_key=None,
+                    success=False,
+                    error=f"Reading key '{key}' raised an exception: {exc}",
+                    attempted_keys=[key],
+                )
+            if result.success:
+                return ConfigReadResult(
+                    requested_key=keys[0] if keys else key,
+                    matched_key=result.matched_key,
+                    success=True,
+                    value=result.value,
+                    details=result.details,
+                    choices=result.choices,
+                    attempted_keys=list(keys),
+                )
+            last_result = result
 
-    def _get_config_with_retry(self, camera: Any, key_context: str) -> Any | None:
+        error = (
+            last_result.error
+            if last_result is not None and last_result.error
+            else "None of the provided config keys were readable."
+        )
+        return ConfigReadResult(
+            requested_key=keys[0] if keys else "",
+            matched_key=None,
+            success=False,
+            error=error,
+            attempted_keys=list(keys),
+        )
+
+    # Backward-compatible bool helpers used by existing profile code.
+    def set_config_value(self, key: str, value: Any) -> bool:
+        return self.write_config(key, value).success
+
+    def set_first_config_value(self, keys: list[str], value: Any) -> bool:
+        return self.write_first_config(keys, value).success
+
+    # Backward-compatible details helpers used by diagnostics and tests.
+    def get_config_details(self, key: str) -> dict[str, Any] | None:
+        result = self.read_config(key)
+        return result.details if result.success else None
+
+    def get_first_config_details(self, keys: list[str]) -> dict[str, Any] | None:
+        result = self.read_first_config(keys)
+        return result.details if result.success else None
+
+    def _get_config_with_retry(self, camera: Any, key_context: str) -> tuple[Any | None, str | None]:
+        last_error: str | None = None
         for attempt in range(self._io_retry_attempts):
             try:
-                return camera.get_config()
+                return camera.get_config(), None
             except Exception as exc:
                 message = str(exc)
                 is_io_in_progress = "I/O in progress" in message or "[-110]" in message
                 if is_io_in_progress and attempt < self._io_retry_attempts - 1:
                     time.sleep(self._io_retry_delay_s)
                     continue
-                logger.debug("Reading config '%s' failed: %s", key_context, exc)
-                return None
-        return None
+                last_error = f"Reading config '{key_context}' failed: {exc}"
+                logger.debug(last_error)
+                return None, last_error
+        return None, last_error or f"Reading config '{key_context}' failed."
 
     @staticmethod
     def _find_widget(config_root: Any, key: str) -> Any | None:
