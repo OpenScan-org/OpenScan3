@@ -361,22 +361,6 @@ class GPhoto2Session:
             attempted_keys=list(keys),
         )
 
-    # Backward-compatible bool helpers used by existing profile code.
-    def set_config_value(self, key: str, value: Any) -> bool:
-        return self.write_config(key, value).success
-
-    def set_first_config_value(self, keys: list[str], value: Any) -> bool:
-        return self.write_first_config(keys, value).success
-
-    # Backward-compatible details helpers used by diagnostics and tests.
-    def get_config_details(self, key: str) -> dict[str, Any] | None:
-        result = self.read_config(key)
-        return result.details if result.success else None
-
-    def get_first_config_details(self, keys: list[str]) -> dict[str, Any] | None:
-        result = self.read_first_config(keys)
-        return result.details if result.success else None
-
     def _get_config_with_retry(self, camera: Any, key_context: str) -> tuple[Any | None, str | None]:
         last_error: str | None = None
         for attempt in range(self._io_retry_attempts):

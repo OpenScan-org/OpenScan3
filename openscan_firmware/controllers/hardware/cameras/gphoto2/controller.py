@@ -99,9 +99,10 @@ class GPhoto2Controller(CameraController):
 
             seen_paths: set[str] = set()
             for key in relevant_keys:
-                details = self._session.get_config_details(key)
-                if details is None:
+                read_result = self._session.read_config(key)
+                if not read_result.success or read_result.details is None:
                     continue
+                details = read_result.details
                 key_path = str(details.get("key", key))
                 if key_path in seen_paths:
                     continue

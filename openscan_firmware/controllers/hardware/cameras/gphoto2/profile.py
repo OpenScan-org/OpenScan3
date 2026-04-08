@@ -23,6 +23,7 @@ class GPhoto2Profile:
     """Base profile contract for camera model-specific GPhoto2 behavior."""
 
     profile_id = "generic"
+    register_in_registry = True
 
     def matches(self, identity: CameraIdentity) -> bool:
         return True

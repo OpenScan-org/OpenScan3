@@ -13,6 +13,7 @@ class TemplateCameraProfile(GenericGPhoto2Profile):
     """Copy this class and replace values for your own camera model."""
 
     profile_id = "template_camera"
+    register_in_registry = False
 
     # 1) Model markers: use lowercase fragments from `gphoto2 --auto-detect`.
     _MODEL_MARKERS = ("replace with model marker",)

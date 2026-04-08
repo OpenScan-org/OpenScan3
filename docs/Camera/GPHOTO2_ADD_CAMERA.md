@@ -51,15 +51,19 @@ Then update:
 
 ## 4. Register the profile
 
-Add your class to:
+No manual registry edit is needed.
 
-`openscan_firmware/controllers/hardware/cameras/gphoto2/profiles/__init__.py`
+All Python modules in:
 
-Then add it in selection order in:
+`openscan_firmware/controllers/hardware/cameras/gphoto2/profiles/`
 
-`openscan_firmware/controllers/hardware/cameras/gphoto2/profile_registry.py`
+are auto-discovered by the profile registry at startup.
 
-Place model-specific profiles before `GenericGPhoto2Profile`.
+Requirements:
+
+- your class must inherit from `GPhoto2Profile` (or `GenericGPhoto2Profile`)
+- `register_in_registry` must be `True` (default)
+- `matches(identity)` should return `True` only for your target camera model
 
 ## 5. Run a JPEG test
 
