@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from pathlib import Path
 import os
 import json
@@ -14,6 +14,7 @@ from openscan_firmware.utils.dir_paths import resolve_settings_dir
 from .cameras import CameraStatusResponse
 from .motors import MotorStatusResponse
 from .lights import LightStatusResponse
+from .triggers import TriggerStatusResponse
 
 router = APIRouter(
     prefix="/device",
@@ -34,6 +35,7 @@ class DeviceStatusResponse(BaseModel):
     cameras: dict[str, CameraStatusResponse]
     motors: dict[str, MotorStatusResponse]
     lights: dict[str, LightStatusResponse]
+    triggers: dict[str, TriggerStatusResponse] = Field(default_factory=dict)
     motors_timeout: float
     startup_mode: ScannerStartupMode
     calibrate_mode: ScannerCalibrateMode

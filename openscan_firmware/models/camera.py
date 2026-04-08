@@ -15,7 +15,6 @@ class CameraType(Enum):
     GPHOTO2 = "gphoto2"
     LINUXPY = "linuxpy"
     PICAMERA2 = "picamera2"
-    EXTERNAL = "external"
 
 
 class Camera(BaseModel):

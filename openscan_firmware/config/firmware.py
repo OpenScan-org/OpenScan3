@@ -30,6 +30,9 @@ class FirmwareSettings(BaseModel):
             detected.
         enable_cloud: When True the firmware enables cloud-facing features and
             UX affordances.
+        camera_preview_enabled: When False the system is expected to operate
+            without a live camera preview workflow, for example on trigger-only
+            DSLR setups.
     """
 
     qr_wifi_scan_enabled: bool = Field(
@@ -39,6 +42,10 @@ class FirmwareSettings(BaseModel):
     enable_cloud: bool = Field(
         default=False,
         description="Enable integrations with OpenScan Cloud services.",
+    )
+    camera_preview_enabled: bool = Field(
+        default=True,
+        description="Expose camera preview-oriented workflows. Disable for trigger-only systems without a live camera feed.",
     )
 
 

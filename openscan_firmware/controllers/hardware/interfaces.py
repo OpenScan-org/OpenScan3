@@ -62,6 +62,16 @@ class SwitchableHardware(HardwareInterface[T], Protocol[T]):
         """Check if hardware is turned on"""
         ...
 
+
+@runtime_checkable
+class TriggerableHardware(StatefulHardware[T], Protocol[T]):
+    """Interface for hardware that can be explicitly triggered."""
+
+    @abstractmethod
+    async def trigger(self, pre_trigger_delay_ms: int = 0, post_trigger_delay_ms: int = 0):
+        """Fire the trigger once and optionally wait before/after the pulse."""
+        ...
+
 @runtime_checkable
 class EventHardware(HardwareInterface[T], Protocol[T]):
     """Interface for hardware that generates events (buttons, sensors, etc.)"""

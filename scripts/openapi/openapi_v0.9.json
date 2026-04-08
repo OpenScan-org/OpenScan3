@@ -2709,7 +2709,10 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Set Pin Gpio  Pin Id  Patch"
+                }
               }
             }
           },
@@ -2753,7 +2756,10 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Toggle Pin Gpio  Pin Id  Toggle Patch"
+                }
               }
             }
           },
@@ -4831,8 +4837,7 @@
         "enum": [
           "gphoto2",
           "linuxpy",
-          "picamera2",
-          "external"
+          "picamera2"
         ],
         "title": "CameraType"
       },
@@ -5950,6 +5955,7 @@
             "type": "string",
             "enum": [
               "jpeg",
+              "raw",
               "dng",
               "rgb_array",
               "yuv_array"
@@ -6080,6 +6086,13 @@
             "type": "object",
             "title": "Lights"
           },
+          "triggers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TriggerConfig"
+            },
+            "type": "object",
+            "title": "Triggers"
+          },
           "endstops": {
             "anyOf": [
               {
@@ -6179,6 +6192,13 @@
             },
             "type": "object",
             "title": "Lights"
+          },
+          "triggers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TriggerConfig"
+            },
+            "type": "object",
+            "title": "Triggers"
           },
           "endstops": {
             "anyOf": [
@@ -6479,6 +6499,48 @@
         ],
         "title": "TaskStatus",
         "description": "Enum for task status"
+      },
+      "TriggerConfig": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether this trigger can be fired.",
+            "default": true
+          },
+          "pin": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pin",
+            "description": "BCM GPIO pin used for the trigger line."
+          },
+          "polarity": {
+            "$ref": "#/components/schemas/TriggerPolarity",
+            "description": "Defines whether the trigger line is active-high or active-low.",
+            "default": "active_high"
+          },
+          "pulse_width_ms": {
+            "type": "integer",
+            "maximum": 5000.0,
+            "minimum": 1.0,
+            "title": "Pulse Width Ms",
+            "description": "How long the trigger line stays active for each trigger pulse.",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "pin"
+        ],
+        "title": "TriggerConfig"
+      },
+      "TriggerPolarity": {
+        "type": "string",
+        "enum": [
+          "active_high",
+          "active_low"
+        ],
+        "title": "TriggerPolarity"
       },
       "ValidationError": {
         "properties": {
