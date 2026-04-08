@@ -11,7 +11,7 @@ class ScanSetting(BaseModel):
     )
     points: int = Field(130, ge=1, le=999, description="Number of points in scanning path.")
 
-    image_format: Literal['jpeg','dng','rgb_array', 'yuv_array'] = Field(
+    image_format: Literal['jpeg', 'raw', 'dng', 'rgb_array', 'yuv_array'] = Field(
         default='jpeg',
         description='Output image format (JPEG, DNG, RGB array or YUV array).'
         )

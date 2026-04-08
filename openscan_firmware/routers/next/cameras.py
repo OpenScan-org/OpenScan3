@@ -1,9 +1,11 @@
 import asyncio
 import io
+import logging
 import time
 from dataclasses import dataclass
 from threading import Lock
 from typing import Literal, Optional
+from urllib.parse import quote, urlsplit, urlunsplit
 from uuid import uuid4
 
 import numpy as np
@@ -28,7 +30,9 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-PhotoFormat = Literal["jpeg", "dng", "rgb_array", "yuv_array"]
+logger = logging.getLogger(__name__)
+
+PhotoFormat = Literal["jpeg", "raw", "dng", "rgb_array", "yuv_array"]
 _PAYLOAD_TTL_SECONDS = 90
 _MAX_PAYLOAD_CACHE_ENTRIES = 8
 _MAX_PAYLOAD_CACHE_BYTES = 256 * 1024 * 1024
@@ -90,16 +94,15 @@ def _serialize_photo_payload(photo: PhotoData) -> tuple[bytes, str, str]:
     if photo.format == "jpeg":
         media_type = "image/jpeg"
         filename = "photo.jpg"
-    elif photo.format == "dng":
-        media_type = "image/x-adobe-dng"
-        filename = "photo.dng"
+    elif photo.format in ("raw", "dng"):
+        media_type, filename = _infer_raw_file_info(photo)
     elif photo.format in ("rgb_array", "yuv_array"):
         media_type = "application/x-npy"
         filename = f"photo_{photo.format}.npy"
     else:
         raise ValueError(f"Unsupported photo format: {photo.format}")
 
-    if photo.format in ("jpeg", "dng"):
+    if photo.format in ("jpeg", "raw", "dng"):
         if isinstance(photo.data, io.BytesIO):
             content = photo.data.getvalue()
         elif isinstance(photo.data, (bytes, bytearray)):
@@ -117,6 +120,28 @@ def _serialize_photo_payload(photo: PhotoData) -> tuple[bytes, str, str]:
         content = buffer.getvalue()
 
     return content, media_type, filename
+
+
+def _infer_raw_file_info(photo: PhotoData) -> tuple[str, str]:
+    raw_metadata = photo.camera_metadata.raw_metadata if photo.camera_metadata else {}
+    capture_name = str(raw_metadata.get("capture_name", "")).lower()
+
+    if capture_name.endswith(".cr2"):
+        return "image/x-canon-cr2", "photo.cr2"
+    if capture_name.endswith(".cr3"):
+        return "image/x-canon-cr3", "photo.cr3"
+    if capture_name.endswith(".crw"):
+        return "image/x-canon-crw", "photo.crw"
+    if capture_name.endswith(".dng"):
+        return "image/x-adobe-dng", "photo.dng"
+    if capture_name.endswith(".raw"):
+        return "application/octet-stream", "photo.raw"
+
+    # Legacy fallback for controllers that still report dng without capture_name.
+    if photo.format == "dng":
+        return "image/x-adobe-dng", "photo.dng"
+
+    return "application/octet-stream", "photo.raw"
 
 
 def _store_photo_payload(
@@ -140,6 +165,12 @@ def _store_photo_payload(
         )
         _enforce_payload_cache_size_limit()
     return payload_id, _PAYLOAD_TTL_SECONDS
+
+
+def _encode_url_path(url: str) -> str:
+    split = urlsplit(url)
+    encoded_path = quote(split.path, safe="/")
+    return urlunsplit((split.scheme, split.netloc, encoded_path, split.query, split.fragment))
 
 
 def _get_cached_photo_payload(camera_name: str, payload_id: str) -> _CachedPhotoPayload:
@@ -280,10 +311,13 @@ async def get_photo(
     try:
         photo = await controller.photo_async(image_format=image_format)
     except ValueError as exc:
+        logger.warning("Photo request failed for camera '%s' (bad request): %s", camera_name, exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
+        logger.warning("Photo request failed for camera '%s' (runtime): %s", camera_name, exc)
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
+        logger.exception("Photo request failed for camera '%s' (unexpected error).", camera_name)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     try:
@@ -300,11 +334,13 @@ async def get_photo(
         media_type=media_type,
         filename=filename,
     )
-    payload_url = str(
-        request.url_for(
-            "get_photo_payload",
-            camera_name=camera_name,
-            payload_id=payload_id,
+    payload_url = _encode_url_path(
+        str(
+            request.url_for(
+                "get_photo_payload",
+                camera_name=camera_name,
+                payload_id=payload_id,
+            )
         )
     )
     return PhotoMetadataResponse(
