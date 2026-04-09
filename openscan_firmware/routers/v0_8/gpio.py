@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from openscan_firmware.controllers.hardware import gpio
 
@@ -29,10 +29,13 @@ async def get_pin(pin_id: int):
     Returns:
         bool: The output value of the GPIO pin
     """
-    return gpio.get_output_pin(pin_id)
+    try:
+        return gpio.get_output_pin(pin_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.patch("/{pin_id}")
+@router.patch("/{pin_id}", response_model=bool)
 async def set_pin(pin_id: int, status: bool):
     """Set GPIO pin output value
 
@@ -40,14 +43,22 @@ async def set_pin(pin_id: int, status: bool):
         pin_id: The ID (int) of the GPIO pin to set the value of
         status: The output value to set for the GPIO pin
     """
-    return gpio.set_output_pin(pin_id, status)
+    try:
+        return gpio.set_output_pin(pin_id, status, auto_initialize=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.patch("/{pin_id}/toggle")
+@router.patch("/{pin_id}/toggle", response_model=bool)
 async def toggle_pin(pin_id: int):
     """Toggle GPIO pin output value
 
     Args:
         pin_id: The ID (int) of the GPIO pin to toggle
     """
-    return gpio.toggle_output_pin(pin_id)
+    try:
+        return gpio.toggle_output_pin(pin_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
