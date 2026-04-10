@@ -26,10 +26,15 @@
         }
     },
     "lights": {
-      "Openscan.eu Ringlight": {
-           "pins": [12],
-           "pwm_support": true
-      }
+        "Openscan.eu Ringlight": {
+            "pins": [
+                12
+            ],
+            "pwm_support": true,
+            "pwm_frequency": 50000.0,
+            "pwm_min": 0.0,
+            "pwm_max": 3.3
+        }
     },
     "endstops": {
         "rotor-endstop": {
@@ -44,7 +49,7 @@
             }
         }
     },
-    "motors_timeout": 180,
+    "motors_timeout": 30.0,
     "startup_mode": "startup_idle",
-    "calibrate_mode": "calibrate_on_wake"
+    "calibrate_mode": "calibrate_on_home"
 }
