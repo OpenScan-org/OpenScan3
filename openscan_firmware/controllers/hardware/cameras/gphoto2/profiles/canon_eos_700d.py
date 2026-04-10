@@ -7,6 +7,7 @@ import logging
 from openscan_firmware.config.camera import CameraSettings
 
 from ..profile import CameraIdentity
+from ..profile_helpers import is_raw_filename, map_gain_to_iso_choice, restore_previous_config_value
 from .generic import GenericGPhoto2Profile
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,9 @@ class CanonEOS700DProfile(GenericGPhoto2Profile):
 
     def apply_startup_config(self, session, settings: CameraSettings) -> None:
         # For tethered capture on EOS 700D we prefer Internal RAM.
-        session.set_first_config_value(self._CAPTURE_TARGET_KEYS, "Internal RAM")
-        session.set_first_config_value(self._EXPOSURE_MODE_KEYS, "Manual")
-        session.set_first_config_value(self._FOCUS_MODE_KEYS, "One Shot")
+        self._set_first(session, self._CAPTURE_TARGET_KEYS, "Internal RAM")
+        self._set_first(session, self._EXPOSURE_MODE_KEYS, "Manual")
+        self._set_first(session, self._FOCUS_MODE_KEYS, "One Shot")
         self.apply_settings(session, settings)
 
     def apply_settings(self, session, settings: CameraSettings) -> None:
@@ -42,7 +43,7 @@ class CanonEOS700DProfile(GenericGPhoto2Profile):
 
         iso_value = _map_gain_to_iso_choice(settings.gain)
         if iso_value is not None:
-            applied = session.set_first_config_value(self._ISO_KEYS, iso_value)
+            applied = self._set_first(session, self._ISO_KEYS, iso_value)
             if not applied:
                 logger.debug("ISO mapping unsupported on this EOS 700D config tree.")
 
@@ -50,26 +51,36 @@ class CanonEOS700DProfile(GenericGPhoto2Profile):
         return True
 
     def capture_dng(self, session):
-        previous = session.get_first_config_details(self._DNG_KEYS)
+        previous = self._get_first_details(session, self._DNG_KEYS)
         previous_value = None if previous is None else previous.get("value")
-        session.set_first_config_value(self._DNG_KEYS, "RAW")
+        write_result = session.write_first_config(self._DNG_KEYS, "RAW")
+        if not write_result.success:
+            raise RuntimeError(
+                "Could not set Canon RAW mode "
+                f"(requested='RAW', attempted_keys={write_result.attempted_keys}, "
+                f"error={write_result.error!r})."
+            )
         try:
-            import gphoto2 as gp
-
-            return session.capture_image(gp_file_type=gp.GP_FILE_TYPE_RAW)
-        except Exception:
-            logger.debug("RAW file capture path failed; falling back to normal file type.", exc_info=True)
-            return session.capture_image()
+            # EOS 700D is more stable with normal file download after forcing
+            # imageformat=RAW than with GP_FILE_TYPE_RAW.
+            content, extra = session.capture_image()
+            capture_name = str(extra.get("capture_name", "")).lower()
+            if _is_raw_filename(capture_name):
+                return content, extra
+            raise RuntimeError(
+                "Camera returned a non-RAW file while RAW was requested "
+                f"(capture_name='{capture_name or 'unknown'}')."
+            )
+        except Exception as exc:
+            raise RuntimeError(f"RAW capture failed on Canon EOS 700D: {exc}") from exc
         finally:
-            if previous_value:
-                session.set_first_config_value(self._DNG_KEYS, previous_value)
+            restore_previous_config_value(session, self._DNG_KEYS, previous_value)
 
 
 def _map_gain_to_iso_choice(gain: float | None) -> str | None:
-    if gain is None:
-        return None
     # CameraSettings.gain is generic analogue gain; for DSLR map to nearest ISO stop.
-    target = max(float(gain), 0.0) * 100.0
-    iso_choices = [100, 200, 400, 800, 1600, 3200, 6400, 12800]
-    nearest = min(iso_choices, key=lambda iso: abs(iso - target))
-    return str(nearest)
+    return map_gain_to_iso_choice(gain, [100, 200, 400, 800, 1600, 3200, 6400, 12800])
+
+
+def _is_raw_filename(name: str) -> bool:
+    return is_raw_filename(name, (".cr2", ".cr3", ".crw", ".raw", ".dng"))

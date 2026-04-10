@@ -172,6 +172,7 @@
             "schema": {
               "enum": [
                 "jpeg",
+                "raw",
                 "dng",
                 "rgb_array",
                 "yuv_array"
@@ -515,6 +516,301 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CameraSettings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external-trigger/runs/": {
+      "get": {
+        "tags": [
+          "external-trigger"
+        ],
+        "summary": "List External Trigger Runs",
+        "operationId": "list_external_trigger_runs",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  "type": "array",
+                  "title": "Response List External Trigger Runs External Trigger Runs  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "external-trigger"
+        ],
+        "summary": "Create External Trigger Run",
+        "operationId": "create_external_trigger_run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalTriggerRunCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external-trigger/runs/{task_id}": {
+      "get": {
+        "tags": [
+          "external-trigger"
+        ],
+        "summary": "Get External Trigger Run",
+        "operationId": "get_external_trigger_run",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external-trigger/runs/{task_id}/path": {
+      "get": {
+        "tags": [
+          "external-trigger"
+        ],
+        "summary": "Get External Trigger Run Path",
+        "operationId": "get_external_trigger_run_path",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTriggerRunPath"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external-trigger/runs/{task_id}/cancel": {
+      "patch": {
+        "tags": [
+          "external-trigger"
+        ],
+        "summary": "Cancel External Trigger Run Endpoint",
+        "operationId": "cancel_external_trigger_run_endpoint",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external-trigger/runs/{task_id}/pause": {
+      "patch": {
+        "tags": [
+          "external-trigger"
+        ],
+        "summary": "Pause External Trigger Run Endpoint",
+        "operationId": "pause_external_trigger_run_endpoint",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external-trigger/runs/{task_id}/resume": {
+      "patch": {
+        "tags": [
+          "external-trigger"
+        ],
+        "summary": "Resume External Trigger Run Endpoint",
+        "operationId": "resume_external_trigger_run_endpoint",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -1396,6 +1692,302 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LightConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/triggers/": {
+      "get": {
+        "tags": [
+          "triggers"
+        ],
+        "summary": "Get Triggers",
+        "operationId": "get_triggers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/TriggerStatusResponse"
+                  },
+                  "type": "object",
+                  "title": "Response Get Triggers Triggers  Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/triggers/{trigger_name}": {
+      "get": {
+        "tags": [
+          "triggers"
+        ],
+        "summary": "Get Trigger",
+        "operationId": "get_trigger",
+        "parameters": [
+          {
+            "name": "trigger_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trigger Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/triggers/{trigger_name}/trigger": {
+      "post": {
+        "tags": [
+          "triggers"
+        ],
+        "summary": "Trigger Once",
+        "operationId": "trigger_once",
+        "parameters": [
+          {
+            "name": "trigger_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trigger Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TriggerExecutionRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerExecutionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/triggers/{name}/settings": {
+      "get": {
+        "tags": [
+          "triggers"
+        ],
+        "summary": "Get Trigger Name Settings",
+        "description": "Get settings for a specific resource",
+        "operationId": "get_trigger_name_settings",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "triggers"
+        ],
+        "summary": "Replace Trigger Name Settings",
+        "description": "Replace all settings for a specific resource",
+        "operationId": "replace_trigger_name_settings",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "triggers"
+        ],
+        "summary": "Update Trigger Name Settings",
+        "description": "Update one or more specific settings for a resource\n\nArgs:\n    name: The name of the resource to update settings for\n    settings: A dictionary of settings to update\n\nReturns:\n    The updated settings for the resource",
+        "operationId": "update_trigger_name_settings",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "examples": [
+                  {
+                    "some_setting": 123
+                  }
+                ],
+                "title": "Settings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerConfig"
                 }
               }
             }
@@ -2709,7 +3301,10 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Set Pin Gpio  Pin Id  Patch"
+                }
               }
             }
           },
@@ -2753,7 +3348,10 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Toggle Pin Gpio  Pin Id  Toggle Patch"
+                }
               }
             }
           },
@@ -4831,8 +5429,7 @@
         "enum": [
           "gphoto2",
           "linuxpy",
-          "picamera2",
-          "external"
+          "picamera2"
         ],
         "title": "CameraType"
       },
@@ -5188,6 +5785,13 @@
             "type": "object",
             "title": "Lights"
           },
+          "triggers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TriggerStatusResponse"
+            },
+            "type": "object",
+            "title": "Triggers"
+          },
           "motors_timeout": {
             "type": "number",
             "title": "Motors Timeout"
@@ -5369,6 +5973,169 @@
           "is_pressed"
         ],
         "title": "EndstopStatusResponse"
+      },
+      "ExternalTriggerPoint": {
+        "properties": {
+          "execution_step": {
+            "type": "integer",
+            "title": "Execution Step"
+          },
+          "original_step": {
+            "type": "integer",
+            "title": "Original Step"
+          },
+          "polar_coordinates": {
+            "$ref": "#/components/schemas/PolarPoint3D"
+          },
+          "cartesian_coordinates": {
+            "$ref": "#/components/schemas/CartesianPoint3D"
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_step",
+          "original_step",
+          "polar_coordinates",
+          "cartesian_coordinates"
+        ],
+        "title": "ExternalTriggerPoint"
+      },
+      "ExternalTriggerRunCreateRequest": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ExternalTriggerRunSettings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings"
+        ],
+        "title": "ExternalTriggerRunCreateRequest"
+      },
+      "ExternalTriggerRunPath": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "total_steps": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Steps",
+            "default": 0
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalTriggerPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id"
+        ],
+        "title": "ExternalTriggerRunPath"
+      },
+      "ExternalTriggerRunSettings": {
+        "properties": {
+          "path_method": {
+            "$ref": "#/components/schemas/PathMethod",
+            "description": "Scanning path generator for the external trigger run.",
+            "default": "fibonacci"
+          },
+          "points": {
+            "type": "integer",
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Points",
+            "description": "Number of trigger positions.",
+            "default": 130
+          },
+          "min_theta": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Min Theta",
+            "description": "Minimum theta angle in degrees for constrained paths.",
+            "default": 12.0
+          },
+          "max_theta": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Max Theta",
+            "description": "Maximum theta angle in degrees for constrained paths.",
+            "default": 125.0
+          },
+          "optimize_path": {
+            "type": "boolean",
+            "title": "Optimize Path",
+            "description": "Enable path optimization based on the configured motor parameters.",
+            "default": true
+          },
+          "optimization_algorithm": {
+            "type": "string",
+            "title": "Optimization Algorithm",
+            "description": "Path optimization algorithm to use when optimize_path is enabled.",
+            "default": "nearest_neighbor"
+          },
+          "trigger_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Trigger Name",
+            "description": "Name of the configured trigger device to fire at each scan point."
+          },
+          "pre_trigger_delay_ms": {
+            "type": "integer",
+            "maximum": 30000.0,
+            "minimum": 0.0,
+            "title": "Pre Trigger Delay Ms",
+            "description": "Delay after reaching the scan position and before asserting the trigger.",
+            "default": 0
+          },
+          "post_trigger_delay_ms": {
+            "type": "integer",
+            "maximum": 30000.0,
+            "minimum": 0.0,
+            "title": "Post Trigger Delay Ms",
+            "description": "Delay after releasing the trigger before the next scan step starts.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger_name"
+        ],
+        "title": "ExternalTriggerRunSettings"
       },
       "FirmwareSettingPatchRequest": {
         "properties": {
@@ -5950,6 +6717,7 @@
             "type": "string",
             "enum": [
               "jpeg",
+              "raw",
               "dng",
               "rgb_array",
               "yuv_array"
@@ -6080,6 +6848,13 @@
             "type": "object",
             "title": "Lights"
           },
+          "triggers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TriggerConfig"
+            },
+            "type": "object",
+            "title": "Triggers"
+          },
           "endstops": {
             "anyOf": [
               {
@@ -6179,6 +6954,13 @@
             },
             "type": "object",
             "title": "Lights"
+          },
+          "triggers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TriggerConfig"
+            },
+            "type": "object",
+            "title": "Triggers"
           },
           "endstops": {
             "anyOf": [
@@ -6479,6 +7261,155 @@
         ],
         "title": "TaskStatus",
         "description": "Enum for task status"
+      },
+      "TriggerConfig": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether this trigger can be fired.",
+            "default": true
+          },
+          "pin": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pin",
+            "description": "BCM GPIO pin used for the trigger line."
+          },
+          "polarity": {
+            "$ref": "#/components/schemas/TriggerPolarity",
+            "description": "Defines whether the trigger line is active-high or active-low.",
+            "default": "active_high"
+          },
+          "pulse_width_ms": {
+            "type": "integer",
+            "maximum": 5000.0,
+            "minimum": 1.0,
+            "title": "Pulse Width Ms",
+            "description": "How long the trigger line stays active for each trigger pulse.",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "pin"
+        ],
+        "title": "TriggerConfig"
+      },
+      "TriggerExecutionRequest": {
+        "properties": {
+          "pre_trigger_delay_ms": {
+            "type": "integer",
+            "maximum": 30000.0,
+            "minimum": 0.0,
+            "title": "Pre Trigger Delay Ms",
+            "default": 0
+          },
+          "post_trigger_delay_ms": {
+            "type": "integer",
+            "maximum": 30000.0,
+            "minimum": 0.0,
+            "title": "Post Trigger Delay Ms",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "TriggerExecutionRequest"
+      },
+      "TriggerExecutionResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "triggered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Triggered At"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "triggered_at",
+          "completed_at",
+          "duration_ms"
+        ],
+        "title": "TriggerExecutionResponse"
+      },
+      "TriggerPolarity": {
+        "type": "string",
+        "enum": [
+          "active_high",
+          "active_low"
+        ],
+        "title": "TriggerPolarity"
+      },
+      "TriggerStatusResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "busy": {
+            "type": "boolean",
+            "title": "Busy"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/TriggerConfig"
+          },
+          "last_triggered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Triggered At"
+          },
+          "last_completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Completed At"
+          },
+          "last_duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Duration Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "busy",
+          "settings"
+        ],
+        "title": "TriggerStatusResponse"
       },
       "ValidationError": {
         "properties": {

@@ -32,16 +32,37 @@ def toggle_output_pin(pin: int):
     """Toggles the state of an output pin."""
     if pin in _output_pins:
         _output_pins[pin].toggle()
+        return bool(_output_pins[pin].value)
     else:
-        logger.warning(f"Warning: Cannot toggle pin {pin}. Not initialized as output.")
+        message = f"Cannot toggle pin {pin}. Pin is not initialized as output."
+        logger.warning(f"Warning: {message}")
+        raise ValueError(message)
 
 
-def set_output_pin(pin: int, status: bool):
+def set_output_pin(pin: int, status: bool, auto_initialize: bool = False):
     """Sets the state of an output pin."""
     if pin in _output_pins:
         _output_pins[pin].value = status
-    else:
-        logger.warning(f"Warning: Cannot set pin {pin}. Not initialized as output.")
+        return bool(_output_pins[pin].value)
+
+    if pin in _buttons:
+        message = f"Cannot set pin {pin}. Pin is initialized as button input."
+        logger.warning(f"Warning: {message}")
+        raise ValueError(message)
+
+    if auto_initialize:
+        initialize_output_pins([pin])
+        if pin in _output_pins:
+            _output_pins[pin].value = status
+            return bool(_output_pins[pin].value)
+
+        message = f"Cannot set pin {pin}. Pin could not be initialized as output."
+        logger.error(f"Error: {message}")
+        raise RuntimeError(message)
+
+    message = f"Cannot set pin {pin}. Pin is not initialized as output."
+    logger.warning(f"Warning: {message}")
+    raise ValueError(message)
 
 
 def get_initialized_pins() -> Dict[str, List[int]]:
@@ -55,10 +76,11 @@ def get_initialized_pins() -> Dict[str, List[int]]:
 def get_output_pin(pin: int):
     """Returns the state of an output pin."""
     if pin in _output_pins:
-        return _output_pins[pin].value
+        return bool(_output_pins[pin].value)
     else:
-        logger.warning(f"Warning: Pin {pin} not initialized as output.")
-        return None
+        message = f"Cannot read pin {pin}. Pin is not initialized as output."
+        logger.warning(f"Warning: {message}")
+        raise ValueError(message)
 
 
 def initialize_button(pin: int, pull_up: Optional[bool] = True, bounce_time: Optional[float] = 0.05):

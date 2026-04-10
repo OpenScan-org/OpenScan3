@@ -15,7 +15,6 @@ class CameraType(Enum):
     GPHOTO2 = "gphoto2"
     LINUXPY = "linuxpy"
     PICAMERA2 = "picamera2"
-    EXTERNAL = "external"
 
 
 class Camera(BaseModel):
@@ -39,7 +38,7 @@ class PhotoData(BaseModel):
         ...,
         description="Image data (JPEG/DNG) or as numpy array"
     )
-    format:  Literal['jpeg','dng','rgb_array', 'yuv_array']
+    format:  Literal['jpeg', 'raw', 'dng', 'rgb_array', 'yuv_array']
     camera_metadata: CameraMetadata
     scan_metadata: Optional[ScanMetadata] = None
 

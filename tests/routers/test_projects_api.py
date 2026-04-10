@@ -24,7 +24,7 @@ from openscan_firmware.controllers.services.projects import ProjectManager, get_
 from openscan_firmware.controllers.services.tasks import task_manager as task_manager_module
 from openscan_firmware.controllers.services.tasks.core.cloud_task import CloudUploadTask
 from openscan_firmware.controllers.services.tasks.task_manager import TaskManager
-from openscan_firmware.main import app
+from openscan_firmware.main import app, LATEST
 from openscan_firmware.models.project import Project
 from openscan_firmware.models.task import Task, TaskStatus
 from openscan_firmware.config.scan import ScanSetting
@@ -39,6 +39,7 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
     pm = ProjectManager(path=temp_dir)
 
     module_path_v0_8 = "openscan_firmware.routers.v0_8.projects"
+    latest_module_path = f"openscan_firmware.routers.v{LATEST.replace('.', '_')}.projects"
     next_module_path = "openscan_firmware.routers.next.projects"
 
     monkeypatch.setattr(
@@ -46,7 +47,22 @@ def project_manager(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> Genera
         lambda path=None: pm,
         raising=False,
     )
-    for module_path in (module_path_v0_8, next_module_path):
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.device.get_project_manager",
+        lambda: pm,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.device._detect_cameras",
+        lambda: {},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.main.is_network_ready_for_qr_scan",
+        lambda: True,
+        raising=False,
+    )
+    for module_path in (module_path_v0_8, latest_module_path, next_module_path):
         monkeypatch.setattr(
             module_path + ".get_project_manager",
             lambda: pm,

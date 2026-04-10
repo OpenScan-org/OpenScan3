@@ -123,6 +123,7 @@ class CameraController(StatefulHardware):
         """
         handler = {
             "jpeg": self.capture_jpeg,
+            "raw": self.capture_dng,  # legacy implementation hook kept as capture_dng
             "dng": self.capture_dng,
             "rgb_array": self.capture_rgb_array,
             "yuv_array": self.capture_yuv_array,
