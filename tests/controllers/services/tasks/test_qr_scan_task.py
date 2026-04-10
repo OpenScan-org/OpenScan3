@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -72,6 +72,7 @@ async def test_qr_scan_task_connects_wifi_success(monkeypatch, qr_task_manager):
 
     monkeypatch.setattr("openscan_firmware.utils.qr_reader.ZxingQRReader", lambda: object())
     monkeypatch.setattr("openscan_firmware.utils.qr_reader.StableQRConsensus", DummyConsensus)
+    monkeypatch.setattr("openscan_firmware.utils.wifi.is_network_ready_for_qr_scan", lambda: False)
 
     def fake_parse_wifi_qr(_text: str) -> SimpleNamespace:
         return SimpleNamespace(ssid="TestNet", security="WPA2", hidden=False)
@@ -121,6 +122,7 @@ async def test_qr_scan_task_wifi_connect_failure_marks_error(monkeypatch, qr_tas
 
     monkeypatch.setattr("openscan_firmware.utils.qr_reader.ZxingQRReader", lambda: object())
     monkeypatch.setattr("openscan_firmware.utils.qr_reader.StableQRConsensus", AlwaysFoundConsensus)
+    monkeypatch.setattr("openscan_firmware.utils.wifi.is_network_ready_for_qr_scan", lambda: False)
 
     def fake_parse_wifi_qr(_text: str) -> SimpleNamespace:
         return SimpleNamespace(ssid="BrokenNet", security="WPA2", hidden=False)
@@ -193,7 +195,7 @@ async def test_cleanup_stale_qr_tasks_removes_cancelled_and_limits_errors(monkey
 
     monkeypatch.setattr(qr_module, "get_task_manager", lambda: qr_task_manager)
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     statuses = [
         (TaskStatus.CANCELLED, -10),
         (TaskStatus.INTERRUPTED, -9),

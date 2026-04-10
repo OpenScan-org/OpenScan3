@@ -7,9 +7,11 @@ from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.config.endstop import EndstopConfig
 from openscan_firmware.config.light import LightConfig
 from openscan_firmware.config.motor import MotorConfig
+from openscan_firmware.config.trigger import TriggerConfig
 from openscan_firmware.models.camera import Camera, CameraType
 from openscan_firmware.models.light import Light
 from openscan_firmware.models.motor import Motor, Endstop
+from openscan_firmware.models.trigger import Trigger
 
 class ScannerModel(Enum):
     CLASSIC = "classic"
@@ -42,6 +44,7 @@ class ScannerDevice(BaseModel):
     cameras: dict[str, Camera]
     motors: dict[str, Motor]
     lights: dict[str, Light]
+    triggers: dict[str, Trigger] = Field(default_factory=dict)
     endstops: Optional[dict[str, Endstop]]
     
     # motors timeout in seconds - 0 to disable
@@ -75,6 +78,7 @@ class ScannerDeviceConfig(BaseModel):
     cameras: dict[str, PersistedCameraConfig] = Field(default_factory=dict)
     motors: dict[str, MotorConfig] = Field(default_factory=dict)
     lights: dict[str, LightConfig] = Field(default_factory=dict)
+    triggers: dict[str, TriggerConfig] = Field(default_factory=dict)
     endstops: dict[str, PersistedEndstopConfig] | None = None
     motors_timeout: float = 0.0
     startup_mode: ScannerStartupMode | str = ScannerStartupMode.STARTUP_ENABLED

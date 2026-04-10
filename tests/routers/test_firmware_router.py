@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from importlib import import_module
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+import openscan_firmware.main as main_module
 
 
 def _next_router_module_path(name: str) -> str:
@@ -39,6 +42,7 @@ def test_get_firmware_settings_returns_current_settings(monkeypatch, firmware_cl
     assert response.json() == {
         "qr_wifi_scan_enabled": True,
         "enable_cloud": False,
+        "camera_preview_enabled": True,
     }
 
 
@@ -49,21 +53,24 @@ def test_put_firmware_settings_replaces_payload(monkeypatch, firmware_client):
     def fake_save(settings):
         captured["qr_wifi_scan_enabled"] = settings.qr_wifi_scan_enabled
         captured["enable_cloud"] = settings.enable_cloud
+        captured["camera_preview_enabled"] = settings.camera_preview_enabled
 
     monkeypatch.setattr(f"{module_path}.save_firmware_settings", fake_save)
 
     response = firmware_client.put(
         "/latest/firmware/settings",
-        json={"qr_wifi_scan_enabled": False, "enable_cloud": True},
+        json={"qr_wifi_scan_enabled": False, "enable_cloud": True, "camera_preview_enabled": False},
     )
 
     assert response.status_code == 200
     assert response.json() == {
         "qr_wifi_scan_enabled": False,
         "enable_cloud": True,
+        "camera_preview_enabled": False,
     }
     assert captured["qr_wifi_scan_enabled"] is False
     assert captured["enable_cloud"] is True
+    assert captured["camera_preview_enabled"] is False
 
 
 def test_patch_firmware_setting_updates_single_key(monkeypatch, firmware_client):
@@ -91,6 +98,7 @@ def test_patch_firmware_setting_updates_single_key(monkeypatch, firmware_client)
     assert response.json() == {
         "qr_wifi_scan_enabled": False,
         "enable_cloud": False,
+        "camera_preview_enabled": True,
     }
     assert saved["qr_wifi_scan_enabled"] is False
 
@@ -111,3 +119,57 @@ def test_patch_firmware_setting_unknown_key_returns_404(monkeypatch, firmware_cl
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Unknown firmware setting key: not_a_real_key"
+
+
+def test_patch_camera_preview_enabled_updates_single_key(monkeypatch, firmware_client):
+    module_path = _next_router_module_path("firmware")
+    router_module = import_module(module_path)
+
+    monkeypatch.setattr(
+        f"{module_path}.get_firmware_settings",
+        lambda: router_module.FirmwareSettings(qr_wifi_scan_enabled=True, camera_preview_enabled=True),
+    )
+
+    saved: dict[str, bool] = {}
+
+    def fake_save(settings):
+        saved["camera_preview_enabled"] = settings.camera_preview_enabled
+
+    monkeypatch.setattr(f"{module_path}.save_firmware_settings", fake_save)
+
+    response = firmware_client.patch(
+        "/latest/firmware/settings/camera_preview_enabled",
+        json={"value": False},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "qr_wifi_scan_enabled": True,
+        "enable_cloud": False,
+        "camera_preview_enabled": False,
+    }
+    assert saved["camera_preview_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_qr_wifi_autostart_skips_when_camera_preview_disabled(monkeypatch):
+    from openscan_firmware.config.firmware import FirmwareSettings
+
+    task_manager = type(
+        "DummyTaskManager",
+        (),
+        {"create_and_run_task": AsyncMock()},
+    )()
+
+    monkeypatch.setattr(
+        main_module,
+        "get_firmware_settings",
+        lambda: FirmwareSettings(
+            qr_wifi_scan_enabled=True,
+            enable_cloud=False,
+            camera_preview_enabled=False,
+        ),
+    )
+
+    await main_module._maybe_start_qr_wifi_scan(task_manager)
+    task_manager.create_and_run_task.assert_not_called()

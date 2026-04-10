@@ -24,6 +24,7 @@ from openscan_firmware.controllers.hardware.interfaces import HardwareEvent
 from openscan_firmware.models.camera import Camera, CameraType
 from openscan_firmware.models.motor import Motor, Endstop
 from openscan_firmware.models.light import Light
+from openscan_firmware.models.trigger import Trigger
 from openscan_firmware.models.scanner import (
     ScannerDevice,
     ScannerDeviceConfig,
@@ -39,6 +40,7 @@ from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.config.motor import MotorConfig
 from openscan_firmware.config.light import LightConfig
 from openscan_firmware.config.endstop import EndstopConfig
+from openscan_firmware.config.trigger import TriggerConfig
 from openscan_firmware.config.cloud import (
     load_cloud_settings_from_env,
     set_cloud_settings,
@@ -60,6 +62,11 @@ from openscan_firmware.controllers.hardware.motors import create_motor_controlle
     remove_motor_controller
 from openscan_firmware.controllers.hardware.lights import create_light_controller, get_all_light_controllers, remove_light_controller, \
     get_light_controller
+from openscan_firmware.controllers.hardware.triggers import (
+    create_trigger_controller,
+    get_all_trigger_controllers,
+    remove_trigger_controller,
+)
 from openscan_firmware.controllers.hardware.endstops import EndstopController
 from openscan_firmware.controllers.hardware.gpio import cleanup_all_pins
 
@@ -88,6 +95,7 @@ def _create_default_scanner_device() -> ScannerDevice:
         cameras={},
         motors={},
         lights={},
+        triggers={},
         endstops={},
     )
     # beware, PrivateAttr are NOT initialized in constructor
@@ -105,6 +113,7 @@ _FACTORY_DEFAULT_CONFIG = ScannerDeviceConfig(
     cameras={},
     motors={},
     lights={},
+    triggers={},
     endstops={},
 ).model_dump(mode="json")
 
@@ -129,6 +138,7 @@ def _runtime_to_persisted_config() -> ScannerDeviceConfig:
         },
         motors={name: motor.settings for name, motor in _scanner_device.motors.items()},
         lights={name: light.settings for name, light in _scanner_device.lights.items()},
+        triggers={name: trigger.settings for name, trigger in _scanner_device.triggers.items()},
         endstops={
             name: PersistedEndstopConfig(settings=endstop.settings)
             for name, endstop in _scanner_device.endstops.items()
@@ -256,6 +266,7 @@ def get_device_info():
         "cameras": {name: controller.get_status() for name, controller in get_all_camera_controllers().items()},
         "motors": {name: controller.get_status() for name, controller in get_all_motor_controllers().items()},
         "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()},
+        "triggers": {name: controller.get_status() for name, controller in get_all_trigger_controllers().items()},
 
         "motors_timeout": _scanner_device.motors_timeout,
         "startup_mode": _scanner_device.startup_mode,
@@ -293,6 +304,15 @@ def _load_light_config(settings: dict) -> LightConfig:
         # Return default settings if error occured
         logger.error("Error loading light settings: ", e)
         return LightConfig()
+
+
+def _load_trigger_config(settings: dict) -> TriggerConfig:
+    """Load trigger configuration for the current model."""
+    try:
+        return TriggerConfig(**settings)
+    except Exception as e:
+        logger.error("Error loading trigger settings: ", e)
+        raise
 
 
 def _load_endstop_config(settings: dict) -> EndstopConfig:
@@ -523,6 +543,8 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
             remove_motor_controller(controller)
         for controller in get_all_light_controllers():
             remove_light_controller(controller)
+        for controller in get_all_trigger_controllers():
+            remove_trigger_controller(controller)
         for controller in get_all_camera_controllers():
             remove_camera_controller(controller)
         cleanup_all_pins()
@@ -560,6 +582,16 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
         )
         light_objects[light_name] = light
         logger.debug(f"Loaded light {light_name} with settings: {light.settings}")
+
+    # Create trigger objects
+    trigger_objects = {}
+    for trigger_name in config_dict["triggers"]:
+        trigger = Trigger(
+            name=trigger_name,
+            settings=_load_trigger_config(config_dict["triggers"][trigger_name])
+        )
+        trigger_objects[trigger_name] = trigger
+        logger.debug(f"Loaded trigger {trigger_name} with settings: {trigger.settings}")
 
     # Cloud settings
     persistent_settings = load_persistent_cloud_settings()
@@ -635,6 +667,12 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
         except Exception as e:
             logger.error(f"Error initializing light controller for {name}: {e}")
 
+    for name, trigger in trigger_objects.items():
+        try:
+            create_trigger_controller(trigger)
+        except Exception as e:
+            logger.error(f"Error initializing trigger controller for {name}: {e}")
+
     # initialize project manager
     try:
         project_manager = get_project_manager()
@@ -652,6 +690,7 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
         cameras=camera_objects,
         motors=motor_objects,
         lights=light_objects,
+        triggers=trigger_objects,
         endstops=endstop_objects,
 
         # motors timeout in seconds - 0 to disable

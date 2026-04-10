@@ -128,6 +128,9 @@ class TaskManager:
     def _register_builtin_core_tasks(self) -> None:
         """Register the built-in core tasks for manual/fallback mode."""
         from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask as CoreScanTask
+        from openscan_firmware.controllers.services.tasks.core.external_trigger_run_task import (
+            ExternalTriggerRunTask as CoreExternalTriggerRunTask,
+        )
         from openscan_firmware.controllers.services.tasks.core.focus_stacking_task import (
             FocusStackingTask as CoreFocusStackingTask,
         )
@@ -141,6 +144,7 @@ class TaskManager:
 
         fallback_tasks = {
             "scan_task": CoreScanTask,
+            "external_trigger_run_task": CoreExternalTriggerRunTask,
             "focus_stacking_task": CoreFocusStackingTask,
             "cloud_upload_task": CoreCloudUploadTask,
             "cloud_download_task": CoreCloudDownloadTask,

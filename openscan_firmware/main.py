@@ -42,8 +42,10 @@ from openscan_firmware.routers.v0_9 import (
 # next routers
 from openscan_firmware.routers.next import (
     cameras as cameras_next,
+    external_trigger_runs as external_trigger_runs_next,
     motors as motors_next,
     lights as lights_next,
+    triggers as triggers_next,
     firmware as firmware_next,
     projects as projects_next,
     gpio as gpio_next,
@@ -77,6 +79,10 @@ async def _maybe_start_qr_wifi_scan(task_manager) -> None:
         logger.info("QR WiFi scan is disabled in firmware settings – skipping auto-start.")
         return
 
+    if not firmware_settings.camera_preview_enabled:
+        logger.info("Camera preview is disabled in firmware settings – skipping QR WiFi scan auto-start.")
+        return
+
     if is_network_ready_for_qr_scan():
         logger.info("Network is already connected (WiFi/LAN) – skipping QR WiFi scan auto-start.")
         return
@@ -99,6 +105,7 @@ async def _maybe_start_qr_wifi_scan(task_manager) -> None:
 
 REQUIRED_CORE_TASKS = [
     "scan_task",
+    "external_trigger_run_task",
     "focus_stacking_task",
     "cloud_upload_task",
     "cloud_download_task",
@@ -193,10 +200,12 @@ next_ROUTERS = [
     lights_next.router,
     firmware_next.router,
     projects_next.router,
-    gpio_next.router,
     openscan_next.router,
     device_next.router,
     tasks_next.router,
+    gpio_next.router,
+    triggers_next.router,
+    external_trigger_runs_next.router,
     develop_next.router,
     cloud_next.router,
     websocket_router.router,
