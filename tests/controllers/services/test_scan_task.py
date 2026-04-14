@@ -21,7 +21,8 @@ from openscan_firmware.models.motor import Motor
 from openscan_firmware.config.motor import MotorConfig
 from openscan_firmware.models.camera import PhotoData
 from openscan_firmware.models.camera import CameraMetadata
-from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask, ScanRuntime
+from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask, ScanRuntime, generate_scan_path
+from openscan_firmware.models.paths import PathMethod
 
 
 class FocusTrackingSettings:
@@ -193,6 +194,62 @@ class TestScanTask:
             sample_scan_model,
             mock_generate_scan_path.return_value,
         )
+
+
+def test_generate_scan_path_omits_optional_phi_constraints_when_unset() -> None:
+    scan_settings = ScanSetting(
+        path_method=PathMethod.FIBONACCI,
+        points=10,
+        min_theta=10.0,
+        max_theta=120.0,
+        optimize_path=False,
+        focus_stacks=1,
+        focus_range=(10.0, 15.0),
+        image_format="jpeg",
+    )
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task.paths.get_constrained_path",
+        return_value=[],
+    ) as get_constrained_path:
+        generate_scan_path(scan_settings)
+
+    assert get_constrained_path.call_args.kwargs == {
+        "method": PathMethod.FIBONACCI,
+        "num_points": 10,
+        "min_theta": 10.0,
+        "max_theta": 120.0,
+    }
+
+
+def test_generate_scan_path_passes_optional_phi_constraints_when_set() -> None:
+    scan_settings = ScanSetting(
+        path_method=PathMethod.FIBONACCI,
+        points=10,
+        min_theta=10.0,
+        max_theta=120.0,
+        min_phi=45.0,
+        max_phi=180.0,
+        optimize_path=False,
+        focus_stacks=1,
+        focus_range=(10.0, 15.0),
+        image_format="jpeg",
+    )
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task.paths.get_constrained_path",
+        return_value=[],
+    ) as get_constrained_path:
+        generate_scan_path(scan_settings)
+
+    assert get_constrained_path.call_args.kwargs == {
+        "method": PathMethod.FIBONACCI,
+        "num_points": 10,
+        "min_theta": 10.0,
+        "max_theta": 120.0,
+        "min_phi": 45.0,
+        "max_phi": 180.0,
+    }
 
     @pytest.mark.asyncio
     @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')

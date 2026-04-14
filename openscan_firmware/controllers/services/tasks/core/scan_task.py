@@ -42,12 +42,18 @@ def generate_scan_path(scan_settings: ScanSetting) -> dict[PolarPoint3D, int]:
     """
     # Generate constrained path
     if scan_settings.path_method == PathMethod.FIBONACCI:
-        path = paths.get_constrained_path(
+        path_kwargs = dict(
             method=scan_settings.path_method,
             num_points=scan_settings.points,
             min_theta=scan_settings.min_theta,
             max_theta=scan_settings.max_theta,
         )
+        if scan_settings.min_phi is not None:
+            path_kwargs["min_phi"] = scan_settings.min_phi
+        if scan_settings.max_phi is not None:
+            path_kwargs["max_phi"] = scan_settings.max_phi
+
+        path = paths.get_constrained_path(**path_kwargs)
         logger.debug("Generated Fibonacci path with %d points", len(path))
     else:
         logger.error("Unknown path method %s", scan_settings.path_method)

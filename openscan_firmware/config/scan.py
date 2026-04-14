@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, confloat
+from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, confloat, model_serializer
 from typing import Tuple, Literal
 
 from openscan_firmware.models.paths import PathMethod
@@ -21,6 +21,18 @@ class ScanSetting(BaseModel):
                              description="Minimum theta angle in degrees for constrained paths.")
     max_theta: float = Field(125.0, ge=0.0, le=180.0,
                              description="Maximum theta angle in degrees for constrained paths.")
+    min_phi: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=360.0,
+        description="Optional minimum phi angle in degrees for constrained paths.",
+    )
+    max_phi: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=360.0,
+        description="Optional maximum phi angle in degrees for constrained paths.",
+    )
 
     # Path optimization settings
     optimize_path: bool = Field(True, description="Enable path optimization for faster scanning.")
@@ -50,3 +62,12 @@ class ScanSetting(BaseModel):
             min_focus + i * (max_focus - min_focus) / (self.focus_stacks - 1)
             for i in range(self.focus_stacks)
         ]
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler: SerializerFunctionWrapHandler):
+        data = handler(self)
+        if self.min_phi is None:
+            data.pop("min_phi", None)
+        if self.max_phi is None:
+            data.pop("max_phi", None)
+        return data
