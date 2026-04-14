@@ -118,6 +118,7 @@ def test_save_device_config_writes_json(tmp_path, monkeypatch,
 
     data = json.loads(tmp_file.read_text())
     assert data["name"] == "TestDevice"
+    assert data["scan_radius_mm"] == 1.0
     assert "cam1" in data["cameras"]
     assert isinstance(data["cameras"]["cam1"], dict)
     assert data["cameras"]["cam1"]["settings"].get("shutter") == 123
@@ -146,6 +147,7 @@ def test_get_device_info_uses_controller_status(monkeypatch):
 
     info = device.get_device_info()
     assert info["name"] == "X"
+    assert info["scan_radius_mm"] == 1.0
     assert "cam" in info["cameras"] and info["cameras"]["cam"]["ok"] is True
     assert "rotor" in info["motors"] and info["motors"]["rotor"]["ok"] is True
     assert "ring" in info["lights"] and info["lights"]["ring"]["ok"] is True
@@ -229,8 +231,32 @@ async def test_set_device_config_persists_loaded_config(monkeypatch, tmp_path):
     persisted = json.loads(config_file.read_text())
     assert persisted["name"] == "Preset"
     assert persisted["motors_timeout"] == 5.0
+    assert persisted["scan_radius_mm"] == 1.0
     assert persisted["startup_mode"] == device.ScannerStartupMode.STARTUP_IDLE.value
     assert persisted["calibrate_mode"] == device.ScannerCalibrateMode.CALIBRATE_ON_WAKE.value
+
+
+def test_load_device_config_uses_default_scan_radius_for_legacy_config(monkeypatch, tmp_path):
+    device = _import_device(monkeypatch)
+
+    config_path = tmp_path / "device_config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(device, "DEVICE_CONFIG_FILE", config_path)
+
+    preset = tmp_path / "legacy_preset.json"
+    preset.write_text(json.dumps({
+        "name": "Legacy",
+        "model": "mini",
+        "shield": "greenshield",
+        "cameras": {},
+        "motors": {},
+        "lights": {},
+        "endstops": {},
+    }))
+
+    loaded = device.load_device_config(str(preset))
+
+    assert loaded["scan_radius_mm"] == 1.0
 
 
 def _write_minimal_preset(target: Path):

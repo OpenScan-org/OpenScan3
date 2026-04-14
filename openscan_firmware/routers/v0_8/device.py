@@ -38,6 +38,7 @@ class DeviceStatusResponse(BaseModel):
     motors: dict[str, MotorStatusResponse]
     lights: dict[str, LightStatusResponse]
     motors_timeout: float
+    scan_radius_mm: float = 1.0
     startup_mode: ScannerStartupMode
     calibrate_mode: ScannerCalibrateMode
     initialized: bool
@@ -78,6 +79,7 @@ def _v08_payload_to_persisted_config(config_data: ScannerDevice) -> ScannerDevic
             for name, endstop in (config_data.endstops or {}).items()
         },
         motors_timeout=config_data.motors_timeout,
+        scan_radius_mm=config_data.scan_radius_mm,
         startup_mode=config_data.startup_mode.value if config_data.startup_mode else None,
         calibrate_mode=config_data.calibrate_mode.value if config_data.calibrate_mode else None,
     )

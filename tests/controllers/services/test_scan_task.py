@@ -209,10 +209,13 @@ def test_generate_scan_path_omits_optional_phi_constraints_when_unset() -> None:
     )
 
     with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task._get_scan_radius_mm",
+        return_value=250.0,
+    ), patch(
         "openscan_firmware.controllers.services.tasks.core.scan_task.paths.get_constrained_path",
-        return_value=[],
+        return_value=[PolarPoint3D(theta=10.0, fi=20.0)],
     ) as get_constrained_path:
-        generate_scan_path(scan_settings)
+        path_dict = generate_scan_path(scan_settings)
 
     assert get_constrained_path.call_args.kwargs == {
         "method": PathMethod.FIBONACCI,
@@ -220,6 +223,7 @@ def test_generate_scan_path_omits_optional_phi_constraints_when_unset() -> None:
         "min_theta": 10.0,
         "max_theta": 120.0,
     }
+    assert list(path_dict.keys()) == [PolarPoint3D(theta=10.0, fi=20.0, r=250.0)]
 
 
 def test_generate_scan_path_passes_optional_phi_constraints_when_set() -> None:
@@ -237,10 +241,13 @@ def test_generate_scan_path_passes_optional_phi_constraints_when_set() -> None:
     )
 
     with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task._get_scan_radius_mm",
+        return_value=250.0,
+    ), patch(
         "openscan_firmware.controllers.services.tasks.core.scan_task.paths.get_constrained_path",
-        return_value=[],
+        return_value=[PolarPoint3D(theta=10.0, fi=20.0)],
     ) as get_constrained_path:
-        generate_scan_path(scan_settings)
+        path_dict = generate_scan_path(scan_settings)
 
     assert get_constrained_path.call_args.kwargs == {
         "method": PathMethod.FIBONACCI,
@@ -250,6 +257,7 @@ def test_generate_scan_path_passes_optional_phi_constraints_when_set() -> None:
         "min_phi": 45.0,
         "max_phi": 180.0,
     }
+    assert list(path_dict.keys()) == [PolarPoint3D(theta=10.0, fi=20.0, r=250.0)]
 
     @pytest.mark.asyncio
     @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')

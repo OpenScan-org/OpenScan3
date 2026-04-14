@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field, ValidationError
+from typing import Any
 from pathlib import Path
 import os
 import json
@@ -37,6 +38,7 @@ class DeviceStatusResponse(BaseModel):
     lights: dict[str, LightStatusResponse]
     triggers: dict[str, TriggerStatusResponse] = Field(default_factory=dict)
     motors_timeout: float
+    scan_radius_mm: float = 1.0
     startup_mode: ScannerStartupMode
     calibrate_mode: ScannerCalibrateMode
     initialized: bool
@@ -51,7 +53,7 @@ class DeviceConfigResponse(BaseModel):
     status: str
     filename: str
     path: str
-    config: ScannerDeviceConfig
+    config: dict[str, Any]
 
 
 def _runtime_status_response() -> DeviceStatusResponse:
