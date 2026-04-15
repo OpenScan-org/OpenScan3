@@ -22,23 +22,22 @@ There are two ways to get started on a Raspberry Pi: flash a ready-made image or
 
 ## Install OpenScan Image (Recommended)
 
-Download the image from here: https://openscan.eu/pages/resources-downloads
+> **Note:** Advanced customization (hostname, user, Wi‑Fi, etc.) is confirmed to work with Raspberry Pi Imager > 2.0.
+> Older versions may not apply the customizations properly.
 
-Choose the image according to your camera variant:
+1. Open Raspberry Pi Imager (>=2.0.6).
+2. Click **ADD OPTIONS** -> Click **EDIT** Content Repository -> Use custom URL and paste `https://openscan.eu/rpi-repo.json` -> Click **Apply and restart**
+3. Choose your Raspberry Pi device
+4. Select the image according to your camera variant. **IMPORTANT**: Ensure the image matches your camera model. Choosing the wrong image may result in permanent hardware damage. 
+5. Select the storage device to write the image to.
+6. Modify configuration options if needed (hostname, user, Wi‑Fi, etc.) via the Raspberry Pi Imager interface.
+7. Write the image. Eject the card and insert it into the Pi.
 
-- Arducam IMX519
-- Arducam Hawkeye
-- Generic (Picamera Module 3)
+**Default Hostname:** `openscan` (or `openscan.local` if mDNS is enabled)
 
-> Warning: Choosing the wrong image may result in permanent damage to your camera!
+**UI (Webfrontend):** http://openscan/ or http://openscan.local/
 
-Flash the image with Raspberry Pi Imager or a similar tool.
-
-**Default Hostname:** `openscan3-alpha` (or `openscan3-alpha.local` if mDNS is enabled)
-
-**UI (Webfrontend):** http://openscan3-alpha/ or http://openscan3-alpha.local/
-
-**API documentation:** http://openscan3-alpha/api/latest/docs.
+**API documentation:** http://openscan/api/latest/docs.
 
 ## Build OpenScan Image from Source
 
@@ -50,29 +49,6 @@ You can also use [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/O
 
 See [`docs/DEVELOP.md`](docs/DEVELOP.md) for development setup, first steps, and architectural overview.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-<!-- ROADMAP -->
-## Roadmap
-
-### Beta (February 2026)
-- [x] WebSockets for tasks, device state, and scan progress
-- [ ] OS/device services: Samba, USB, disk monitoring; camera-assisted Wi‑Fi/setup
-- [x] Reliability: improved handling for Arducam Hawkeye 64MP memory issues
-- [x] Frontend improvements ([OpenScan3-client](https://github.com/OpenScan-org/OpenScan3-client))
-
-
-### Release (May 2026)
-- Turntable Mode as a ScanTask
-- Enhanced hardware support
-  - grblHAL
-  - More Hardware controllers: displays, fans, buttons
-  - Camera & capture: DSLR focus motor; broader camera support (PiCamera, DSLR via gphoto2, smartphones, external GPIO)
-- Project export: Metashape, RealityCapture, 3DF Zephyr, Meshroom
-- Automation: rsync-based project sync; new task features (auto-config via photo, background removal, drop detection)
-
-### Future
-- Further extend hardware support and hackability to use as base for photogrammetry rigs
 
 For details and up-to-date status, see GitHub issues and check out the Discord channel.
 

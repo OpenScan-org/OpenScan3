@@ -31,6 +31,22 @@ from openscan_firmware.utils.paths.optimization import PathOptimizer
 logger = logging.getLogger(__name__)
 
 
+def _get_scan_radius_mm() -> float:
+    """Return the active device scan radius, falling back to unit radius."""
+    try:
+        from openscan_firmware.controllers import device as device_controller
+
+        return device_controller.get_scan_radius_mm()
+    except Exception:
+        logger.debug("Falling back to default scan radius 1.0 mm", exc_info=True)
+        return 1.0
+
+
+def _apply_scan_radius(points: list[PolarPoint3D], radius_mm: float) -> list[PolarPoint3D]:
+    """Apply a shared radius to all generated polar path points."""
+    return [PolarPoint3D(theta=point.theta, fi=point.fi, r=radius_mm) for point in points]
+
+
 def generate_scan_path(scan_settings: ScanSetting) -> dict[PolarPoint3D, int]:
     """Generate scan path based on settings with optional optimization.
 
@@ -42,12 +58,19 @@ def generate_scan_path(scan_settings: ScanSetting) -> dict[PolarPoint3D, int]:
     """
     # Generate constrained path
     if scan_settings.path_method == PathMethod.FIBONACCI:
-        path = paths.get_constrained_path(
+        path_kwargs = dict(
             method=scan_settings.path_method,
             num_points=scan_settings.points,
             min_theta=scan_settings.min_theta,
             max_theta=scan_settings.max_theta,
         )
+        if scan_settings.min_phi is not None:
+            path_kwargs["min_phi"] = scan_settings.min_phi
+        if scan_settings.max_phi is not None:
+            path_kwargs["max_phi"] = scan_settings.max_phi
+
+        path = paths.get_constrained_path(**path_kwargs)
+        path = _apply_scan_radius(path, _get_scan_radius_mm())
         logger.debug("Generated Fibonacci path with %d points", len(path))
     else:
         logger.error("Unknown path method %s", scan_settings.path_method)

@@ -2,8 +2,8 @@
 Path generation utilities
 
 Provides functions and classes for generating scan paths in both cartesian and polar coordinates.
-Supports Fibonacci-based point distributions with optional constraints on the theta angle,
-which is typically limited by the degrees of freedom of the rotor motor (e.g., in the OpenScan Mini).
+Supports Fibonacci-based point distributions with optional constraints on the theta and phi angles,
+which are typically limited by the degrees of freedom of the scan rig motors.
 """
 
 import abc
@@ -79,12 +79,18 @@ def get_polar_path(method: PathMethod, num_points: int) -> list[PolarPoint3D]:
     return [cartesian_to_polar(point) for point in cartesian_points]
 
 
-def get_constrained_path(method: PathMethod, num_points: int, min_theta: float = 0,
-                         max_theta: float = 180) -> list[PolarPoint3D]:
+def get_constrained_path(
+    method: PathMethod,
+    num_points: int,
+    min_theta: float = 0,
+    max_theta: float = 180,
+    min_phi: float = 0,
+    max_phi: float = 360,
+) -> list[PolarPoint3D]:
     """
-    Generate a path within specific theta angle constraints.
+    Generate a path within specific theta and phi angle constraints.
 
-    This function generates points specifically within the theta constraints
+    This function generates points specifically within the angle constraints
     rather than filtering from a full sphere, ensuring better distribution.
 
     Args:
@@ -92,11 +98,20 @@ def get_constrained_path(method: PathMethod, num_points: int, min_theta: float =
         num_points: The target number of points to generate
         min_theta: Minimum theta angle in degrees (default: 0)
         max_theta: Maximum theta angle in degrees (default: 180)
+        min_phi: Minimum phi angle in degrees (default: 0)
+        max_phi: Maximum phi angle in degrees (default: 360)
 
     Returns:
         A list of PolarPoint3D objects within the specified constraints
     """
-    logger.debug(f"Generating constrained path for {num_points} points, min theta: {min_theta}, max theta: {max_theta}")
+    logger.debug(
+        "Generating constrained path for %d points, min theta: %s, max theta: %s, min phi: %s, max phi: %s",
+        num_points,
+        min_theta,
+        max_theta,
+        min_phi,
+        max_phi,
+    )
     # Validate input constraints
     if min_theta < 0 or max_theta > 180:
         logger.error("Theta angle must be between 0° and 180°")
@@ -104,33 +119,68 @@ def get_constrained_path(method: PathMethod, num_points: int, min_theta: float =
     if min_theta >= max_theta:
         logger.error("Minimum theta angle must be less than maximum theta angle")
         raise ValueError("Minimum theta angle must be less than maximum theta angle")
+    if min_phi < 0 or min_phi > 360 or max_phi < 0 or max_phi > 360:
+        logger.error("Phi angle must be between 0° and 360°")
+        raise ValueError("Phi angle must be between 0° and 360°")
+    if min_phi == max_phi:
+        logger.error("Minimum phi angle must not be equal to maximum phi angle")
+        raise ValueError("Minimum phi angle must not be equal to maximum phi angle")
 
     if method == PathMethod.FIBONACCI:
-        return _generate_constrained_fibonacci(num_points, min_theta, max_theta)
+        return _generate_constrained_fibonacci(
+            num_points=num_points,
+            min_theta=min_theta,
+            max_theta=max_theta,
+            min_phi=min_phi,
+            max_phi=max_phi,
+        )
     else:
         logger.error(f"Constrained path generation not implemented for method {method}")
         raise ValueError(f"Constrained path generation not implemented for method {method}")
 
 
-def _generate_constrained_fibonacci(num_points: int, min_theta: float, max_theta: float) -> list[PolarPoint3D]:
+def _phi_span(min_phi: float, max_phi: float) -> float:
+    """Return the positive span of a phi interval, supporting wrap-around at 360°."""
+    span = (max_phi - min_phi) % 360
+    return 360 if span == 0 else span
+
+
+def _generate_constrained_fibonacci(
+    num_points: int,
+    min_theta: float,
+    max_theta: float,
+    min_phi: float,
+    max_phi: float,
+) -> list[PolarPoint3D]:
     """
-    Generate fibonacci points within theta constraints by directly controlling the Z range.
+    Generate fibonacci points within theta/phi constraints.
 
     The fibonacci sphere algorithm works by:
     1. Distributing Z values linearly from -1 to 1
     2. Converting Z to theta via theta = arccos(z)
+    3. Distributing phi using a golden-ratio sequence within the allowed azimuth range
 
-    To constrain theta, we need to constrain the Z values accordingly.
+    To constrain theta, we limit the Z values accordingly.
+    To constrain phi, we map the golden-ratio sequence into the requested azimuth span.
     """
-    logger.debug(f"Generating constrained fibonacci path for {num_points} points, min theta: {min_theta}, max theta: {max_theta}")
+    logger.debug(
+        "Generating constrained fibonacci path for %d points, min theta: %s, max theta: %s, min phi: %s, max phi: %s",
+        num_points,
+        min_theta,
+        max_theta,
+        min_phi,
+        max_phi,
+    )
     # Convert theta constraints to Z constraints
     # theta = arccos(z), so z = cos(theta)
     # Note: theta increases as z decreases
     z_max = np.cos(np.radians(min_theta))  # z at min_theta
     z_min = np.cos(np.radians(max_theta))  # z at max_theta
+    phi_span = _phi_span(min_phi, max_phi)
 
     # Generate fibonacci points within the constrained Z range
     ga = (3 - np.sqrt(5)) * np.pi  # golden angle
+    golden_ratio_conjugate = (np.sqrt(5) - 1) / 2
 
     points = []
     for i in range(num_points):
@@ -149,12 +199,9 @@ def _generate_constrained_fibonacci(num_points: int, min_theta: float, max_theta
 
         # Convert to polar coordinates
         r = 1.0  # unit sphere
-        theta = np.degrees(np.arccos(z))
-        fi = np.degrees(np.arctan2(y, x))
-
-        # Ensure fi is in 0-360 range
-        if fi < 0:
-            fi += 360
+        theta = float(np.clip(np.degrees(np.arccos(z)), min_theta, max_theta))
+        phi_fraction = (i * golden_ratio_conjugate) % 1
+        fi = float((min_phi + phi_span * phi_fraction) % 360)
 
         points.append(PolarPoint3D(theta, fi, r))
 

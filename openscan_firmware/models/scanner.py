@@ -49,6 +49,10 @@ class ScannerDevice(BaseModel):
     
     # motors timeout in seconds - 0 to disable
     motors_timeout: float = 0.0
+    scan_radius_mm: float = Field(
+        default=1.0,
+        description="Distance in millimeters between the camera lens and the turntable center point.",
+    )
     
     startup_mode: ScannerStartupMode = ScannerStartupMode.STARTUP_ENABLED
     calibrate_mode: ScannerCalibrateMode = ScannerCalibrateMode.CALIBRATE_MANUAL
@@ -81,5 +85,10 @@ class ScannerDeviceConfig(BaseModel):
     triggers: dict[str, TriggerConfig] = Field(default_factory=dict)
     endstops: dict[str, PersistedEndstopConfig] | None = None
     motors_timeout: float = 0.0
+    scan_radius_mm: float = Field(
+        default=1.0,
+        gt=0.0,
+        description="Distance in millimeters between the camera lens and the turntable center point.",
+    )
     startup_mode: ScannerStartupMode | str = ScannerStartupMode.STARTUP_ENABLED
     calibrate_mode: ScannerCalibrateMode | str = ScannerCalibrateMode.CALIBRATE_MANUAL

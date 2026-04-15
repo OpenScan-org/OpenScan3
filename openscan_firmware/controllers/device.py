@@ -115,6 +115,7 @@ _FACTORY_DEFAULT_CONFIG = ScannerDeviceConfig(
     lights={},
     triggers={},
     endstops={},
+    scan_radius_mm=1.0,
 ).model_dump(mode="json")
 
 # Path to device configuration file (persisted)
@@ -144,6 +145,7 @@ def _runtime_to_persisted_config() -> ScannerDeviceConfig:
             for name, endstop in _scanner_device.endstops.items()
         },
         motors_timeout=_scanner_device.motors_timeout,
+        scan_radius_mm=_scanner_device.scan_radius_mm,
         startup_mode=_scanner_device.startup_mode.value if _scanner_device.startup_mode else None,
         calibrate_mode=_scanner_device.calibrate_mode.value if _scanner_device.calibrate_mode else None,
     )
@@ -269,6 +271,7 @@ def get_device_info():
         "triggers": {name: controller.get_status() for name, controller in get_all_trigger_controllers().items()},
 
         "motors_timeout": _scanner_device.motors_timeout,
+        "scan_radius_mm": _scanner_device.scan_radius_mm,
         "startup_mode": _scanner_device.startup_mode,
         "calibrate_mode": _scanner_device.calibrate_mode,
 
@@ -695,6 +698,7 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
 
         # motors timeout in seconds - 0 to disable
         motors_timeout=config_dict["motors_timeout"],
+        scan_radius_mm=config_dict["scan_radius_mm"],
         
         startup_mode=config_dict["startup_mode"],
         calibrate_mode=config_dict["calibrate_mode"],
@@ -727,6 +731,11 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
     logger.info("Hardware initialized.")
     logger.debug(f"Initialized ScannerDevice: {_scanner_device.model_dump(mode='json')}.")
     schedule_device_status_broadcast()
+
+
+def get_scan_radius_mm() -> float:
+    """Return the configured scan radius in millimeters."""
+    return float(_scanner_device.scan_radius_mm)
 
 
 def get_available_configs():
