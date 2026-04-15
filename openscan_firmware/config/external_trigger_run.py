@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
 
 from openscan_firmware.config.scan import ScanSetting
 from openscan_firmware.models.paths import PathMethod
@@ -23,6 +23,18 @@ class ExternalTriggerRunSettings(BaseModel):
         ge=0.0,
         le=180.0,
         description="Maximum theta angle in degrees for constrained paths.",
+    )
+    min_phi: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=360.0,
+        description="Optional minimum phi angle in degrees for constrained paths.",
+    )
+    max_phi: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=360.0,
+        description="Optional maximum phi angle in degrees for constrained paths.",
     )
     optimize_path: bool = Field(
         True,
@@ -57,9 +69,20 @@ class ExternalTriggerRunSettings(BaseModel):
             points=self.points,
             min_theta=self.min_theta,
             max_theta=self.max_theta,
+            min_phi=self.min_phi,
+            max_phi=self.max_phi,
             optimize_path=self.optimize_path,
             optimization_algorithm=self.optimization_algorithm,
             focus_stacks=1,
             focus_range=(10.0, 15.0),
             image_format="jpeg",
         )
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler: SerializerFunctionWrapHandler):
+        data = handler(self)
+        if self.min_phi is None:
+            data.pop("min_phi", None)
+        if self.max_phi is None:
+            data.pop("max_phi", None)
+        return data

@@ -70,13 +70,13 @@ There are three ways to load a configuration:
 
 **Method 1: Using the SPA client (Recommended)**
 
-1.  If you booted from the official OpenScan image, the bundled SPA client is available at `http://openscan3-alpha`.
+1.  If you booted from the official OpenScan image, the bundled SPA client is available at `http://openscan` (or `http://openscan.local`).
 2.  Open the page in a browser on the same network; the guided setup wizard walks you through selecting the correct hardware profile.
 3.  Confirm the suggested configuration; the SPA will push it to the firmware and trigger any required reloads automatically.
 
 **Method 2: Using the API docs**
 
-1.  Navigate to the API documentation at `http://openscan3-alpha:8000/latest/docs`.
+1.  Navigate to the API documentation at `http://openscan:8000/latest/docs`.
 2.  Find the **Device** Section and the **PUT** endpoint `/latest/device/configurations/current`.
 3.  Use the "Try it out" feature.
 4.  In the **Request body**, enter the name of the configuration file you want to load. For example, for an OpenScan Mini with a Greenshield, use:
