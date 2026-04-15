@@ -33,7 +33,7 @@ There are two ways to get started on a Raspberry Pi: flash a ready-made image or
 6. Modify configuration options if needed (hostname, user, Wi‑Fi, etc.) via the Raspberry Pi Imager interface.
 7. Write the image. Eject the card and insert it into the Pi.
 
-**Default Hostname:** `openscan3` (or `openscan.local` if mDNS is enabled)
+**Default Hostname:** `openscan` (or `openscan.local` if mDNS is enabled)
 
 **UI (Webfrontend):** http://openscan/ or http://openscan.local/
 
