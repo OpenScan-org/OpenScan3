@@ -49,8 +49,6 @@ You can also use [OpenScan3 Pi Image Builder](https://github.com/esto-openscan/O
 
 See [`docs/DEVELOP.md`](docs/DEVELOP.md) for development setup, first steps, and architectural overview.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
 
 For details and up-to-date status, see GitHub issues and check out the Discord channel.
 
