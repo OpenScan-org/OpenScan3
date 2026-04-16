@@ -52,8 +52,8 @@
         {
           "name": "OpenScan3 (Arducam IMX519 16MP)",
           "description": "Optimised for the Arducam IMX519 camera with drivers and tuning blobs pre-installed.",
-          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.10.0_imx519.zip",
-          "release_date": "2026-03-18",
+          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.11.2_imx519.zip",
+          "release_date": "2026-04-16",
           "devices": [
             "pi5",
             "pi4",
@@ -65,18 +65,18 @@
             "rpi_connect"
           ],
           "init_format": "cloudinit-rpi",
-          "image_download_size": 1518263201,
-          "image_download_sha256": "cd2431458e8f0113dbfabaf0fe13f5a027891ab3e07c45a5560f7df025b9ccd3",
+          "image_download_size": 1539738003,
+          "image_download_sha256": "8a60af60e253135c57f40c472f76b560a5c10a848062adfce912c392f27beeea",
           "icon": "https://raw.githubusercontent.com/OpenScan-org/OpenScan3/main/dist/assets/openscan_mini_icon.png",
           "website": "https://openscan.eu",
-          "extract_size": 5318377472,
-          "extract_sha256": "30baa7bc46b73c89af51dee7c16e7ac412ca353c156de7cbeedfb5c404d6bfd3"
+          "extract_size": 5360320512,
+          "extract_sha256": "9f00a80020a91da4ae00c9672a50150446abeb1be395d58d7a00dd6fd3379f58"
         },
         {
           "name": "OpenScan3 (Arducam Hawkeye 64MP)",
-          "description": "Experimental build that ships the Arducam HawkEye drivers and tuning blobs pre-installed.",
-          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.10.0_hawkeye-experimental.zip",
-          "release_date": "2026-03-18",
+          "description": "Optimised build for the Arducam HawkEye with drivers and tuning blobs pre-installed.",
+          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.11.2_hawkeye.zip",
+          "release_date": "2026-04-16",
           "devices": [
             "pi5",
             "pi4",
@@ -88,18 +88,18 @@
             "rpi_connect"
           ],
           "init_format": "cloudinit-rpi",
-          "image_download_size": 1518239856,
-          "image_download_sha256": "0bcae0ae69d191195f9897f568acfe5c0f6b8d10c938133938044b60b9e11f1b",
+          "image_download_size": 1539770528,
+          "image_download_sha256": "18a0644c911312009ef6b3a393fe62d3be4df377f0fcaebf3e1a2a394a0fb55b",
           "icon": "https://raw.githubusercontent.com/OpenScan-org/OpenScan3/main/dist/assets/openscan_mini_icon.png",
           "website": "https://openscan.eu",
-          "extract_size": 5318377472,
-          "extract_sha256": "d0b3cd55f68f8c341c3e9e1dd0fd95b2a54dd434e219d73881b68d9263676f6a"
+          "extract_size": 5360320512,
+          "extract_sha256": "fbf9bc74c8ddd874809748c45a09eda3077ee24ec550f1e8cb3c3b01b20792df"
         },
         {
           "name": "OpenScan3 (Generic Picamera/USB/HQ/DLSR)",
           "description": "Baseline OpenScan3 firmware for Raspberry Pi Camera Module 3 or other cameras.",
-          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.10.0_generic.zip",
-          "release_date": "2026-03-18",
+          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.11.2_generic.zip",
+          "release_date": "2026-04-16",
           "devices": [
             "pi5",
             "pi4",
@@ -112,18 +112,18 @@
             "rpi_connect"
           ],
           "init_format": "cloudinit-rpi",
-          "image_download_size": 1495921939,
-          "image_download_sha256": "ebfff63b6bfb600b58a6bba747cbe7198796e776226fc4583c1a1a9e433258c5",
+          "image_download_size": 1517385857,
+          "image_download_sha256": "3af598daba71dcc529dcfe91eb5e99abc4fe9f7dd6c482ee07463597c0a7a200",
           "icon": "https://raw.githubusercontent.com/OpenScan-org/OpenScan3/main/dist/assets/openscan_mini_icon.png",
           "website": "https://openscan.eu",
-          "extract_size": 5226102784,
-          "extract_sha256": "93a9c3e1c218dac0a725acf094950d6380e674cedf498ee39f00ff2d04d04a38"
+          "extract_size": 5268045824,
+          "extract_sha256": "bb85cc0da68f58690f711f7143f68bdb6d6e0d2e4a7c3a963430f4901b036171"
         },
         {
           "name": "OpenScan3 (Arducam IMX519 16MP) (Develop)",
           "description": "Developer image for the Arducam IMX519 camera, please read docs before use!",
-          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.10.0_imx519_DEVELOP.zip",
-          "release_date": "2026-03-18",
+          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.11.2_imx519_DEVELOP.zip",
+          "release_date": "2026-04-16",
           "devices": [
             "pi5",
             "pi4",
@@ -135,18 +135,18 @@
             "rpi_connect"
           ],
           "init_format": "cloudinit-rpi",
-          "image_download_size": 1518249970,
-          "image_download_sha256": "5513828b5c7b457c963908fa6e6824a92e9e1e127a60952b2cf6426482776966",
+          "image_download_size": 1539771405,
+          "image_download_sha256": "df5882055de8221347981095bc040314bcd2b60e61b27a6044fc9ed5459e7735",
           "icon": "https://raw.githubusercontent.com/OpenScan-org/OpenScan3/main/dist/assets/openscan_mini_icon.png",
           "website": "https://openscan.eu",
-          "extract_size": 5318377472,
-          "extract_sha256": "7e5af5d67abfade308fb2d0829b9bdeff869c7618c9bb9370df102cc70862b3d"
+          "extract_size": 5360320512,
+          "extract_sha256": "7716d53a201ee411ba6e94fe98ced722ce73b640ab958e8ddb8ff6bf709ea1a3"
         },
         {
           "name": "OpenScan3 (Arducam Hawkeye 64MP) (Develop)",
           "description": "Developer image for the Arducam Hawkeye, please read docs before use!",
-          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.10.0_hawkeye-experimental_DEVELOP.zip",
-          "release_date": "2026-03-18",
+          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.11.2_hawkeye_DEVELOP.zip",
+          "release_date": "2026-04-16",
           "devices": [
             "pi5",
             "pi4",
@@ -158,18 +158,18 @@
             "rpi_connect"
           ],
           "init_format": "cloudinit-rpi",
-          "image_download_size": 1518246422,
-          "image_download_sha256": "49f80c13f873fc4a6096439c752b41bd5a26f6bcf707cef7c1952e8a7eb542c3",
+          "image_download_size": 1539720340,
+          "image_download_sha256": "8cd94e9d3ba9b1d568ed75ac53d8746d1699c8bf0bf3a1e2fa963a119a16c668",
           "icon": "https://raw.githubusercontent.com/OpenScan-org/OpenScan3/main/dist/assets/openscan_mini_icon.png",
           "website": "https://openscan.eu",
-          "extract_size": 5318377472,
-          "extract_sha256": "d6bb1cfe35a43b7be0d83dcfdcfa8556c8152d9d83103900f79e4a5ecad1e267"
+          "extract_size": 5360320512,
+          "extract_sha256": "9ae9a22b65a0bcb20851a1bc672262fb41cea8e441dcacae7888a9c30ed52eea"
         },
         {
           "name": "OpenScan3 (Generic camera) (Develop)",
           "description": "Developer image for generic cameras (Picamera, DLSR, etc.), please read docs before use!",
-          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.10.0_generic_DEVELOP.zip",
-          "release_date": "2026-03-18",
+          "url": "file:///home/esto/OpenScan3-pi-gen/deploy/OpenScan3_v0.11.2_generic_DEVELOP.zip",
+          "release_date": "2026-04-16",
           "devices": [
             "pi5",
             "pi4",
@@ -182,12 +182,12 @@
             "rpi_connect"
           ],
           "init_format": "cloudinit-rpi",
-          "image_download_size": 1495928041,
-          "image_download_sha256": "7c27dc67b87147c4ff521474a584c6316182beb0c4eaab319b020a19913eda7a",
+          "image_download_size": 1517446205,
+          "image_download_sha256": "7ce3d3058a076e9752d215bb406e9799c5cf74ed236c812906192d3ea7d157fc",
           "icon": "https://raw.githubusercontent.com/OpenScan-org/OpenScan3/main/dist/assets/openscan_mini_icon.png",
           "website": "https://openscan.eu",
-          "extract_size": 5226102784,
-          "extract_sha256": "2dba9e567c6efba02146715a64c876f330b52c0cd72c3253650e682395f80da5"
+          "extract_size": 5268045824,
+          "extract_sha256": "967cc0a5e98e09ca1646bde804311ad9500689bfb39c4533a018b6b2d2077b9b"
         }
       ],
       "description": "Firmware images for open 3d scanners.",
