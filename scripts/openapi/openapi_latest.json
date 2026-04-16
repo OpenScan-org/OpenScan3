@@ -4500,7 +4500,7 @@
       "Body_add_config_json_device_configurations__post": {
         "properties": {
           "config_data": {
-            "$ref": "#/components/schemas/ScannerDeviceConfig-Input"
+            "$ref": "#/components/schemas/ScannerDeviceConfig"
           },
           "filename": {
             "$ref": "#/components/schemas/DeviceConfigRequest"
@@ -5110,7 +5110,9 @@
             "title": "Path"
           },
           "config": {
-            "$ref": "#/components/schemas/ScannerDeviceConfig-Output"
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
           }
         },
         "type": "object",
@@ -5196,6 +5198,11 @@
           "motors_timeout": {
             "type": "number",
             "title": "Motors Timeout"
+          },
+          "scan_radius_mm": {
+            "type": "number",
+            "title": "Scan Radius Mm",
+            "default": 1.0
           },
           "startup_mode": {
             "$ref": "#/components/schemas/ScannerStartupMode"
@@ -5400,11 +5407,17 @@
             "title": "Enable Cloud",
             "description": "Enable integrations with OpenScan Cloud services.",
             "default": false
+          },
+          "camera_preview_enabled": {
+            "type": "boolean",
+            "title": "Camera Preview Enabled",
+            "description": "Expose camera preview-oriented workflows. Disable for trigger-only systems without a live camera feed.",
+            "default": true
           }
         },
         "type": "object",
         "title": "FirmwareSettings",
-        "description": "Global firmware behaviour toggles.\n\nAttributes:\n    qr_wifi_scan_enabled: When True the firmware automatically starts the\n        QR WiFi scan task on startup if no usable network connection is\n        detected.\n    enable_cloud: When True the firmware enables cloud-facing features and\n        UX affordances."
+        "description": "Global firmware behaviour toggles.\n\nAttributes:\n    qr_wifi_scan_enabled: When True the firmware automatically starts the\n        QR WiFi scan task on startup if no usable network connection is\n        detected.\n    enable_cloud: When True the firmware enables cloud-facing features and\n        UX affordances.\n    camera_preview_enabled: When False the system is expected to operate\n        without a live camera preview workflow, for example on trigger-only\n        DSLR setups."
       },
       "HTTPValidationError": {
         "properties": {
@@ -5980,6 +5993,34 @@
             "description": "Maximum theta angle in degrees for constrained paths.",
             "default": 125.0
           },
+          "min_phi": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 360.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Phi",
+            "description": "Optional minimum phi angle in degrees for constrained paths."
+          },
+          "max_phi": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 360.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Phi",
+            "description": "Optional maximum phi angle in degrees for constrained paths."
+          },
           "optimize_path": {
             "type": "boolean",
             "title": "Optimize Path",
@@ -6037,7 +6078,7 @@
         ],
         "title": "ScannerCalibrateMode"
       },
-      "ScannerDeviceConfig-Input": {
+      "ScannerDeviceConfig": {
         "properties": {
           "name": {
             "type": "string",
@@ -6112,112 +6153,12 @@
             "title": "Motors Timeout",
             "default": 0.0
           },
-          "startup_mode": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ScannerStartupMode"
-              },
-              {
-                "type": "string"
-              }
-            ],
-            "title": "Startup Mode",
-            "default": "startup_enabled"
-          },
-          "calibrate_mode": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ScannerCalibrateMode"
-              },
-              {
-                "type": "string"
-              }
-            ],
-            "title": "Calibrate Mode",
-            "default": "calibrate_manual"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "ScannerDeviceConfig",
-        "description": "Persisted scanner configuration payload stored as JSON."
-      },
-      "ScannerDeviceConfig-Output": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model"
-          },
-          "shield": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Shield"
-          },
-          "cameras": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/PersistedCameraConfig"
-            },
-            "type": "object",
-            "title": "Cameras"
-          },
-          "motors": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/MotorConfig"
-            },
-            "type": "object",
-            "title": "Motors"
-          },
-          "lights": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/LightConfig"
-            },
-            "type": "object",
-            "title": "Lights"
-          },
-          "triggers": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/TriggerConfig"
-            },
-            "type": "object",
-            "title": "Triggers"
-          },
-          "endstops": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "$ref": "#/components/schemas/PersistedEndstopConfig"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Endstops"
-          },
-          "motors_timeout": {
+          "scan_radius_mm": {
             "type": "number",
-            "title": "Motors Timeout",
-            "default": 0.0
+            "exclusiveMinimum": 0.0,
+            "title": "Scan Radius Mm",
+            "description": "Distance in millimeters between the camera lens and the turntable center point.",
+            "default": 1.0
           },
           "startup_mode": {
             "anyOf": [
@@ -6500,6 +6441,14 @@
         "title": "TaskStatus",
         "description": "Enum for task status"
       },
+      "TriggerActiveLevel": {
+        "type": "string",
+        "enum": [
+          "active_high",
+          "active_low"
+        ],
+        "title": "TriggerActiveLevel"
+      },
       "TriggerConfig": {
         "properties": {
           "enabled": {
@@ -6514,9 +6463,9 @@
             "title": "Pin",
             "description": "BCM GPIO pin used for the trigger line."
           },
-          "polarity": {
-            "$ref": "#/components/schemas/TriggerPolarity",
-            "description": "Defines whether the trigger line is active-high or active-low.",
+          "active_level": {
+            "$ref": "#/components/schemas/TriggerActiveLevel",
+            "description": "Defines which logic level is considered active. The idle level is the inverse.",
             "default": "active_high"
           },
           "pulse_width_ms": {
@@ -6524,7 +6473,7 @@
             "maximum": 5000.0,
             "minimum": 1.0,
             "title": "Pulse Width Ms",
-            "description": "How long the trigger line stays active for each trigger pulse.",
+            "description": "How long the trigger line stays active for each trigger pulse in ms.",
             "default": 100
           }
         },
@@ -6533,14 +6482,6 @@
           "pin"
         ],
         "title": "TriggerConfig"
-      },
-      "TriggerPolarity": {
-        "type": "string",
-        "enum": [
-          "active_high",
-          "active_low"
-        ],
-        "title": "TriggerPolarity"
       },
       "ValidationError": {
         "properties": {

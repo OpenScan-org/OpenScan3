@@ -4814,6 +4814,11 @@
             "type": "number",
             "title": "Motors Timeout"
           },
+          "scan_radius_mm": {
+            "type": "number",
+            "title": "Scan Radius Mm",
+            "default": 1.0
+          },
           "startup_mode": {
             "$ref": "#/components/schemas/ScannerStartupMode"
           },
@@ -5539,6 +5544,34 @@
             "description": "Maximum theta angle in degrees for constrained paths.",
             "default": 125.0
           },
+          "min_phi": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 360.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Phi",
+            "description": "Optional minimum phi angle in degrees for constrained paths."
+          },
+          "max_phi": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 360.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Phi",
+            "description": "Optional maximum phi angle in degrees for constrained paths."
+          },
           "optimize_path": {
             "type": "boolean",
             "title": "Optimize Path",
@@ -5668,6 +5701,12 @@
             "type": "number",
             "title": "Motors Timeout",
             "default": 0.0
+          },
+          "scan_radius_mm": {
+            "type": "number",
+            "title": "Scan Radius Mm",
+            "description": "Distance in millimeters between the camera lens and the turntable center point.",
+            "default": 1.0
           },
           "startup_mode": {
             "$ref": "#/components/schemas/ScannerStartupMode",
@@ -5975,6 +6014,14 @@
         ],
         "title": "Trigger"
       },
+      "TriggerActiveLevel": {
+        "type": "string",
+        "enum": [
+          "active_high",
+          "active_low"
+        ],
+        "title": "TriggerActiveLevel"
+      },
       "TriggerConfig": {
         "properties": {
           "enabled": {
@@ -5989,9 +6036,9 @@
             "title": "Pin",
             "description": "BCM GPIO pin used for the trigger line."
           },
-          "polarity": {
-            "$ref": "#/components/schemas/TriggerPolarity",
-            "description": "Defines whether the trigger line is active-high or active-low.",
+          "active_level": {
+            "$ref": "#/components/schemas/TriggerActiveLevel",
+            "description": "Defines which logic level is considered active. The idle level is the inverse.",
             "default": "active_high"
           },
           "pulse_width_ms": {
@@ -5999,7 +6046,7 @@
             "maximum": 5000.0,
             "minimum": 1.0,
             "title": "Pulse Width Ms",
-            "description": "How long the trigger line stays active for each trigger pulse.",
+            "description": "How long the trigger line stays active for each trigger pulse in ms.",
             "default": 100
           }
         },
@@ -6008,14 +6055,6 @@
           "pin"
         ],
         "title": "TriggerConfig"
-      },
-      "TriggerPolarity": {
-        "type": "string",
-        "enum": [
-          "active_high",
-          "active_low"
-        ],
-        "title": "TriggerPolarity"
       },
       "ValidationError": {
         "properties": {
