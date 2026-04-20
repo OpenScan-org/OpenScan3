@@ -1,11 +1,12 @@
 """Cloud service helpers for OpenScan."""
 
 import asyncio
+import errno
 import io
 import logging
-import math
 import pathlib
 from dataclasses import dataclass
+from shutil import disk_usage
 from tempfile import TemporaryFile
 from typing import Any, BinaryIO, Callable, Iterator, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -15,8 +16,9 @@ import requests
 from openscan_firmware.config.cloud import CloudSettings, CloudConfigurationError, get_cloud_settings, mask_secret
 from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
-from openscan_firmware.models.task import TaskStatus
 from openscan_firmware.models.project import Project
+from openscan_firmware.models.task import TaskStatus
+from openscan_firmware.utils.dir_paths import resolve_runtime_dir
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +26,7 @@ logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 60
 ALLOWED_PHOTO_SUFFIXES = {".jpg", ".jpeg"}
 UNSUPPORTED_PHOTO_SUFFIXES = {".png", ".dng", ".raw", ".cr2", ".cr3", ".crw", ".npy"}
+_CLOUD_TEMP_SUBDIR = "tmp/cloud"
 
 
 class CloudServiceError(RuntimeError):
@@ -50,6 +53,41 @@ class CloudDownloadResult:
     archive_size_bytes: int
     bytes_downloaded: int
     download_info: dict[str, Any]
+
+
+def _get_cloud_temp_dir() -> pathlib.Path:
+    """Resolve and create the temp directory used for large cloud artifacts."""
+
+    temp_dir = resolve_runtime_dir(_CLOUD_TEMP_SUBDIR)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    return temp_dir
+
+
+def _format_storage_size(size_bytes: int) -> str:
+    """Format byte counts into a compact human-readable string."""
+
+    value = float(size_bytes)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if value < 1024 or unit == "TiB":
+            if unit == "B":
+                return f"{int(value)} {unit}"
+            return f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{int(size_bytes)} B"
+
+
+def _temp_storage_error(operation: str, temp_dir: pathlib.Path) -> CloudServiceError:
+    """Build a user-facing error for temporary storage exhaustion."""
+
+    free_space_suffix = ""
+    try:
+        free_space_suffix = f" Free space there: {_format_storage_size(disk_usage(temp_dir).free)}."
+    except OSError:
+        pass
+
+    return CloudServiceError(
+        f"No space left in OpenScan temp storage '{temp_dir}' while {operation}.{free_space_suffix}"
+    )
 
 
 def _require_cloud_settings() -> CloudSettings:
@@ -458,23 +496,33 @@ def _upload_file(
 
 
 def _build_project_archive(project: Project) -> tuple[TemporaryFile, int]:
-    archive = TemporaryFile()
+    temp_dir = _get_cloud_temp_dir()
+    archive = None
     base_path = project.path_obj
 
-    seen_names: set[str] = set()
-    with ZipFile(archive, "w", compression=ZIP_DEFLATED) as zipf:
-        for file_path in _collect_project_photos(project):
-            arcname = file_path.name
-            if arcname in seen_names:
-                arcname = str(file_path.relative_to(base_path)).replace("/", "_")
-            seen_names.add(arcname)
+    try:
+        archive = TemporaryFile(dir=temp_dir)
 
-            zipf.write(file_path, arcname)
+        seen_names: set[str] = set()
+        with ZipFile(archive, "w", compression=ZIP_DEFLATED) as zipf:
+            for file_path in _collect_project_photos(project):
+                arcname = file_path.name
+                if arcname in seen_names:
+                    arcname = str(file_path.relative_to(base_path)).replace("/", "_")
+                seen_names.add(arcname)
 
-    archive.seek(0, io.SEEK_END)
-    size = archive.tell()
-    archive.seek(0)
-    return archive, size
+                zipf.write(file_path, arcname)
+
+        archive.seek(0, io.SEEK_END)
+        size = archive.tell()
+        archive.seek(0)
+        return archive, size
+    except OSError as exc:
+        if archive is not None:
+            archive.close()
+        if exc.errno == errno.ENOSPC:
+            raise _temp_storage_error("creating the cloud upload archive", temp_dir) from exc
+        raise
 
 
 def _count_project_photos(project: Project) -> int:

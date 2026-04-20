@@ -1,4 +1,5 @@
 import asyncio
+import errno
 import io
 import logging
 import time
@@ -371,3 +372,73 @@ def test_build_project_archive_prefers_stacked(tmp_path):
         archive.close()
 
     assert _count_project_photos(project) == 3
+
+
+def test_build_project_archive_uses_cloud_temp_dir(tmp_path, monkeypatch):
+    project_path = tmp_path / "project"
+    scan1 = project_path / "scan01"
+    scan1.mkdir(parents=True)
+    (scan1 / "img1.jpg").write_bytes(b"jpg1")
+
+    project = Project(
+        name="demo",
+        path=str(project_path),
+        created=datetime.now(),
+        scans={},
+    )
+
+    expected_temp_dir = tmp_path / "runtime" / "tmp" / "cloud"
+    captured: dict[str, object] = {}
+
+    def fake_temporary_file(*, dir=None):
+        captured["dir"] = dir
+        return io.BytesIO()
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud._get_cloud_temp_dir",
+        lambda: expected_temp_dir,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.TemporaryFile",
+        fake_temporary_file,
+    )
+
+    archive, size = _build_project_archive(project)
+    try:
+        assert captured["dir"] == expected_temp_dir
+        assert size > 0
+        with ZipFile(archive, "r") as zipf:
+            assert zipf.namelist() == ["img1.jpg"]
+    finally:
+        archive.close()
+
+
+def test_build_project_archive_reports_temp_storage_exhaustion(tmp_path, monkeypatch):
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+    expected_temp_dir = tmp_path / "runtime" / "tmp" / "cloud"
+    expected_temp_dir.mkdir(parents=True)
+
+    project = Project(
+        name="demo",
+        path=str(project_path),
+        created=datetime.now(),
+        scans={},
+    )
+
+    def no_space_temp_file(*, dir=None):
+        raise OSError(errno.ENOSPC, "No space left on device", str(dir))
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud._get_cloud_temp_dir",
+        lambda: expected_temp_dir,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.TemporaryFile",
+        no_space_temp_file,
+    )
+
+    with pytest.raises(CloudServiceError, match="No space left in OpenScan temp storage") as exc_info:
+        _build_project_archive(project)
+
+    assert str(expected_temp_dir) in str(exc_info.value)
