@@ -223,8 +223,8 @@ async def test_cloud_download_task_reports_temp_storage_exhaustion(monkeypatch, 
         assert stream is True
         return FakeResponse()
 
-    def fake_named_temporary_file(*args, **kwargs):
-        raise OSError(errno.ENOSPC, "No space left on device", str(kwargs.get("dir")))
+    def fake_named_temporary_file(temp_dir_arg):
+        raise OSError(errno.ENOSPC, "No space left on device", str(temp_dir_arg))
 
     monkeypatch.setattr(
         "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_info",
@@ -239,7 +239,7 @@ async def test_cloud_download_task_reports_temp_storage_exhaustion(monkeypatch, 
         lambda: temp_dir,
     )
     monkeypatch.setattr(
-        "openscan_firmware.controllers.services.tasks.core.cloud_task.NamedTemporaryFile",
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._create_cloud_download_temp_file",
         fake_named_temporary_file,
     )
 
@@ -251,6 +251,73 @@ async def test_cloud_download_task_reports_temp_storage_exhaustion(monkeypatch, 
             pass
 
     with pytest.raises(CloudServiceError, match="No space left in OpenScan temp storage") as exc_info:
+        await _consume()
+
+    assert str(temp_dir) in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_cloud_download_task_fails_preflight_when_temp_space_is_insufficient(
+    monkeypatch,
+    project_manager,
+    tmp_path,
+):
+    project = _prepare_environment(monkeypatch, project_manager)
+    temp_dir = tmp_path / "runtime" / "tmp" / "cloud"
+    temp_dir.mkdir(parents=True)
+
+    def fake_get_project_info(name: str, token=None):
+        return {"dlink": "https://download/link", "status": "finished"}
+
+    class FakeResponse:
+        headers = {"Content-Length": "4096"}
+
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size: int):
+            yield b"zip-bytes"
+
+        def close(self):
+            return None
+
+    def fake_requests_get(url: str, stream: bool, timeout: int):
+        assert url == "https://download/link"
+        assert stream is True
+        return FakeResponse()
+
+    def should_not_create_temp_file(_temp_dir):
+        raise AssertionError("Download temp file should not be created when preflight fails")
+
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.get_project_info",
+        fake_get_project_info,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task.requests.get",
+        fake_requests_get,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._get_cloud_temp_dir",
+        lambda: temp_dir,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.cloud.disk_usage",
+        lambda _path: SimpleNamespace(total=8192, free=512),
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.services.tasks.core.cloud_task._create_cloud_download_temp_file",
+        should_not_create_temp_file,
+    )
+
+    task_model = Task(name="cloud_download_task", task_type="cloud_download_task")
+    task_instance = CloudDownloadTask(task_model)
+
+    async def _consume():
+        async for _ in task_instance.run(project.name):
+            pass
+
+    with pytest.raises(CloudServiceError, match="Insufficient free space in OpenScan temp storage") as exc_info:
         await _consume()
 
     assert str(temp_dir) in str(exc_info.value)
