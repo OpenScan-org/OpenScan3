@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import io
 import logging
 import re
 import time
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Any, AsyncGenerator
 
 import requests
@@ -22,10 +22,15 @@ from openscan_firmware.controllers.services.cloud import (
     REQUEST_TIMEOUT,
     _build_project_archive,
     _count_project_photos,
+    _create_cloud_download_temp_file,
     _create_project,
+    _get_cloud_temp_dir,
     _iter_chunks,
+    _ensure_cloud_temp_space,
     _require_cloud_settings,
+    _release_cloud_temp_path,
     _start_project,
+    _temp_storage_error,
     get_project_info,
     _upload_file,
 )
@@ -378,6 +383,7 @@ class CloudDownloadTask(BaseTask):
                         archive_path,
                         exc,
                     )
+            _release_cloud_temp_path(archive_path)
 
     async def _download_archive_stream(
         self,
@@ -408,9 +414,27 @@ class CloudDownloadTask(BaseTask):
 
         total_bytes = int(response.headers.get("Content-Length", "0") or 0)
         chunk_iter = response.iter_content(chunk_size=_DOWNLOAD_CHUNK_SIZE)
+        required_bytes = total_bytes or None
+        temp_dir = await asyncio.to_thread(_get_cloud_temp_dir)
+        try:
+            await asyncio.to_thread(
+                _ensure_cloud_temp_space,
+                "downloading the cloud archive",
+                temp_dir,
+                required_bytes,
+            )
+        except Exception:
+            response.close()
+            raise
 
-        with NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
-            temp_path = Path(temp_file.name)
+        temp_path: Path | None = None
+        try:
+            temp_path = await asyncio.to_thread(_create_cloud_download_temp_file, temp_dir)
+        except OSError as exc:
+            response.close()
+            if exc.errno == errno.ENOSPC:
+                raise _temp_storage_error("preparing the cloud download archive", temp_dir) from exc
+            raise
 
         downloaded = 0
         try:
@@ -426,13 +450,20 @@ class CloudDownloadTask(BaseTask):
                     if not chunk:
                         continue
 
-                    await asyncio.to_thread(destination.write, chunk)
+                    try:
+                        await asyncio.to_thread(destination.write, chunk)
+                    except OSError as exc:
+                        if exc.errno == errno.ENOSPC:
+                            raise _temp_storage_error("downloading the cloud archive", temp_dir) from exc
+                        raise
                     downloaded += len(chunk)
 
                     total_for_progress = total_bytes or max(downloaded, 1)
                     yield downloaded, total_for_progress
         except Exception:
-            temp_path.unlink(missing_ok=True)
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+                _release_cloud_temp_path(temp_path)
             response.close()
             raise
         finally:
