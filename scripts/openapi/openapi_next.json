@@ -6723,13 +6723,20 @@
             "description": "Total size of all files belonging to the scan, in bytes.",
             "default": 0
           },
+          "stacked_size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Stacked Size Bytes",
+            "description": "Total size of focus-stacked JPEG files in scanXX/stacked, in bytes.",
+            "default": 0
+          },
           "photos": {
             "items": {
               "type": "string"
             },
             "type": "array",
             "title": "Photos",
-            "description": "Relative filenames (with extension) of all photos captured for this scan."
+            "description": "Relative photo paths of all photos for this scan (e.g. scan01_001.jpg or stacked/stacked_scan01_001.jpg)."
           },
           "task_id": {
             "anyOf": [

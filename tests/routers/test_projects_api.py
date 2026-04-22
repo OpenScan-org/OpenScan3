@@ -546,3 +546,33 @@ def test_download_scans_zip_prefers_stacked_and_skips_original_photos(
     assert str(stacked_photo) in added_paths
     assert str(raw_photo) not in added_paths
     assert str(raw_metadata) not in added_paths
+
+
+def test_get_scan_photo_supports_stacked_relative_path(
+    client: TestClient,
+    project_manager: ProjectManager,
+):
+    project_name = f"photo-stacked-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    stacked_relpath = "stacked/stacked_scan01_001.jpg"
+    scan.photos = [stacked_relpath]
+    project.scans["scan01"] = scan
+
+    scan_dir = Path(project.path) / "scan01"
+    stacked_path = scan_dir / stacked_relpath
+    stacked_path.parent.mkdir(parents=True, exist_ok=True)
+    stacked_path.write_bytes(b"stacked")
+
+    response = client.get(
+        f"/latest/projects/{project_name}/1/photo",
+        params={"filename": stacked_relpath, "file_only": "true"},
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"stacked"

@@ -518,7 +518,11 @@ def _add_scan_directory_to_zip(
         zip_stream.add_path(str(scan_dir), scan_arc_root)
         return 1
 
-    originals_to_skip = set(scan.photos)
+    originals_to_skip = {
+        relpath
+        for relpath in scan.photos
+        if not relpath.startswith("stacked/")
+    }
     metadata_to_skip = {f"metadata/{pathlib.Path(name).stem}.json" for name in originals_to_skip}
     added_files = 0
 
