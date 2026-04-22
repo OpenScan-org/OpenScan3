@@ -162,7 +162,11 @@ async def upload_project_to_cloud(project_name: str, token_override: Optional[st
 
 
 @router.delete("/{project_name}/{scan_index}/photos", response_model=DeleteResponse)
-async def delete_photos(project_name: str, scan_index: int, photo_filenames: list[str]):
+async def delete_photos(
+    project_name: str,
+    scan_index: int,
+    photo_filenames: list[str] = Query(..., description="Relative photo paths to delete."),
+):
     """Delete photos from a scan in a project
 
     Args:
@@ -176,14 +180,23 @@ async def delete_photos(project_name: str, scan_index: int, photo_filenames: lis
     project_manager = get_project_manager()
     try:
         scan = project_manager.get_scan_by_index(project_name, scan_index)
+        if scan is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Scan {scan_index} not found in project {project_name}",
+            )
         project_manager.delete_photos(scan, photo_filenames)
         return DeleteResponse(
             success=True,
             message="Photos deleted successfully",
             deleted=photo_filenames
         )
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

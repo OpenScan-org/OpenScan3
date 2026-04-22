@@ -576,3 +576,42 @@ def test_get_scan_photo_supports_stacked_relative_path(
 
     assert response.status_code == 200
     assert response.content == b"stacked"
+
+
+def test_delete_photos_returns_404_for_missing_scan(
+    client: TestClient,
+    project_manager: ProjectManager,
+):
+    project_name = f"delete-missing-scan-{uuid.uuid4().hex[:8]}"
+    project_manager.add_project(project_name)
+
+    response = client.delete(
+        f"/latest/projects/{project_name}/99/photos",
+        params={"photo_filenames": ["scan99_001.jpg"]},
+    )
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_delete_photos_returns_400_for_invalid_relative_path(
+    client: TestClient,
+    project_manager: ProjectManager,
+):
+    project_name = f"delete-invalid-path-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    project.scans["scan01"] = scan
+
+    response = client.delete(
+        f"/latest/projects/{project_name}/1/photos",
+        params={"photo_filenames": ["../escape.jpg"]},
+    )
+
+    assert response.status_code == 400
+    assert "invalid photo filename" in response.json()["detail"].lower()

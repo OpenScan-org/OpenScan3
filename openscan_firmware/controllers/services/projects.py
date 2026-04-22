@@ -801,36 +801,32 @@ class ProjectManager:
 
     def delete_photos(self, scan: Scan, photo_filenames: list[str]) -> bool:
         """Delete one or more photos from a scan in a project"""
-        try:
-            project = self._projects[scan.project_name]
-            scan_id = f"scan{scan.index:02d}"
-            scan_dir_path = pathlib.Path(project.path, scan_id).resolve()
+        project = self._projects[scan.project_name]
+        scan_id = f"scan{scan.index:02d}"
+        scan_dir_path = pathlib.Path(project.path, scan_id).resolve()
 
-            for photo_filename in photo_filenames:
-                normalized_filename = self._normalize_relative_photo_path(photo_filename)
-                file_path = self._resolve_scan_relative_path(scan_dir_path, normalized_filename)
-                if file_path.exists():
-                    os.remove(file_path)
+        for photo_filename in photo_filenames:
+            normalized_filename = self._normalize_relative_photo_path(photo_filename)
+            file_path = self._resolve_scan_relative_path(scan_dir_path, normalized_filename)
+            if file_path.exists():
+                os.remove(file_path)
 
-                for metadata_path in self._metadata_candidates_for_photo(scan_dir_path, file_path):
-                    if metadata_path.exists():
-                        os.remove(metadata_path)
+            for metadata_path in self._metadata_candidates_for_photo(scan_dir_path, file_path):
+                if metadata_path.exists():
+                    os.remove(metadata_path)
 
-                self._remove_photo_file_record(project, scan, normalized_filename)
+            self._remove_photo_file_record(project, scan, normalized_filename)
 
-            self._recalculate_and_save_scan_size(scan.project_name, scan.index)
+        self._recalculate_and_save_scan_size(scan.project_name, scan.index)
 
-            logger.info(
-                "Deleted photos %s from scan %s in project %s",
-                photo_filenames,
-                scan_id,
-                scan.project_name,
-            )
+        logger.info(
+            "Deleted photos %s from scan %s in project %s",
+            photo_filenames,
+            scan_id,
+            scan.project_name,
+        )
 
-            return True
-        except Exception as e:
-            logger.error(f"Error deleting photo: {e}", exc_info=True)
-            return False
+        return True
 
     def _register_photo_file(self, project_name: str, scan_index: int, filename: str) -> None:
         project = self.get_project_by_name(project_name)
