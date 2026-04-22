@@ -2449,7 +2449,7 @@
           "projects"
         ],
         "summary": "Download Project",
-        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\nincluding all scans, photos, and metadata. When ``photos_only`` is true,\nonly the recorded photo files are included without metadata or subfolders.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
+        "description": "Download a project as a ZIP file stream\n\nThis endpoint streams the entire project directory as a ZIP file,\n    including all scans, photos, and metadata. When ``photos_only`` is true,\n    only the recorded photo files are included without metadata or subfolders.\n    When ``prefer_stacked_photos`` is true, stacked JPEG outputs are preferred\n    per scan and originals are skipped for scans with stacked results.\n\nArgs:\n    project_name: Name of the project to download\n\nReturns:\n    StreamingResponse: ZIP file stream",
         "operationId": "download_project",
         "parameters": [
           {
@@ -2472,6 +2472,18 @@
               "title": "Photos Only"
             },
             "description": "If true, stream only photo files without metadata or directory structure."
+          },
+          {
+            "name": "prefer_stacked_photos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Prefer scanXX/stacked JPEGs and skip original photos when stacked output exists.",
+              "default": false,
+              "title": "Prefer Stacked Photos"
+            },
+            "description": "Prefer scanXX/stacked JPEGs and skip original photos when stacked output exists."
           }
         ],
         "responses": {
@@ -2572,6 +2584,18 @@
               },
               "title": "Scan Indices"
             }
+          },
+          {
+            "name": "prefer_stacked_photos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Prefer scanXX/stacked JPEGs and skip original photos when stacked output exists.",
+              "default": false,
+              "title": "Prefer Stacked Photos"
+            },
+            "description": "Prefer scanXX/stacked JPEGs and skip original photos when stacked output exists."
           }
         ],
         "responses": {

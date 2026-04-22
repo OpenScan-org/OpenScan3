@@ -3,6 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 import pathlib
+import re
 from typing import Optional, List, Any
 import asyncio
 import os
@@ -30,6 +31,7 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+STACKED_PHOTO_SUFFIXES = {".jpg", ".jpeg"}
 
 class DeleteResponse(BaseModel):
     success: bool
@@ -444,12 +446,34 @@ def _serialize_project_for_zip(project: Project) -> str:
 
 def _add_project_photos_to_zip(zip_stream, project: Project) -> int:
     """Add all recorded photo files of a project to a flat zip archive."""
+    return _add_project_photos_to_zip_with_strategy(
+        zip_stream,
+        project,
+        prefer_stacked_photos=False,
+    )
+
+
+def _add_project_photos_to_zip_with_strategy(
+    zip_stream,
+    project: Project,
+    *,
+    prefer_stacked_photos: bool,
+) -> int:
+    """Add project photos with optional stacked-preferred selection."""
     added = 0
     for scan in sorted(project.scans.values(), key=lambda scan_obj: scan_obj.index):
-        scan_dir = os.path.join(project.path, f"scan{scan.index:02d}")
+        scan_dir = pathlib.Path(project.path) / f"scan{scan.index:02d}"
+        preferred_stacked = _get_stacked_photos(scan_dir) if prefer_stacked_photos else []
+
+        if preferred_stacked:
+            for stacked_path in preferred_stacked:
+                zip_stream.add_path(str(stacked_path), arcname=stacked_path.name)
+                added += 1
+            continue
+
         for photo_filename in scan.photos:
-            photo_path = os.path.join(scan_dir, photo_filename)
-            if not os.path.exists(photo_path):
+            photo_path = scan_dir / photo_filename
+            if not photo_path.exists():
                 logger.warning(
                     "Photo %s missing on disk for project %s scan %s",
                     photo_filename,
@@ -457,8 +481,92 @@ def _add_project_photos_to_zip(zip_stream, project: Project) -> int:
                     scan.index,
                 )
                 continue
-            zip_stream.add_path(photo_path, arcname=photo_filename)
+            zip_stream.add_path(str(photo_path), arcname=photo_filename)
             added += 1
+    return added
+
+
+def _get_stacked_photos(scan_dir: pathlib.Path) -> list[pathlib.Path]:
+    stacked_dir = scan_dir / "stacked"
+    if not stacked_dir.is_dir():
+        return []
+    return sorted(
+        path
+        for path in stacked_dir.rglob("*")
+        if path.is_file() and path.suffix.lower() in STACKED_PHOTO_SUFFIXES
+    )
+
+
+def _add_scan_directory_to_zip(
+    zip_stream,
+    project: Project,
+    scan: Scan,
+    *,
+    prefer_stacked_photos: bool,
+) -> int:
+    scan_dir = pathlib.Path(project.path) / f"scan{scan.index:02d}"
+    if not scan_dir.is_dir():
+        return 0
+
+    scan_arc_root = f"scan{scan.index:02d}"
+    if not prefer_stacked_photos:
+        zip_stream.add_path(str(scan_dir), scan_arc_root)
+        return 1
+
+    stacked_photos = _get_stacked_photos(scan_dir)
+    if not stacked_photos:
+        zip_stream.add_path(str(scan_dir), scan_arc_root)
+        return 1
+
+    originals_to_skip = set(scan.photos)
+    metadata_to_skip = {f"metadata/{pathlib.Path(name).stem}.json" for name in originals_to_skip}
+    added_files = 0
+
+    for file_path in sorted(scan_dir.rglob("*")):
+        if not file_path.is_file():
+            continue
+
+        rel = file_path.relative_to(scan_dir).as_posix()
+        if rel in originals_to_skip or rel in metadata_to_skip:
+            continue
+        if file_path.parent == scan_dir and file_path.name in originals_to_skip:
+            continue
+
+        zip_stream.add_path(str(file_path), f"{scan_arc_root}/{rel}")
+        added_files += 1
+
+    return added_files
+
+
+def _add_project_to_zip_with_strategy(
+    zip_stream,
+    project: Project,
+    *,
+    prefer_stacked_photos: bool,
+) -> int:
+    project_root = pathlib.Path(project.path)
+    scans_by_name = {
+        f"scan{scan.index:02d}": scan
+        for scan in project.scans.values()
+    }
+    added = 0
+
+    for entry in sorted(project_root.iterdir(), key=lambda path: path.name):
+        if entry.is_dir():
+            match = re.fullmatch(r"scan(\d+)", entry.name)
+            if match:
+                scan = scans_by_name.get(entry.name)
+                if scan is not None:
+                    added += _add_scan_directory_to_zip(
+                        zip_stream,
+                        project,
+                        scan,
+                        prefer_stacked_photos=prefer_stacked_photos,
+                    )
+                    continue
+        zip_stream.add_path(str(entry), entry.name)
+        added += 1
+
     return added
 
 
@@ -469,12 +577,18 @@ async def download_project(
         False,
         description="If true, stream only photo files without metadata or directory structure.",
     ),
+    prefer_stacked_photos: bool = Query(
+        False,
+        description="Prefer scanXX/stacked JPEGs and skip original photos when stacked output exists.",
+    ),
 ):
     """Download a project as a ZIP file stream
 
     This endpoint streams the entire project directory as a ZIP file,
-    including all scans, photos, and metadata. When ``photos_only`` is true,
-    only the recorded photo files are included without metadata or subfolders.
+        including all scans, photos, and metadata. When ``photos_only`` is true,
+        only the recorded photo files are included without metadata or subfolders.
+        When ``prefer_stacked_photos`` is true, stacked JPEG outputs are preferred
+        per scan and originals are skipped for scans with stacked results.
 
     Args:
         project_name: Name of the project to download
@@ -494,10 +608,24 @@ async def download_project(
         if photos_only:
             zs = ZipStream(sized=True)
             zs.comment = f"OpenScan3 Project Photos: {project_name}"
-            added_files = _add_project_photos_to_zip(zs, project)
+            added_files = _add_project_photos_to_zip_with_strategy(
+                zs,
+                project,
+                prefer_stacked_photos=prefer_stacked_photos,
+            )
             if added_files == 0:
                 raise HTTPException(status_code=404, detail="No photos available for this project")
             filename = f"{project_name}_photos.zip"
+        elif prefer_stacked_photos:
+            zs = ZipStream(sized=True)
+            zs.comment = f"OpenScan3 Project: {project_name} (stacked photos preferred)"
+            _add_project_to_zip_with_strategy(
+                zs,
+                project,
+                prefer_stacked_photos=True,
+            )
+            zs.add(_serialize_project_for_zip(project), "project_metadata.json")
+            filename = f"{project_name}_stacked_preferred.zip"
         else:
             # Create ZipStream from project path
             zs = ZipStream.from_path(project.path)
@@ -566,7 +694,14 @@ async def download_project_model(project_name: str):
 
 
 @router.get("/{project_name}/scans/zip")
-async def download_scans(project_name: str, scan_indices: List[int] = Query(None)):
+async def download_scans(
+    project_name: str,
+    scan_indices: List[int] = Query(None),
+    prefer_stacked_photos: bool = Query(
+        False,
+        description="Prefer scanXX/stacked JPEGs and skip original photos when stacked output exists.",
+    ),
+):
     """Download selected scans from a project as a ZIP file stream
 
     This endpoint streams selected scans from a project as a ZIP file.
@@ -603,18 +738,24 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
                     if not scan:
                         logger.error(f"Scan with index {scan_index} not found")
                         continue
-                    scan_dir = os.path.join(project.path, f"scan{scan_index:02d}")
-                    if os.path.exists(scan_dir):
-                        zs.add_path(scan_dir, f"scan{scan_index:02d}")
+                    _add_scan_directory_to_zip(
+                        zs,
+                        project,
+                        scan,
+                        prefer_stacked_photos=prefer_stacked_photos,
+                    )
                 except Exception as e:
                     logger.error(f"Failed to add scan {scan_index} to zip: {e}")
                     continue
         else:
             filename = f"{project_name}_all_scans.zip"
-            for scan_id, scan in project.scans.items():
-                scan_dir = os.path.join(project.path, f"scan_{scan.index}")
-                if os.path.exists(scan_dir):
-                    zs.add_path(scan_dir, f"scan_{scan.index}")
+            for scan in sorted(project.scans.values(), key=lambda scan_obj: scan_obj.index):
+                _add_scan_directory_to_zip(
+                    zs,
+                    project,
+                    scan,
+                    prefer_stacked_photos=prefer_stacked_photos,
+                )
 
         zs.add(_serialize_project_for_zip(project), "project_metadata.json")
 
@@ -631,7 +772,7 @@ async def download_scans(project_name: str, scan_indices: List[int] = Query(None
         )
         return response
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"")
+        raise HTTPException(status_code=404, detail=f"Project {project_name} not found")
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
