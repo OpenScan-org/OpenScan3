@@ -26,8 +26,10 @@ from openscan_firmware.controllers.services.tasks.core.cloud_task import CloudUp
 from openscan_firmware.controllers.services.tasks.task_manager import TaskManager
 from openscan_firmware.main import app, LATEST
 from openscan_firmware.models.project import Project
+from openscan_firmware.models.scan import Scan
 from openscan_firmware.models.task import Task, TaskStatus
 from openscan_firmware.config.scan import ScanSetting
+from openscan_firmware.config.camera import CameraSettings
 
 
 @pytest.fixture(scope="function")
@@ -418,3 +420,260 @@ def test_download_scans_zip_streaming_handles_large_virtual_size(
     assert response.headers["Content-Disposition"].startswith(f"attachment; filename={project_name}")
     assert response.headers["Last-Modified"] == str(FakeLargeZipStream.last_modified)
     assert "Content-Length" not in response.headers
+
+
+def test_download_project_zip_photos_only_prefers_stacked_outputs(
+    client: TestClient,
+    project_manager: ProjectManager,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FakeZipStream:
+        latest = None
+        last_modified = None
+
+        def __init__(self, *_, **__):
+            self.added_paths: list[tuple[str, str]] = []
+            self.added_metadata: list[tuple[str, str]] = []
+            type(self).latest = self
+
+        @classmethod
+        def from_path(cls, *_: str):
+            raise AssertionError("from_path should not be used for photos_only downloads")
+
+        def add_path(self, path: str, arcname: str) -> None:
+            self.added_paths.append((path, arcname))
+
+        def add(self, data: str, arcname: str) -> None:
+            self.added_metadata.append((data, arcname))
+
+        def __iter__(self):
+            yield b"zip-data"
+
+    monkeypatch.setitem(sys.modules, "zipstream", types.SimpleNamespace(ZipStream=FakeZipStream))
+
+    project_name = f"zip-pref-stack-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    scan.photos = ["scan01_001.jpg"]
+    project.scans["scan01"] = scan
+
+    scan_dir = Path(project.path) / "scan01"
+    stacked_dir = scan_dir / "stacked"
+    scan_dir.mkdir(parents=True, exist_ok=True)
+    stacked_dir.mkdir(parents=True, exist_ok=True)
+    raw_photo = scan_dir / "scan01_001.jpg"
+    stacked_photo = stacked_dir / "stacked_scan01_001.jpg"
+    raw_photo.write_bytes(b"raw")
+    stacked_photo.write_bytes(b"stacked")
+
+    response = client.get(
+        f"/latest/projects/{project_name}/zip",
+        params={"photos_only": "true", "prefer_stacked_photos": "true"},
+    )
+
+    assert response.status_code == 200
+    stream = FakeZipStream.latest
+    assert stream is not None
+    added_paths = {path for path, _ in stream.added_paths}
+    assert str(stacked_photo) in added_paths
+    assert str(raw_photo) not in added_paths
+
+
+def test_download_project_zip_photos_only_excludes_stacked_without_preference(
+    client: TestClient,
+    project_manager: ProjectManager,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FakeZipStream:
+        latest = None
+        last_modified = None
+
+        def __init__(self, *_, **__):
+            self.added_paths: list[tuple[str, str]] = []
+            self.added_metadata: list[tuple[str, str]] = []
+            type(self).latest = self
+
+        @classmethod
+        def from_path(cls, *_: str):
+            raise AssertionError("from_path should not be used for photos_only downloads")
+
+        def add_path(self, path: str, arcname: str) -> None:
+            self.added_paths.append((path, arcname))
+
+        def add(self, data: str, arcname: str) -> None:
+            self.added_metadata.append((data, arcname))
+
+        def __iter__(self):
+            yield b"zip-data"
+
+    monkeypatch.setitem(sys.modules, "zipstream", types.SimpleNamespace(ZipStream=FakeZipStream))
+
+    project_name = f"zip-photos-only-raw-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    scan.photos = ["scan01_001.jpg", "stacked/stacked_scan01_001.jpg"]
+    project.scans["scan01"] = scan
+
+    scan_dir = Path(project.path) / "scan01"
+    stacked_dir = scan_dir / "stacked"
+    scan_dir.mkdir(parents=True, exist_ok=True)
+    stacked_dir.mkdir(parents=True, exist_ok=True)
+    raw_photo = scan_dir / "scan01_001.jpg"
+    stacked_photo = stacked_dir / "stacked_scan01_001.jpg"
+    raw_photo.write_bytes(b"raw")
+    stacked_photo.write_bytes(b"stacked")
+
+    response = client.get(
+        f"/latest/projects/{project_name}/zip",
+        params={"photos_only": "true"},
+    )
+
+    assert response.status_code == 200
+    stream = FakeZipStream.latest
+    assert stream is not None
+    added_paths = {path for path, _ in stream.added_paths}
+    assert str(raw_photo) in added_paths
+    assert str(stacked_photo) not in added_paths
+
+
+def test_download_scans_zip_prefers_stacked_and_skips_original_photos(
+    client: TestClient,
+    project_manager: ProjectManager,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FakeZipStream:
+        latest = None
+        last_modified = None
+
+        def __init__(self, *_, **__):
+            self.added_paths: list[tuple[str, str]] = []
+            self.added_metadata: list[tuple[str, str]] = []
+            self.comment: str | None = None
+            type(self).latest = self
+
+        def add_path(self, path: str, arcname: str) -> None:
+            self.added_paths.append((path, arcname))
+
+        def add(self, data: str, arcname: str) -> None:
+            self.added_metadata.append((data, arcname))
+
+        def __iter__(self):
+            yield b"zip-data"
+
+    monkeypatch.setitem(sys.modules, "zipstream", types.SimpleNamespace(ZipStream=FakeZipStream))
+
+    project_name = f"scan-zip-pref-stack-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    scan.photos = ["scan01_001.jpg"]
+    project.scans["scan01"] = scan
+
+    scan_dir = Path(project.path) / "scan01"
+    metadata_dir = scan_dir / "metadata"
+    stacked_dir = scan_dir / "stacked"
+    scan_dir.mkdir(parents=True, exist_ok=True)
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    stacked_dir.mkdir(parents=True, exist_ok=True)
+    raw_photo = scan_dir / "scan01_001.jpg"
+    raw_metadata = metadata_dir / "scan01_001.json"
+    stacked_photo = stacked_dir / "stacked_scan01_001.jpg"
+    raw_photo.write_bytes(b"raw")
+    raw_metadata.write_text("{}", encoding="utf-8")
+    stacked_photo.write_bytes(b"stacked")
+
+    response = client.get(
+        f"/latest/projects/{project_name}/scans/zip",
+        params={"scan_indices": [1], "prefer_stacked_photos": "true"},
+    )
+
+    assert response.status_code == 200
+    stream = FakeZipStream.latest
+    assert stream is not None
+    added_paths = {path for path, _ in stream.added_paths}
+    assert str(stacked_photo) in added_paths
+    assert str(raw_photo) not in added_paths
+    assert str(raw_metadata) not in added_paths
+
+
+def test_get_scan_photo_supports_stacked_relative_path(
+    client: TestClient,
+    project_manager: ProjectManager,
+):
+    project_name = f"photo-stacked-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    stacked_relpath = "stacked/stacked_scan01_001.jpg"
+    scan.photos = [stacked_relpath]
+    project.scans["scan01"] = scan
+
+    scan_dir = Path(project.path) / "scan01"
+    stacked_path = scan_dir / stacked_relpath
+    stacked_path.parent.mkdir(parents=True, exist_ok=True)
+    stacked_path.write_bytes(b"stacked")
+
+    response = client.get(
+        f"/latest/projects/{project_name}/1/photo",
+        params={"filename": stacked_relpath, "file_only": "true"},
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"stacked"
+
+
+def test_delete_photos_returns_404_for_missing_scan(
+    client: TestClient,
+    project_manager: ProjectManager,
+):
+    project_name = f"delete-missing-scan-{uuid.uuid4().hex[:8]}"
+    project_manager.add_project(project_name)
+
+    response = client.delete(
+        f"/latest/projects/{project_name}/99/photos",
+        params={"photo_filenames": ["scan99_001.jpg"]},
+    )
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_delete_photos_returns_400_for_invalid_relative_path(
+    client: TestClient,
+    project_manager: ProjectManager,
+):
+    project_name = f"delete-invalid-path-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    project.scans["scan01"] = scan
+
+    response = client.delete(
+        f"/latest/projects/{project_name}/1/photos",
+        params={"photo_filenames": ["../escape.jpg"]},
+    )
+
+    assert response.status_code == 400
+    assert "invalid photo filename" in response.json()["detail"].lower()

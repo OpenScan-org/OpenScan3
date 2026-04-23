@@ -46,6 +46,8 @@ from openscan_firmware.utils.dir_paths import resolve_projects_dir
 
 
 logger = logging.getLogger(__name__)
+STACKED_DIR_NAME = "stacked"
+STACKED_PHOTO_SUFFIXES = {".jpg", ".jpeg"}
 
 
 def _get_project_path(projects_path: str, project_name: str) -> str:
@@ -325,9 +327,13 @@ class ProjectManager:
         """Recalculate scan sizes to keep metadata in sync with disk state."""
         dirty = False
         for scan in project.scans.values():
-            recalculated = self._calculate_scan_size_bytes(project, scan)
-            if recalculated != scan.total_size_bytes:
-                scan.total_size_bytes = recalculated
+            if self._sync_stacked_photos_into_scan_index(project, scan):
+                dirty = True
+
+            total_size, stacked_size = self._calculate_scan_size_components(project, scan)
+            if total_size != scan.total_size_bytes or stacked_size != scan.stacked_size_bytes:
+                scan.total_size_bytes = total_size
+                scan.stacked_size_bytes = stacked_size
                 scan.last_updated = datetime.now()
                 dirty = True
 
@@ -337,31 +343,67 @@ class ProjectManager:
     def _get_scan_directory(self, project: Project, scan: Scan) -> str:
         return os.path.join(project.path, f"scan{scan.index:02d}")
 
-    def _calculate_scan_size_bytes(self, project: Project, scan: Scan) -> int:
+    def _collect_stacked_photo_relpaths(self, scan_dir: pathlib.Path) -> list[str]:
+        stacked_dir = scan_dir / STACKED_DIR_NAME
+        if not stacked_dir.is_dir():
+            return []
+
+        return sorted(
+            path.relative_to(scan_dir).as_posix()
+            for path in stacked_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() in STACKED_PHOTO_SUFFIXES
+        )
+
+    def _sync_stacked_photos_into_scan_index(self, project: Project, scan: Scan) -> bool:
+        scan_dir = pathlib.Path(self._get_scan_directory(project, scan))
+        stacked_relpaths = self._collect_stacked_photo_relpaths(scan_dir)
+        dirty = False
+        for relpath in stacked_relpaths:
+            if relpath not in scan.photos:
+                scan.photos.append(relpath)
+                dirty = True
+        return dirty
+
+    def _calculate_scan_size_components(self, project: Project, scan: Scan) -> tuple[int, int]:
         scan_dir = self._get_scan_directory(project, scan)
         if not os.path.exists(scan_dir):
-            return 0
+            return 0, 0
 
         base_size = 0
+        stacked_size = 0
+        scan_dir_path = pathlib.Path(scan_dir)
         for root, _, files in os.walk(scan_dir):
             for filename in files:
                 file_path = os.path.join(root, filename)
                 if filename == "scan.json":
                     continue
                 try:
-                    base_size += os.path.getsize(file_path)
+                    file_size = os.path.getsize(file_path)
                 except FileNotFoundError:
                     continue
+                base_size += file_size
+                rel_path = pathlib.Path(file_path).relative_to(scan_dir_path)
+                if (
+                    rel_path.parts
+                    and rel_path.parts[0] == STACKED_DIR_NAME
+                    and rel_path.suffix.lower() in STACKED_PHOTO_SUFFIXES
+                ):
+                    stacked_size += file_size
 
         def serialized_scan_size(total_size: int) -> int:
-            payload = scan.model_copy(update={"total_size_bytes": total_size}).model_dump_json(indent=2)
+            payload = scan.model_copy(
+                update={
+                    "total_size_bytes": total_size,
+                    "stacked_size_bytes": stacked_size,
+                }
+            ).model_dump_json(indent=2)
             return base_size + len(payload.encode("utf-8"))
 
         target_size = base_size
         for _ in range(5):
             new_size = serialized_scan_size(target_size)
             if new_size == target_size:
-                return new_size
+                return new_size, stacked_size
             target_size = new_size
 
         logger.warning(
@@ -369,7 +411,11 @@ class ProjectManager:
             project.name,
             scan.index,
         )
-        return target_size
+        return target_size, stacked_size
+
+    def _calculate_scan_size_bytes(self, project: Project, scan: Scan) -> int:
+        total_size, _ = self._calculate_scan_size_components(project, scan)
+        return total_size
 
     def _recalculate_and_save_scan_size(self, project_name: str, scan_index: int) -> None:
         project = self.get_project_by_name(project_name)
@@ -383,9 +429,16 @@ class ProjectManager:
             logger.error("Cannot recalculate size, scan %s missing in project %s", scan_id, project_name)
             return
 
-        scan.total_size_bytes = self._calculate_scan_size_bytes(project, scan)
+        self._sync_stacked_photos_into_scan_index(project, scan)
+        total_size, stacked_size = self._calculate_scan_size_components(project, scan)
+        scan.total_size_bytes = total_size
+        scan.stacked_size_bytes = stacked_size
         scan.last_updated = datetime.now()
         save_project(project)
+
+    def recalculate_scan_size(self, project_name: str, scan_index: int) -> None:
+        """Public wrapper to recalculate and persist scan size metadata."""
+        self._recalculate_and_save_scan_size(project_name, scan_index)
 
     def get_project_by_name(self, project_name: str) -> Optional[Project]:
         """Get a project by name. Returns None if the project does not exist."""
@@ -748,39 +801,32 @@ class ProjectManager:
 
     def delete_photos(self, scan: Scan, photo_filenames: list[str]) -> bool:
         """Delete one or more photos from a scan in a project"""
-        try:
-            project = self._projects[scan.project_name]
-            scan_id = f"scan{scan.index:02d}"
-            scan_dir = os.path.join(project.path, scan_id)
+        project = self._projects[scan.project_name]
+        scan_id = f"scan{scan.index:02d}"
+        scan_dir_path = pathlib.Path(project.path, scan_id).resolve()
 
-            for photo_filename in photo_filenames:
-                if photo_filename != os.path.basename(photo_filename):
-                    raise ValueError("Photo filename must not contain directories")
+        for photo_filename in photo_filenames:
+            normalized_filename = self._normalize_relative_photo_path(photo_filename)
+            file_path = self._resolve_scan_relative_path(scan_dir_path, normalized_filename)
+            if file_path.exists():
+                os.remove(file_path)
 
-                file_path = os.path.join(scan_dir, photo_filename)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-
-                metadata_name = os.path.splitext(photo_filename)[0] + ".json"
-                metadata_path = os.path.join(scan_dir, "metadata", metadata_name)
-                if os.path.exists(metadata_path):
+            for metadata_path in self._metadata_candidates_for_photo(scan_dir_path, file_path):
+                if metadata_path.exists():
                     os.remove(metadata_path)
 
-                self._remove_photo_file_record(project, scan, photo_filename)
+            self._remove_photo_file_record(project, scan, normalized_filename)
 
-            self._recalculate_and_save_scan_size(scan.project_name, scan.index)
+        self._recalculate_and_save_scan_size(scan.project_name, scan.index)
 
-            logger.info(
-                "Deleted photos %s from scan %s in project %s",
-                photo_filenames,
-                scan_id,
-                scan.project_name,
-            )
+        logger.info(
+            "Deleted photos %s from scan %s in project %s",
+            photo_filenames,
+            scan_id,
+            scan.project_name,
+        )
 
-            return True
-        except Exception as e:
-            logger.error(f"Error deleting photo: {e}", exc_info=True)
-            return False
+        return True
 
     def _register_photo_file(self, project_name: str, scan_index: int, filename: str) -> None:
         project = self.get_project_by_name(project_name)
@@ -792,8 +838,31 @@ class ProjectManager:
         if scan is None:
             raise ValueError(f"Scan {scan_index} not found in project {project_name}")
 
-        if filename not in scan.photos:
-            scan.photos.append(filename)
+        normalized_filename = self._normalize_relative_photo_path(filename)
+        if normalized_filename not in scan.photos:
+            scan.photos.append(normalized_filename)
+            scan.last_updated = datetime.now()
+            _save_scan_json(project.path, scan)
+
+    def register_photo_files(self, project_name: str, scan_index: int, filenames: list[str]) -> None:
+        """Register one or more relative photo paths in the scan photo index."""
+        project = self.get_project_by_name(project_name)
+        if project is None:
+            raise ValueError(f"Project {project_name} does not exist")
+
+        scan_id = f"scan{scan_index:02d}"
+        scan = project.scans.get(scan_id)
+        if scan is None:
+            raise ValueError(f"Scan {scan_index} not found in project {project_name}")
+
+        dirty = False
+        for filename in filenames:
+            normalized_filename = self._normalize_relative_photo_path(filename)
+            if normalized_filename not in scan.photos:
+                scan.photos.append(normalized_filename)
+                dirty = True
+
+        if dirty:
             scan.last_updated = datetime.now()
             _save_scan_json(project.path, scan)
 
@@ -803,10 +872,34 @@ class ProjectManager:
             scan.last_updated = datetime.now()
             _save_scan_json(project.path, scan)
 
+    def _normalize_relative_photo_path(self, filename: str) -> str:
+        if not filename:
+            raise ValueError("Invalid photo filename")
+
+        normalized = pathlib.PurePosixPath(filename.replace("\\", "/"))
+        if normalized.is_absolute() or any(part in {"", ".", ".."} for part in normalized.parts):
+            raise ValueError("Invalid photo filename")
+        return normalized.as_posix()
+
+    def _resolve_scan_relative_path(self, scan_dir: pathlib.Path, filename: str) -> pathlib.Path:
+        normalized = self._normalize_relative_photo_path(filename)
+        candidate = (scan_dir / normalized).resolve()
+        try:
+            candidate.relative_to(scan_dir)
+        except ValueError as exc:
+            raise ValueError("Invalid photo filename") from exc
+        return candidate
+
+    def _metadata_candidates_for_photo(self, scan_dir: pathlib.Path, photo_path: pathlib.Path) -> list[pathlib.Path]:
+        metadata_filename = f"{photo_path.stem}.json"
+        candidates = [scan_dir / "metadata" / metadata_filename]
+        if photo_path.parent != scan_dir:
+            candidates.append(photo_path.parent / "metadata" / metadata_filename)
+        return candidates
+
     def get_photo_file(self, project_name: str, scan_index: int, filename: str) -> tuple[Scan, str, dict | None]:
         """Return scan, absolute photo path, and optional metadata for a stored photo."""
-        if not filename or filename != os.path.basename(filename):
-            raise ValueError("Invalid photo filename")
+        normalized_filename = self._normalize_relative_photo_path(filename)
 
         project = self.get_project_by_name(project_name)
         if project is None:
@@ -817,19 +910,19 @@ class ProjectManager:
         if scan is None:
             raise FileNotFoundError(f"Scan {scan_index} not found in project {project_name}")
 
-        scan_dir = self._get_scan_directory(project, scan)
-        photo_path = os.path.join(scan_dir, filename)
-        if not os.path.exists(photo_path):
+        scan_dir_path = pathlib.Path(self._get_scan_directory(project, scan)).resolve()
+        photo_path = self._resolve_scan_relative_path(scan_dir_path, normalized_filename)
+        if not photo_path.exists():
             raise FileNotFoundError(f"Photo {filename} not found")
 
         metadata = None
-        metadata_name = os.path.splitext(filename)[0] + ".json"
-        metadata_path = os.path.join(scan_dir, "metadata", metadata_name)
-        if os.path.exists(metadata_path):
-            with open(metadata_path, "r", encoding="utf-8") as handle:
-                metadata = json.load(handle)
+        for metadata_path in self._metadata_candidates_for_photo(scan_dir_path, photo_path):
+            if metadata_path.exists():
+                with open(metadata_path, "r", encoding="utf-8") as handle:
+                    metadata = json.load(handle)
+                break
 
-        return scan, photo_path, metadata
+        return scan, str(photo_path), metadata
 
     def save_scan_path(self, scan: Scan, path_dict) -> None:
         project = self.get_project_by_name(scan.project_name)

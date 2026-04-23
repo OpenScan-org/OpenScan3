@@ -41,9 +41,14 @@ class Scan(BaseModel):
         ge=0,
         description="Total size of all files belonging to the scan, in bytes.",
     )
+    stacked_size_bytes: int = Field(
+        default=0,
+        ge=0,
+        description="Total size of focus-stacked JPEG files in scanXX/stacked, in bytes.",
+    )
     photos: list[str] = Field(
         default_factory=list,
-        description="Relative filenames (with extension) of all photos captured for this scan.",
+        description="Relative photo paths of all photos for this scan (e.g. scan01_001.jpg or stacked/stacked_scan01_001.jpg).",
     )
 
     task_id: Optional[str] = None
