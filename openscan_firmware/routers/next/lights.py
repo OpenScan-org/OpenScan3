@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from openscan_firmware.controllers.hardware.lights import get_light_controller, get_all_light_controllers
@@ -102,6 +102,31 @@ async def toggle_light(light_name: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@router.put("/{light_name}/intensity", response_model=LightStatusResponse)
+async def pwm_light(
+    light_name: str,
+    value: float = Query(
+        100,
+        description=(
+            "sets light intensity, from 0 to 100%"
+        ),
+    ),
+):
+    """Set light intensity
+
+    Args:
+        light_name: The name of the light to toggle
+        value: intensity of light, from 0% to 100%
+
+    Returns:
+        LightStatusResponse: A response object containing the status of the light after the toggle operation
+    """
+    try:
+        controller = get_light_controller(light_name)
+        await controller.set_value(value)
+        return controller.get_status()
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 create_settings_endpoints(
     router=router,
