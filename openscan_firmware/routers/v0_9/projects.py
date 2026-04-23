@@ -484,7 +484,13 @@ def _add_project_photos_to_zip_with_strategy(
                 added += 1
             continue
 
-        for photo_filename in scan.photos:
+        original_photo_filenames = [
+            photo_filename
+            for photo_filename in scan.photos
+            if not photo_filename.startswith("stacked/")
+        ]
+
+        for photo_filename in original_photo_filenames:
             photo_path = scan_dir / photo_filename
             if not photo_path.exists():
                 logger.warning(

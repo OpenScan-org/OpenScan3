@@ -484,6 +484,68 @@ def test_download_project_zip_photos_only_prefers_stacked_outputs(
     assert str(raw_photo) not in added_paths
 
 
+def test_download_project_zip_photos_only_excludes_stacked_without_preference(
+    client: TestClient,
+    project_manager: ProjectManager,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FakeZipStream:
+        latest = None
+        last_modified = None
+
+        def __init__(self, *_, **__):
+            self.added_paths: list[tuple[str, str]] = []
+            self.added_metadata: list[tuple[str, str]] = []
+            type(self).latest = self
+
+        @classmethod
+        def from_path(cls, *_: str):
+            raise AssertionError("from_path should not be used for photos_only downloads")
+
+        def add_path(self, path: str, arcname: str) -> None:
+            self.added_paths.append((path, arcname))
+
+        def add(self, data: str, arcname: str) -> None:
+            self.added_metadata.append((data, arcname))
+
+        def __iter__(self):
+            yield b"zip-data"
+
+    monkeypatch.setitem(sys.modules, "zipstream", types.SimpleNamespace(ZipStream=FakeZipStream))
+
+    project_name = f"zip-photos-only-raw-{uuid.uuid4().hex[:8]}"
+    project = project_manager.add_project(project_name)
+    scan = Scan(
+        project_name=project.name,
+        index=1,
+        settings=ScanSetting(),
+        camera_settings=CameraSettings(),
+    )
+    scan.photos = ["scan01_001.jpg", "stacked/stacked_scan01_001.jpg"]
+    project.scans["scan01"] = scan
+
+    scan_dir = Path(project.path) / "scan01"
+    stacked_dir = scan_dir / "stacked"
+    scan_dir.mkdir(parents=True, exist_ok=True)
+    stacked_dir.mkdir(parents=True, exist_ok=True)
+    raw_photo = scan_dir / "scan01_001.jpg"
+    stacked_photo = stacked_dir / "stacked_scan01_001.jpg"
+    raw_photo.write_bytes(b"raw")
+    stacked_photo.write_bytes(b"stacked")
+
+    response = client.get(
+        f"/latest/projects/{project_name}/zip",
+        params={"photos_only": "true"},
+    )
+
+    assert response.status_code == 200
+    stream = FakeZipStream.latest
+    assert stream is not None
+    added_paths = {path for path, _ in stream.added_paths}
+    assert str(raw_photo) in added_paths
+    assert str(stacked_photo) not in added_paths
+
+
 def test_download_scans_zip_prefers_stacked_and_skips_original_photos(
     client: TestClient,
     project_manager: ProjectManager,
