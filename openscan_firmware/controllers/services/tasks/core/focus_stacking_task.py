@@ -114,6 +114,24 @@ class FocusStackingTask(BaseTask):
                 # Check for cancel
                 if self.is_cancelled():
                     logger.info("Focus stacking cancelled by user")
+                    if output_paths:
+                        relative_output_paths = [
+                            Path(path).relative_to(scan_dir).as_posix()
+                            for path in output_paths
+                        ]
+                        await loop.run_in_executor(
+                            None,
+                            project_manager.register_photo_files,
+                            project_name,
+                            scan.index,
+                            relative_output_paths,
+                        )
+                        await loop.run_in_executor(
+                            None,
+                            project_manager.recalculate_scan_size,
+                            project_name,
+                            scan.index,
+                        )
                     scan.stacking_task_status.status = TaskStatus.CANCELLED
                     await project_manager.save_scan_state(scan)
                     yield TaskProgress(current=idx, total=total_batches, message="Cancelled by user")
@@ -140,6 +158,24 @@ class FocusStackingTask(BaseTask):
                 )
 
             logger.info(f"Focus stacking complete: {len(output_paths)} images created in {output_dir}")
+
+            relative_output_paths = [
+                Path(path).relative_to(scan_dir).as_posix()
+                for path in output_paths
+            ]
+            await loop.run_in_executor(
+                None,
+                project_manager.register_photo_files,
+                project_name,
+                scan.index,
+                relative_output_paths,
+            )
+            await loop.run_in_executor(
+                None,
+                project_manager.recalculate_scan_size,
+                project_name,
+                scan.index,
+            )
 
             scan.stacking_task_status.status = TaskStatus.COMPLETED
             await project_manager.save_scan_state(scan)

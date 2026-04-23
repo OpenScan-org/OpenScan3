@@ -1,12 +1,14 @@
 """Cloud service helpers for OpenScan."""
 
 import asyncio
+import errno
 import io
 import logging
-import math
 import pathlib
+import threading
 from dataclasses import dataclass
-from tempfile import TemporaryFile
+from shutil import disk_usage
+from tempfile import NamedTemporaryFile, TemporaryFile
 from typing import Any, BinaryIO, Callable, Iterator, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -15,8 +17,9 @@ import requests
 from openscan_firmware.config.cloud import CloudSettings, CloudConfigurationError, get_cloud_settings, mask_secret
 from openscan_firmware.controllers.services.projects import ProjectManager, get_project_manager
 from openscan_firmware.controllers.services.tasks.task_manager import get_task_manager
-from openscan_firmware.models.task import TaskStatus
 from openscan_firmware.models.project import Project
+from openscan_firmware.models.task import TaskStatus
+from openscan_firmware.utils.dir_paths import resolve_runtime_dir
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +27,13 @@ logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 60
 ALLOWED_PHOTO_SUFFIXES = {".jpg", ".jpeg"}
 UNSUPPORTED_PHOTO_SUFFIXES = {".png", ".dng", ".raw", ".cr2", ".cr3", ".crw", ".npy"}
+_CLOUD_TEMP_SUBDIR = "tmp/cloud"
+_CLOUD_UPLOAD_TEMP_PREFIX = "cloud-upload-"
+_CLOUD_DOWNLOAD_TEMP_PREFIX = "cloud-download-"
+_ZIP_ENTRY_TEMP_OVERHEAD_BYTES = 1024
+_ZIP_FIXED_TEMP_OVERHEAD_BYTES = 64 * 1024
+_ACTIVE_CLOUD_TEMP_PATHS: set[pathlib.Path] = set()
+_CLOUD_TEMP_STATE_LOCK = threading.Lock()
 
 
 class CloudServiceError(RuntimeError):
@@ -50,6 +60,180 @@ class CloudDownloadResult:
     archive_size_bytes: int
     bytes_downloaded: int
     download_info: dict[str, Any]
+
+
+def _get_cloud_temp_dir() -> pathlib.Path:
+    """Resolve and create the temp directory used for large cloud artifacts."""
+
+    temp_dir = resolve_runtime_dir(_CLOUD_TEMP_SUBDIR)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    return temp_dir
+
+
+def _format_storage_size(size_bytes: int) -> str:
+    """Format byte counts into a compact human-readable string."""
+
+    value = float(size_bytes)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if value < 1024 or unit == "TiB":
+            if unit == "B":
+                return f"{int(value)} {unit}"
+            return f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{int(size_bytes)} B"
+
+
+def _temp_storage_error(operation: str, temp_dir: pathlib.Path) -> CloudServiceError:
+    """Build a user-facing error for temporary storage exhaustion."""
+
+    free_space_suffix = ""
+    try:
+        free_space_suffix = f" Free space there: {_format_storage_size(disk_usage(temp_dir).free)}."
+    except OSError:
+        pass
+
+    return CloudServiceError(
+        f"No space left in OpenScan temp storage '{temp_dir}' while {operation}.{free_space_suffix}"
+    )
+
+
+def _insufficient_temp_storage_error(
+    operation: str,
+    temp_dir: pathlib.Path,
+    required_bytes: int,
+    free_bytes: int,
+) -> CloudServiceError:
+    """Build a user-facing error for a failed temp space preflight check."""
+
+    return CloudServiceError(
+        f"Insufficient free space in OpenScan temp storage '{temp_dir}' while {operation}. "
+        f"Required about {_format_storage_size(required_bytes)}, available {_format_storage_size(free_bytes)}."
+    )
+
+
+def _register_active_cloud_temp_path(path: str | pathlib.Path) -> pathlib.Path:
+    """Mark a temp file path as in use by the current process."""
+
+    normalized = pathlib.Path(path)
+    with _CLOUD_TEMP_STATE_LOCK:
+        _ACTIVE_CLOUD_TEMP_PATHS.add(normalized)
+    return normalized
+
+
+def _release_cloud_temp_path(path: str | pathlib.Path | None) -> None:
+    """Remove a temp file path from the active set."""
+
+    if path is None:
+        return
+
+    normalized = pathlib.Path(path)
+    with _CLOUD_TEMP_STATE_LOCK:
+        _ACTIVE_CLOUD_TEMP_PATHS.discard(normalized)
+
+
+def _cleanup_cloud_temp_dir(temp_dir: pathlib.Path) -> tuple[int, int]:
+    """Delete stale files from the dedicated cloud temp directory."""
+
+    removed_count = 0
+    removed_bytes = 0
+
+    try:
+        if not temp_dir.exists():
+            return removed_count, removed_bytes
+    except OSError:
+        return removed_count, removed_bytes
+
+    with _CLOUD_TEMP_STATE_LOCK:
+        active_paths = set(_ACTIVE_CLOUD_TEMP_PATHS)
+        for candidate in sorted(temp_dir.iterdir()):
+            if candidate in active_paths:
+                continue
+
+            try:
+                if not candidate.is_file():
+                    continue
+            except OSError:
+                continue
+
+            try:
+                candidate_size = candidate.stat().st_size
+            except OSError:
+                candidate_size = 0
+
+            try:
+                candidate.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                logger.warning("Failed to delete stale cloud temp file %s: %s", candidate, exc)
+                continue
+
+            removed_count += 1
+            removed_bytes += candidate_size
+
+    if removed_count:
+        logger.info(
+            "Removed %s stale cloud temp file(s) from %s, reclaimed %s",
+            removed_count,
+            temp_dir,
+            _format_storage_size(removed_bytes),
+        )
+
+    return removed_count, removed_bytes
+
+
+def _ensure_cloud_temp_space(
+    operation: str,
+    temp_dir: pathlib.Path,
+    required_bytes: int | None = None,
+) -> None:
+    """Run cleanup and fail early when the temp directory lacks free space."""
+
+    _cleanup_cloud_temp_dir(temp_dir)
+    if required_bytes is None or required_bytes <= 0:
+        return
+
+    try:
+        usage = disk_usage(temp_dir)
+    except OSError:
+        return
+
+    if usage.free < required_bytes:
+        raise _insufficient_temp_storage_error(operation, temp_dir, required_bytes, usage.free)
+
+
+def _estimate_upload_temp_space(photo_paths: Sequence[pathlib.Path]) -> int:
+    """Estimate the maximum temp space required for a ZIP archive upload."""
+
+    total_photo_bytes = 0
+    for photo_path in photo_paths:
+        try:
+            total_photo_bytes += photo_path.stat().st_size
+        except OSError as exc:
+            raise CloudServiceError(
+                f"Failed to inspect photo '{photo_path}' before cloud upload."
+            ) from exc
+
+    return (
+        total_photo_bytes
+        + len(photo_paths) * _ZIP_ENTRY_TEMP_OVERHEAD_BYTES
+        + _ZIP_FIXED_TEMP_OVERHEAD_BYTES
+    )
+
+
+def _create_cloud_download_temp_file(temp_dir: pathlib.Path) -> pathlib.Path:
+    """Create and register a named temp file for cloud downloads."""
+
+    with _CLOUD_TEMP_STATE_LOCK:
+        with NamedTemporaryFile(
+            delete=False,
+            suffix=".zip",
+            prefix=_CLOUD_DOWNLOAD_TEMP_PREFIX,
+            dir=temp_dir,
+        ) as temp_file:
+            temp_path = pathlib.Path(temp_file.name)
+            _ACTIVE_CLOUD_TEMP_PATHS.add(temp_path)
+            return temp_path
 
 
 def _require_cloud_settings() -> CloudSettings:
@@ -458,23 +642,36 @@ def _upload_file(
 
 
 def _build_project_archive(project: Project) -> tuple[TemporaryFile, int]:
-    archive = TemporaryFile()
+    temp_dir = _get_cloud_temp_dir()
+    archive = None
     base_path = project.path_obj
+    photo_paths = _collect_project_photos(project)
+    required_bytes = _estimate_upload_temp_space(photo_paths)
 
-    seen_names: set[str] = set()
-    with ZipFile(archive, "w", compression=ZIP_DEFLATED) as zipf:
-        for file_path in _collect_project_photos(project):
-            arcname = file_path.name
-            if arcname in seen_names:
-                arcname = str(file_path.relative_to(base_path)).replace("/", "_")
-            seen_names.add(arcname)
+    try:
+        _ensure_cloud_temp_space("creating the cloud upload archive", temp_dir, required_bytes)
+        archive = TemporaryFile(dir=temp_dir, prefix=_CLOUD_UPLOAD_TEMP_PREFIX)
 
-            zipf.write(file_path, arcname)
+        seen_names: set[str] = set()
+        with ZipFile(archive, "w", compression=ZIP_DEFLATED) as zipf:
+            for file_path in photo_paths:
+                arcname = file_path.name
+                if arcname in seen_names:
+                    arcname = str(file_path.relative_to(base_path)).replace("/", "_")
+                seen_names.add(arcname)
 
-    archive.seek(0, io.SEEK_END)
-    size = archive.tell()
-    archive.seek(0)
-    return archive, size
+                zipf.write(file_path, arcname)
+
+        archive.seek(0, io.SEEK_END)
+        size = archive.tell()
+        archive.seek(0)
+        return archive, size
+    except OSError as exc:
+        if archive is not None:
+            archive.close()
+        if exc.errno == errno.ENOSPC:
+            raise _temp_storage_error("creating the cloud upload archive", temp_dir) from exc
+        raise
 
 
 def _count_project_photos(project: Project) -> int:

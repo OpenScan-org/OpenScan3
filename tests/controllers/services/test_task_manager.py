@@ -467,6 +467,48 @@ async def test_cancel_pending_task(task_manager_fixture: TaskManager):
     await wait_for_task_completion(tm, exclusive_task.id, timeout=4)
 
 
+async def test_streaming_progress_persistence_is_throttled(task_manager_fixture: TaskManager, monkeypatch):
+    """Progress persistence should be reduced for noisy streaming updates."""
+    tm = task_manager_fixture
+    task_model = Task(name="generator_task", task_type="generator_task")
+    persisted_currents = []
+    fake_clock = {"now": 0.0}
+
+    monkeypatch.setattr(task_manager_module, "PROGRESS_PERSIST_INTERVAL_SECONDS", 10.0)
+    monkeypatch.setattr(task_manager_module, "PROGRESS_PERSIST_MIN_DELTA_RATIO", 0.05)
+    monkeypatch.setattr(task_manager_module, "PROGRESS_PERSIST_MIN_DELTA_ABSOLUTE", 1.0)
+    monkeypatch.setattr(task_manager_module.time, "monotonic", lambda: fake_clock["now"])
+
+    original_save = tm._save_task_state
+
+    def recording_save(model: Task):
+        persisted_currents.append(model.progress.current)
+        original_save(model)
+
+    monkeypatch.setattr(tm, "_save_task_state", recording_save)
+
+    task_model.progress = TaskProgress(current=0, total=100, message="starting")
+    tm._save_task_state(task_model)
+
+    fake_clock["now"] = 0.1
+    task_model.progress = TaskProgress(current=1, total=100, message="step 1")
+    tm._save_task_progress_state(task_model)
+
+    fake_clock["now"] = 0.2
+    task_model.progress = TaskProgress(current=5, total=100, message="step 5")
+    tm._save_task_progress_state(task_model)
+
+    fake_clock["now"] = 0.3
+    task_model.progress = TaskProgress(current=6, total=100, message="step 6")
+    tm._save_task_progress_state(task_model)
+
+    fake_clock["now"] = 11.0
+    task_model.progress = TaskProgress(current=7, total=100, message="step 7")
+    tm._save_task_progress_state(task_model)
+
+    assert persisted_currents == [0, 5, 7]
+
+
 # --- Tests for Persistence ---
 
 async def test_task_state_is_persisted_across_lifecycle(task_manager_fixture: TaskManager):

@@ -578,3 +578,91 @@ async def test_pm_get_photo_file_returns_metadata(
     assert os.path.basename(photo_path) == photo_filename
     assert metadata is not None
     assert metadata["scan_metadata"]["step"] == 2
+
+
+@pytest.mark.asyncio
+async def test_pm_get_photo_file_supports_stacked_relative_path(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+):
+    project_name = "PhotoFetchStacked"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    project = project_manager.get_project_by_name(project_name)
+    assert project is not None
+    scan_dir = Path(project.path) / f"scan{scan.index:02d}"
+    stacked_dir = scan_dir / "stacked"
+    stacked_dir.mkdir(parents=True, exist_ok=True)
+
+    stacked_relpath = f"stacked/stacked_scan{scan.index:02d}_001.jpg"
+    stacked_path = scan_dir / stacked_relpath
+    stacked_path.write_bytes(b"stacked")
+    project_manager.register_photo_files(project_name, scan.index, [stacked_relpath])
+
+    stored_scan, photo_path, metadata = project_manager.get_photo_file(
+        project_name,
+        scan.index,
+        stacked_relpath,
+    )
+
+    assert stored_scan.index == scan.index
+    assert stacked_relpath in stored_scan.photos
+    assert Path(photo_path) == stacked_path
+    assert metadata is None
+
+
+@pytest.mark.asyncio
+async def test_pm_get_photo_file_rejects_path_traversal(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+):
+    project_name = "PhotoFetchTraversal"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    with pytest.raises(ValueError, match="Invalid photo filename"):
+        project_manager.get_photo_file(project_name, scan.index, "../outside.jpg")
+
+
+@pytest.mark.asyncio
+async def test_pm_recalculate_scan_size_tracks_stacked_size(
+    project_manager: ProjectManager,
+    mock_camera_controller: MagicMock,
+    sample_scan_settings: ScanSetting,
+):
+    project_name = "StackedSize"
+    project_manager.add_project(name=project_name)
+    scan = project_manager.add_scan(
+        project_name=project_name,
+        camera_controller=mock_camera_controller,
+        scan_settings=sample_scan_settings,
+    )
+
+    project = project_manager.get_project_by_name(project_name)
+    assert project is not None
+    scan_dir = Path(project.path) / f"scan{scan.index:02d}"
+    stacked_dir = scan_dir / "stacked"
+    stacked_dir.mkdir(parents=True, exist_ok=True)
+    stacked_relpath = f"stacked/stacked_scan{scan.index:02d}_001.jpg"
+    stacked_path = scan_dir / stacked_relpath
+    stacked_path.write_bytes(b"stacked-bytes")
+
+    project_manager.register_photo_files(project_name, scan.index, [stacked_relpath])
+    project_manager.recalculate_scan_size(project_name, scan.index)
+
+    updated_scan = project_manager.get_scan_by_index(project_name, scan.index)
+    assert updated_scan is not None
+    assert stacked_relpath in updated_scan.photos
+    assert updated_scan.stacked_size_bytes == stacked_path.stat().st_size
+    assert updated_scan.total_size_bytes >= updated_scan.stacked_size_bytes

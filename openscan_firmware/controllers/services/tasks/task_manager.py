@@ -76,6 +76,9 @@ DEFAULT_AUTODISCOVERY_IGNORE_MODULES = {
 # Configuration for task concurrency
 MAX_CONCURRENT_NON_EXCLUSIVE_TASKS = 3
 TASKS_STORAGE_PATH = pathlib.Path("data/tasks")
+PROGRESS_PERSIST_INTERVAL_SECONDS = 2.0
+PROGRESS_PERSIST_MIN_DELTA_RATIO = 0.05
+PROGRESS_PERSIST_MIN_DELTA_ABSOLUTE = 1.0
 
 
 class TaskManager:
@@ -99,6 +102,8 @@ class TaskManager:
             cls._instance._pending_tasks: asyncio.Queue[tuple[BaseTask, tuple, dict]] = asyncio.Queue()
             cls._instance._active_exclusive_task_id: str | None = None
             cls._instance._queue_processing_lock = asyncio.Lock()
+            cls._instance._last_persisted_progress: dict[str, tuple[float, float, str]] = {}
+            cls._instance._last_persisted_at: dict[str, float] = {}
 
             cls._instance.max_concurrent_non_exclusive_tasks = MAX_CONCURRENT_NON_EXCLUSIVE_TASKS
 
@@ -236,9 +241,49 @@ class TaskManager:
             self._tasks_storage_path.mkdir(parents=True, exist_ok=True)
             with open(file_path, 'w') as f:
                 f.write(json_string)
-            logger.debug(f"Persisted state for task {task_model.id} to {file_path}")
+            self._last_persisted_progress[task_model.id] = (
+                float(task_model.progress.current),
+                float(task_model.progress.total),
+                task_model.progress.message,
+            )
+            self._last_persisted_at[task_model.id] = time.monotonic()
         except IOError as e:
             logger.error(f"Failed to save task state for {task_model.id}: {e}", exc_info=True)
+
+    def _should_persist_progress_state(self, task_model: Task) -> bool:
+        """Persist streaming progress selectively to avoid writing on every micro-update."""
+        last_progress = self._last_persisted_progress.get(task_model.id)
+        last_persisted_at = self._last_persisted_at.get(task_model.id)
+        if last_progress is None or last_persisted_at is None:
+            return True
+
+        now = time.monotonic()
+        if now - last_persisted_at >= PROGRESS_PERSIST_INTERVAL_SECONDS:
+            return True
+
+        current = float(task_model.progress.current)
+        total = float(task_model.progress.total)
+        last_current, last_total, last_message = last_progress
+
+        if current < last_current or total != last_total:
+            return True
+
+        if total <= 0:
+            return current != last_current or task_model.progress.message != last_message
+
+        if current >= total:
+            return True
+
+        min_delta = max(
+            PROGRESS_PERSIST_MIN_DELTA_ABSOLUTE,
+            total * PROGRESS_PERSIST_MIN_DELTA_RATIO,
+        )
+        return (current - last_current) >= min_delta
+
+    def _save_task_progress_state(self, task_model: Task) -> None:
+        """Persist progress updates at a reduced frequency while keeping lifecycle writes immediate."""
+        if self._should_persist_progress_state(task_model):
+            self._save_task_state(task_model)
 
     def _delete_task_state(self, task_id: str):
         """Deletes the JSON file for a given task."""
@@ -247,6 +292,8 @@ class TaskManager:
             if os.path.exists(file_path):
                 os.remove(file_path)
                 logger.debug(f"Deleted persisted state for task {task_id}.")
+            self._last_persisted_progress.pop(task_id, None)
+            self._last_persisted_at.pop(task_id, None)
         except IOError as e:
             logger.error(f"Failed to delete task state for {task_id}: {e}", exc_info=True)
 
@@ -488,7 +535,7 @@ class TaskManager:
 
                         # Update progress. It's now required that tasks yield `TaskProgress` objects.
                         task_model.progress = progress_update
-                        self._save_task_state(task_model)  # Persist progress immediately
+                        self._save_task_progress_state(task_model)
                         await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
 
                     if task_model.status not in [TaskStatus.CANCELLED, TaskStatus.ERROR]:

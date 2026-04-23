@@ -99,6 +99,15 @@ async def test_focus_stacking_task_happy_path(
     assert stack_impl.call_counter["value"] == len(expected_outputs)
     assert all(path.read_bytes() == b"stacked" for path in expected_outputs)
 
+    updated_scan = focus_stacking_environment["project_manager"].get_scan_by_index(project.name, scan.index)
+    assert updated_scan is not None
+    expected_relpaths = {
+        f"stacked/stacked_scan{scan.index:02d}_{position:03d}.jpg"
+        for position in sorted(focus_stacking_batches)
+    }
+    assert expected_relpaths.issubset(set(updated_scan.photos))
+    assert updated_scan.stacked_size_bytes > 0
+
 
 @pytest.mark.asyncio
 async def test_focus_stacking_task_pause_and_resume(
