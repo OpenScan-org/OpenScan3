@@ -435,6 +435,10 @@ class ScanTask(BaseTask):
         """
         try:
             logger.debug("Capturing photo at position %s", current_point)
+            await self._wait_before_capture()
+            if self.is_cancelled():
+                logger.info("Cancellation detected before capture at position %s.", index)
+                return
 
             if not self._ctx.focus_context or not self._ctx.focus_context["enabled"]:
                 # Single photo capture
@@ -491,6 +495,18 @@ class ScanTask(BaseTask):
         except Exception as e:
             logger.error("Error taking photo at position %s: %s", index, e, exc_info=True)
             raise
+
+    async def _wait_before_capture(self) -> None:
+        """Pause before capture to allow motor-induced vibrations to settle."""
+        delay_ms = int(self._ctx.scan.settings.pause_before_capture_ms or 0)
+        if delay_ms <= 0:
+            return
+
+        logger.debug("Waiting %d ms before capture", delay_ms)
+        await self.wait_for_pause()
+        if self.is_cancelled():
+            return
+        await asyncio.sleep(delay_ms / 1000)
 
     async def _cleanup_scan(self) -> None:
         """Cleanup after scan completion or failure and reset focus settings if needed."""

@@ -41,6 +41,11 @@ class ScanSetting(BaseModel):
     focus_stacks: int = Field(1, ge=1, le=99, description="Number of photos with different focus per position."
                                                           "This ignores AF and you need to set a focus range."
                                                           "Focus values will then be evenly spaced between min and max.")
+    pause_before_capture_ms: int = Field(
+        0,
+        ge=0,
+        description="Pause in milliseconds before capture to let vibrations settle.",
+    )
     focus_range: Tuple[
         confloat(ge=0.0, le=15.0),
         confloat(ge=0.0, le=15.0)] = Field(default=(10.0, 15.0),
