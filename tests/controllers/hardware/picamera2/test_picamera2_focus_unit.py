@@ -28,9 +28,11 @@ def _import_picamera2_module(monkeypatch):
 
     picamera2 = types.ModuleType("picamera2")
     picamera2.Picamera2 = type("Picamera2", (), {})
+    cv2 = types.ModuleType("cv2")
 
     monkeypatch.setitem(sys.modules, "libcamera", libcamera)
     monkeypatch.setitem(sys.modules, "picamera2", picamera2)
+    monkeypatch.setitem(sys.modules, "cv2", cv2)
     sys.modules.pop("openscan_firmware.controllers.hardware.cameras.picamera2", None)
 
     return importlib.import_module("openscan_firmware.controllers.hardware.cameras.picamera2")

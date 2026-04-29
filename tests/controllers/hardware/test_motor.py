@@ -1,5 +1,6 @@
 import pytest
 import asyncio  # Still needed for async functions
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock  # Keep for specific mock types
 
 # Adjust paths if necessary for your project structure
@@ -55,7 +56,7 @@ def motor_event_loop():
 
 @pytest.fixture
 def mocked_dependencies(monkeypatch, motor_event_loop):
-    """Mocks GPIO, time.sleep, math.cos, and event_loop.run_in_executor."""
+    """Mocks GPIO, time.sleep, math.cos, and the low-level movement executor."""
 
     import openscan_firmware.controllers.hardware.motors as motors_module
 
@@ -67,12 +68,12 @@ def mocked_dependencies(monkeypatch, motor_event_loop):
 
     mock_math_cos = MagicMock(return_value=0.0)
     monkeypatch.setattr(motors_module.math, 'cos', mock_math_cos)
+    async def fake_execute_movement(self, step_count: int, requested_degrees: float) -> int:
+        self.model.angle = requested_degrees % 360
+        return abs(step_count)
 
-    def sync_run_in_executor_side_effect(executor, callback, *args):
-        return callback(*args)
-
-    mock_run_in_executor = AsyncMock(side_effect=sync_run_in_executor_side_effect)
-    monkeypatch.setattr(motor_event_loop, 'run_in_executor', mock_run_in_executor, raising=True)
+    monkeypatch.setattr(MotorController, '_execute_movement', fake_execute_movement)
+    mock_run_in_executor = AsyncMock()
 
     return {
         "gpio": mock_gpio,
@@ -80,6 +81,40 @@ def mocked_dependencies(monkeypatch, motor_event_loop):
         "math_cos": mock_math_cos,
         "run_in_executor": mock_run_in_executor,
         "event_loop": motor_event_loop,
+    }
+
+
+@pytest.fixture
+def movement_dependencies(monkeypatch):
+    """Mocks hardware and executor boundaries while keeping _execute_movement real."""
+    import openscan_firmware.controllers.hardware.motors as motors_module
+
+    mock_gpio = MagicMock()
+    monkeypatch.setattr(motors_module, 'gpio', mock_gpio)
+    monkeypatch.setattr(motors_module.time, 'sleep', MagicMock())
+    monkeypatch.setattr(motors_module, 'notify_busy_change', MagicMock())
+
+    class ImmediateExecutorLoop:
+        def run_in_executor(self, executor, callback, *args):
+            future = asyncio.Future()
+            try:
+                future.set_result(callback(*args))
+            except Exception as exc:
+                future.set_exception(exc)
+            return future
+
+    monkeypatch.setattr(
+        motors_module,
+        'asyncio',
+        SimpleNamespace(
+            CancelledError=asyncio.CancelledError,
+            get_event_loop=MagicMock(return_value=ImmediateExecutorLoop()),
+        ),
+    )
+
+    return {
+        "gpio": mock_gpio,
+        "notify_busy_change": motors_module.notify_busy_change,
     }
 
 
@@ -245,3 +280,77 @@ async def test_move_to_with_clamping(motor_controller_clamping_instance, motor_m
         assert motor_model.angle == pytest.approx(expected_angle, abs=1), \
             f"Angle mismatch for move_to({target_val}) from {initial_angle}"
 
+
+@pytest.fixture
+def movement_motor_controller(movement_dependencies):
+    settings = MotorConfig(
+        direction_pin=1,
+        enable_pin=2,
+        step_pin=3,
+        acceleration=20000,
+        max_speed=7500,
+        min_angle=0,
+        max_angle=360,
+        direction=1,
+        steps_per_rotation=3200,
+    )
+    controller = MotorController(Motor(name="test_motor", settings=settings, angle=0.0))
+    controller.set_idle_callbacks(lambda: False, AsyncMock())
+    controller._pre_calculate_step_times = MagicMock(return_value=[0.0, 0.0, 0.0])
+    return controller
+
+
+@pytest.mark.asyncio
+async def test_execute_movement_sets_direction_and_steps_forward(movement_motor_controller, movement_dependencies):
+    controller = movement_motor_controller
+
+    await controller._execute_movement(3, 0.0)
+
+    assert controller.model.angle == pytest.approx(3 / 3200 * 360)
+    movement_dependencies["gpio"].set_output_pin.assert_any_call(controller.settings.direction_pin, True)
+    assert movement_dependencies["gpio"].set_output_pin.call_args_list.count(
+        ((controller.settings.step_pin, True),)
+    ) == 3
+    assert movement_dependencies["gpio"].set_output_pin.call_args_list.count(
+        ((controller.settings.step_pin, False),)
+    ) == 3
+    assert controller._current_steps == 0
+
+
+@pytest.mark.asyncio
+async def test_execute_movement_sets_direction_and_updates_angle_backward(
+    movement_motor_controller,
+    movement_dependencies,
+):
+    controller = movement_motor_controller
+    controller.model.angle = 10.0
+
+    await controller._execute_movement(-3, 0.0)
+
+    assert controller.model.angle == pytest.approx((10.0 - (3 / 3200 * 360)) % 360)
+    movement_dependencies["gpio"].set_output_pin.assert_any_call(controller.settings.direction_pin, False)
+
+
+@pytest.mark.asyncio
+async def test_execute_movement_stops_when_stop_requested(
+    movement_motor_controller,
+    movement_dependencies,
+):
+    controller = movement_motor_controller
+    controller._pre_calculate_step_times = MagicMock(return_value=[0.0, 1.0, 2.0, 3.0])
+
+    step_high_calls = 0
+
+    def set_output_pin(pin, value):
+        nonlocal step_high_calls
+        if pin == controller.settings.step_pin and value is True:
+            step_high_calls += 1
+            controller._stop_requested = True
+
+    movement_dependencies["gpio"].set_output_pin.side_effect = set_output_pin
+
+    await controller._execute_movement(4, 0.0)
+
+    assert step_high_calls == 1
+    assert controller.model.angle == pytest.approx(1 / 3200 * 360)
+    assert controller._current_steps == 0

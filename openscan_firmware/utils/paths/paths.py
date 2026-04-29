@@ -116,15 +116,12 @@ def get_constrained_path(
     if min_theta < 0 or max_theta > 180:
         logger.error("Theta angle must be between 0° and 180°")
         raise ValueError("Theta angle must be between 0° and 180°")
-    if min_theta >= max_theta:
-        logger.error("Minimum theta angle must be less than maximum theta angle")
-        raise ValueError("Minimum theta angle must be less than maximum theta angle")
+    if min_theta > max_theta:
+        logger.error("Minimum theta angle must be less than or equal to maximum theta angle")
+        raise ValueError("Minimum theta angle must be less than or equal to maximum theta angle")
     if min_phi < 0 or min_phi > 360 or max_phi < 0 or max_phi > 360:
         logger.error("Phi angle must be between 0° and 360°")
         raise ValueError("Phi angle must be between 0° and 360°")
-    if min_phi == max_phi:
-        logger.error("Minimum phi angle must not be equal to maximum phi angle")
-        raise ValueError("Minimum phi angle must not be equal to maximum phi angle")
 
     if method == PathMethod.FIBONACCI:
         return _generate_constrained_fibonacci(
@@ -141,6 +138,9 @@ def get_constrained_path(
 
 def _phi_span(min_phi: float, max_phi: float) -> float:
     """Return the positive span of a phi interval, supporting wrap-around at 360°."""
+    if min_phi == max_phi:
+        return 0.0
+
     span = (max_phi - min_phi) % 360
     return 360 if span == 0 else span
 
@@ -171,6 +171,9 @@ def _generate_constrained_fibonacci(
         min_phi,
         max_phi,
     )
+    if min_theta == max_theta and min_phi == max_phi:
+        return [PolarPoint3D(theta=min_theta, fi=min_phi % 360, r=1.0)]
+
     # Convert theta constraints to Z constraints
     # theta = arccos(z), so z = cos(theta)
     # Note: theta increases as z decreases

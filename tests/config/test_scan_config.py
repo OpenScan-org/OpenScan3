@@ -2,13 +2,13 @@ from openscan_firmware.config.external_trigger_run import ExternalTriggerRunSett
 from openscan_firmware.config.scan import ScanSetting
 
 
-def test_scan_settings_omit_unset_phi_fields_from_json_dump() -> None:
+def test_scan_settings_include_default_phi_fields_in_json_dump() -> None:
     settings = ScanSetting()
 
     payload = settings.model_dump(mode="json")
 
-    assert "min_phi" not in payload
-    assert "max_phi" not in payload
+    assert payload["min_phi"] == 0
+    assert payload["max_phi"] == 360.0
 
 
 def test_external_trigger_run_settings_omit_unset_phi_fields_from_json_dump() -> None:

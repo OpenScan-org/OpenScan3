@@ -22,13 +22,13 @@ class ScanSetting(BaseModel):
     max_theta: float = Field(125.0, ge=0.0, le=180.0,
                              description="Maximum theta angle in degrees for constrained paths.")
     min_phi: float | None = Field(
-        default=None,
+        default=0,
         ge=0.0,
         le=360.0,
         description="Optional minimum phi angle in degrees for constrained paths.",
     )
     max_phi: float | None = Field(
-        default=None,
+        default=360.0,
         ge=0.0,
         le=360.0,
         description="Optional maximum phi angle in degrees for constrained paths.",
