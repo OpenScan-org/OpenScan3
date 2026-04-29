@@ -1,7 +1,10 @@
-from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, confloat, model_serializer
-from typing import Tuple, Literal
+from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
+from typing import Annotated, Literal
 
 from openscan_firmware.models.paths import PathMethod
+
+
+FocusValue = Annotated[float, Field(ge=0.0, le=15.0)]
 
 
 class ScanSetting(BaseModel):
@@ -41,10 +44,15 @@ class ScanSetting(BaseModel):
     focus_stacks: int = Field(1, ge=1, le=99, description="Number of photos with different focus per position."
                                                           "This ignores AF and you need to set a focus range."
                                                           "Focus values will then be evenly spaced between min and max.")
-    focus_range: Tuple[
-        confloat(ge=0.0, le=15.0),
-        confloat(ge=0.0, le=15.0)] = Field(default=(10.0, 15.0),
-                                           description="Minimum and maximum focus distance in diopters.")
+    pause_before_capture_ms: int = Field(
+        0,
+        ge=0,
+        description="Pause in milliseconds before capture to let vibrations settle.",
+    )
+    focus_range: tuple[FocusValue, FocusValue] = Field(
+        default=(10.0, 15.0),
+        description="Minimum and maximum focus distance in diopters.",
+    )
 
     @property
     def focus_positions(self) -> list[float]:

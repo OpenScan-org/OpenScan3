@@ -11,6 +11,24 @@ def test_scan_settings_include_default_phi_fields_in_json_dump() -> None:
     assert payload["max_phi"] == 360.0
 
 
+def test_scan_settings_default_pause_before_capture_ms_for_legacy_payload() -> None:
+    settings = ScanSetting.model_validate(
+        {
+            "path_method": "fibonacci",
+            "points": 10,
+            "min_theta": 0.0,
+            "max_theta": 170.0,
+            "optimize_path": True,
+            "optimization_algorithm": "nearest_neighbor",
+            "focus_stacks": 1,
+            "focus_range": [10.0, 15.0],
+            "image_format": "jpeg",
+        }
+    )
+
+    assert settings.pause_before_capture_ms == 0
+
+
 def test_external_trigger_run_settings_omit_unset_phi_fields_from_json_dump() -> None:
     settings = ExternalTriggerRunSettings(trigger_name="external-camera")
 

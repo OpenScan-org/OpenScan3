@@ -196,6 +196,187 @@ class TestScanTask:
         )
 
 
+def test_generate_scan_path_omits_optional_phi_constraints_when_unset() -> None:
+    scan_settings = ScanSetting(
+        path_method=PathMethod.FIBONACCI,
+        points=10,
+        min_theta=10.0,
+        max_theta=120.0,
+        optimize_path=False,
+        focus_stacks=1,
+        focus_range=(10.0, 15.0),
+        image_format="jpeg",
+    )
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task._get_scan_radius_mm",
+        return_value=250.0,
+    ), patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task.paths.get_constrained_path",
+        return_value=[PolarPoint3D(theta=10.0, fi=20.0)],
+    ) as get_constrained_path:
+        path_dict = generate_scan_path(scan_settings)
+
+    assert get_constrained_path.call_args.kwargs == {
+        "method": PathMethod.FIBONACCI,
+        "num_points": 10,
+        "min_theta": 10.0,
+        "max_theta": 120.0,
+    }
+    assert list(path_dict.keys()) == [PolarPoint3D(theta=10.0, fi=20.0, r=250.0)]
+
+
+def test_generate_scan_path_passes_optional_phi_constraints_when_set() -> None:
+    scan_settings = ScanSetting(
+        path_method=PathMethod.FIBONACCI,
+        points=10,
+        min_theta=10.0,
+        max_theta=120.0,
+        min_phi=45.0,
+        max_phi=180.0,
+        optimize_path=False,
+        focus_stacks=1,
+        focus_range=(10.0, 15.0),
+        image_format="jpeg",
+    )
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task._get_scan_radius_mm",
+        return_value=250.0,
+    ), patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task.paths.get_constrained_path",
+        return_value=[PolarPoint3D(theta=10.0, fi=20.0)],
+    ) as get_constrained_path:
+        path_dict = generate_scan_path(scan_settings)
+
+    assert get_constrained_path.call_args.kwargs == {
+        "method": PathMethod.FIBONACCI,
+        "num_points": 10,
+        "min_theta": 10.0,
+        "max_theta": 120.0,
+        "min_phi": 45.0,
+        "max_phi": 180.0,
+    }
+    assert list(path_dict.keys()) == [PolarPoint3D(theta=10.0, fi=20.0, r=250.0)]
+
+
+@pytest.mark.asyncio
+async def test_wait_before_capture_uses_configured_delay(sample_scan_model: Scan):
+    scan = sample_scan_model.model_copy(deep=True)
+    scan.settings.pause_before_capture_ms = 250
+
+    task_model = Task(name="scan_task", task_type="core")
+    scan_task = ScanTask(task_model)
+    scan_task._ctx = ScanRuntime(
+        scan=scan,
+        camera_controller=MagicMock(),
+        project_manager=MagicMock(),
+        path_dict={},
+        focus_context=None,
+    )
+    scan_task.wait_for_pause = AsyncMock(return_value=None)
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as sleep_mock:
+        await scan_task._wait_before_capture()
+
+    scan_task.wait_for_pause.assert_awaited_once()
+    sleep_mock.assert_awaited_once_with(0.25)
+
+
+@pytest.mark.asyncio
+async def test_wait_before_capture_skips_sleep_when_cancelled_after_pause(sample_scan_model: Scan):
+    scan = sample_scan_model.model_copy(deep=True)
+    scan.settings.pause_before_capture_ms = 250
+
+    task_model = Task(name="scan_task", task_type="core")
+    scan_task = ScanTask(task_model)
+    scan_task._ctx = ScanRuntime(
+        scan=scan,
+        camera_controller=MagicMock(),
+        project_manager=MagicMock(),
+        path_dict={},
+        focus_context=None,
+    )
+
+    async def cancel_during_pause_wait() -> None:
+        scan_task.cancel()
+
+    scan_task.wait_for_pause = AsyncMock(side_effect=cancel_during_pause_wait)
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as sleep_mock:
+        await scan_task._wait_before_capture()
+
+    scan_task.wait_for_pause.assert_awaited_once()
+    sleep_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_wait_before_capture_blocks_while_paused_and_resumes(sample_scan_model: Scan):
+    scan = sample_scan_model.model_copy(deep=True)
+    scan.settings.pause_before_capture_ms = 1
+
+    task_model = Task(name="scan_task", task_type="core")
+    scan_task = ScanTask(task_model)
+    scan_task._ctx = ScanRuntime(
+        scan=scan,
+        camera_controller=MagicMock(),
+        project_manager=MagicMock(),
+        path_dict={},
+        focus_context=None,
+    )
+
+    scan_task.pause()
+    wait_task = asyncio.create_task(scan_task._wait_before_capture())
+    await asyncio.sleep(0.01)
+
+    assert not wait_task.done()
+
+    scan_task.resume()
+    await asyncio.wait_for(wait_task, timeout=1.0)
+
+
+@pytest.mark.asyncio
+async def test_capture_skips_photo_when_cancelled_before_capture_delay(sample_scan_model: Scan, fake_photo_data: PhotoData):
+    scan = sample_scan_model.model_copy(deep=True)
+    scan.settings.pause_before_capture_ms = 250
+
+    camera_controller = MagicMock()
+    camera_controller.photo = MagicMock(return_value=fake_photo_data)
+
+    project_manager = MagicMock()
+    project_manager.add_photo_async = AsyncMock(return_value=None)
+
+    task_model = Task(name="scan_task", task_type="core")
+    scan_task = ScanTask(task_model)
+    scan_task._ctx = ScanRuntime(
+        scan=scan,
+        camera_controller=camera_controller,
+        project_manager=project_manager,
+        path_dict={},
+        focus_context=None,
+    )
+
+    async def cancel_during_pause_wait() -> None:
+        scan_task.cancel()
+
+    scan_task.wait_for_pause = AsyncMock(side_effect=cancel_during_pause_wait)
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as sleep_mock:
+        await scan_task._capture_photos_at_position(PolarPoint3D(theta=0, fi=0), 0)
+
+    sleep_mock.assert_not_awaited()
+    camera_controller.photo.assert_not_called()
+    project_manager.add_photo_async.assert_not_called()
+
     @pytest.mark.asyncio
     @patch('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller')
     @patch('openscan_firmware.controllers.services.tasks.core.scan_task.get_project_manager')
