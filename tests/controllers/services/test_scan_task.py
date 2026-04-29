@@ -196,7 +196,7 @@ class TestScanTask:
         )
 
 
-def test_generate_scan_path_omits_optional_phi_constraints_when_unset() -> None:
+def test_generate_scan_path_passes_default_phi_constraints() -> None:
     scan_settings = ScanSetting(
         path_method=PathMethod.FIBONACCI,
         points=10,
@@ -222,6 +222,8 @@ def test_generate_scan_path_omits_optional_phi_constraints_when_unset() -> None:
         "num_points": 10,
         "min_theta": 10.0,
         "max_theta": 120.0,
+        "min_phi": 0,
+        "max_phi": 360.0,
     }
     assert list(path_dict.keys()) == [PolarPoint3D(theta=10.0, fi=20.0, r=250.0)]
 
@@ -707,6 +709,29 @@ def test_generate_scan_path_passes_optional_phi_constraints_when_set() -> None:
         assert camera_controller.photo_async.await_count == len(focus_positions)
         for awaited_call in camera_controller.photo_async.await_args_list:
             assert awaited_call.args == ("rgb_array",)
+
+
+def test_generate_scan_path_fully_fixed_position_has_single_zero_index_step() -> None:
+    scan_settings = ScanSetting(
+        path_method=PathMethod.FIBONACCI,
+        points=130,
+        min_theta=45.0,
+        max_theta=45.0,
+        min_phi=90.0,
+        max_phi=90.0,
+        optimize_path=False,
+        focus_stacks=1,
+        focus_range=(10.0, 15.0),
+        image_format="jpeg",
+    )
+
+    with patch(
+        "openscan_firmware.controllers.services.tasks.core.scan_task._get_scan_radius_mm",
+        return_value=250.0,
+    ):
+        path_dict = generate_scan_path(scan_settings)
+
+    assert path_dict == {PolarPoint3D(theta=45.0, fi=90.0, r=250.0): 0}
 
 
 class TestScanTaskIntegration:
