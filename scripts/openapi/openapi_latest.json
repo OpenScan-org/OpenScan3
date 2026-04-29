@@ -1933,22 +1933,22 @@
               "type": "integer",
               "title": "Scan Index"
             }
+          },
+          {
+            "name": "photo_filenames",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Relative photo paths to delete.",
+              "title": "Photo Filenames"
+            },
+            "description": "Relative photo paths to delete."
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "title": "Photo Filenames"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -6071,6 +6071,13 @@
             "title": "Focus Stacks",
             "description": "Number of photos with different focus per position.This ignores AF and you need to set a focus range.Focus values will then be evenly spaced between min and max.",
             "default": 1
+          },
+          "pause_before_capture_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pause Before Capture Ms",
+            "description": "Pause in milliseconds before capture to let vibrations settle.",
+            "default": 0
           },
           "focus_range": {
             "prefixItems": [
