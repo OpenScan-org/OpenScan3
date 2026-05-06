@@ -2932,6 +2932,31 @@
         }
       }
     },
+    "/device/wakeup": {
+      "post": {
+        "tags": [
+          "device"
+        ],
+        "summary": "Wakeup Device",
+        "description": "Wake up the device from idle mode.\n\nIf the device is already awake, this endpoint is a no-op and still returns success.",
+        "operationId": "wakeup_device",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
     "/device/reboot": {
       "post": {
         "tags": [

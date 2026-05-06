@@ -138,6 +138,59 @@ def test_v08_reinitialize_endpoint_calls_controller(monkeypatch, device_client_v
     assert payload["message"] == "Hardware reinitialized successfully"
 
 
+def test_v08_wakeup_endpoint_resumes_idle_device(monkeypatch, device_client_v08, device_router_path_v08):
+    module_path = device_router_path_v08("device")
+
+    monkeypatch.setattr(
+        f"{module_path}.device.get_device_info",
+        lambda: {
+            "name": "Preset",
+            "model": "mini",
+            "shield": "greenshield",
+            "cameras": {},
+            "motors": {},
+            "lights": {},
+            "motors_timeout": 0.0,
+            "startup_mode": "startup_enabled",
+            "calibrate_mode": "calibrate_manual",
+            "initialized": True,
+        },
+        raising=False,
+    )
+
+    class _PassthroughStatus:
+        @staticmethod
+        def model_validate(payload):
+            return payload
+
+    monkeypatch.setattr(f"{module_path}.DeviceStatusResponse", _PassthroughStatus, raising=False)
+    monkeypatch.setattr(f"{module_path}.device.is_idle", lambda: True, raising=False)
+
+    wake_calls = {"resume": 0}
+
+    async def fake_resume():
+        wake_calls["resume"] += 1
+
+    async def fake_recalibrate():
+        raise AssertionError("recalibrate_motors should not be called in this scenario")
+
+    monkeypatch.setattr(f"{module_path}.device.resume_from_idle", fake_resume, raising=False)
+    monkeypatch.setattr(f"{module_path}.device.recalibrate_motors", fake_recalibrate, raising=False)
+
+    class _ScannerDevice:
+        calibrate_mode = "calibrate_manual"
+
+    monkeypatch.setattr(f"{module_path}.device._scanner_device", _ScannerDevice(), raising=False)
+
+    response = device_client_v08.post("/v0.8/device/wakeup")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["message"] == "Device awakened successfully"
+    assert wake_calls["resume"] == 1
+
+
 def test_v08_add_config_json_rejects_persisted_shape(device_client_v08):
     repo_root = Path(__file__).resolve().parents[2]
     default_config = repo_root / "settings" / "device" / "default_mini_greenshield.json"

@@ -313,3 +313,50 @@ def test_reinitialize_endpoint_calls_controller(monkeypatch, device_client, devi
     assert payload["status"]["initialized"] is True
     assert set(payload["status"]["motors"].keys()) == {"rotor"}
     assert set(payload["status"]["lights"].keys()) == {"ring"}
+
+
+def test_wakeup_endpoint_resumes_idle_device(monkeypatch, device_client, device_router_path):
+    module_path = device_router_path("device")
+
+    status_payload = {
+        "name": "Preset",
+        "model": "mini",
+        "shield": "greenshield",
+        "cameras": {},
+        "motors": {},
+        "lights": {},
+        "triggers": {},
+        "idle_timeout": 0.0,
+        "motors_timeout": 0.0,
+        "scan_radius_mm": 1.0,
+        "startup_mode": "startup_enabled",
+        "calibrate_mode": "calibrate_manual",
+        "initialized": True,
+    }
+    monkeypatch.setattr(f"{module_path}.device.get_device_info", lambda: status_payload, raising=False)
+
+    wake_calls = {"resume": 0, "recalibrate": 0}
+
+    monkeypatch.setattr(f"{module_path}.device.is_idle", lambda: True, raising=False)
+
+    async def fake_resume():
+        wake_calls["resume"] += 1
+
+    async def fake_recalibrate():
+        wake_calls["recalibrate"] += 1
+
+    monkeypatch.setattr(f"{module_path}.device.resume_from_idle", fake_resume, raising=False)
+    monkeypatch.setattr(f"{module_path}.device.recalibrate_motors", fake_recalibrate, raising=False)
+
+    class _ScannerDevice:
+        calibrate_mode = "calibrate_manual"
+
+    monkeypatch.setattr(f"{module_path}.device._scanner_device", _ScannerDevice(), raising=False)
+
+    response = device_client.post("/latest/device/wakeup")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["message"] == "Device awakened successfully"
+    assert wake_calls["resume"] == 1
+    assert wake_calls["recalibrate"] == 0

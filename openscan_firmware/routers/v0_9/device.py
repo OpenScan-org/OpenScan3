@@ -344,6 +344,31 @@ async def reinitialize_hardware(detect_cameras: bool = False):
         raise HTTPException(status_code=500, detail=f"Error reloading hardware: {str(e)}")
 
 
+@router.post("/wakeup", response_model=DeviceControlResponse)
+async def wakeup_device():
+    """Wake up the device from idle mode.
+
+    If the device is already awake, this endpoint is a no-op and still returns success.
+    """
+    logger.info("Wakeup requested")
+    try:
+        was_idle = device.is_idle()
+        if was_idle:
+            await device.resume_from_idle()
+            if device._scanner_device.calibrate_mode == ScannerCalibrateMode.CALIBRATE_ON_WAKE:
+                await device.recalibrate_motors()
+
+        status = _runtime_status_response()
+        return DeviceControlResponse(
+            success=True,
+            message="Device awakened successfully" if was_idle else "Device already awake",
+            status=status,
+        )
+    except Exception as e:
+        logger.exception("Error waking device")
+        raise HTTPException(status_code=500, detail=f"Error waking device: {str(e)}")
+
+
 @router.post("/reboot", response_model=bool)
 def reboot(save_config: bool = False):
     """Reboot system and optionally save config.
