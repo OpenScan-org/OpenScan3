@@ -5490,6 +5490,30 @@
             "title": "Pwm Support",
             "description": "Indicates whether this light hardware can handle PWM (otherwise only on/off).",
             "default": false
+          },
+          "pwm_frequency": {
+            "type": "number",
+            "maximum": 100000.0,
+            "minimum": 50.0,
+            "title": "Pwm Frequency",
+            "description": "PWM frequency for led driver.",
+            "default": 10000.0
+          },
+          "pwm_min": {
+            "type": "number",
+            "maximum": 3.3,
+            "minimum": 0.0,
+            "title": "Pwm Min",
+            "description": "Minimum pwm voltage for led driver.",
+            "default": 0.0
+          },
+          "pwm_max": {
+            "type": "number",
+            "maximum": 3.3,
+            "minimum": 0.0,
+            "title": "Pwm Max",
+            "description": "Maximum pwm voltage for led driver.",
+            "default": 3.3
           }
         },
         "type": "object",
@@ -6036,7 +6060,8 @@
               }
             ],
             "title": "Min Phi",
-            "description": "Optional minimum phi angle in degrees for constrained paths."
+            "description": "Optional minimum phi angle in degrees for constrained paths.",
+            "default": 0
           },
           "max_phi": {
             "anyOf": [
@@ -6050,7 +6075,8 @@
               }
             ],
             "title": "Max Phi",
-            "description": "Optional maximum phi angle in degrees for constrained paths."
+            "description": "Optional maximum phi angle in degrees for constrained paths.",
+            "default": 360.0
           },
           "optimize_path": {
             "type": "boolean",
@@ -6186,10 +6212,21 @@
             ],
             "title": "Endstops"
           },
-          "motors_timeout": {
+          "idle_timeout": {
             "type": "number",
-            "title": "Motors Timeout",
+            "title": "Idle Timeout",
             "default": 0.0
+          },
+          "motors_timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motors Timeout"
           },
           "scan_radius_mm": {
             "type": "number",

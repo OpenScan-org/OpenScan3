@@ -202,6 +202,8 @@ def test_generate_scan_path_omits_optional_phi_constraints_when_unset() -> None:
         points=10,
         min_theta=10.0,
         max_theta=120.0,
+        min_phi=None,
+        max_phi=None,
         optimize_path=False,
         focus_stacks=1,
         focus_range=(10.0, 15.0),

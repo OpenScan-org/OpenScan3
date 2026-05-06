@@ -75,6 +75,7 @@ def test_set_config_file_returns_factory_defaults(monkeypatch, tmp_path, device_
         "cameras": {},
         "motors": {},
         "lights": {},
+        "idle_timeout": 0.0,
         "motors_timeout": 0.0,
         "startup_mode": "startup_enabled",
         "calibrate_mode": "calibrate_manual",
@@ -191,6 +192,7 @@ def test_config_roundtrip_flow(monkeypatch, tmp_path, device_client, device_rout
         "cameras": {},
         "motors": {},
         "lights": {},
+        "idle_timeout": 0.0,
         "motors_timeout": 0.0,
         "startup_mode": "startup_enabled",
         "calibrate_mode": "calibrate_manual",
@@ -281,9 +283,11 @@ def test_reinitialize_endpoint_calls_controller(monkeypatch, device_client, devi
             "ring": {
                 "name": "ring",
                 "is_on": False,
+                "value": 100.0,
                 "settings": light_settings,
             }
         },
+        "idle_timeout": 0.0,
         "motors_timeout": 0.0,
         "startup_mode": "startup_enabled",
         "calibrate_mode": "calibrate_manual",

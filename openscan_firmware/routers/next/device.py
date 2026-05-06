@@ -37,6 +37,7 @@ class DeviceStatusResponse(BaseModel):
     motors: dict[str, MotorStatusResponse]
     lights: dict[str, LightStatusResponse]
     triggers: dict[str, TriggerStatusResponse] = Field(default_factory=dict)
+    idle_timeout: float
     motors_timeout: float
     scan_radius_mm: float = 1.0
     startup_mode: ScannerStartupMode

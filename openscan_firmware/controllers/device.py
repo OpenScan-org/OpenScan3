@@ -144,6 +144,7 @@ def _runtime_to_persisted_config() -> ScannerDeviceConfig:
             name: PersistedEndstopConfig(settings=endstop.settings)
             for name, endstop in _scanner_device.endstops.items()
         },
+        idle_timeout=_scanner_device.idle_timeout,
         motors_timeout=_scanner_device.motors_timeout,
         scan_radius_mm=_scanner_device.scan_radius_mm,
         startup_mode=_scanner_device.startup_mode.value if _scanner_device.startup_mode else None,
@@ -270,6 +271,7 @@ def get_device_info():
         "lights": {name: controller.get_status() for name, controller in get_all_light_controllers().items()},
         "triggers": {name: controller.get_status() for name, controller in get_all_trigger_controllers().items()},
 
+        "idle_timeout": _scanner_device.idle_timeout,
         "motors_timeout": _scanner_device.motors_timeout,
         "scan_radius_mm": _scanner_device.scan_radius_mm,
         "startup_mode": _scanner_device.startup_mode,
@@ -696,7 +698,8 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
         triggers=trigger_objects,
         endstops=endstop_objects,
 
-        # motors timeout in seconds - 0 to disable
+        # device idle timeout in seconds - 0 to disable
+        idle_timeout=config_dict["idle_timeout"],
         motors_timeout=config_dict["motors_timeout"],
         scan_radius_mm=config_dict["scan_radius_mm"],
         
@@ -709,11 +712,11 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
     _scanner_device._initialized=True
 
     # initialize inactivity timer
-    if _scanner_device.motors_timeout > 0:
-        inactivity_timer.set_timeout(_scanner_device.motors_timeout)
+    if _scanner_device.idle_timeout > 0:
+        inactivity_timer.set_timeout(_scanner_device.idle_timeout)
         inactivity_timer.on_timeout = go_to_idle
         inactivity_timer.enable()
-        logger.info(f"Inactivity timer set to {_scanner_device.motors_timeout} seconds.")
+        logger.info(f"Inactivity timer set to {_scanner_device.idle_timeout} seconds.")
     else:
         inactivity_timer.disable()
         logger.info("Inactivity timer disabled.")

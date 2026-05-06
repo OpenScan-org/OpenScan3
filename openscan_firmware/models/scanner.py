@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, PrivateAttr, ConfigDict, Field
+from pydantic import BaseModel, PrivateAttr, ConfigDict, Field, model_validator
 
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.config.endstop import EndstopConfig
@@ -47,7 +47,9 @@ class ScannerDevice(BaseModel):
     triggers: dict[str, Trigger] = Field(default_factory=dict)
     endstops: Optional[dict[str, Endstop]]
     
-    # motors timeout in seconds - 0 to disable
+    # device idle timeout in seconds - 0 to disable
+    idle_timeout: float = 0.0
+    # backward compatibility alias for older code paths / payloads
     motors_timeout: float = 0.0
     scan_radius_mm: float = Field(
         default=1.0,
@@ -59,6 +61,14 @@ class ScannerDevice(BaseModel):
     
     _idle : bool = PrivateAttr(default=False)
     _initialized: bool = PrivateAttr(default=False)
+
+    @model_validator(mode="after")
+    def _sync_idle_timeout_fields(self) -> "ScannerDevice":
+        # Keep both names aligned to avoid breaking older callers.
+        if self.idle_timeout == 0.0 and self.motors_timeout != 0.0:
+            self.idle_timeout = self.motors_timeout
+        self.motors_timeout = self.idle_timeout
+        return self
 
 
 class PersistedCameraConfig(BaseModel):
@@ -84,7 +94,8 @@ class ScannerDeviceConfig(BaseModel):
     lights: dict[str, LightConfig] = Field(default_factory=dict)
     triggers: dict[str, TriggerConfig] = Field(default_factory=dict)
     endstops: dict[str, PersistedEndstopConfig] | None = None
-    motors_timeout: float = 0.0
+    idle_timeout: float = 0.0
+    motors_timeout: float | None = None
     scan_radius_mm: float = Field(
         default=1.0,
         gt=0.0,
@@ -92,3 +103,19 @@ class ScannerDeviceConfig(BaseModel):
     )
     startup_mode: ScannerStartupMode | str = ScannerStartupMode.STARTUP_ENABLED
     calibrate_mode: ScannerCalibrateMode | str = ScannerCalibrateMode.CALIBRATE_MANUAL
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_timeout_key(cls, data):
+        if isinstance(data, dict):
+            if "idle_timeout" not in data and "motors_timeout" in data:
+                data["idle_timeout"] = data["motors_timeout"]
+        return data
+
+    @model_validator(mode="after")
+    def _mirror_timeout_keys(self) -> "ScannerDeviceConfig":
+        # Persist both names for backward compatibility with existing tooling.
+        if self.idle_timeout == 0.0 and self.motors_timeout is not None and self.motors_timeout != 0.0:
+            self.idle_timeout = self.motors_timeout
+        self.motors_timeout = self.idle_timeout
+        return self
