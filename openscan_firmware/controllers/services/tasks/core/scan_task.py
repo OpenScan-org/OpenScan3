@@ -452,9 +452,12 @@ class ScanTask(BaseTask):
                     scan_index=self._ctx.scan.index,
                 )
 
-                asyncio.create_task(self._ctx.project_manager.add_photo_async(photo_data))
-                # Needed so the event loop can process pause/cancel signals between captures:
-                await asyncio.sleep(0)
+                # Await the save instead of detaching it: a fire-and-forget create_task() lets the
+                # background JPEG write + per-photo size-recompute run DURING the next motor move,
+                # stealing CPU from the software-timed GPIO step loop -> dropped steps -> open-loop
+                # drift (no endstops). Awaiting serializes move -> capture -> save -> next move, so
+                # the motor only steps while the Pi is idle. (pause/cancel still checked at loop top.)
+                await self._ctx.project_manager.add_photo_async(photo_data)
             else:
                 # Focus stacking capture
                 focus_positions = self._ctx.focus_context["positions"]
@@ -488,9 +491,9 @@ class ScanTask(BaseTask):
                         stack_index=stack_index,
                     )
 
-                    asyncio.create_task(self._ctx.project_manager.add_photo_async(photo_data))
-                    # Let the event loop handle pause/cancel requests between focus captures
-                    await asyncio.sleep(0)
+                    # Await the save (see note above): keep the background save off the CPU while
+                    # the next move's GPIO stepping runs, so steps aren't dropped under load.
+                    await self._ctx.project_manager.add_photo_async(photo_data)
 
         except Exception as e:
             logger.error("Error taking photo at position %s: %s", index, e, exc_info=True)
