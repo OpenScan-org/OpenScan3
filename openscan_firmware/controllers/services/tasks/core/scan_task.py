@@ -452,11 +452,8 @@ class ScanTask(BaseTask):
                     scan_index=self._ctx.scan.index,
                 )
 
-                # Await the save instead of detaching it: a fire-and-forget create_task() lets the
-                # background JPEG write + per-photo size-recompute run DURING the next motor move,
-                # stealing CPU from the software-timed GPIO step loop -> dropped steps -> open-loop
-                # drift (no endstops). Awaiting serializes move -> capture -> save -> next move, so
-                # the motor only steps while the Pi is idle. (pause/cancel still checked at loop top.)
+                # Await the save so executor-backed file/metadata work cannot overlap with the
+                # next software-timed motor move and disturb GPIO step timing.
                 await self._ctx.project_manager.add_photo_async(photo_data)
             else:
                 # Focus stacking capture
@@ -491,8 +488,7 @@ class ScanTask(BaseTask):
                         stack_index=stack_index,
                     )
 
-                    # Await the save (see note above): keep the background save off the CPU while
-                    # the next move's GPIO stepping runs, so steps aren't dropped under load.
+                    # Keep save work serialized with captures/moves; see single-photo path above.
                     await self._ctx.project_manager.add_photo_async(photo_data)
 
         except Exception as e:
