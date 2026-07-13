@@ -55,6 +55,16 @@ class Scan(BaseModel):
 
     stacking_task_status: Optional[StackingTaskStatus] = None
 
+    size_finalized: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Indicates whether total_size_bytes reflects the completed scan. "
+            "null = legacy scan (field predates this feature, size is likely correct); "
+            "false = scan in progress, total_size_bytes is stale; "
+            "true = size finalized at scan end."
+        ),
+    )
+
 
 class ScanMetadata(BaseModel):
     """Represents metadata from a scan for a photo."""

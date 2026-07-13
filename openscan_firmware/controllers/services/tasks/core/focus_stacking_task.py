@@ -59,6 +59,7 @@ class FocusStackingTask(BaseTask):
             task_id=self._task_model.id,
             status=TaskStatus.RUNNING,
         )
+        scan.system_message = "Stacked size will be calculated at focus stacking completion."
         await project_manager.save_scan_state(scan)
 
         try:

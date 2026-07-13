@@ -512,6 +512,20 @@ class ScanTask(BaseTask):
         # Lazy import to avoid hardware side effects on module import
         from openscan_firmware.controllers.hardware import motors
 
+        # Recompute total scan size once, here at scan end. This is intentionally moved
+        # off the per-photo path (ProjectManager.add_photo_async): it's an os.walk over
+        # the whole scan dir that grows with photo count, so doing it per photo put an
+        # O(scan-dir) cost on the capture->save critical path (slow on large scans).
+        # Runs on all end paths since _cleanup_scan is called from a finally block.
+        try:
+            await asyncio.to_thread(
+                self._ctx.project_manager.recalculate_scan_size,
+                self._ctx.scan.project_name,
+                self._ctx.scan.index,
+            )
+        except Exception as e:
+            logger.error("Error recalculating scan size during cleanup: %s", e, exc_info=True)
+
         try:
             # Move motors back to origin position
             await motors.move_to_point(PolarPoint3D(90, 90))

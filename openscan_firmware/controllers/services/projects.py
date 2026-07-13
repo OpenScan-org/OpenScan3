@@ -433,6 +433,8 @@ class ProjectManager:
         total_size, stacked_size = self._calculate_scan_size_components(project, scan)
         scan.total_size_bytes = total_size
         scan.stacked_size_bytes = stacked_size
+        scan.size_finalized = True
+        scan.system_message = None
         scan.last_updated = datetime.now()
         save_project(project)
 
@@ -656,6 +658,8 @@ class ProjectManager:
             description=scan_description,
             camera_name=camera_controller.camera.name,
             camera_settings=camera_controller.settings.model,
+            size_finalized=False,
+            system_message="Scan size will be calculated at completion.",
         )
 
 
@@ -700,12 +704,11 @@ class ProjectManager:
             saved_filename,
         )
 
-        await loop.run_in_executor(
-            None,
-            self._recalculate_and_save_scan_size,
-            photo_data.scan_metadata.project_name,
-            photo_data.scan_metadata.scan_index,
-        )
+        # NOTE: the total scan-size recompute (_recalculate_and_save_scan_size) is
+        # intentionally NOT done here per-photo. It's an os.walk over the whole scan
+        # directory (O(scan-dir), grows with photo count); after #124 serialized
+        # capture->save it sat on the per-photo critical path and slowed large scans.
+        # It now runs once at scan end in ScanTask._cleanup_scan.
 
     def _prepare_photo_path(self, photo_data: PhotoData) -> tuple[str, str]:
         """Prepare the path and the filename for a photo file.
