@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
-from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -30,6 +29,7 @@ def _completed(argv: list[str], stdout: str, stderr: str = "", returncode: int =
 def test_fixed_command_map_has_no_request_controlled_package_names():
     assert system_update.UPDATER_COMMANDS == {
         "status": ["sudo", "/usr/bin/openscan-updater", "status", "--json"],
+        "update_status": ["sudo", "/usr/bin/openscan-updater", "system", "status", "--json"],
         "check": ["sudo", "/usr/bin/openscan-updater", "update", "--dry-run", "--json"],
         "check_openscan": ["sudo", "/usr/bin/openscan-updater", "update", "--dry-run", "--json"],
         "check_system": ["sudo", "/usr/bin/openscan-updater", "system", "check", "--json"],
@@ -41,62 +41,64 @@ def test_fixed_command_map_has_no_request_controlled_package_names():
     assert all("apt" not in argv for command in system_update.UPDATER_COMMANDS.values() for argv in command)
 
 
-def test_status_endpoint_returns_parsed_updater_json(monkeypatch, update_client):
+def test_status_endpoint_returns_compact_cached_update_status(monkeypatch, update_client):
     calls = []
 
     def fake_run(argv, **kwargs):
         calls.append((argv, kwargs))
-        return _completed(argv, '{"ok": true, "mode": "idle"}')
+        return _completed(
+            argv,
+            '{"status":"updates_available","checked_at":"2026-07-24T09:15:00Z",'
+            '"stale":false,"release_channel":"nightly",'
+            '"openscan":{"updates_available":true,"packages":[{"id":"updater",'
+            '"installed_version":"0.1.8","available_version":"0.1.9","update_available":true}]},'
+            '"system":{"updates_available":true,"count":2,"reboot_required_after_install":false},'
+            '"reboot_required":false}',
+        )
 
     monkeypatch.setattr(system_update.subprocess, "run", fake_run)
 
     response = update_client.get("/latest/system/update/status")
 
     assert response.status_code == 200
-    assert response.json()["result"] == {"ok": True, "mode": "idle"}
-    assert calls[0][0] == system_update.UPDATER_COMMANDS["status"]
+    assert response.json() == {
+        "status": "updates_available",
+        "checked_at": "2026-07-24T09:15:00Z",
+        "stale": False,
+        "release_channel": "nightly",
+        "openscan": {
+            "updates_available": True,
+            "packages": [{"id": "updater", "installed_version": "0.1.8", "available_version": "0.1.9", "update_available": True}],
+        },
+        "system": {"updates_available": True, "count": 2, "reboot_required_after_install": False},
+        "reboot_required": False,
+    }
+    assert calls[0][0] == system_update.UPDATER_COMMANDS["update_status"]
     assert calls[0][1]["shell"] is False
     assert calls[0][1]["env"] == system_update.UPDATER_ENV
 
 
-def test_check_endpoint_returns_parsed_updater_json(monkeypatch, update_client):
+def test_check_endpoint_returns_compact_refreshed_status(monkeypatch, update_client):
     calls = []
 
     def fake_run(argv, **kwargs):
         calls.append(argv)
-        if argv == system_update.UPDATER_COMMANDS["check_openscan"]:
-            return _completed(argv, '{"classification": "openscan_only"}')
-        return _completed(argv, '{"classification": "allowed_userland"}')
+        return _completed(argv, '{"status":"up_to_date","checked_at":"2026-07-24T09:15:00Z","stale":false,"release_channel":"stable","openscan":{"updates_available":false,"packages":[]},"system":{"updates_available":false,"count":0,"reboot_required_after_install":false},"reboot_required":false}')
 
     monkeypatch.setattr(system_update.subprocess, "run", fake_run)
 
     response = update_client.post("/latest/system/update/check", json={"ignored": "input"})
 
     assert response.status_code == 200
-    result = response.json()["result"]
-    assert result["stages"]["openscan"]["payload"]["result"] == {"classification": "openscan_only"}
-    assert result["stages"]["system"]["payload"]["result"] == {"classification": "allowed_userland"}
-    assert calls == [
-        system_update.UPDATER_COMMANDS["check_openscan"],
-        system_update.UPDATER_COMMANDS["check_system"],
-    ]
+    assert response.json()["status"] == "up_to_date"
+    assert response.json()["release_channel"] == "stable"
+    assert calls == [system_update.UPDATER_COMMANDS["check_system"]]
 
 
-def test_update_openscan_endpoint_calls_correct_command(monkeypatch, update_client):
-    calls = []
-
-    def fake_run(argv, **kwargs):
-        calls.append(argv)
-        return _completed(argv, '{"ok": true, "updated": ["openscan3-firmware"]}')
-
-    monkeypatch.setattr(system_update, "is_scan_active", lambda: False)
-    monkeypatch.setattr(system_update.subprocess, "run", fake_run)
-
-    response = update_client.post("/latest/system/update/openscan")
-
-    assert response.status_code == 200
-    assert response.json()["result"] == {"ok": True, "updated": ["openscan3-firmware"]}
-    assert calls == [system_update.UPDATER_COMMANDS["update_openscan"]]
+def test_router_exposes_only_compact_update_actions(update_client):
+    assert update_client.post("/latest/system/update/openscan").status_code == 404
+    assert update_client.post("/latest/system/update/healthcheck").status_code == 404
+    assert update_client.get("/latest/system/update/logs").status_code == 404
 
 
 def test_updater_command_timeout_returns_structured_error(monkeypatch, update_client):
@@ -109,8 +111,8 @@ def test_updater_command_timeout_returns_structured_error(monkeypatch, update_cl
 
     assert response.status_code == 500
     payload = response.json()
-    assert payload["ok"] is False
-    assert payload["error"]["type"] == "command_timeout"
+    assert payload["status"] == "status_unavailable"
+    assert payload["stale"] is True
 
 
 def test_invalid_json_returns_structured_error(monkeypatch, update_client):
@@ -122,7 +124,7 @@ def test_invalid_json_returns_structured_error(monkeypatch, update_client):
     response = update_client.get("/latest/system/update/status")
 
     assert response.status_code == 500
-    assert response.json()["error"]["type"] == "invalid_updater_json"
+    assert response.json()["status"] == "status_unavailable"
 
 
 def test_nonzero_exit_returns_structured_error(monkeypatch, update_client):
@@ -135,32 +137,8 @@ def test_nonzero_exit_returns_structured_error(monkeypatch, update_client):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["ok"] is False
-    openscan_error = payload["result"]["stages"]["openscan"]["payload"]["error"]
-    system_error = payload["result"]["stages"]["system"]["payload"]["error"]
-    assert openscan_error["type"] == "command_failed"
-    assert openscan_error["returncode"] == 1
-    assert system_error["type"] == "command_failed"
-    assert system_error["returncode"] == 1
-
-
-def test_update_blocked_result_is_not_backend_crash(monkeypatch, update_client):
-    def fake_run(argv, **kwargs):
-        return _completed(
-            argv,
-            '{"ok": false, "classification": "unsafe_system_packages"}',
-            returncode=2,
-        )
-
-    monkeypatch.setattr(system_update, "is_scan_active", lambda: False)
-    monkeypatch.setattr(system_update.subprocess, "run", fake_run)
-
-    response = update_client.post("/latest/system/update/openscan")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["ok"] is False
-    assert payload["result"]["classification"] == "unsafe_system_packages"
+    assert payload["status"] == "check_failed"
+    assert payload["stale"] is True
 
 
 @pytest.mark.asyncio
@@ -187,15 +165,6 @@ async def test_concurrent_update_attempts_are_rejected(monkeypatch):
     assert second_payload["error"]["type"] == "update_active"
 
 
-def test_active_scan_guard_blocks_update(monkeypatch, update_client):
-    monkeypatch.setattr(system_update, "is_scan_active", lambda: True)
-
-    response = update_client.post("/latest/system/update/openscan")
-
-    assert response.status_code == 409
-    assert response.json()["error"]["type"] == "scan_active"
-
-
 def test_apply_endpoint_runs_openscan_then_system_check_then_system_update(
     monkeypatch,
     update_client,
@@ -217,8 +186,7 @@ def test_apply_endpoint_runs_openscan_then_system_check_then_system_update(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["ok"] is True
-    assert list(payload["result"]["stages"]) == ["openscan", "system_check", "system"]
+    assert payload == {"status": "completed", "reboot_required": False}
     assert calls == [
         system_update.UPDATER_COMMANDS["update_openscan"],
         system_update.UPDATER_COMMANDS["check_system"],
@@ -240,8 +208,7 @@ def test_apply_endpoint_stops_before_system_when_openscan_fails(monkeypatch, upd
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["ok"] is False
-    assert list(payload["result"]["stages"]) == ["openscan"]
+    assert payload == {"status": "install_failed", "reboot_required": False}
     assert calls == [system_update.UPDATER_COMMANDS["update_openscan"]]
 
 
@@ -251,7 +218,7 @@ def test_apply_endpoint_blocks_when_scan_active(monkeypatch, update_client):
     response = update_client.post("/latest/system/update/apply")
 
     assert response.status_code == 409
-    assert response.json()["error"]["type"] == "scan_active"
+    assert response.json()["status"] == "install_blocked"
 
 
 def test_is_scan_active_uses_task_manager(monkeypatch):
@@ -267,36 +234,6 @@ def test_is_scan_active_uses_task_manager(monkeypatch):
     monkeypatch.setattr(system_update, "get_task_manager", lambda: manager)
 
     assert system_update.is_scan_active() is True
-
-
-def test_logs_endpoint_limits_output_size(monkeypatch, tmp_path: Path, update_client):
-    log_file = tmp_path / "updater.log"
-    log_file.write_text("\n".join(f"line-{index}" for index in range(300)), encoding="utf-8")
-    monkeypatch.setattr(system_update, "UPDATER_LOG_FILES", (log_file,))
-
-    response = update_client.get("/latest/system/update/logs")
-
-    assert response.status_code == 200
-    result = response.json()["result"]
-    assert len(result["lines"]) == 200
-    assert result["lines"][0] == "line-100"
-    assert result["lines"][-1] == "line-299"
-
-
-def test_healthcheck_calls_updater_command(monkeypatch, update_client):
-    calls = []
-
-    def fake_run(argv, **kwargs):
-        calls.append(argv)
-        return _completed(argv, '{"ok": true, "checks": []}')
-
-    monkeypatch.setattr(system_update.subprocess, "run", fake_run)
-
-    response = update_client.post("/latest/system/update/healthcheck")
-
-    assert response.status_code == 200
-    assert response.json()["result"] == {"ok": True, "checks": []}
-    assert calls == [system_update.UPDATER_COMMANDS["healthcheck"]]
 
 
 def test_repair_endpoint_calls_fixed_command(monkeypatch, update_client):
