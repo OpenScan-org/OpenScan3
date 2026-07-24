@@ -101,6 +101,21 @@ def test_router_exposes_only_compact_update_actions(update_client):
     assert update_client.get("/latest/system/update/logs").status_code == 404
 
 
+def test_update_openapi_exposes_response_schemas(update_client):
+    schema = update_client.get("/openapi.json").json()
+    paths = schema["paths"]
+
+    assert paths["/latest/system/update/status"]["get"]["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/UpdateStatusResponse"
+    }
+    assert paths["/latest/system/update/check"]["post"]["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/UpdateStatusResponse"
+    }
+    assert paths["/latest/system/update/apply"]["post"]["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/UpdateInstallResponse"
+    }
+
+
 def test_updater_command_timeout_returns_structured_error(monkeypatch, update_client):
     def fake_run(argv, **kwargs):
         raise subprocess.TimeoutExpired(argv, timeout=kwargs["timeout"])

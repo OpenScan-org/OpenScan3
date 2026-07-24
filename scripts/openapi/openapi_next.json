@@ -1611,7 +1611,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatusResponse"
+                }
               }
             }
           },
@@ -1633,7 +1635,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatusResponse"
+                }
               }
             }
           },
@@ -1655,7 +1659,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateInstallResponse"
+                }
               }
             }
           },
@@ -6661,6 +6667,77 @@
         ],
         "title": "MotorStatusResponse"
       },
+      "OpenScanUpdatePackage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "firmware",
+              "client",
+              "updater",
+              "system_config",
+              "camera_stack"
+            ],
+            "title": "Id"
+          },
+          "installed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Version"
+          },
+          "available_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Version"
+          },
+          "update_available": {
+            "type": "boolean",
+            "title": "Update Available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "installed_version",
+          "available_version",
+          "update_available"
+        ],
+        "title": "OpenScanUpdatePackage",
+        "description": "One optional OpenScan component update for the details view."
+      },
+      "OpenScanUpdateSummary": {
+        "properties": {
+          "updates_available": {
+            "type": "boolean",
+            "title": "Updates Available"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/components/schemas/OpenScanUpdatePackage"
+            },
+            "type": "array",
+            "title": "Packages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updates_available",
+          "packages"
+        ],
+        "title": "OpenScanUpdateSummary"
+      },
       "PathMethod": {
         "type": "string",
         "enum": [
@@ -7358,6 +7435,29 @@
         "type": "object",
         "title": "StackingTaskStatus"
       },
+      "SystemUpdateSummary": {
+        "properties": {
+          "updates_available": {
+            "type": "boolean",
+            "title": "Updates Available"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "reboot_required_after_install": {
+            "type": "boolean",
+            "title": "Reboot Required After Install"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updates_available",
+          "count",
+          "reboot_required_after_install"
+        ],
+        "title": "SystemUpdateSummary"
+      },
       "Task": {
         "properties": {
           "id": {
@@ -7647,6 +7747,91 @@
           "settings"
         ],
         "title": "TriggerStatusResponse"
+      },
+      "UpdateInstallResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "install_failed",
+              "install_blocked"
+            ],
+            "title": "Status"
+          },
+          "reboot_required": {
+            "type": "boolean",
+            "title": "Reboot Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "reboot_required"
+        ],
+        "title": "UpdateInstallResponse",
+        "description": "Result of a synchronous user-requested update installation."
+      },
+      "UpdateStatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "up_to_date",
+              "updates_available",
+              "status_unavailable",
+              "check_failed"
+            ],
+            "title": "Status"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "release_channel": {
+            "type": "string",
+            "enum": [
+              "stable",
+              "nightly",
+              "unknown"
+            ],
+            "title": "Release Channel"
+          },
+          "openscan": {
+            "$ref": "#/components/schemas/OpenScanUpdateSummary"
+          },
+          "system": {
+            "$ref": "#/components/schemas/SystemUpdateSummary"
+          },
+          "reboot_required": {
+            "type": "boolean",
+            "title": "Reboot Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "checked_at",
+          "stale",
+          "release_channel",
+          "openscan",
+          "system",
+          "reboot_required"
+        ],
+        "title": "UpdateStatusResponse",
+        "description": "Cached, user-facing software update status."
       },
       "ValidationError": {
         "properties": {
