@@ -9,9 +9,11 @@ OpenScan3 is a firmware for controlling OpenScan devices, a family of open sourc
 
 The goal of OpenScan3 is providing a hackable and extensible firmware for common OpenScan devices and a starting point for custom photogrammetry rigs.
 
-OpenScan3 is maintained by [OpenScan.eu](https://openscan.eu).
+OpenScan3 is primarily developed for the Raspberry Pi 4 with 2 GB RAM. Raspberry Pi 3 and 5 are supported where possible.
+See [`docs/HARDWARE_COMPATIBILITY.md`](docs/HARDWARE_COMPATIBILITY.md) for the supported Raspberry Pi and camera combinations.
 
-OpenScan3 is under development and is not ready for production!
+
+OpenScan3 is maintained by [OpenScan.eu](https://openscan.eu).
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -82,7 +84,5 @@ Join the OpenScan [Discord Server](https://discord.gg/eBdqtdkXyF) to get in touc
 Or write an email to <a href="mailto:info@openscan.eu">info@openscan.eu</a>
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
-
 
 
