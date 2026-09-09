@@ -49,6 +49,7 @@ def patch_project_manager(monkeypatch, scan: Scan):
 def patch_task_manager(monkeypatch):
     task_manager = MagicMock()
     task_manager.create_and_run_task = AsyncMock()
+    task_manager.replace_task = AsyncMock()
     task_manager.pause_task = AsyncMock()
     task_manager.resume_task = AsyncMock()
     task_manager.cancel_task = AsyncMock()
@@ -65,9 +66,19 @@ async def test_start_focus_stacking_persists_task_reference(scan: Scan, patch_pr
         id="task-123",
     )
 
-    task = await service.start_focus_stacking("demo", 1)
+    task = await service.start_focus_stacking(
+        "demo",
+        1,
+        depends_on="task-prerequisite",
+    )
 
     patch_project_manager.get_scan_by_index.assert_called_once_with("demo", 1)
+    patch_task_manager.create_and_run_task.assert_awaited_once_with(
+        "focus_stacking_task",
+        "demo",
+        1,
+        depends_on="task-prerequisite",
+    )
     assert scan.stacking_task_status == StackingTaskStatus(task_id="task-123", status=TaskStatus.RUNNING)
     patch_project_manager.save_scan_state.assert_awaited_once_with(scan)
     assert task.id == "task-123"
@@ -84,6 +95,72 @@ async def test_start_focus_stacking_returns_existing_active_task(scan: Scan, pat
     patch_task_manager.create_and_run_task.assert_not_called()
     patch_project_manager.save_scan_state.assert_not_awaited()
     assert task.id == "task-999"
+
+
+@pytest.mark.asyncio
+async def test_start_focus_stacking_removes_replaced_task(
+    scan: Scan,
+    patch_project_manager,
+    patch_task_manager,
+):
+    """A new focus run removes the old terminal task record first."""
+    scan.stacking_task_status = StackingTaskStatus(
+        task_id="task-interrupted",
+        status=TaskStatus.INTERRUPTED,
+    )
+    patch_task_manager.get_task_info.return_value = Task(
+        name="focus_stacking_task",
+        task_type="core",
+        status=TaskStatus.INTERRUPTED,
+        id="task-interrupted",
+    )
+    patch_task_manager.create_and_run_task.return_value = Task(
+        name="focus_stacking_task",
+        task_type="core",
+        status=TaskStatus.RUNNING,
+        id="task-new",
+    )
+
+    task = await service.start_focus_stacking("demo", 1)
+
+    patch_task_manager.replace_task.assert_awaited_once_with(
+        "task-interrupted",
+        "task-new",
+    )
+    assert task.id == "task-new"
+
+
+@pytest.mark.asyncio
+async def test_start_focus_stacking_replacement_does_not_inherit_dependency(
+    scan: Scan,
+    patch_project_manager,
+    patch_task_manager,
+):
+    scan.stacking_task_status = StackingTaskStatus(
+        task_id="task-interrupted",
+        status=TaskStatus.INTERRUPTED,
+    )
+    patch_task_manager.get_task_info.return_value = Task(
+        name="focus_stacking_task",
+        task_type="core",
+        status=TaskStatus.INTERRUPTED,
+        id="task-interrupted",
+        depends_on="task-prerequisite",
+    )
+    patch_task_manager.create_and_run_task.return_value = Task(
+        name="focus_stacking_task",
+        task_type="core",
+        status=TaskStatus.PENDING,
+        id="task-new",
+    )
+
+    await service.start_focus_stacking("demo", 1)
+
+    patch_task_manager.create_and_run_task.assert_awaited_once_with("focus_stacking_task", "demo", 1)
+    patch_task_manager.replace_task.assert_awaited_once_with(
+        "task-interrupted",
+        "task-new",
+    )
 
 
 @pytest.mark.asyncio
@@ -122,3 +199,35 @@ async def test_resume_focus_stacking_without_task_returns_none(scan: Scan, patch
     assert result is None
     patch_task_manager.resume_task.assert_not_called()
     patch_project_manager.save_scan_state.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resume_interrupted_focus_stacking_without_task_id_starts_new_task(
+    scan: Scan,
+    patch_project_manager,
+    patch_task_manager,
+):
+    """An interrupted focus task detached during startup is recreated by the service."""
+    scan.stacking_task_status = StackingTaskStatus(status=TaskStatus.INTERRUPTED)
+    new_task = Task(
+        name="focus_stacking_task",
+        task_type="core",
+        status=TaskStatus.RUNNING,
+        id="task-recreated",
+    )
+    patch_task_manager.create_and_run_task.return_value = new_task
+
+    result = await service.resume_focus_stacking("demo", 1)
+
+    assert result is new_task
+    patch_task_manager.resume_task.assert_not_called()
+    patch_task_manager.create_and_run_task.assert_awaited_once_with(
+        "focus_stacking_task",
+        "demo",
+        1,
+    )
+    assert scan.stacking_task_status == StackingTaskStatus(
+        task_id="task-recreated",
+        status=TaskStatus.RUNNING,
+    )
+    patch_project_manager.save_scan_state.assert_awaited_once_with(scan)

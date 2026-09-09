@@ -10,10 +10,18 @@ router = APIRouter(prefix="/projects", tags=["focus_stacking"])
 
 
 @router.post("/{project_name}/scans/{scan_index:int}/focus-stacking/start", response_model=Task)
-async def start_focus_stacking(project_name: str, scan_index: int) -> Task:
+async def start_focus_stacking(
+    project_name: str,
+    scan_index: int,
+    depends_on: str | None = None,
+) -> Task:
     """Start focus stacking for a scan."""
     try:
-        return await focus_service.start_focus_stacking(project_name, scan_index)
+        return await focus_service.start_focus_stacking(
+            project_name,
+            scan_index,
+            depends_on=depends_on,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - unexpected errors bubble up as 500
@@ -38,7 +46,7 @@ async def pause_focus_stacking(project_name: str, scan_index: int) -> Task:
 
 @router.patch("/{project_name}/scans/{scan_index:int}/focus-stacking/resume", response_model=Task)
 async def resume_focus_stacking(project_name: str, scan_index: int) -> Task:
-    """Resume a paused focus stacking task."""
+    """Resume a paused or interrupted focus stacking task."""
     try:
         task = await focus_service.resume_focus_stacking(project_name, scan_index)
     except ValueError as exc:
@@ -47,7 +55,7 @@ async def resume_focus_stacking(project_name: str, scan_index: int) -> Task:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     if task is None:
-        raise HTTPException(status_code=409, detail="Focus stacking is not paused")
+        raise HTTPException(status_code=409, detail="Focus stacking is not paused or interrupted")
 
     return task
 

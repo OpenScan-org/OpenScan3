@@ -48,6 +48,7 @@ def test_add_scan_accepts_all_input_in_json_body(monkeypatch) -> None:
                 "camera_name": "cam0",
                 "scan_settings": ScanSetting().model_dump(mode="json"),
                 "scan_description": "Created from a JSON request body.",
+                "depends_on": "previous-task",
             },
         )
 
@@ -57,6 +58,12 @@ def test_add_scan_accepts_all_input_in_json_body(monkeypatch) -> None:
         camera_controller,
         ScanSetting(),
         "Created from a JSON request body.",
+    )
+    projects_router.scans.start_scan.assert_awaited_once_with(
+        project_manager,
+        scan,
+        camera_controller,
+        depends_on="previous-task",
     )
 
 
@@ -87,6 +94,7 @@ def test_versioned_projects_openapi_contracts_remain_unchanged() -> None:
             "project_name",
             "camera_name",
             "scan_description",
+            "depends_on",
         ]
         assert scan_post["requestBody"]["content"]["application/json"]["schema"] == {
             "$ref": "#/components/schemas/ScanSetting"

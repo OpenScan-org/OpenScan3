@@ -296,7 +296,7 @@ class ProjectManager:
         for scan in project.scans.values():
             dirty = False
 
-            if scan.status in {TaskStatus.RUNNING, TaskStatus.PENDING}:
+            if scan.status in {TaskStatus.RUNNING, TaskStatus.PENDING, TaskStatus.PAUSED}:
                 logger.debug(
                     "Resetting scan %s for project %s from %s to interrupted",
                     scan.index,
@@ -304,7 +304,6 @@ class ProjectManager:
                     scan.status.value,
                 )
                 scan.status = TaskStatus.INTERRUPTED
-                scan.task_id = None
                 dirty = True
 
             stacking_status = scan.stacking_task_status
@@ -316,7 +315,6 @@ class ProjectManager:
                     stacking_status.status.value if stacking_status.status else "unknown",
                 )
                 stacking_status.status = TaskStatus.INTERRUPTED
-                stacking_status.task_id = None
                 dirty = True
 
             if dirty:

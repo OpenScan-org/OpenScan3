@@ -113,7 +113,8 @@ async def new_project(project_name: str, project_description: Optional[str] = ""
 async def add_scan_with_description(project_name: str,
                    camera_name: str,
                    scan_settings: ScanSetting,
-                   scan_description:  Optional[str] = "") -> Task:
+                   scan_description: Optional[str] = "",
+                   depends_on: Optional[str] = None) -> Task:
     """Add a new scan to a project and return the created Task
 
     Args:
@@ -130,7 +131,12 @@ async def add_scan_with_description(project_name: str,
 
     try:
         scan = project_manager.add_scan(project_name, camera_controller, scan_settings, scan_description)
-        task = await scans.start_scan(project_manager, scan, camera_controller)
+        task = await scans.start_scan(
+            project_manager,
+            scan,
+            camera_controller,
+            depends_on=depends_on,
+        )
         return task
 
     except ValueError as exc:
@@ -144,7 +150,11 @@ async def add_scan_with_description(project_name: str,
 
 
 @router.post("/{project_name}/upload", response_model=Task)
-async def upload_project_to_cloud(project_name: str, token_override: Optional[str] = None) -> Task:
+async def upload_project_to_cloud(
+    project_name: str,
+    token_override: Optional[str] = None,
+    depends_on: Optional[str] = None,
+) -> Task:
     """Schedule an asynchronous cloud upload for a project.
 
     Args:
@@ -155,7 +165,11 @@ async def upload_project_to_cloud(project_name: str, token_override: Optional[st
         Task: The TaskManager model describing the scheduled upload
     """
     try:
-        task = await cloud.upload_project(project_name, token=token_override)
+        task = await cloud.upload_project(
+            project_name,
+            token=token_override,
+            depends_on=depends_on,
+        )
     except cloud.CloudServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return task
@@ -366,7 +380,9 @@ async def pause_scan(project_name: str, scan_index: int) -> Task:
 
 @router.patch("/{project_name}/scans/{scan_index:int}/resume", response_model=Task)
 async def resume_scan(project_name: str, scan_index: int, camera_name: str) -> Task:
-    """Resume a paused, cancelled or failed scan and return the resulting Task
+    """Resume a paused or interrupted scan, or restart a cancelled or failed scan.
+
+    Return the resulting Task.
 
     Args:
         project_name: The name of the project

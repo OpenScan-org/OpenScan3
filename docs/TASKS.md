@@ -273,9 +273,14 @@ only once. No JSON entry or second list of task names is required.
 
 ### 4. Make the task available where it is needed
 
-Every registered task can already be started through
-`POST /tasks/{task_name}`. If another firmware feature needs to start it, add a
-small function for that feature:
+Experimental and custom tasks can be started through
+`POST /tasks/{task_name}`. This generic endpoint only creates the task; it does
+not persist references on domain objects such as scans or projects and does
+not perform domain-specific validation.
+
+Tasks owned by a user-facing workflow must be started through that workflow's
+specialized endpoint. If another firmware feature needs to start a task, add a
+small service function for that feature:
 
 ```python
 from openscan_firmware.controllers.services.tasks.task_manager import (

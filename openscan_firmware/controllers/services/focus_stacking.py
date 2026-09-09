@@ -19,12 +19,17 @@ _ACTIVE_STATUSES = {
 }
 
 
-async def start_focus_stacking(project_name: str, scan_index: int) -> Task:
+async def start_focus_stacking(
+    project_name: str,
+    scan_index: int,
+    depends_on: str | None = None,
+) -> Task:
     """Start a focus stacking task and persist the task reference on the scan.
 
     Args:
         project_name: Name of the project containing the scan.
         scan_index: Index of the scan to process.
+        depends_on: Optional ID of a task that must complete successfully first.
 
     Returns:
         The Task representing the focus stacking job.
@@ -38,6 +43,7 @@ async def start_focus_stacking(project_name: str, scan_index: int) -> Task:
         raise ValueError(f"Scan {scan_index} not found in project '{project_name}'")
 
     existing = scan.stacking_task_status
+    replaced_task_id: str | None = None
     if existing and existing.task_id:
         existing_task = task_manager.get_task_info(existing.task_id)
         if existing_task and existing_task.status in _ACTIVE_STATUSES:
@@ -50,11 +56,18 @@ async def start_focus_stacking(project_name: str, scan_index: int) -> Task:
             )
             return existing_task
 
+        replaced_task_id = existing.task_id
+
+    task_kwargs = {"depends_on": depends_on} if depends_on is not None else {}
     task = await task_manager.create_and_run_task(
         "focus_stacking_task",
         project_name,
         scan_index,
+        **task_kwargs,
     )
+
+    if replaced_task_id:
+        await task_manager.replace_task(replaced_task_id, task.id)
 
     scan.stacking_task_status = StackingTaskStatus(task_id=task.id, status=task.status)
     await project_manager.save_scan_state(scan)
@@ -82,7 +95,7 @@ async def pause_focus_stacking(project_name: str, scan_index: int) -> Optional[T
 
 
 async def resume_focus_stacking(project_name: str, scan_index: int) -> Optional[Task]:
-    """Resume a paused focus stacking task and update the scan state."""
+    """Resume a paused or interrupted focus stacking task and update the scan state."""
 
     task_manager = get_task_manager()
     project_manager = get_project_manager()
@@ -91,11 +104,37 @@ async def resume_focus_stacking(project_name: str, scan_index: int) -> Optional[
     if scan is None:
         raise ValueError(f"Scan {scan_index} not found in project '{project_name}'")
 
-    if not scan.stacking_task_status or not scan.stacking_task_status.task_id:
-        logger.warning("Cannot resume focus stacking for scan %s: no paused task", scan_index)
+    stacking_status = scan.stacking_task_status
+    if not stacking_status:
+        logger.warning("Cannot resume focus stacking for scan %s: no task", scan_index)
         return None
 
-    task = await task_manager.resume_task(scan.stacking_task_status.task_id)
+    if not stacking_status.task_id:
+        if stacking_status.status == TaskStatus.INTERRUPTED:
+            logger.info(
+                "Starting interrupted focus stacking for project '%s', scan %s.",
+                project_name,
+                scan_index,
+            )
+            return await start_focus_stacking(project_name, scan_index)
+
+        logger.warning(
+            "Cannot resume focus stacking for scan %s: no task ID",
+            scan_index,
+        )
+        return None
+
+    task = await task_manager.resume_task(stacking_status.task_id)
+    if task is None:
+        if stacking_status.status == TaskStatus.INTERRUPTED:
+            logger.info(
+                "Recreating missing interrupted focus stacking task for project '%s', scan %s.",
+                project_name,
+                scan_index,
+            )
+            return await start_focus_stacking(project_name, scan_index)
+        return None
+
     scan.stacking_task_status.status = task.status
     await project_manager.save_scan_state(scan)
     return task

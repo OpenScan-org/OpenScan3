@@ -86,11 +86,14 @@ async def test_upload_project_rejects_uploaded_project(monkeypatch, project_mana
 
 
 @pytest.mark.asyncio
-async def test_upload_project_rejects_running_task(monkeypatch, project_manager, task_manager):
+@pytest.mark.parametrize("status", [TaskStatus.RUNNING, TaskStatus.INTERRUPTED])
+async def test_upload_project_rejects_active_or_interrupted_task(
+    monkeypatch, project_manager, task_manager, status
+):
     task = Task(
         name="cloud_upload_task",
         task_type="cloud_upload_task",
-        status=TaskStatus.RUNNING,
+        status=status,
         run_args=("demo",),
     )
     task_manager.add_task(task)
@@ -111,6 +114,7 @@ async def test_upload_project_starts_when_not_blocked(monkeypatch, project_manag
     created_task = Task(name="cloud_upload_task", task_type="cloud_upload_task")
 
     async def fake_create_and_run(task_name, project_name, **kwargs):
+        assert kwargs["depends_on"] == "task-prerequisite"
         task_manager.add_task(created_task)
         return created_task
 
@@ -124,7 +128,7 @@ async def test_upload_project_starts_when_not_blocked(monkeypatch, project_manag
     )
     monkeypatch.setattr(task_manager, "create_and_run_task", fake_create_and_run)
 
-    task = await upload_project("demo")
+    task = await upload_project("demo", depends_on="task-prerequisite")
     assert task is created_task
 
 
@@ -143,7 +147,10 @@ async def test_download_project_requires_remote(monkeypatch, project_manager, ta
 
 
 @pytest.mark.asyncio
-async def test_download_project_rejects_running_task(monkeypatch, project_manager, task_manager):
+@pytest.mark.parametrize("status", [TaskStatus.RUNNING, TaskStatus.INTERRUPTED])
+async def test_download_project_rejects_active_or_interrupted_task(
+    monkeypatch, project_manager, task_manager, status
+):
     project = project_manager.get_project_by_name("demo")
     project.cloud_project_name = "demo-remote.zip"
 
@@ -155,7 +162,7 @@ async def test_download_project_rejects_running_task(monkeypatch, project_manage
     task = Task(
         name="cloud_download_task",
         task_type="cloud_download_task",
-        status=TaskStatus.RUNNING,
+        status=status,
         run_args=("demo",),
     )
     task_manager.add_task(task)

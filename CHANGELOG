@@ -1,0 +1,22 @@
+# Changelog
+
+All notable user-facing changes to OpenScan3 firmware are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Unreleased
+
+### Added
+
+- Tasks can now be chained by making one task depend on another. Dependent
+  tasks wait for successful completion of their prerequisite.
+
+### Changed
+
+- Interrupted scan and focus-stacking tasks can be resumed after a restart.
+  Scan progress and completed focus-stacking batches are reused, and replacing
+  an old task preserves dependency chains.
+- Clarified that the generic task endpoint is intended for experimental and
+  custom tasks. Scan, focus-stacking, and cloud-upload tasks must use their
+  project-specific endpoints.

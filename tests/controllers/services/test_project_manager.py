@@ -163,7 +163,7 @@ async def test_pm_init_loads_existing_project(project_manager: ProjectManager,
     assert actual_scan.current_step == 10
 
 
-@pytest.mark.parametrize("initial_status", [TaskStatus.RUNNING, TaskStatus.PENDING])
+@pytest.mark.parametrize("initial_status", [TaskStatus.RUNNING, TaskStatus.PENDING, TaskStatus.PAUSED])
 def test_pm_recovers_incomplete_scans(
     tmp_path: Path, sample_scan_settings: ScanSetting, initial_status: TaskStatus
 ):
@@ -315,7 +315,7 @@ async def test_pm_save_scan_state_persists_stacking_status(
 
     assert reloaded_scan is not None
     assert reloaded_scan.stacking_task_status is not None
-    assert reloaded_scan.stacking_task_status.task_id is None
+    assert reloaded_scan.stacking_task_status.task_id == "stack-123"
     assert reloaded_scan.stacking_task_status.status == TaskStatus.INTERRUPTED
 
 

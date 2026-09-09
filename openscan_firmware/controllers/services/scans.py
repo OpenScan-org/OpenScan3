@@ -25,6 +25,7 @@ async def start_scan(
     scan: Scan,
     camera_controller: CameraController,
     start_from_step: int = 0,
+    depends_on: str | None = None,
 ) -> Task:
     """
     Creates and starts a new scan task with simplified arguments.
@@ -38,6 +39,7 @@ async def start_scan(
         scan: The scan object to be executed.
         camera_controller: The camera controller for validation.
         start_from_step: The step to resume the scan from.
+        depends_on: Optional ID of a task that must complete successfully first.
 
     Returns:
         The created Task object.
@@ -50,6 +52,7 @@ async def start_scan(
 
     # If the scan already has a task_id, check its status.
     # This prevents creating a new task for a scan that is already running, paused, etc.
+    replaced_task_id: str | None = None
     if scan.task_id:
         existing_task = task_manager.get_task_info(scan.task_id)
         restartable_statuses = {
@@ -74,19 +77,27 @@ async def start_scan(
                     scan.task_id,
                     start_from_step,
                 )
-
-            # Remove the stale terminal task so the TaskManager list reflects only the new run
-            await task_manager.delete_task(existing_task.id)
-            scan.task_id = None
+            replaced_task_id = existing_task.id
+        else:
+            # Keep the stale ID long enough to repoint any dependents after the
+            # replacement task has been created.
+            replaced_task_id = scan.task_id
 
     task_name = "scan_task"
+    task_kwargs = {"depends_on": depends_on} if depends_on is not None else {}
     task = await task_manager.create_and_run_task(
         task_name,
-        scan, start_from_step
+        scan,
+        start_from_step,
+        **task_kwargs,
     )
+
+    if replaced_task_id:
+        await task_manager.replace_task(replaced_task_id, task.id)
 
     # Save the task_id in the scan object for future reference
     scan.task_id = task.id
+    scan.status = task.status
     await project_manager.save_scan_state(scan)
     logger.info(f"Started scan {scan.index} for project '{scan.project_name}' with task_id {task.id}")
 

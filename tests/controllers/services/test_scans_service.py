@@ -27,16 +27,60 @@ async def test_start_scan_restarts_interrupted_task(sample_scan_model: Scan) -> 
     task_manager_mock = MagicMock()
     task_manager_mock.get_task_info.return_value = existing_task
     task_manager_mock.create_and_run_task = AsyncMock(return_value=new_task)
-    task_manager_mock.delete_task = AsyncMock()
+    task_manager_mock.replace_task = AsyncMock()
 
     with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock):
-        result = await scans.start_scan(project_manager, scan, camera_controller, start_from_step=3)
+        result = await scans.start_scan(
+            project_manager,
+            scan,
+            camera_controller,
+            start_from_step=3,
+            depends_on="task-prerequisite",
+        )
 
     assert result is new_task
-    task_manager_mock.create_and_run_task.assert_awaited_once_with("scan_task", scan, 3)
+    task_manager_mock.replace_task.assert_awaited_once_with(
+        "task-interrupted",
+        "task-new",
+    )
+    task_manager_mock.create_and_run_task.assert_awaited_once_with(
+        "scan_task",
+        scan,
+        3,
+        depends_on="task-prerequisite",
+    )
     assert scan.task_id == new_task.id
     project_manager.save_scan_state.assert_awaited_once_with(scan)
 
+
+@pytest.mark.asyncio
+async def test_start_scan_replacement_does_not_inherit_dependency(sample_scan_model: Scan) -> None:
+    scan = sample_scan_model
+    scan.task_id = "task-interrupted"
+    scan.camera_name = "mock-cam"
+
+    camera_controller = MagicMock()
+    camera_controller.camera.name = "mock-cam"
+    project_manager = MagicMock()
+    project_manager.save_scan_state = AsyncMock()
+
+    existing_task = Task(
+        name="scan_task",
+        task_type="core",
+        status=TaskStatus.INTERRUPTED,
+        id="task-interrupted",
+        depends_on="task-prerequisite",
+    )
+    new_task = Task(name="scan_task", task_type="core", status=TaskStatus.PENDING, id="task-new")
+    task_manager_mock = MagicMock()
+    task_manager_mock.get_task_info.return_value = existing_task
+    task_manager_mock.create_and_run_task = AsyncMock(return_value=new_task)
+    task_manager_mock.replace_task = AsyncMock()
+
+    with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock):
+        await scans.start_scan(project_manager, scan, camera_controller)
+
+    task_manager_mock.create_and_run_task.assert_awaited_once_with("scan_task", scan, 0)
 
 @pytest.mark.asyncio
 async def test_pause_scan_updates_status_and_persists(sample_scan_model: Scan) -> None:

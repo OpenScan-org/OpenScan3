@@ -103,7 +103,7 @@ async def pause_task(task_id: str):
 @router.post("/{task_id}/resume", response_model=Task, summary="Resume a Task")
 async def resume_task(task_id: str):
     """
-    Resumes a paused task.
+    Resumes a paused or interrupted task.
 
     Args:
         task_id: The ID of the task to resume.
@@ -124,12 +124,17 @@ async def resume_task(task_id: str):
 async def create_task(
     task_name: str,
     args: List[Any] = Body(default=[], description="Positional arguments for the task"),
-    kwargs: Dict[str, Any] = Body(default={}, description="Keyword arguments for the task")
+    kwargs: Dict[str, Any] = Body(default={}, description="Keyword arguments for the task"),
+    depends_on: str | None = Body(
+        default=None,
+        description="Optional task ID that must complete successfully before this task runs",
+    ),
 ):
     """
     Create and start a new background task with optional parameters.
 
     The request body accepts:
+    - **depends_on**: Optional ID of a prerequisite task
     - **args**: List of positional arguments (e.g., `["project_name", 0]`)
     - **kwargs**: Dictionary of keyword arguments (e.g., `{"num_batches": 5}`)
 
@@ -165,7 +170,12 @@ async def create_task(
     """
     try:
         task_manager = get_task_manager()
-        task = await task_manager.create_and_run_task(task_name, *args, **kwargs)
+        task = await task_manager.create_and_run_task(
+            task_name,
+            *args,
+            depends_on=depends_on,
+            **kwargs,
+        )
         return task
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

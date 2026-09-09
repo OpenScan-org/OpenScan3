@@ -36,5 +36,9 @@ class Task(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    depends_on: Optional[str] = Field(
+        default=None,
+        description="Task ID that must complete successfully before this task may run.",
+    )
     run_args: tuple = Field(default_factory=tuple, description="Positional arguments the task was started with.")
     run_kwargs: dict = Field(default_factory=dict, description="Keyword arguments the task was started with.")

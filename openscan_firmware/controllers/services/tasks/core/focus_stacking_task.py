@@ -82,8 +82,28 @@ class FocusStackingTask(BaseTask):
             total_batches = len(batches)
             logger.info(f"Found {total_batches} focus stack batches to process")
 
+            # TaskManager persists the last yielded batch number. Capture it
+            # before emitting new progress so an interrupted task can skip
+            # batches whose output was already written before shutdown.
+            resume_from_batch = min(
+                max(int(self._task_model.progress.current), 0),
+                total_batches,
+            )
+            if resume_from_batch:
+                logger.info(
+                    "Resuming focus stacking for project '%s', scan %s from batch %s/%s",
+                    project_name,
+                    scan_index,
+                    resume_from_batch,
+                    total_batches,
+                )
+
             # Yield initial progress
-            yield TaskProgress(current=0, total=total_batches, message="Starting calibration...")
+            yield TaskProgress(
+                current=resume_from_batch,
+                total=total_batches,
+                message="Starting calibration...",
+            )
 
             # Calibration phase (CPU-intensive, run in executor)
             logger.info(f"Calibrating with {num_calibration_batches} batches...")
@@ -103,13 +123,27 @@ class FocusStackingTask(BaseTask):
             calibration_path.write_text(json.dumps(calibration_payload, indent=2), encoding="utf-8")
             logger.info("Calibration complete")
 
-            yield TaskProgress(current=0, total=total_batches, message="Calibration complete, starting stacking...")
+            yield TaskProgress(
+                current=resume_from_batch,
+                total=total_batches,
+                message="Calibration complete, starting stacking...",
+            )
 
             # Process all batches
             output_paths = []
 
             for idx, (position, image_paths) in enumerate(sorted(batches.items())):
                 await self.wait_for_pause()
+
+                output_path = output_dir / f"stacked_scan{scan_index:02d}_{position:03d}.jpg"
+                if idx < resume_from_batch and output_path.exists():
+                    output_paths.append(str(output_path))
+                    logger.debug(
+                        "Skipping already completed stacking batch %s (position %s)",
+                        idx + 1,
+                        position,
+                    )
+                    continue
 
                 # Check for cancel
                 if self.is_cancelled():
@@ -138,7 +172,6 @@ class FocusStackingTask(BaseTask):
                     return
 
                 # Stack this batch (CPU-intensive, run in executor)
-                output_path = output_dir / f"stacked_scan{scan_index:02d}_{position:03d}.jpg"
                 await loop.run_in_executor(
                     None,
                     self._stack_batch,

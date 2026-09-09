@@ -53,7 +53,7 @@ def test_focus_stacking_endpoints_available_only_in_v0_8(
 @pytest.mark.parametrize("endpoint", [
     ("pause", "Focus stacking is not running"),
     ("cancel", "Focus stacking is not running"),
-    ("resume", "Focus stacking is not paused"),
+    ("resume", "Focus stacking is not paused or interrupted"),
 ])
 def test_focus_stacking_conflict(
     monkeypatch,
