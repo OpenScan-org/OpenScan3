@@ -54,7 +54,7 @@ async def test_start_scan_restarts_interrupted_task(sample_scan_model: Scan) -> 
 
 
 @pytest.mark.asyncio
-async def test_start_scan_replacement_keeps_existing_dependency(sample_scan_model: Scan) -> None:
+async def test_start_scan_replacement_does_not_inherit_dependency(sample_scan_model: Scan) -> None:
     scan = sample_scan_model
     scan.task_id = "task-interrupted"
     scan.camera_name = "mock-cam"
@@ -80,12 +80,7 @@ async def test_start_scan_replacement_keeps_existing_dependency(sample_scan_mode
     with patch("openscan_firmware.controllers.services.scans.get_task_manager", return_value=task_manager_mock):
         await scans.start_scan(project_manager, scan, camera_controller)
 
-    task_manager_mock.create_and_run_task.assert_awaited_once_with(
-        "scan_task",
-        scan,
-        0,
-        depends_on="task-prerequisite",
-    )
+    task_manager_mock.create_and_run_task.assert_awaited_once_with("scan_task", scan, 0)
 
 @pytest.mark.asyncio
 async def test_pause_scan_updates_status_and_persists(sample_scan_model: Scan) -> None:

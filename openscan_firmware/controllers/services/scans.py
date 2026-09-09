@@ -53,7 +53,6 @@ async def start_scan(
     # If the scan already has a task_id, check its status.
     # This prevents creating a new task for a scan that is already running, paused, etc.
     replaced_task_id: str | None = None
-    replacement_dependency = depends_on
     if scan.task_id:
         existing_task = task_manager.get_task_info(scan.task_id)
         restartable_statuses = {
@@ -79,15 +78,13 @@ async def start_scan(
                     start_from_step,
                 )
             replaced_task_id = existing_task.id
-            if replacement_dependency is None:
-                replacement_dependency = existing_task.depends_on
         else:
             # Keep the stale ID long enough to repoint any dependents after the
             # replacement task has been created.
             replaced_task_id = scan.task_id
 
     task_name = "scan_task"
-    task_kwargs = {"depends_on": replacement_dependency} if replacement_dependency is not None else {}
+    task_kwargs = {"depends_on": depends_on} if depends_on is not None else {}
     task = await task_manager.create_and_run_task(
         task_name,
         scan,

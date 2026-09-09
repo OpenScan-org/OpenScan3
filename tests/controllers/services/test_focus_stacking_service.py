@@ -131,7 +131,7 @@ async def test_start_focus_stacking_removes_replaced_task(
 
 
 @pytest.mark.asyncio
-async def test_start_focus_stacking_replacement_keeps_existing_dependency(
+async def test_start_focus_stacking_replacement_does_not_inherit_dependency(
     scan: Scan,
     patch_project_manager,
     patch_task_manager,
@@ -156,12 +156,7 @@ async def test_start_focus_stacking_replacement_keeps_existing_dependency(
 
     await service.start_focus_stacking("demo", 1)
 
-    patch_task_manager.create_and_run_task.assert_awaited_once_with(
-        "focus_stacking_task",
-        "demo",
-        1,
-        depends_on="task-prerequisite",
-    )
+    patch_task_manager.create_and_run_task.assert_awaited_once_with("focus_stacking_task", "demo", 1)
     patch_task_manager.replace_task.assert_awaited_once_with(
         "task-interrupted",
         "task-new",

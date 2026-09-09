@@ -44,7 +44,6 @@ async def start_focus_stacking(
 
     existing = scan.stacking_task_status
     replaced_task_id: str | None = None
-    replacement_dependency = depends_on
     if existing and existing.task_id:
         existing_task = task_manager.get_task_info(existing.task_id)
         if existing_task and existing_task.status in _ACTIVE_STATUSES:
@@ -58,10 +57,8 @@ async def start_focus_stacking(
             return existing_task
 
         replaced_task_id = existing.task_id
-        if replacement_dependency is None and existing_task is not None:
-            replacement_dependency = existing_task.depends_on
 
-    task_kwargs = {"depends_on": replacement_dependency} if replacement_dependency is not None else {}
+    task_kwargs = {"depends_on": depends_on} if depends_on is not None else {}
     task = await task_manager.create_and_run_task(
         "focus_stacking_task",
         project_name,
