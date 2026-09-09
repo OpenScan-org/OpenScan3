@@ -315,7 +315,7 @@ async def test_pm_save_scan_state_persists_stacking_status(
 
     assert reloaded_scan is not None
     assert reloaded_scan.stacking_task_status is not None
-    assert reloaded_scan.stacking_task_status.task_id is None
+    assert reloaded_scan.stacking_task_status.task_id == "stack-123"
     assert reloaded_scan.stacking_task_status.status == TaskStatus.INTERRUPTED
 
 

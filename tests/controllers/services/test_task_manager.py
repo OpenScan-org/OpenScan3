@@ -547,6 +547,29 @@ async def test_pause_and_resume_task(task_manager_fixture: TaskManager):
     assert final_task_state.status == TaskStatus.COMPLETED
 
 
+async def test_resume_interrupted_task_uses_persisted_progress(task_manager_fixture: TaskManager):
+    """An interrupted task can be resumed after its in-memory execution is gone."""
+    tm = task_manager_fixture
+    task = Task(
+        name="hello_world_progress_task",
+        task_type="hello_world_progress_task",
+        status=TaskStatus.INTERRUPTED,
+        progress=TaskProgress(current=2, total=4, message="Interrupted"),
+        run_kwargs={"total_steps": 4, "interval": 0.01},
+    )
+    tm._save_task_state(task)
+    tm.restore_tasks_from_persistence()
+
+    resumed_task = await tm.resume_task(task.id)
+
+    assert resumed_task.id == task.id
+    assert resumed_task.status in (TaskStatus.RUNNING, TaskStatus.PENDING)
+    assert resumed_task.progress.current == 2
+
+    final_task_state = await tm.wait_for_task(task.id, timeout=2)
+    assert final_task_state.status == TaskStatus.COMPLETED
+
+
 async def test_streaming_task_progress(task_manager_fixture: TaskManager):
     """
     Tests that a task using an async generator correctly streams progress updates.

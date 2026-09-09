@@ -879,10 +879,12 @@ class TaskManager:
 
     async def resume_task(self, task_id: str) -> Task | None:
         """
-        Resumes a paused task.
+        Resumes a paused or interrupted task.
 
         This method is the single point of control for resuming a task.
-        It sets the task status back to RUNNING and signals the task to continue.
+        A paused task is signaled to continue in its existing execution context.
+        An interrupted task has no execution context after an application restart,
+        so it is scheduled again with its persisted arguments and progress.
 
         Args:
             task_id: The ID of the task to resume.
@@ -890,11 +892,23 @@ class TaskManager:
         Returns:
             The updated task model if found and resumed, otherwise None.
         """
-        if task_id not in self._running_task_instances:
-            logger.warning(f"Cannot resume task {task_id}: not currently running or does not exist.")
-            return self.get_task_info(task_id)
+        task_model = self.get_task_info(task_id)
+        if task_model is None:
+            logger.warning(f"Cannot resume task {task_id}: task does not exist.")
+            return None
 
-        task_model = self._tasks[task_id]
+        if task_model.status == TaskStatus.INTERRUPTED:
+            logger.info(
+                "Resuming interrupted task '%s' (%s) from persisted progress.",
+                task_model.name,
+                task_id,
+            )
+            return await self._restart_task(task_model, reset_progress=False)
+
+        if task_id not in self._running_task_instances:
+            logger.warning(f"Cannot resume task {task_id}: not currently running.")
+            return task_model
+
         task_instance = self._running_task_instances[task_id]
 
         if task_model.status != TaskStatus.PAUSED:
@@ -912,11 +926,11 @@ class TaskManager:
 
     async def restart_task(self, task_id: str) -> Task | None:
         """
-        Restarts a task that is in a CANCELLED or ERROR state.
+        Restarts a task that is in a CANCELLED, ERROR, or INTERRUPTED state.
 
         The task will be re-queued or run immediately with its original arguments.
-        The task's implementation is responsible for handling the continuation
-        from its last known progress.
+        Cancelled and failed tasks start with fresh progress. Interrupted tasks
+        retain their persisted progress so task implementations can continue.
 
         Args:
             task_id: The ID of the task to restart.
@@ -925,7 +939,7 @@ class TaskManager:
             The updated task model if found, otherwise None.
         """
         task_model = self.get_task_info(task_id)
-        if not task_model:
+        if task_model is None:
             logger.warning(f"Attempted to restart non-existent task {task_id}.")
             return None
 
@@ -933,13 +947,22 @@ class TaskManager:
             logger.warning(f"Task {task_id} is not in a restartable state (status: {task_model.status}).")
             return task_model
 
-        # Reset task state for restart, but keep progress and original creation date
+        return await self._restart_task(
+            task_model,
+            reset_progress=task_model.status != TaskStatus.INTERRUPTED,
+        )
+
+    async def _restart_task(self, task_model: Task, *, reset_progress: bool) -> Task:
+        """Reset lifecycle state and schedule a previously stopped task."""
+
+        # Reset lifecycle state while keeping the original task identity and creation date.
         task_model.status = TaskStatus.PENDING
         task_model.started_at = None
         task_model.completed_at = None
         task_model.error = None
         task_model.result = None
-        task_model.progress = TaskProgress()  # Resets progress
+        if reset_progress:
+            task_model.progress = TaskProgress()
 
         self._save_task_state(task_model)  # Persist the reset state before queuing
         await task_event_publisher.publish(task_model, TaskEventType.UPDATE)
