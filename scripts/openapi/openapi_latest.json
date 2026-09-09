@@ -1900,6 +1900,22 @@
               "default": "",
               "title": "Scan Description"
             }
+          },
+          {
+            "name": "depends_on",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Depends On"
+            }
           }
         ],
         "requestBody": {
@@ -1971,6 +1987,22 @@
                 }
               ],
               "title": "Token Override"
+            }
+          },
+          {
+            "name": "depends_on",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Depends On"
             }
           }
         ],
@@ -3674,7 +3706,7 @@
           "tasks"
         ],
         "summary": "Create Task",
-        "description": "Create and start a new background task with optional parameters.\n\nThe request body accepts:\n- **args**: List of positional arguments (e.g., `[\"project_name\", 0]`)\n- **kwargs**: Dictionary of keyword arguments (e.g., `{\"num_batches\": 5}`)\n\nArgs:\n    task_name: The name of the task to create, as registered in the TaskManager.\n    args: Positional arguments to pass to the task's run method.\n    kwargs: Keyword arguments to pass to the task's run method.\n\nReturns:\n    The created task object.\n\nExamples:\n    ```json\n    // No parameters\n    {}\n\n    // With positional args\n    {\n        \"args\": [\"MyProject\", 0]\n    }\n\n    // With keyword args\n    {\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n\n    // With both\n    {\n        \"args\": [\"MyProject\", 0],\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n    ```",
+        "description": "Create and start a new background task with optional parameters.\n\nThe request body accepts:\n- **depends_on**: Optional ID of a prerequisite task\n- **args**: List of positional arguments (e.g., `[\"project_name\", 0]`)\n- **kwargs**: Dictionary of keyword arguments (e.g., `{\"num_batches\": 5}`)\n\nArgs:\n    task_name: The name of the task to create, as registered in the TaskManager.\n    args: Positional arguments to pass to the task's run method.\n    kwargs: Keyword arguments to pass to the task's run method.\n\nReturns:\n    The created task object.\n\nExamples:\n    ```json\n    // No parameters\n    {}\n\n    // With positional args\n    {\n        \"args\": [\"MyProject\", 0]\n    }\n\n    // With keyword args\n    {\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n\n    // With both\n    {\n        \"args\": [\"MyProject\", 0],\n        \"kwargs\": {\"num_calibration_batches\": 5}\n    }\n    ```",
         "operationId": "create_task",
         "parameters": [
           {
@@ -4415,6 +4447,22 @@
               "type": "integer",
               "title": "Scan Index"
             }
+          },
+          {
+            "name": "depends_on",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Depends On"
+            }
           }
         ],
         "responses": {
@@ -4683,6 +4731,18 @@
             "title": "Kwargs",
             "description": "Keyword arguments for the task",
             "default": {}
+          },
+          "depends_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depends On",
+            "description": "Optional task ID that must complete successfully before this task runs"
           }
         },
         "type": "object",
@@ -6682,6 +6742,18 @@
             ],
             "title": "Completed At"
           },
+          "depends_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depends On",
+            "description": "Task ID that must complete successfully before this task may run."
+          },
           "run_args": {
             "items": {},
             "type": "array",
@@ -6806,7 +6878,7 @@
           "reboot_required"
         ],
         "title": "UpdateInstallResponse",
-        "description": "Result of a synchronous user-requested update installation."
+        "description": "Acceptance or result of a user-requested update installation."
       },
       "UpdateStatusResponse": {
         "properties": {
