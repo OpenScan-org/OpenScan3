@@ -2160,7 +2160,7 @@
           "projects"
         ],
         "summary": "Resume Scan",
-        "description": "Resume a paused, cancelled or failed scan and return the resulting Task\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to resume\n    camera_name: The name of the camera to use for the scan\n\nReturns:\n    Task: The resumed or restarted task",
+        "description": "Resume a paused or interrupted scan, or restart a cancelled or failed scan.\n\nReturn the resulting Task.\n\nArgs:\n    project_name: The name of the project\n    scan_index: The index of the scan to resume\n    camera_name: The name of the camera to use for the scan\n\nReturns:\n    Task: The resumed or restarted task",
         "operationId": "resume_scan",
         "parameters": [
           {
@@ -3295,7 +3295,7 @@
           "tasks"
         ],
         "summary": "Resume a Task",
-        "description": "Resumes a paused task.\n\nArgs:\n    task_id: The ID of the task to resume.\n\nReturns:\n    Task: The task object with its status and details.",
+        "description": "Resumes a paused or interrupted task.\n\nArgs:\n    task_id: The ID of the task to resume.\n\nReturns:\n    Task: The task object with its status and details.",
         "operationId": "resume_task",
         "parameters": [
           {
@@ -4073,7 +4073,7 @@
           "focus_stacking"
         ],
         "summary": "Resume Focus Stacking",
-        "description": "Resume a paused focus stacking task.",
+        "description": "Resume a paused or interrupted focus stacking task.",
         "operationId": "resume_focus_stacking",
         "parameters": [
           {

@@ -49,7 +49,7 @@ def patch_project_manager(monkeypatch, scan: Scan):
 def patch_task_manager(monkeypatch):
     task_manager = MagicMock()
     task_manager.create_and_run_task = AsyncMock()
-    task_manager.delete_task = AsyncMock()
+    task_manager.replace_task = AsyncMock()
     task_manager.pause_task = AsyncMock()
     task_manager.resume_task = AsyncMock()
     task_manager.cancel_task = AsyncMock()
@@ -123,8 +123,49 @@ async def test_start_focus_stacking_removes_replaced_task(
 
     task = await service.start_focus_stacking("demo", 1)
 
-    patch_task_manager.delete_task.assert_awaited_once_with("task-interrupted")
+    patch_task_manager.replace_task.assert_awaited_once_with(
+        "task-interrupted",
+        "task-new",
+    )
     assert task.id == "task-new"
+
+
+@pytest.mark.asyncio
+async def test_start_focus_stacking_replacement_keeps_existing_dependency(
+    scan: Scan,
+    patch_project_manager,
+    patch_task_manager,
+):
+    scan.stacking_task_status = StackingTaskStatus(
+        task_id="task-interrupted",
+        status=TaskStatus.INTERRUPTED,
+    )
+    patch_task_manager.get_task_info.return_value = Task(
+        name="focus_stacking_task",
+        task_type="core",
+        status=TaskStatus.INTERRUPTED,
+        id="task-interrupted",
+        depends_on="task-prerequisite",
+    )
+    patch_task_manager.create_and_run_task.return_value = Task(
+        name="focus_stacking_task",
+        task_type="core",
+        status=TaskStatus.PENDING,
+        id="task-new",
+    )
+
+    await service.start_focus_stacking("demo", 1)
+
+    patch_task_manager.create_and_run_task.assert_awaited_once_with(
+        "focus_stacking_task",
+        "demo",
+        1,
+        depends_on="task-prerequisite",
+    )
+    patch_task_manager.replace_task.assert_awaited_once_with(
+        "task-interrupted",
+        "task-new",
+    )
 
 
 @pytest.mark.asyncio

@@ -86,11 +86,14 @@ async def test_upload_project_rejects_uploaded_project(monkeypatch, project_mana
 
 
 @pytest.mark.asyncio
-async def test_upload_project_rejects_running_task(monkeypatch, project_manager, task_manager):
+@pytest.mark.parametrize("status", [TaskStatus.RUNNING, TaskStatus.INTERRUPTED])
+async def test_upload_project_rejects_active_or_interrupted_task(
+    monkeypatch, project_manager, task_manager, status
+):
     task = Task(
         name="cloud_upload_task",
         task_type="cloud_upload_task",
-        status=TaskStatus.RUNNING,
+        status=status,
         run_args=("demo",),
     )
     task_manager.add_task(task)
@@ -144,7 +147,10 @@ async def test_download_project_requires_remote(monkeypatch, project_manager, ta
 
 
 @pytest.mark.asyncio
-async def test_download_project_rejects_running_task(monkeypatch, project_manager, task_manager):
+@pytest.mark.parametrize("status", [TaskStatus.RUNNING, TaskStatus.INTERRUPTED])
+async def test_download_project_rejects_active_or_interrupted_task(
+    monkeypatch, project_manager, task_manager, status
+):
     project = project_manager.get_project_by_name("demo")
     project.cloud_project_name = "demo-remote.zip"
 
@@ -156,7 +162,7 @@ async def test_download_project_rejects_running_task(monkeypatch, project_manage
     task = Task(
         name="cloud_download_task",
         task_type="cloud_download_task",
-        status=TaskStatus.RUNNING,
+        status=status,
         run_args=("demo",),
     )
     task_manager.add_task(task)

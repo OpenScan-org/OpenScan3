@@ -163,7 +163,7 @@ async def test_pm_init_loads_existing_project(project_manager: ProjectManager,
     assert actual_scan.current_step == 10
 
 
-@pytest.mark.parametrize("initial_status", [TaskStatus.RUNNING, TaskStatus.PENDING])
+@pytest.mark.parametrize("initial_status", [TaskStatus.RUNNING, TaskStatus.PENDING, TaskStatus.PAUSED])
 def test_pm_recovers_incomplete_scans(
     tmp_path: Path, sample_scan_settings: ScanSetting, initial_status: TaskStatus
 ):

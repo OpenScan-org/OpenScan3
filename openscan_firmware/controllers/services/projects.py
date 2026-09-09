@@ -296,7 +296,7 @@ class ProjectManager:
         for scan in project.scans.values():
             dirty = False
 
-            if scan.status in {TaskStatus.RUNNING, TaskStatus.PENDING}:
+            if scan.status in {TaskStatus.RUNNING, TaskStatus.PENDING, TaskStatus.PAUSED}:
                 logger.debug(
                     "Resetting scan %s for project %s from %s to interrupted",
                     scan.index,

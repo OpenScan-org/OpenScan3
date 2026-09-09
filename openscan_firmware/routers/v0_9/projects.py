@@ -380,7 +380,9 @@ async def pause_scan(project_name: str, scan_index: int) -> Task:
 
 @router.patch("/{project_name}/scans/{scan_index:int}/resume", response_model=Task)
 async def resume_scan(project_name: str, scan_index: int, camera_name: str) -> Task:
-    """Resume a paused, cancelled or failed scan and return the resulting Task
+    """Resume a paused or interrupted scan, or restart a cancelled or failed scan.
+
+    Return the resulting Task.
 
     Args:
         project_name: The name of the project

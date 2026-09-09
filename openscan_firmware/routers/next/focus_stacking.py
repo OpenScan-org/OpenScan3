@@ -46,7 +46,7 @@ async def pause_focus_stacking(project_name: str, scan_index: int) -> Task:
 
 @router.patch("/{project_name}/scans/{scan_index:int}/focus-stacking/resume", response_model=Task)
 async def resume_focus_stacking(project_name: str, scan_index: int) -> Task:
-    """Resume a paused focus stacking task."""
+    """Resume a paused or interrupted focus stacking task."""
     try:
         task = await focus_service.resume_focus_stacking(project_name, scan_index)
     except ValueError as exc:
@@ -55,7 +55,7 @@ async def resume_focus_stacking(project_name: str, scan_index: int) -> Task:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     if task is None:
-        raise HTTPException(status_code=409, detail="Focus stacking is not paused")
+        raise HTTPException(status_code=409, detail="Focus stacking is not paused or interrupted")
 
     return task
 

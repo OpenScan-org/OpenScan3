@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from openscan_firmware.controllers.services.tasks.core.focus_stacking_task import FocusStackingTask
-from openscan_firmware.models.task import TaskStatus
+from openscan_firmware.models.task import Task, TaskProgress, TaskStatus
 
 
 async def wait_for_status(task_manager, task_id: str, expected_status: TaskStatus, timeout: float = 5.0):
@@ -107,6 +107,43 @@ async def test_focus_stacking_task_happy_path(
     }
     assert expected_relpaths.issubset(set(updated_scan.photos))
     assert updated_scan.stacked_size_bytes > 0
+
+
+@pytest.mark.asyncio
+async def test_focus_stacking_task_resumes_from_persisted_batch_progress(
+    monkeypatch,
+    focus_task_manager,
+    focus_stacking_environment,
+    focus_stacking_batches,
+):
+    stack_impl = make_writing_stack_impl()
+    configure_focus_stacking_task(monkeypatch, focus_stacking_environment, focus_stacking_batches, stack_impl)
+
+    project = focus_stacking_environment["project"]
+    scan = focus_stacking_environment["scan"]
+    first_output = focus_stacking_environment["stacked_dir"] / f"stacked_scan{scan.index:02d}_001.jpg"
+    first_output.write_bytes(b"already completed")
+
+    task_model = Task(
+        name="focus_stacking_task",
+        task_type="focus_stacking_task",
+        status=TaskStatus.INTERRUPTED,
+        progress=TaskProgress(current=1, total=2, message="Stacking batch 1 of 2"),
+        run_args=(project.name, scan.index),
+    )
+    focus_task_manager._tasks[task_model.id] = task_model
+    focus_task_manager._save_task_state(task_model)
+
+    resumed_task = await focus_task_manager.resume_task(task_model.id)
+    assert resumed_task is not None
+
+    final_state = await wait_for_status(focus_task_manager, task_model.id, TaskStatus.COMPLETED)
+
+    second_output = focus_stacking_environment["stacked_dir"] / f"stacked_scan{scan.index:02d}_002.jpg"
+    assert first_output.read_bytes() == b"already completed"
+    assert second_output.read_bytes() == b"stacked"
+    assert stack_impl.call_counter["value"] == 1
+    assert final_state.result["stacked_image_count"] == 2
 
 
 @pytest.mark.asyncio

@@ -482,9 +482,35 @@ class TaskManager:
         # Delete the persisted file
         self._delete_task_state(task_id)
 
+    async def replace_task(self, task_id: str, replacement_task_id: str) -> None:
+        """Replace a task while preserving references from dependent tasks."""
+        if task_id == replacement_task_id:
+            raise ValueError("A task cannot replace itself.")
+
+        replacement = self.get_task_info(replacement_task_id)
+        if replacement is None:
+            raise ValueError(
+                f"Replacement task '{replacement_task_id}' does not exist."
+            )
+
+        for dependent in self._tasks.values():
+            if dependent.depends_on != task_id:
+                continue
+
+            dependent.depends_on = replacement_task_id
+            self._save_task_state(dependent)
+            await task_event_publisher.publish(dependent, TaskEventType.UPDATE)
+
+        await self.delete_task(task_id)
+
+        # A very short replacement can complete before the references above
+        # are updated. Re-run dependency handling for that case.
+        if replacement.status == TaskStatus.COMPLETED:
+            await self._handle_dependency_completion(replacement)
+
     async def wait_for_task(self, task_id: str, timeout: float = 20.0) -> Task:
         """
-        Waits for a task to reach a terminal state (Completed, Error, Cancelled).
+        Waits for a task to reach a terminal state (Completed, Error, Cancelled, Interrupted).
 
         Args:
             task_id: The ID of the task to wait for.
@@ -503,7 +529,12 @@ class TaskManager:
         start_time = time.time()
         while time.time() - start_time < timeout:
             task_model = self.get_task_info(task_id)
-            if task_model.status in [TaskStatus.COMPLETED, TaskStatus.ERROR, TaskStatus.CANCELLED]:
+            if task_model.status in [
+                TaskStatus.COMPLETED,
+                TaskStatus.ERROR,
+                TaskStatus.CANCELLED,
+                TaskStatus.INTERRUPTED,
+            ]:
                 # Give the event loop one last cycle to process any final updates in the wrapper
                 await asyncio.sleep(0)
                 return self.get_task_info(task_id)

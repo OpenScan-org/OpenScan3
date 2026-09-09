@@ -542,7 +542,7 @@ async def upload_project(
             task.task_type == "cloud_upload_task"
             and task.run_args
             and task.run_args[0] == project_name
-            and task.status in {TaskStatus.PENDING, TaskStatus.RUNNING}
+            and task.status in {TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.INTERRUPTED}
         ):
             raise CloudServiceError(
                 "An upload for this project is already in progress. Wait for completion or cancel it."
@@ -603,7 +603,7 @@ async def download_project(
             task.task_type == "cloud_download_task"
             and task.run_args
             and task.run_args[0] == project_name
-            and task.status in {TaskStatus.PENDING, TaskStatus.RUNNING}
+            and task.status in {TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.INTERRUPTED}
         ):
             raise CloudServiceError(
                 "A download for this project is already in progress. Wait for completion or cancel it."

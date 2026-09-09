@@ -112,7 +112,7 @@ async def pause_task(task_id: str):
 @router.post("/{task_id}/resume", response_model=Task, summary="Resume a Task")
 async def resume_task(task_id: str):
     """
-    Resumes a paused task.
+    Resumes a paused or interrupted task.
 
     Args:
         task_id: The ID of the task to resume.

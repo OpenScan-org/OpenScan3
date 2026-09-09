@@ -513,6 +513,70 @@ async def test_dependency_cycle_is_rejected(task_manager_fixture: TaskManager):
         tm._validate_dependency(cycle_candidate)
 
 
+async def test_replacing_task_repoints_dependents(task_manager_fixture: TaskManager):
+    """Replacing a task keeps dependent tasks attached to the new task ID."""
+    tm = task_manager_fixture
+    interrupted = Task(
+        name="hello_world_progress_task",
+        task_type="hello_world_progress_task",
+        status=TaskStatus.INTERRUPTED,
+    )
+    replacement = Task(
+        name="hello_world_progress_task",
+        task_type="hello_world_progress_task",
+        status=TaskStatus.PENDING,
+    )
+    dependent = Task(
+        name="hello_world_progress_task",
+        task_type="hello_world_progress_task",
+        status=TaskStatus.PENDING,
+        depends_on=interrupted.id,
+    )
+    dependent_dependent = Task(
+        name="hello_world_progress_task",
+        task_type="hello_world_progress_task",
+        status=TaskStatus.PENDING,
+        depends_on=dependent.id,
+    )
+    tm._tasks.update(
+        {
+            interrupted.id: interrupted,
+            replacement.id: replacement,
+            dependent.id: dependent,
+            dependent_dependent.id: dependent_dependent,
+        }
+    )
+    tm._save_task_state(interrupted)
+    tm._save_task_state(replacement)
+    tm._save_task_state(dependent)
+    tm._save_task_state(dependent_dependent)
+
+    await tm.replace_task(interrupted.id, replacement.id)
+
+    assert tm.get_task_info(interrupted.id) is None
+    assert dependent.depends_on == replacement.id
+    assert dependent_dependent.depends_on == dependent.id
+    with open(TASKS_STORAGE_PATH / f"{dependent.id}.json") as task_file:
+        persisted_dependent = json.load(task_file)
+    assert persisted_dependent["depends_on"] == replacement.id
+    assert not os.path.exists(TASKS_STORAGE_PATH / f"{interrupted.id}.json")
+
+
+async def test_wait_for_interrupted_task_returns_immediately(task_manager_fixture: TaskManager):
+    """Interrupted is a terminal persisted state until an explicit resume."""
+    tm = task_manager_fixture
+    task = Task(
+        name="hello_world_progress_task",
+        task_type="hello_world_progress_task",
+        status=TaskStatus.INTERRUPTED,
+    )
+    tm._tasks[task.id] = task
+
+    waited_for = await tm.wait_for_task(task.id, timeout=0.01)
+
+    assert waited_for is task
+
+
 async def test_pause_and_resume_task(task_manager_fixture: TaskManager):
     """
     Tests pausing and resuming a running task.
