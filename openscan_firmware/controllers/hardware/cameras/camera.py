@@ -10,6 +10,7 @@ import abc
 import asyncio
 import logging
 import threading
+from contextlib import asynccontextmanager
 from importlib import import_module
 from typing import IO, Dict, Optional
 
@@ -160,6 +161,16 @@ class CameraController(StatefulHardware):
     async def photo_async(self, image_format: str = "jpeg") -> PhotoData:
         """Capture a photo without blocking the asyncio event loop."""
         return await asyncio.to_thread(self.photo, image_format)
+
+    @asynccontextmanager
+    async def capture_session(self, image_format: str = "jpeg"):
+        """Keep a camera-specific capture mode active for a sequence of photos.
+
+        Camera implementations that need a persistent capture configuration can
+        override this method. Other camera backends retain their existing
+        per-photo behavior.
+        """
+        yield self
 
     async def preview_async(self) -> Optional[IO[bytes]]:
         """Capture a preview without blocking the event loop.

@@ -13,6 +13,7 @@ import asyncio
 import io
 import logging
 import os
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import AsyncGenerator, Optional, Tuple
@@ -201,9 +202,11 @@ class ScanTask(BaseTask):
         )
 
         try:
-            # Execute main scan loop
-            async for progress in self._execute_scan_loop(resume_from_step, total):
-                yield progress
+            # Manual-focus and focus-stacking scans do not benefit from the
+            # autofocus-oriented preview mode between individual captures.
+            async with self._capture_session(camera_controller, scan, focus_context):
+                async for progress in self._execute_scan_loop(resume_from_step, total):
+                    yield progress
         except Exception as e:
             logger.error(
                 "Error during scan %s for project %s: %s",
@@ -218,6 +221,18 @@ class ScanTask(BaseTask):
             raise
         finally:
             await self._cleanup_scan()
+
+    @asynccontextmanager
+    async def _capture_session(self, camera_controller: object, scan: Scan, focus_context: Optional[dict]):
+        """Keep manual-focus captures in one camera mode for the scan."""
+        manual_focus_scan = camera_controller.settings.AF is False
+        focus_stacking_scan = bool(focus_context and focus_context["enabled"])
+
+        if manual_focus_scan or focus_stacking_scan:
+            async with camera_controller.capture_session(scan.settings.image_format):
+                yield
+        else:
+            yield
 
     async def _initialize_controllers(self, scan: Scan) -> Tuple[object, ProjectManager]:
         """Initialize camera controller and project manager.

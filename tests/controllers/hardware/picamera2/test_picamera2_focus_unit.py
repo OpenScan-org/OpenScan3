@@ -57,6 +57,32 @@ class _FakePicam:
         return {"LensPosition": self._lens_position}
 
 
+class _FakeRequest:
+    def make_array(self, _name):
+        return "array"
+
+    def get_metadata(self):
+        return {"SensorTimestamp": 1}
+
+    def release(self):
+        pass
+
+
+class _SessionFakePicam(_FakePicam):
+    def __init__(self):
+        super().__init__()
+        self.switch_mode_calls = []
+        self.capture_request_calls = 0
+
+    def switch_mode(self, config, wait=True):
+        self.switch_mode_calls.append((config, wait))
+        return True
+
+    def capture_request(self, wait=True):
+        self.capture_request_calls += 1
+        return _FakeRequest()
+
+
 def test_configure_focus_sets_preview_autofocus_window(monkeypatch):
     module = _import_picamera2_module(monkeypatch)
     controller = object.__new__(module.Picamera2Controller)
@@ -131,6 +157,26 @@ def test_manual_camera_controls_are_shared_by_preview_and_still_capture(monkeypa
         "Contrast": 1.3,
         "ColourGains": (1.4, 1.5),
     }
+
+
+def test_capture_session_captures_without_switching_back(monkeypatch):
+    module = _import_picamera2_module(monkeypatch)
+    controller = object.__new__(module.Picamera2Controller)
+    controller.settings = CameraSettings(AF=False, manual_focus=1.0)
+    controller.camera = types.SimpleNamespace(name="test_camera")
+    controller._picam = _SessionFakePicam()
+    controller._busy = False
+    controller._capture_session_active = True
+    controller._capture_session_config = None
+    controller._capture_session_image_format = "rgb_array"
+    controller.rgb_config = {"name": "rgb"}
+
+    array, metadata = controller._capture_array(controller.rgb_config)
+
+    assert array == "array"
+    assert metadata == {"SensorTimestamp": 1}
+    assert controller._picam.capture_request_calls == 1
+    assert controller._picam.switch_mode_calls == [(controller.rgb_config, True)]
 
 
 def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropped(monkeypatch):
