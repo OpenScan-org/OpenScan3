@@ -530,11 +530,27 @@ class Picamera2Controller(CameraController):
 
     def restart_camera(self):
         """Restart the camera and reconfigure resolution."""
-        self._picam.stop()
-        self._set_busy(False)
-        self._configure_resolutions()
-        self._picam.configure(self.preview_config)
-        self._picam.start()
+        # A photo request may be waiting on a Picamera2 job (for example an
+        # autofocus cycle). Cancel and flush those jobs before closing the
+        # camera so the waiting photo call can unwind.
+        try:
+            self._picam.cancel_all_and_flush()
+        except Exception:
+            logger.exception("Failed to cancel pending Picamera2 jobs before restart.")
+
+        # Wait for an in-flight photo/preview call to unwind before replacing
+        # the Picamera2 instance. The cancellation above wakes a photo waiting
+        # on a Picamera2 job; this lock waits for that caller to leave.
+        with self._hw_lock:
+            self._picam.stop()
+            self._picam.close()
+            self._picam = Picamera2()
+            self._configure_resolutions()
+            self._picam.configure(self.preview_config)
+            self._picam.start()
+            self._apply_settings_to_hardware(self.camera.settings)
+            self._configure_focus(camera_mode="preview")
+            self._set_busy(False)
         logger.info(f"Picamera2 restarted.")
 
     def _capture_array(self, config):

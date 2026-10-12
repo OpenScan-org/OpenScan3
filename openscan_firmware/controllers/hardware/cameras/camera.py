@@ -138,6 +138,24 @@ class CameraController(StatefulHardware):
                 return handler[image_format]()
             except KeyError:
                 raise ValueError(f"Unsupported image format: {image_format}")
+            except asyncio.CancelledError as exc:
+                logger.warning(
+                    "Camera '%s' photo capture was cancelled (likely during camera restart).",
+                    self.camera.name,
+                )
+                raise RuntimeError("Photo capture was cancelled because the camera is restarting.") from exc
+            except RuntimeError:
+                logger.exception(
+                    "Camera '%s' photo capture failed for image format '%s'.",
+                    self.camera.name,
+                    image_format,
+                )
+                raise
+            finally:
+                # Capture implementations set this flag while talking to the
+                # hardware. An exception or a cancelled Picamera2 job must
+                # not leave the API reporting the camera as busy forever.
+                self._set_busy(False)
 
     async def photo_async(self, image_format: str = "jpeg") -> PhotoData:
         """Capture a photo without blocking the asyncio event loop."""
