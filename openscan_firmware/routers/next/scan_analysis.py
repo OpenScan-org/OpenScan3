@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.controllers.services import scan_analysis as scan_analysis_service
+from openscan_firmware.models.scan_analysis import NormalizedCrop
 from openscan_firmware.models.task import Task
 
 
@@ -24,6 +25,17 @@ class ScanAnalysisRequest(BaseModel):
     depends_on: str | None = Field(
         default=None,
         description="Optional task ID that must complete successfully before this task runs.",
+    )
+    debug_images: bool = Field(
+        default=False,
+        description="Include compact ROI debug images in the result.",
+    )
+    crop: NormalizedCrop | None = Field(
+        default=None,
+        description=(
+            "Optional normalized x, y, width, height crop in the oriented "
+            "full analysis frame."
+        ),
     )
 
 
@@ -58,6 +70,10 @@ class CropRecommendation(BaseModel):
     crop_height: float | None = Field(
         description="Percentage of image height that can be cropped.",
     )
+    support_exclusion: dict[str, Any] | None = Field(
+        default=None,
+        description="Geometry based exclusion of a lower turntable support.",
+    )
 
 
 class PositionAnalysis(BaseModel):
@@ -68,6 +84,15 @@ class PositionAnalysis(BaseModel):
     )
     horizontal_imbalance: float = Field(
         description="Relative imbalance between the left and right image areas.",
+    )
+    vertical_assessment: dict[str, str] = Field(
+        description="Qualitative guidance for vertical alignment and holder setup.",
+    )
+    horizontal_assessment: dict[str, str] = Field(
+        description="Qualitative guidance for horizontal object centering.",
+    )
+    overall_status: Literal["good", "warning"] = Field(
+        description="Overall qualitative assessment of object placement.",
     )
 
 
@@ -152,7 +177,7 @@ class ScanAnalysisResult(BaseModel):
     """Public result of the scan setup analysis."""
 
     analysis_type: Literal["scan_analysis"]
-    crop_recommendation: CropRecommendation
+    crop_recommendation: CropRecommendation | None = None
     position_analysis: PositionAnalysis
     camera_settings: CameraSettingsResult | None = Field(
         default=None,
@@ -165,6 +190,13 @@ class ScanAnalysisResult(BaseModel):
     sift_analysis: SiftAnalysis | None = Field(
         default=None,
         description="SIFT feature matching metrics from a small turntable rotation.",
+    )
+    focus_analysis: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Regional ISP focus measurements and a preliminary autofocus or "
+            "focus-stacking assessment."
+        ),
     )
     sift_benchmark: SiftBenchmark | None = Field(
         default=None,
@@ -193,6 +225,8 @@ async def start_scan_analysis(request: ScanAnalysisRequest) -> ScanAnalysisTaskR
         return await scan_analysis_service.start_scan_analysis(
             camera_name=request.camera_name,
             depends_on=request.depends_on,
+            debug_images=request.debug_images,
+            crop=request.crop,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

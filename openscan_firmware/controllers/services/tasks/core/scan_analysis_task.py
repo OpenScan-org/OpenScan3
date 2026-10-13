@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
@@ -16,13 +16,15 @@ from openscan_firmware.controllers.services.tasks.core.scan_analysis_report impo
     build_scan_analysis_result,
 )
 from openscan_firmware.models.paths import PolarPoint3D
+from openscan_firmware.models.scan_analysis import NormalizedCrop
 from openscan_firmware.models.task import TaskProgress
 from openscan_firmware.utils.photos.analysis import (
     AnalysisFrame,
     analyze_sift_pair,
     analyze_cropping_roi,
+    analyze_focus_series,
+    crop_normalized_image,
     prepare_analysis_frame,
-    prepare_sift_image,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,12 +50,33 @@ class ScanAnalysisContext:
     settle_time_s: float
     calibrate_awb: Any
     calibrate_exposure: Any
+    set_extended_debug: Any
     calibration_available: bool
     initial_calibration_steps: int
     per_position_calibration_steps: int
     sift_steps: int
     total_captures: int
+    position_count: int
     total_work: int
+    crop: NormalizedCrop | None
+
+
+@dataclass
+class ScanAnalysisMeasurements:
+    """Frames and camera snapshots collected during one analysis run."""
+
+    original_camera_settings: CameraSettings | None
+    debug_images: bool
+    initial_camera_settings: CameraSettings | None = None
+    initial_calibration: dict[str, Any] = field(default_factory=dict)
+    position_camera_settings: list[CameraSettings] = field(default_factory=list)
+    focus_series: dict[str, list[AnalysisFrame]] = field(default_factory=dict)
+    captured_frames: list[tuple[AnalysisFrame, dict[str, Any]]] = field(
+        default_factory=list
+    )
+    focus_reports: list[dict[str, Any]] = field(default_factory=list)
+    sift_analysis: dict[str, Any] | None = None
+    sift_benchmark_paths: dict[str, str] | None = None
 
 
 class ScanAnalysisTask(BaseTask):
@@ -66,6 +89,7 @@ class ScanAnalysisTask(BaseTask):
     async def run(
         self,
         camera_name: str,
+        crop: NormalizedCrop | list[float] | None = None,
         turntable_offsets: list[float] | None = None,
         settle_time_s: float = 0.25,
         focus_values: list[float] | None = None,
@@ -77,6 +101,11 @@ class ScanAnalysisTask(BaseTask):
         sift_grid_columns: int = DEFAULT_SIFT_GRID_COLUMNS,
     ) -> AsyncGenerator[TaskProgress, None]:
         """Capture RGB arrays at relative turntable positions."""
+        normalized_crop = (
+            NormalizedCrop.model_validate(crop)
+            if crop is not None
+            else None
+        )
         offsets = list(DEFAULT_TURNTABLE_OFFSETS if turntable_offsets is None else turntable_offsets)
         focus_values = list(DEFAULT_FOCUS_VALUES if not focus_values else focus_values)
         focus_values = [float(value) for value in focus_values]
@@ -108,16 +137,17 @@ class ScanAnalysisTask(BaseTask):
         if camera_settings is not None and hasattr(camera_settings, "model"):
             original_camera_settings = camera_settings.model.model_copy(deep=True)
 
-        # Only small analysis images are kept between captures. Raw camera arrays
-        # are released before the next capture starts.
-        focus_series: dict[str, list[AnalysisFrame]] = {}
-        captured_frames: list[tuple[AnalysisFrame, dict[str, Any]]] = []
         total_captures = len(offsets) * len(capture_plan)
         calibrate_awb = getattr(camera, "calibrate_awb_and_lock", None)
         calibrate_exposure = getattr(camera, "calibrate_exposure_and_lock", None)
         calibration_available = callable(calibrate_awb) and callable(calibrate_exposure)
-        position_camera_settings: list[CameraSettings] = []
-        initial_camera_settings = original_camera_settings
+        set_extended_debug = getattr(camera, "set_extended_debug_enabled", None)
+        extended_debug_was_enabled = False
+        get_extended_debug_status = getattr(camera, "extended_debug_status", None)
+        if callable(get_extended_debug_status):
+            extended_debug_was_enabled = bool(
+                get_extended_debug_status().get("enabled", False)
+            )
         initial_calibration_steps = 1 if calibration_available else 0
         per_position_calibration_steps = 1 if calibration_available else 0
         sift_steps = 3 if calibration_available else 0
@@ -136,34 +166,49 @@ class ScanAnalysisTask(BaseTask):
             settle_time_s=settle_time_s,
             calibrate_awb=calibrate_awb,
             calibrate_exposure=calibrate_exposure,
+            set_extended_debug=set_extended_debug,
             calibration_available=calibration_available,
             initial_calibration_steps=initial_calibration_steps,
             per_position_calibration_steps=per_position_calibration_steps,
             sift_steps=sift_steps,
             total_captures=total_captures,
+            position_count=len(offsets),
             total_work=total_work,
+            crop=normalized_crop,
         )
-        sift_analysis: dict[str, Any] | None = None
-        sift_benchmark_paths: dict[str, str] | None = None
-        initial_calibration: dict[str, Any] = {}
+        # Only small analysis images are kept between captures. Raw camera arrays
+        # are released before the next capture starts.
+        measurements = ScanAnalysisMeasurements(
+            original_camera_settings=original_camera_settings,
+            debug_images=debug_images,
+            initial_camera_settings=original_camera_settings,
+        )
         task_succeeded = False
 
         try:
-            if calibration_available:
-                async for progress in self._calibrate_initial_camera(
-                    context=context,
-                    result=initial_calibration,
-                ):
-                    yield progress
-                initial_camera_settings = initial_calibration.get(
-                    "camera_settings",
-                    original_camera_settings,
-                )
+            async for progress in self._prepare_analysis_camera(
+                context=context,
+                measurements=measurements,
+            ):
+                yield progress
+            if self.is_cancelled():
+                return
 
-                await self.wait_for_pause()
-                if self.is_cancelled():
-                    return
+            async for progress in self._capture_focus_series(
+                context=context,
+                offsets=offsets,
+                capture_plan=capture_plan,
+                measurements=measurements,
+            ):
+                yield progress
+            if self.is_cancelled():
+                return
 
+            result = self._build_analysis_result(context, measurements)
+            await self._apply_recommended_settings(camera_settings, result)
+
+            if context.calibration_available:
+                await _set_extended_debug(context.set_extended_debug, True)
                 sift_result: dict[str, Any] = {}
                 async for progress in self._capture_sift_probe(
                     context=context,
@@ -175,46 +220,14 @@ class ScanAnalysisTask(BaseTask):
                     result=sift_result,
                 ):
                     yield progress
-                if self.is_cancelled():
-                    return
-                sift_analysis = sift_result.get("analysis")
-                sift_benchmark_paths = sift_result.get("benchmark_paths")
-
-            async for progress in self._capture_focus_series(
-                context=context,
-                offsets=offsets,
-                capture_plan=capture_plan,
-                debug_images=debug_images,
-                focus_series=focus_series,
-                captured_frames=captured_frames,
-                position_camera_settings=position_camera_settings,
-            ):
-                yield progress
+                measurements.sift_analysis = sift_result.get("analysis")
+                measurements.sift_benchmark_paths = sift_result.get("benchmark_paths")
+                if measurements.sift_analysis is not None:
+                    result["sift_analysis"] = measurements.sift_analysis
+                if measurements.sift_benchmark_paths is not None:
+                    result["sift_benchmark"] = measurements.sift_benchmark_paths
             if self.is_cancelled():
                 return
-
-            analysis = analyze_cropping_roi(
-                focus_series,
-                captured_frames=captured_frames if debug_images else None,
-            )
-            result = build_scan_analysis_result(
-                analysis=analysis,
-                position_camera_settings=position_camera_settings,
-                previous_camera_settings=original_camera_settings,
-                initial_camera_settings=initial_camera_settings,
-                sift_analysis=sift_analysis,
-                sift_benchmark_paths=sift_benchmark_paths,
-            )
-
-            if camera_settings is not None and "camera_settings" in result:
-                recommended_settings = CameraSettings.model_validate(
-                    result["camera_settings"]["recommended"]
-                )
-                await asyncio.to_thread(
-                    camera_settings.replace,
-                    recommended_settings,
-                )
-                result["camera_settings"]["applied"] = True
 
             self._task_model.result = result
             task_succeeded = True
@@ -224,15 +237,95 @@ class ScanAnalysisTask(BaseTask):
                 message="Analysis frames captured.",
             )
         finally:
-            if not task_succeeded and original_camera_settings is not None:
+            if not task_succeeded and measurements.original_camera_settings is not None:
                 try:
-                    await _restore_camera_settings(camera_settings, original_camera_settings)
+                    await _restore_camera_settings(
+                        camera_settings,
+                        measurements.original_camera_settings,
+                    )
                 except Exception:
                     logger.exception("Failed to restore camera settings after scan analysis.")
             try:
                 await motors.move_to_point(original_position)
             except Exception:
                 logger.exception("Failed to restore motor position after scan analysis.")
+            if callable(set_extended_debug):
+                try:
+                    await asyncio.to_thread(set_extended_debug, extended_debug_was_enabled)
+                except Exception:
+                    logger.exception("Failed to restore extended camera debug state.")
+
+    async def _prepare_analysis_camera(
+        self,
+        context: ScanAnalysisContext,
+        measurements: ScanAnalysisMeasurements,
+    ) -> AsyncGenerator[TaskProgress, None]:
+        """Calibrate the initial camera state for the analysis run."""
+        if not context.calibration_available:
+            await _set_extended_debug(context.set_extended_debug, True)
+            return
+
+        async for progress in self._calibrate_initial_camera(
+            context=context,
+            result=measurements.initial_calibration,
+        ):
+            yield progress
+        measurements.initial_camera_settings = measurements.initial_calibration.get(
+            "camera_settings",
+            measurements.original_camera_settings,
+        )
+
+        await _set_extended_debug(context.set_extended_debug, True)
+
+    def _build_analysis_result(
+        self,
+        context: ScanAnalysisContext,
+        measurements: ScanAnalysisMeasurements,
+    ) -> dict[str, Any]:
+        """Analyze collected frames and assemble the public task result."""
+        # Automatic crop recommendation is intentionally disabled. The
+        # frontend supplies the crop used for analysis when available.
+        # Re-enable ``recommend_crop=True`` here when automatic cropping
+        # becomes useful again.
+        analysis = analyze_cropping_roi(
+            measurements.focus_series,
+            captured_frames=(
+                measurements.captured_frames if measurements.debug_images else None
+            ),
+            recommend_crop=False,
+        )
+        analysis["crop_recommendation"] = None
+        focus_analysis = analyze_focus_series(
+            measurements.focus_reports,
+            crop_recommendation=(
+                {"rect_normalized": list(context.crop.root)}
+                if context.crop is not None
+                else None
+            ),
+        )
+        return build_scan_analysis_result(
+            analysis=analysis,
+            position_camera_settings=measurements.position_camera_settings,
+            previous_camera_settings=measurements.original_camera_settings,
+            initial_camera_settings=measurements.initial_camera_settings,
+            sift_analysis=measurements.sift_analysis,
+            sift_benchmark_paths=measurements.sift_benchmark_paths,
+            focus_analysis=focus_analysis,
+        )
+
+    async def _apply_recommended_settings(
+        self,
+        camera_settings: Any,
+        result: dict[str, Any],
+    ) -> None:
+        """Keep the recommended settings active after a successful run."""
+        if camera_settings is None or "camera_settings" not in result:
+            return
+        recommended_settings = CameraSettings.model_validate(
+            result["camera_settings"]["recommended"]
+        )
+        await asyncio.to_thread(camera_settings.replace, recommended_settings)
+        result["camera_settings"]["applied"] = True
 
     async def _calibrate_initial_camera(
         self,
@@ -265,8 +358,14 @@ class ScanAnalysisTask(BaseTask):
         result: dict[str, Any],
     ) -> AsyncGenerator[TaskProgress, None]:
         """Capture, compare, and report the two SIFT probe frames."""
+        await self.wait_for_pause()
+        if self.is_cancelled():
+            return
+        await context.motors.move_to_point(context.original_position)
+        if context.settle_time_s:
+            await asyncio.sleep(context.settle_time_s)
+
         sift_focus_mode, sift_focus = _sift_focus_plan(context.camera_settings)
-        crop_width, crop_height = _sift_crop_values(context.camera_settings)
         first_sift_path = None
         second_sift_path = None
         if sift_benchmark:
@@ -289,13 +388,14 @@ class ScanAnalysisTask(BaseTask):
             analysis_max_dimension=sift_max_dimension,
             raw_image_path=first_sift_path,
         )
-        first_sift_image = prepare_sift_image(
-            first_sift_frame,
-            crop_width=crop_width,
-            crop_height=crop_height,
+        first_sift_image = _prepare_task_sift_image(first_sift_frame, context.crop)
+        sift_progress_start = (
+            context.initial_calibration_steps
+            + context.total_captures
+            + context.per_position_calibration_steps * context.position_count
         )
         yield TaskProgress(
-            current=context.initial_calibration_steps + 1,
+            current=sift_progress_start + 1,
             total=context.total_work,
             message="Captured first SIFT comparison frame.",
         )
@@ -333,13 +433,9 @@ class ScanAnalysisTask(BaseTask):
             analysis_max_dimension=sift_max_dimension,
             raw_image_path=second_sift_path,
         )
-        second_sift_image = prepare_sift_image(
-            second_sift_frame,
-            crop_width=crop_width,
-            crop_height=crop_height,
-        )
+        second_sift_image = _prepare_task_sift_image(second_sift_frame, context.crop)
         yield TaskProgress(
-            current=context.initial_calibration_steps + 2,
+            current=sift_progress_start + 2,
             total=context.total_work,
             message="Captured second SIFT comparison frame.",
         )
@@ -353,7 +449,7 @@ class ScanAnalysisTask(BaseTask):
         sift_analysis["turntable_angle"] = float(sift_turntable_angle)
         result["analysis"] = sift_analysis
         yield TaskProgress(
-            current=context.initial_calibration_steps + 3,
+            current=sift_progress_start + 3,
             total=context.total_work,
             message="SIFT feature matching completed.",
         )
@@ -363,10 +459,7 @@ class ScanAnalysisTask(BaseTask):
         context: ScanAnalysisContext,
         offsets: list[float],
         capture_plan: list[tuple[str, float | None]],
-        debug_images: bool,
-        focus_series: dict[str, list[AnalysisFrame]],
-        captured_frames: list[tuple[AnalysisFrame, dict[str, Any]]],
-        position_camera_settings: list[CameraSettings],
+        measurements: ScanAnalysisMeasurements,
     ) -> AsyncGenerator[TaskProgress, None]:
         """Capture the focus series at each configured turntable position."""
         for index, offset in enumerate(offsets):
@@ -384,18 +477,23 @@ class ScanAnalysisTask(BaseTask):
                 await asyncio.sleep(context.settle_time_s)
 
             if context.calibration_available:
-                position_settings = await _calibrate_analysis_camera_settings(
-                    calibrate_awb=context.calibrate_awb,
-                    calibrate_exposure=context.calibrate_exposure,
-                    camera_settings=context.camera_settings,
-                    include_awb=False,
-                )
+                if callable(context.set_extended_debug):
+                    await asyncio.to_thread(context.set_extended_debug, False)
+                try:
+                    position_settings = await _calibrate_analysis_camera_settings(
+                        calibrate_awb=context.calibrate_awb,
+                        calibrate_exposure=context.calibrate_exposure,
+                        camera_settings=context.camera_settings,
+                        include_awb=False,
+                    )
+                finally:
+                    if callable(context.set_extended_debug):
+                        await asyncio.to_thread(context.set_extended_debug, True)
                 if position_settings is not None:
-                    position_camera_settings.append(position_settings)
+                    measurements.position_camera_settings.append(position_settings)
                 yield TaskProgress(
                     current=(
                         context.initial_calibration_steps
-                        + context.sift_steps
                         + index * (
                             len(capture_plan) + context.per_position_calibration_steps
                         )
@@ -423,18 +521,18 @@ class ScanAnalysisTask(BaseTask):
                     requested_focus=requested_focus,
                 )
 
-                if debug_images:
-                    captured_frames.append((frame, frame_report))
+                if measurements.debug_images:
+                    measurements.captured_frames.append((frame, frame_report))
+                measurements.focus_reports.append(frame_report)
                 series_name = (
                     "autofocus"
                     if focus_mode == "autofocus"
                     else str(requested_focus)
                 )
-                focus_series.setdefault(series_name, []).append(frame)
+                measurements.focus_series.setdefault(series_name, []).append(frame)
 
                 current = (
                     context.initial_calibration_steps
-                    + context.sift_steps
                     + index * (
                         len(capture_plan) + context.per_position_calibration_steps
                     )
@@ -525,6 +623,17 @@ async def _calibrate_analysis_camera_settings(
     return camera_settings.model.model_copy(deep=True)
 
 
+async def _set_extended_debug(set_extended_debug: Any, enabled: bool) -> None:
+    """Set extended camera debug state when the controller supports it."""
+    if not callable(set_extended_debug):
+        return
+    if not await asyncio.to_thread(set_extended_debug, enabled):
+        logger.warning(
+            "Extended camera debug could not be %s for scan analysis.",
+            "enabled" if enabled else "restored",
+        )
+
+
 async def _update_focus(settings: Any, autofocus: bool, focus: float | None = None) -> None:
     """Apply one focus mode without blocking the task event loop."""
     if settings is None:
@@ -546,17 +655,16 @@ def _sift_focus_plan(camera_settings: Any) -> tuple[str, float | None]:
     return "manual", float(manual_focus)
 
 
-def _sift_crop_values(camera_settings: Any) -> tuple[float, float]:
-    """Read the centered crop used for both SIFT comparison frames."""
-    settings_model = getattr(camera_settings, "model", None)
-    crop_width = getattr(settings_model, "crop_width", 0) if settings_model else 0
-    crop_height = getattr(settings_model, "crop_height", 0) if settings_model else 0
-    return (
-        float(crop_width or 0),
-        float(crop_height or 0),
-    )
+def _prepare_task_sift_image(
+    frame: AnalysisFrame,
+    crop: NormalizedCrop | None,
+) -> np.ndarray:
+    """Prepare a SIFT image using the explicit task crop when provided."""
+    if crop is None:
+        return frame.analysis_image
+    return crop_normalized_image(frame.analysis_image, crop.as_tuple)
 
 
 async def _restore_camera_settings(settings: Any, original_settings: Any) -> None:
-    """Restore the complete camera settings model after the focus sweep."""
+    """Restore camera settings when the analysis did not complete successfully."""
     await asyncio.to_thread(settings.replace, original_settings)

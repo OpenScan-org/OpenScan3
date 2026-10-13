@@ -14,11 +14,12 @@ def build_scan_analysis_result(
     initial_camera_settings: CameraSettings | None = None,
     sift_analysis: dict[str, Any] | None = None,
     sift_benchmark_paths: dict[str, str] | None = None,
+    focus_analysis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the persisted result for a scan analysis task."""
     result: dict[str, Any] = {
         "analysis_type": "scan_analysis",
-        "crop_recommendation": analysis["crop_recommendation"],
+        "crop_recommendation": analysis.get("crop_recommendation"),
         "position_analysis": analysis["position_analysis"],
     }
     if previous_camera_settings is not None or initial_camera_settings is not None:
@@ -37,11 +38,8 @@ def build_scan_analysis_result(
         if position_camera_settings:
             setting_updates["gain"] = 1.0
 
-        crop_recommendation = analysis.get("crop_recommendation") or {}
-        if crop_recommendation.get("crop_width") is not None:
-            setting_updates["crop_width"] = round(crop_recommendation["crop_width"])
-        if crop_recommendation.get("crop_height") is not None:
-            setting_updates["crop_height"] = round(crop_recommendation["crop_height"])
+        # Automatic crop application is intentionally disabled. The frontend
+        # owns the explicit crop and the task only recommends camera exposure.
 
         if setting_updates:
             recommended_settings = recommended_settings.model_copy(update=setting_updates)
@@ -56,6 +54,8 @@ def build_scan_analysis_result(
         result["sift_analysis"] = sift_analysis
     if sift_benchmark_paths is not None:
         result["sift_benchmark"] = sift_benchmark_paths
+    if focus_analysis is not None:
+        result["focus_analysis"] = focus_analysis
     if "debug_images" in analysis:
         result["debug_images"] = analysis["debug_images"]
     return result

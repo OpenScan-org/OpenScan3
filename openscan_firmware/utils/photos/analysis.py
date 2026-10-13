@@ -56,18 +56,23 @@ class SiftQualityThresholds:
 
 _CROPPING_ROI_TAIL_WIDTH_RATIO = 0.4
 _CROPPING_ROI_TAIL_MIN_ROWS = 12
+_CROPPING_ROI_SUPPORT_MIN_ROWS = 12
+_CROPPING_ROI_SUPPORT_MIN_GROWTH = 1.15
 
 
 def analyze_cropping_roi(
     focus_series: dict[str, list[AnalysisFrame]],
     *,
     captured_frames: list[tuple[AnalysisFrame, dict[str, Any]]] | None = None,
+    recommend_crop: bool = True,
 ) -> dict[str, Any]:
     """Analyze crop suitability and object position from focus series.
 
     The object position is reported through vertical and horizontal imbalance
     values calculated from the cropping ROI. When ``captured_frames`` is
-    provided, compact debug images are included as well.
+    provided, compact debug images are included as well. Set
+    ``recommend_crop`` to false when the ROI is only needed for position
+    analysis.
     """
     cropping_roi_masks = {
         focus: _detect_cropping_roi_mask(series)
@@ -79,8 +84,23 @@ def analyze_cropping_roi(
         width_ratio=_CROPPING_ROI_TAIL_WIDTH_RATIO,
         min_rows=_CROPPING_ROI_TAIL_MIN_ROWS,
     )
-    crop_recommendation = _crop_recommendation(object_mask)
-    position_analysis = _calculate_position_imbalance(object_mask)
+    support_mask = _remove_bottom_cropping_roi_support(
+        object_mask,
+        min_rows=_CROPPING_ROI_SUPPORT_MIN_ROWS,
+        min_width_growth=_CROPPING_ROI_SUPPORT_MIN_GROWTH,
+    )
+    support_removed = not np.array_equal(object_mask, support_mask)
+    object_mask = support_mask
+    crop_recommendation = _crop_recommendation(object_mask) if recommend_crop else None
+    if crop_recommendation is not None:
+        crop_recommendation["support_exclusion"] = {
+            "applied": support_removed,
+            "method": "silhouette_transition",
+        }
+    position_analysis = _calculate_position_imbalance(
+        object_mask,
+        support_removed=support_removed,
+    )
 
     result: dict[str, Any] = {
         "crop_recommendation": crop_recommendation,
@@ -94,6 +114,378 @@ def analyze_cropping_roi(
             object_mask,
         )
     return result
+
+
+def analyze_focus_series(
+    frame_reports: list[dict[str, Any]],
+    *,
+    crop_recommendation: dict[str, Any] | None = None,
+    autofocus_quality_ratio: float = 0.9,
+    distinct_focus_delta: float = 0.5,
+    min_focus_plane_weight: float = 0.5,
+) -> dict[str, Any]:
+    """Summarize regional ISP focus measurements from a focus sweep.
+
+    The Raspberry Pi ISP supplies a focus value for each cell of its focus
+    statistics grid.  This report keeps every measurement and adds small
+    heuristics that help decide whether a single autofocus result is likely
+    sufficient or whether focus stacking deserves consideration.  The
+    heuristic is intentionally conservative because the default sweep has
+    only a few focus samples.
+    """
+    measurements: list[dict[str, Any]] = []
+    orientation_flag = _focus_orientation_flag(frame_reports)
+    focus_geometry = _focus_crop_geometry(
+        crop_recommendation,
+        orientation_flag=orientation_flag,
+    )
+    for report in frame_reports:
+        raw_metadata = report.get("camera_metadata", {}).get("raw_metadata", {})
+        extended_debug = raw_metadata.get("extended_debug", {})
+        focus = extended_debug.get("focus")
+        if not focus or not focus.get("regions"):
+            continue
+        measurements.append(
+            {
+                "index": report.get("index"),
+                "capture_index": report.get("capture_index"),
+                "turntable_offset": report.get("turntable_offset"),
+                "turntable_angle": report.get("turntable_angle"),
+                "focus_mode": report.get("focus_mode"),
+                "requested_focus": report.get("requested_focus"),
+                "actual_lens_position": report.get("actual_lens_position"),
+                "focus_fom": report.get("focus_fom"),
+                "source": focus.get("source"),
+                "coordinate_system": focus.get("coordinate_system"),
+                "grid_size": focus.get("grid_size"),
+                "extended_debug": {
+                    "schema_version": extended_debug.get("schema_version"),
+                    "stats_output_enabled": extended_debug.get("stats_output_enabled"),
+                    "sources": [
+                        {
+                            key: source.get(key)
+                            for key in (
+                                "metadata_key",
+                                "blob_size",
+                                "parser_supported",
+                                "version",
+                                "declared_size",
+                                "error",
+                            )
+                            if key in source
+                        }
+                        for source in extended_debug.get("sources", [])
+                    ],
+                    "errors": extended_debug.get("errors", []),
+                },
+                "regions": [
+                    _focus_region_report(region, focus_geometry)
+                    for region in focus["regions"]
+                ],
+            }
+        )
+
+    positions: list[dict[str, Any]] = []
+    for offset in _ordered_focus_offsets(measurements):
+        position_measurements = [
+            item for item in measurements
+            if item.get("turntable_offset") == offset
+        ]
+        manual = [item for item in position_measurements if item.get("focus_mode") == "manual"]
+        autofocus = next(
+            (item for item in position_measurements if item.get("focus_mode") == "autofocus"),
+            None,
+        )
+        positions.append(
+            _analyze_focus_position(
+                offset,
+                autofocus,
+                manual,
+                autofocus_quality_ratio=autofocus_quality_ratio,
+                distinct_focus_delta=distinct_focus_delta,
+                min_focus_plane_weight=min_focus_plane_weight,
+            )
+        )
+
+    if not measurements:
+        return {
+            "status": "unavailable",
+            "reason": "No decoded ISP focus statistics were present in the captures.",
+            "measurements": [],
+            "positions": [],
+        }
+
+    stacking_positions = [
+        position for position in positions
+        if position.get("recommendation") == "stacking_candidate"
+    ]
+    autofocus_positions = [
+        position for position in positions
+        if position.get("recommendation") == "autofocus_sufficient"
+    ]
+    if stacking_positions:
+        status = "stacking_candidate"
+    elif positions and len(autofocus_positions) == len(positions):
+        status = "autofocus_sufficient"
+    else:
+        status = "more_data_needed"
+
+    return {
+        "status": status,
+        "heuristic": {
+            "autofocus_quality_ratio": autofocus_quality_ratio,
+            "distinct_focus_delta": distinct_focus_delta,
+            "min_focus_plane_weight": min_focus_plane_weight,
+            "sampling": "coarse_focus_sweep",
+            "crop_geometry": focus_geometry,
+        },
+        "measurements": measurements,
+        "positions": positions,
+    }
+
+
+def _ordered_focus_offsets(measurements: list[dict[str, Any]]) -> list[float]:
+    """Return turntable offsets in their first observed order."""
+    offsets: list[float] = []
+    for measurement in measurements:
+        value = measurement.get("turntable_offset")
+        if value is None:
+            continue
+        value = float(value)
+        if value not in offsets:
+            offsets.append(value)
+    return offsets
+
+
+def _analyze_focus_position(
+    offset: float,
+    autofocus: dict[str, Any] | None,
+    manual: list[dict[str, Any]],
+    *,
+    autofocus_quality_ratio: float,
+    distinct_focus_delta: float,
+    min_focus_plane_weight: float,
+) -> dict[str, Any]:
+    """Analyze one turntable position while preserving the regional values."""
+    result: dict[str, Any] = {
+        "turntable_offset": offset,
+        "autofocus": autofocus,
+        "manual": manual,
+        "manual_sample_count": len(manual),
+        "best_focus_by_region": [],
+        "best_focus_value_by_region": [],
+        "focus_span": None,
+        "autofocus_coverage": None,
+        "focus_weight_by_setting": {},
+        "effective_region_weight": 0.0,
+        "recommendation": "insufficient_data",
+    }
+    if not manual:
+        return result
+
+    region_values: dict[int, list[tuple[float, float, float]]] = {}
+    for measurement in manual:
+        requested_focus = measurement.get("requested_focus")
+        if requested_focus is None:
+            continue
+        for region in measurement.get("regions", []):
+            focus_value = region.get("focus_value")
+            index = region.get("index")
+            if focus_value is None or index is None:
+                continue
+            region_weight = max(0.0, float(region.get("crop_overlap_weight", 1.0)))
+            if region_weight <= 0:
+                continue
+            region_values.setdefault(int(index), []).append(
+                (float(requested_focus), float(focus_value), region_weight)
+            )
+
+    winners: list[dict[str, Any]] = []
+    winner_focuses: list[float] = []
+    for index in sorted(region_values):
+        samples = region_values[index]
+        best_focus, best_value, region_weight = max(samples, key=lambda item: item[1])
+        winners.append(
+            {
+                "index": index,
+                "best_focus": best_focus,
+                "focus_value": best_value,
+                "crop_overlap_weight": round(region_weight, 6),
+                "samples": [
+                    {
+                        "requested_focus": focus,
+                        "focus_value": value,
+                        "crop_overlap_weight": round(weight, 6),
+                    }
+                    for focus, value, weight in samples
+                ],
+            }
+        )
+        winner_focuses.append(best_focus)
+
+    result["best_focus_by_region"] = winners
+    result["best_focus_value_by_region"] = winner_focuses
+    if winner_focuses:
+        result["focus_span"] = {
+            "min": min(winner_focuses),
+            "max": max(winner_focuses),
+            "range": max(winner_focuses) - min(winner_focuses),
+        }
+        focus_weight_by_setting: dict[str, float] = {}
+        for winner in winners:
+            key = _focus_setting_key(winner["best_focus"])
+            focus_weight_by_setting[key] = (
+                focus_weight_by_setting.get(key, 0.0)
+                + winner["crop_overlap_weight"]
+            )
+        total_weight = sum(focus_weight_by_setting.values())
+        result["focus_weight_by_setting"] = {
+            key: round(value / total_weight, 6) if total_weight else 0.0
+            for key, value in focus_weight_by_setting.items()
+        }
+        result["effective_region_weight"] = round(total_weight, 6)
+
+    if autofocus is not None and winners:
+        autofocus_values = {
+            int(region["index"]): float(region["focus_value"])
+            for region in autofocus.get("regions", [])
+            if region.get("index") is not None and region.get("focus_value") is not None
+        }
+        covered = 0
+        compared = 0
+        for winner in winners:
+            autofocus_value = autofocus_values.get(winner["index"])
+            if autofocus_value is None:
+                continue
+            compared += 1
+            if winner["focus_value"] <= 0 or autofocus_value >= winner["focus_value"] * autofocus_quality_ratio:
+                covered += 1
+        result["autofocus_coverage"] = covered / compared if compared else None
+
+    weighted_focuses = [
+        float(key)
+        for key, weight in result["focus_weight_by_setting"].items()
+        if weight >= min_focus_plane_weight
+    ]
+    distinct_focuses = _distinct_values(weighted_focuses, distinct_focus_delta)
+    if len(distinct_focuses) > 1 and result["focus_span"]["range"] >= distinct_focus_delta:
+        result["recommendation"] = "stacking_candidate"
+    elif result["autofocus_coverage"] is not None and result["autofocus_coverage"] >= 0.8:
+        result["recommendation"] = "autofocus_sufficient"
+    else:
+        result["recommendation"] = "more_data_needed"
+    return result
+
+
+def _distinct_values(values: list[float], delta: float) -> list[float]:
+    """Group nearby focus settings so sensor noise does not create planes."""
+    distinct: list[float] = []
+    for value in sorted(values):
+        if not distinct or value - distinct[-1] >= delta:
+            distinct.append(value)
+    return distinct
+
+
+def _focus_setting_key(value: float) -> str:
+    """Use stable JSON keys for focus settings while retaining numeric values."""
+    return f"{value:g}"
+
+
+def _focus_orientation_flag(frame_reports: list[dict[str, Any]]) -> int:
+    """Read the orientation used by the oriented analysis frame."""
+    for report in frame_reports:
+        settings = report.get("camera_metadata", {}).get("camera_settings", {})
+        value = settings.get("orientation_flag")
+        if value is not None:
+            return int(value)
+    return 1
+
+
+def _focus_crop_geometry(
+    crop_recommendation: dict[str, Any] | None,
+    *,
+    orientation_flag: int,
+) -> dict[str, Any]:
+    """Describe the crop in the sensor and oriented coordinate systems."""
+    crop_rect = (crop_recommendation or {}).get("rect_normalized")
+    if not crop_rect:
+        return {
+            "applied": False,
+            "orientation_flag": orientation_flag,
+        }
+    return {
+        "applied": True,
+        "orientation_flag": orientation_flag,
+        "coordinate_system": "oriented_full_analysis_frame",
+        "rect_normalized": [round(float(value), 6) for value in crop_rect],
+    }
+
+
+def _focus_region_report(
+    region: dict[str, Any],
+    focus_geometry: dict[str, Any],
+) -> dict[str, Any]:
+    """Add oriented coordinates and crop overlap to one focus cell."""
+    sensor_rect = region.get("rect_normalized")
+    report = {
+        "index": region.get("index"),
+        "row": region.get("row"),
+        "column": region.get("column"),
+        "rect_normalized": sensor_rect,
+        "focus_value": region.get("focus_value"),
+        "focus_value_raw": region.get("focus_value_raw"),
+        "contrast_value_num": region.get("contrast_value_num"),
+        "crop_overlap_weight": 1.0,
+    }
+    if not sensor_rect:
+        return report
+
+    oriented_rect = _transform_normalized_rect(
+        sensor_rect,
+        int(focus_geometry.get("orientation_flag", 1)),
+    )
+    report["rect_oriented_normalized"] = oriented_rect
+    if focus_geometry.get("applied"):
+        crop_rect = focus_geometry["rect_normalized"]
+        report["crop_overlap_weight"] = round(
+            _rectangle_overlap_fraction(oriented_rect, crop_rect),
+            6,
+        )
+    return report
+
+
+def _transform_normalized_rect(rect: list[float], orientation_flag: int) -> list[float]:
+    """Transform a sensor normalized rectangle into oriented coordinates."""
+    x, y, width, height = [float(value) for value in rect]
+    transformations = {
+        1: (x, y, width, height),
+        2: (1 - x - width, y, width, height),
+        3: (1 - x - width, 1 - y - height, width, height),
+        4: (x, 1 - y - height, width, height),
+        5: (y, x, height, width),
+        6: (1 - y - height, x, height, width),
+        7: (1 - y - height, 1 - x - width, height, width),
+        8: (y, 1 - x - width, height, width),
+    }
+    return [round(value, 6) for value in transformations.get(orientation_flag, transformations[1])]
+
+
+def _rectangle_overlap_fraction(first: list[float], second: list[float]) -> float:
+    """Return the fraction of the first rectangle covered by the second."""
+    first_x, first_y, first_width, first_height = first
+    second_x, second_y, second_width, second_height = second
+    overlap_width = max(
+        0.0,
+        min(first_x + first_width, second_x + second_width)
+        - max(first_x, second_x),
+    )
+    overlap_height = max(
+        0.0,
+        min(first_y + first_height, second_y + second_height)
+        - max(first_y, second_y),
+    )
+    first_area = first_width * first_height
+    return overlap_width * overlap_height / first_area if first_area else 0.0
 
 
 def prepare_analysis_frame(
@@ -154,6 +546,35 @@ def crop_centered_image(
         y_start:y_start + target_height,
         x_start:x_start + target_width,
     ].copy()
+
+
+def crop_normalized_image(
+    image: np.ndarray,
+    rect_normalized: list[float] | tuple[float, float, float, float],
+) -> np.ndarray:
+    """Crop an oriented image using a normalized x, y, width, height rectangle."""
+    if image.ndim < 2:
+        raise ValueError("An analysis image must have at least two dimensions.")
+    if len(rect_normalized) != 4:
+        raise ValueError("A normalized crop must contain x, y, width, and height.")
+
+    x, y, width, height = (float(value) for value in rect_normalized)
+    if (
+        x < 0
+        or y < 0
+        or width <= 0
+        or height <= 0
+        or x + width > 1
+        or y + height > 1
+    ):
+        raise ValueError("A normalized crop must be contained within the image.")
+
+    image_height, image_width = image.shape[:2]
+    x_start = max(0, min(image_width - 1, round(x * image_width)))
+    y_start = max(0, min(image_height - 1, round(y * image_height)))
+    x_end = max(x_start + 1, min(image_width, round((x + width) * image_width)))
+    y_end = max(y_start + 1, min(image_height, round((y + height) * image_height)))
+    return image[y_start:y_end, x_start:x_end].copy()
 
 
 def prepare_sift_image(
@@ -784,8 +1205,12 @@ def _create_cropping_roi_debug_images(detection: _CroppingRoiMask) -> dict[str, 
     }
 
 
-def _calculate_position_imbalance(mask: np.ndarray) -> dict[str, float]:
-    """Calculate vertical and horizontal object distribution imbalance."""
+def _calculate_position_imbalance(
+    mask: np.ndarray,
+    *,
+    support_removed: bool = False,
+) -> dict[str, Any]:
+    """Calculate object distribution imbalance and setup guidance."""
     height, width = mask.shape
     half_height = height // 2
     half_width = width // 2
@@ -793,9 +1218,82 @@ def _calculate_position_imbalance(mask: np.ndarray) -> dict[str, float]:
     bottom = float(mask[half_height:].mean())
     left = float(mask[:, :half_width].mean())
     right = float(mask[:, half_width:].mean())
+    vertical_imbalance = round(_imbalance(top, bottom), 6)
+    horizontal_imbalance = round(_imbalance(left, right), 6)
+    vertical_assessment = _imbalance_assessment(
+        vertical_imbalance,
+        axis="vertical",
+        support_removed=support_removed,
+    )
+    horizontal_assessment = _imbalance_assessment(
+        horizontal_imbalance,
+        axis="horizontal",
+    )
     return {
-        "vertical_imbalance": round(_imbalance(top, bottom), 6),
-        "horizontal_imbalance": round(_imbalance(left, right), 6),
+        "vertical_imbalance": vertical_imbalance,
+        "horizontal_imbalance": horizontal_imbalance,
+        "vertical_assessment": vertical_assessment,
+        "horizontal_assessment": horizontal_assessment,
+        "overall_status": (
+            "good"
+            if vertical_assessment["level"] == "balanced"
+            and horizontal_assessment["level"] == "balanced"
+            else "warning"
+        ),
+    }
+
+
+def _imbalance_assessment(
+    value: float,
+    *,
+    axis: str,
+    support_removed: bool = False,
+) -> dict[str, str]:
+    """Turn an imbalance value into setup guidance for the user."""
+    if value < 0.15:
+        return {
+            "level": "balanced",
+            "recommendation": "none",
+            "message": f"The object is balanced on the {axis} axis.",
+        }
+    if value < 0.30:
+        recommendation = (
+            "consider_centering_object"
+            if axis == "vertical" and support_removed
+            else "inspect_turntable_holder"
+            if axis == "vertical"
+            else "consider_centering_object"
+        )
+        return {
+            "level": "moderate",
+            "recommendation": recommendation,
+            "message": (
+                f"The object is moderately imbalanced on the {axis} axis; "
+                "check its alignment."
+            ),
+        }
+    recommendation = (
+        "center_object"
+        if axis == "vertical" and support_removed
+        else "check_turntable_holder"
+        if axis == "vertical"
+        else "center_object"
+    )
+    return {
+        "level": "strong",
+        "recommendation": recommendation,
+        "message": (
+            f"The object is strongly imbalanced on the {axis} axis; "
+            + (
+                (
+                    "the object should be centered better."
+                    if support_removed
+                    else "the turntable holder may be visible or misaligned."
+                )
+                if axis == "vertical"
+                else "the object should be centered better."
+            )
+        ),
     }
 
 
@@ -844,6 +1342,93 @@ def _remove_narrow_cropping_roi_tail(
 
     trimmed = mask.copy()
     trimmed[start + 1:] = False
+    return trimmed
+
+
+def _remove_bottom_cropping_roi_support(
+    mask: np.ndarray,
+    *,
+    min_rows: int = 12,
+    min_width_growth: float = 1.4,
+) -> np.ndarray:
+    """Remove a broad support that starts below the object.
+
+    The temporal ROI contains everything that rotates with the object, including
+    a holder attached below it.  A colour test would depend on the particular
+    holder, so this heuristic uses only the silhouette.  A holder often starts
+    with a broad shoulder below a narrower object, or widens after a narrow
+    transition.  Objects without either profile are left unchanged.
+    """
+    if min_rows < 1:
+        raise ValueError("min_rows must be positive.")
+    if min_width_growth <= 1:
+        raise ValueError("min_width_growth must be greater than 1.")
+
+    row_widths = np.zeros(mask.shape[0], dtype=float)
+    for row, values in enumerate(mask):
+        columns = np.flatnonzero(values)
+        if len(columns):
+            row_widths[row] = columns[-1] - columns[0] + 1
+
+    occupied_rows = np.flatnonzero(row_widths > 0)
+    if not len(occupied_rows):
+        return mask
+
+    start = int(occupied_rows[0])
+    end = int(occupied_rows[-1])
+    object_height = end - start + 1
+    if object_height < min_rows * 2:
+        return mask
+
+    smoothing_radius = max(1, min(8, object_height // 30))
+    padded = np.pad(
+        row_widths,
+        smoothing_radius,
+        mode="edge",
+    )
+    kernel = np.ones(2 * smoothing_radius + 1) / (2 * smoothing_radius + 1)
+    smoothed = np.convolve(padded, kernel, mode="valid")
+
+    search_start = start + max(min_rows, int(object_height * 0.55))
+    search_end = end - min_rows + 1
+    if search_start >= search_end:
+        return mask
+
+    # First detect a broad shoulder.  Comparing short windows makes this work
+    # for holders whose cone narrows below the shoulder as well as for holders
+    # that widen all the way to the bottom.
+    window = max(4, min(12, object_height // 20))
+    for candidate in range(search_start, search_end):
+        before_start = max(start, candidate - window)
+        before_width = float(np.median(smoothed[before_start:candidate]))
+        after_end = min(end + 1, candidate + 1 + min_rows)
+        after_width = float(np.median(smoothed[candidate + 1:after_end]))
+        if (
+            before_width > 0
+            and after_width / before_width >= min_width_growth
+        ):
+            trimmed = mask.copy()
+            trimmed[candidate + 1:] = False
+            return trimmed
+
+    # If there is no abrupt shoulder, look for a waist in the lower part of the
+    # silhouette.  The last rows are sampled separately so a wide object body
+    # alone does not trigger removal.
+    bottom_sample_start = max(search_start + 1, end - max(min_rows, object_height // 8) + 1)
+    bottom_width = float(np.median(smoothed[bottom_sample_start:end + 1]))
+    if bottom_width <= 0:
+        return mask
+
+    candidate = min(
+        range(search_start, search_end),
+        key=lambda row: smoothed[row],
+    )
+    waist_width = float(smoothed[candidate])
+    if waist_width <= 0 or bottom_width / waist_width < min_width_growth:
+        return mask
+
+    trimmed = mask.copy()
+    trimmed[candidate + 1:] = False
     return trimmed
 
 

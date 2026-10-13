@@ -22,6 +22,9 @@ ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
 from openscan_firmware.controllers.hardware.cameras.camera import CameraController
+from openscan_firmware.controllers.hardware.cameras.picamera2_stats import (
+    decode_extended_debug_metadata,
+)
 from openscan_firmware.models.camera import Camera, CameraMetadata, PhotoData
 from openscan_firmware.config.camera import CameraSettings
 
@@ -201,6 +204,7 @@ class Picamera2Controller(CameraController):
         self._capture_session_active = False
         self._capture_session_config = None
         self._capture_session_image_format = None
+        self._extended_debug_enabled = False
 
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
@@ -336,6 +340,42 @@ class Picamera2Controller(CameraController):
         still_settings.update(manual_controls)
         return still_settings
 
+    def extended_debug_status(self) -> dict[str, Any]:
+        """Return support and activation state for extended ISP diagnostics."""
+        supported = "StatsOutputEnable" in self._picam.camera_controls
+        return {
+            "supported": supported,
+            "enabled": self._extended_debug_enabled,
+            "vendor_statistics": (
+                ["Bcm2835StatsOutput", "PispStatsOutput"] if supported else []
+            ),
+        }
+
+    def set_extended_debug_enabled(self, enabled: bool = True) -> bool:
+        """Enable ISP statistics for future captures.
+
+        The setting is deliberately kept on the controller rather than in
+        ``CameraSettings``.  It is diagnostic capture state and may grow to
+        include more vendor statistics without becoming part of the user's
+        persistent camera setup.
+        """
+        supported = "StatsOutputEnable" in self._picam.camera_controls
+        if enabled and not supported:
+            logger.warning("Extended camera debug is not supported by this camera.")
+            self._extended_debug_enabled = False
+            return False
+
+        self._extended_debug_enabled = bool(enabled)
+        self._configure_resolutions()
+        try:
+            self._picam.set_controls({"StatsOutputEnable": bool(enabled)})
+        except Exception:
+            self._extended_debug_enabled = False
+            logger.exception("Could not apply StatsOutputEnable=%s", enabled)
+            return False
+        logger.info("Extended camera debug enabled=%s", enabled)
+        return True
+
     def _configure_resolutions(self, crop_rect=None):
         """Create all camera configurations.
 
@@ -349,6 +389,8 @@ class Picamera2Controller(CameraController):
                                    "NoiseReductionMode": 0,  # Disable noise reduction
                                    "AwbEnable": False  # Disable automatic white balance
                                    }
+        if self._extended_debug_enabled:
+            photogrammetry_settings["StatsOutputEnable"] = True
 
         self._photogrammetry_settings = photogrammetry_settings.copy()
         still_settings = self._still_capture_controls()
@@ -1022,9 +1064,18 @@ class Picamera2Controller(CameraController):
 
         Returns:
             CameraMetadata: The prepared metadata."""
+        safe_metadata = dict(raw_metadata or {})
+        extended_debug = decode_extended_debug_metadata(safe_metadata)
+        for key in ("Bcm2835StatsOutput", "PispStatsOutput"):
+            # The binary vendor value is not JSON serializable and is replaced
+            # by the normalized extended_debug representation below.
+            safe_metadata.pop(key, None)
+        if extended_debug is not None:
+            safe_metadata["extended_debug"] = extended_debug
+
         camera_metadata = CameraMetadata(camera_name=self.camera.name,
                                          camera_settings=self.settings.model,
-                                         raw_metadata=raw_metadata)
+                                         raw_metadata=safe_metadata)
         return camera_metadata
 
     def _create_artifact(self, data, data_format, camera_metadata) -> PhotoData:
