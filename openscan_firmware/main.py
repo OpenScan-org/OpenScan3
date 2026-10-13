@@ -57,6 +57,7 @@ from openscan_firmware.routers.next import (
     develop as develop_next,
     cloud as cloud_next,
     focus_stacking as focus_stacking_next,
+    scan_analysis as scan_analysis_next,
 )
 from openscan_firmware.controllers import device as device_controller
 
@@ -212,6 +213,7 @@ next_ROUTERS = [
     cloud_next.router,
     websocket_router.router,
     focus_stacking_next.router,
+    scan_analysis_next.router,
 ]
 
 v0_9_ROUTERS = [
