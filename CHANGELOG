@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Autofocus is no longer clamped to 12 and uses the full range up to 15.
 - Added scanner-specific autofocus tuning for the OpenScan Mini with IMX519:
   macro autofocus uses the measured `11.0–15.0` dpt range with a turntable
-  fallback at `11.9`. Other camera and scanner combinations keep their vendor
-  tuning unchanged.
+  fallback at `11.9`.
 
 ### Changed
 
