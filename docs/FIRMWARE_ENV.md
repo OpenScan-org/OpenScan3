@@ -51,4 +51,3 @@ At startup the firmware tries, in order:
    (JSON file under `settings/firmware/cloud.json`).
 2. Environment variables (table above).
 3. If neither is present, uploads remain disabled and a warning is logged.
-

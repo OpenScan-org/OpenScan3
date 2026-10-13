@@ -166,10 +166,25 @@ class Picamera2Controller(CameraController):
         "imx519": IMX519Strategy(),
         "arducam_64mp": HawkeyeStrategy()
     }
+    _tuning_files = {
+        "imx519": "imx519.json",
+        "arducam_64mp": "arducam_64mp.json",
+    }
+    _macro_focus_ranges = {
+        # Measured on the OpenScan Mini with the IMX519: the turntable is at
+        # approximately 11.9 dpt, while useful objects extend towards 15 dpt.
+        ("mini", "imx519"): {
+            "min": 11.0,
+            "max": 15.0,
+            "default": 12.0,
+            "fallback": 11.9,
+            "timeout": 8.0,
+        },
+    }
 
     def __init__(self, camera: Camera):
         super().__init__(camera)
-        self._picam = Picamera2()
+        self._picam = self._create_picamera()
         self._strategy = self._strategies.get(self.camera.name, IMX519Strategy())
         self._is_closing = False
 
@@ -179,6 +194,83 @@ class Picamera2Controller(CameraController):
 
         self._apply_settings_to_hardware(self.camera.settings)
         self._configure_focus(camera_mode="preview")
+
+    def _create_picamera(self) -> Picamera2:
+        """Create Picamera2 with the camera's tuned autofocus range."""
+        focus_range = self._macro_focus_ranges.get((self.camera.scanner_model, self.camera.name))
+        if focus_range is None:
+            logger.info(
+                "No OpenScan autofocus profile configured for scanner=%s camera=%s; "
+                "using the vendor tuning unchanged.",
+                self.camera.scanner_model,
+                self.camera.name,
+            )
+            return Picamera2()
+
+        tuning_file = self._tuning_files.get(self.camera.name)
+
+        if tuning_file is None:
+            logger.info("No Picamera2 tuning file configured for %s; using libcamera defaults.", self.camera.name)
+            return Picamera2()
+
+        try:
+            tuning = Picamera2.load_tuning_file(tuning_file)
+            af = Picamera2.find_tuning_algo(tuning, "rpi.af")
+            ranges = af["ranges"]
+            if "macro" not in ranges:
+                raise KeyError("rpi.af.ranges.macro")
+            ranges["macro"].update(focus_range)
+        except (KeyError, RuntimeError, StopIteration, TypeError) as exc:
+            logger.warning(
+                "Could not load Picamera2 tuning file '%s'; using libcamera defaults: %s",
+                tuning_file,
+                exc,
+            )
+            return Picamera2()
+
+        logger.info(
+            "Loaded Picamera2 tuning '%s' with macro focus range %.1f-%.1f dpt.",
+            tuning_file,
+            focus_range["min"],
+            focus_range["max"],
+        )
+        return Picamera2(tuning=tuning)
+
+    def _autofocus_or_fallback(self) -> bool:
+        """Run profiled autofocus with a bounded fallback.
+
+        Cameras without an OpenScan focus profile keep Picamera2's normal
+        autofocus behaviour.
+        """
+        focus_profile = self._macro_focus_ranges.get((self.camera.scanner_model, self.camera.name))
+        if focus_profile is None:
+            return self._picam.autofocus_cycle()
+
+        try:
+            success = self._picam.autofocus_cycle(wait=focus_profile["timeout"])
+        except TimeoutError:
+            # The Picamera2 job would otherwise remain queued after its wait
+            # timed out. Clear it before switching the lens to manual mode.
+            self._picam.cancel_all_and_flush()
+            logger.warning(
+                "Autofocus timed out after %.1f seconds; using fallback LensPosition %.1f.",
+                focus_profile["timeout"],
+                focus_profile["fallback"],
+            )
+            success = False
+
+        if success:
+            return True
+
+        logger.warning(
+            "Autofocus failed; using fallback LensPosition %.1f.",
+            focus_profile["fallback"],
+        )
+        self._picam.set_controls({
+            "AfMode": controls.AfModeEnum.Manual,
+            "LensPosition": focus_profile["fallback"],
+        })
+        return False
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """This method is call on every change of settings."""
@@ -336,12 +428,14 @@ class Picamera2Controller(CameraController):
                 # Configure continuous auto focus mode
                 self._picam.set_controls({
                         "AfMode": controls.AfModeEnum.Continuous,
+                        "AfRange": controls.AfRangeEnum.Macro,
                         #"AfSpeed": controls.AfSpeedEnum.Fast
                     })
             elif camera_mode == "photo":
                 # Configure auto focus mode
                 self._picam.set_controls({
                         "AfMode": controls.AfModeEnum.Auto,
+                        "AfRange": controls.AfRangeEnum.Macro,
                         #"AfSpeed": controls.AfSpeedEnum.Fast
                     })
             logger.info(f"Auto focus enabled with AFWindow: {af_window}")
@@ -447,7 +541,7 @@ class Picamera2Controller(CameraController):
         self._set_busy(True)
         self._configure_focus(camera_mode="photo")
         if self.settings.AF:
-            self._picam.autofocus_cycle()
+            self._autofocus_or_fallback()
 
         last_exc = None
         try:
@@ -530,7 +624,7 @@ class Picamera2Controller(CameraController):
         self._configure_focus(camera_mode="photo")
         self._configure_cropping_for_scalercrop()
         if self.settings.AF:
-            self._picam.autofocus_cycle()
+            self._autofocus_or_fallback()
 
         self._picam.options["quality"] = self.settings.jpeg_quality
 
@@ -571,7 +665,7 @@ class Picamera2Controller(CameraController):
         self._configure_focus(camera_mode="photo")
         self._picam.set_controls({"ScalerCrop": self._configure_cropping_for_scalercrop()})
         if self.settings.AF:
-            self._picam.autofocus_cycle()
+            self._autofocus_or_fallback()
 
         dng_data = io.BytesIO()
         camera_metadata = self._picam.switch_mode_and_capture_file(self.raw_config,

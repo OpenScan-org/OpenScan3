@@ -21,6 +21,7 @@ class Camera(BaseModel):
     type: CameraType
     name: str
     path: str
+    scanner_model: Optional[str] = None
 
     settings: CameraSettings
 

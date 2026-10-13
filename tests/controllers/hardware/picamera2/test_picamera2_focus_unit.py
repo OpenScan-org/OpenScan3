@@ -19,11 +19,15 @@ def _import_picamera2_module(monkeypatch):
         Auto = "auto"
         Manual = "manual"
 
+    class _AfRangeEnum:
+        Macro = "macro"
+
     libcamera.ColorSpace = _ColorSpace
     libcamera.Transform = type("Transform", (), {})
     libcamera.controls = types.SimpleNamespace(
         AfMeteringEnum=_AfMeteringEnum,
         AfModeEnum=_AfModeEnum,
+        AfRangeEnum=_AfRangeEnum,
     )
 
     picamera2 = types.ModuleType("picamera2")
@@ -66,7 +70,10 @@ def test_configure_focus_sets_preview_autofocus_window(monkeypatch):
             "AfMetering": module.controls.AfMeteringEnum.Windows,
             "AfWindows": [(20, 60, 40, 30)],
         },
-        {"AfMode": module.controls.AfModeEnum.Continuous},
+        {
+            "AfMode": module.controls.AfModeEnum.Continuous,
+            "AfRange": module.controls.AfRangeEnum.Macro,
+        },
     ]
 
 
@@ -83,7 +90,10 @@ def test_configure_focus_uses_default_af_window_when_none_is_set(monkeypatch):
             "AfMetering": module.controls.AfMeteringEnum.Windows,
             "AfWindows": [(90, 45, 20, 10)],
         },
-        {"AfMode": module.controls.AfModeEnum.Auto},
+        {
+            "AfMode": module.controls.AfModeEnum.Auto,
+            "AfRange": module.controls.AfRangeEnum.Macro,
+        },
     ]
 
 
