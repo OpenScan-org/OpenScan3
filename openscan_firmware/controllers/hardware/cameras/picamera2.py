@@ -544,7 +544,7 @@ class Picamera2Controller(CameraController):
         with self._hw_lock:
             self._picam.stop()
             self._picam.close()
-            self._picam = Picamera2()
+            self._picam = self._create_picamera()
             self._configure_resolutions()
             self._picam.configure(self.preview_config)
             self._picam.start()
