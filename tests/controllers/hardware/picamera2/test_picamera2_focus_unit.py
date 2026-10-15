@@ -1,8 +1,14 @@
 import importlib
+import errno
 import sys
 import types
+from unittest.mock import Mock
+
+import pytest
 
 from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.controllers.hardware.cameras import camera as camera_module
+from openscan_firmware.models.camera import Camera, CameraType
 
 
 def _import_picamera2_module(monkeypatch):
@@ -166,6 +172,7 @@ def test_capture_session_captures_without_switching_back(monkeypatch):
     controller.camera = types.SimpleNamespace(name="test_camera")
     controller._picam = _SessionFakePicam()
     controller._busy = False
+    controller._restart_error = None
     controller._capture_session_active = True
     controller._capture_session_config = None
     controller._capture_session_image_format = "rgb_array"
@@ -260,3 +267,149 @@ def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropp
         key: value for key, value in expected_still_controls.items() if key != "ScalerCrop"
     }
     assert strategy.rgb_controls == strategy.yuv_controls
+
+
+@pytest.fixture
+def recovery_camera(monkeypatch):
+    module = _import_picamera2_module(monkeypatch)
+    controller = object.__new__(module.Picamera2Controller)
+    monkeypatch.setattr(camera_module, "notify_busy_change", lambda *args: None)
+    monkeypatch.setattr(camera_module, "schedule_device_status_broadcast", lambda *args: None)
+    camera_module.CameraController.__init__(controller, Camera(
+        name="test_camera", type=CameraType.PICAMERA2, path="mock",
+        settings=CameraSettings(AF=False, manual_focus=1),
+    ))
+    controller._picam = Mock()
+    controller._create_picamera = Mock(return_value=Mock())
+    controller._configure_focus = Mock()
+    controller._configure_resolutions = Mock()
+    controller._apply_settings_to_hardware = Mock()
+    controller._capture_session_active = False
+    controller._capture_session_config = None
+    controller._capture_session_image_format = None
+    controller.rgb_config = {"name": "rgb"}
+    controller.yuv_config = {"name": "yuv"}
+    controller.preview_config = {"name": "preview"}
+    return controller
+
+
+@pytest.mark.parametrize("error", [
+    OSError(errno.ENOMEM, "Cannot allocate memory"),
+    RuntimeError("Failed to start camera: Cannot allocate memory"),
+])
+@pytest.mark.parametrize("image_format", ["rgb_array", "yuv_array"])
+@pytest.mark.parametrize("session", [False, True])
+def test_array_oom_propagates_once_without_focus_cleanup(recovery_camera, error, image_format, session, caplog):
+    camera = recovery_camera
+    camera._capture_session_active = session
+    camera._capture_session_config = {"active": True} if session else None
+    capture = camera._picam.capture_request if session else camera._picam.switch_mode_and_capture_request
+    capture.side_effect = error
+
+    with pytest.raises(type(error)) as caught:
+        camera.photo(image_format)
+
+    assert caught.value is error
+    assert capture.call_count == 1
+    camera._configure_focus.assert_called_once_with(camera_mode="photo")
+    camera._picam.switch_mode.assert_not_called()
+    assert camera.is_busy() is False
+    assert camera.get_status()["restart_required"] is True
+    assert camera.get_status()["last_error"] == str(error)
+    assert any(record.exc_info and record.exc_info[1] is error for record in caplog.records)
+
+
+@pytest.mark.parametrize("error", [OSError(errno.EIO, "I/O failure"), RuntimeError("Unrelated capture error")])
+def test_array_other_errors_are_not_retried_or_classified_as_oom(recovery_camera, error):
+    camera = recovery_camera
+    camera._picam.switch_mode_and_capture_request.side_effect = error
+
+    with pytest.raises(type(error)) as caught:
+        camera._capture_array(camera.rgb_config)
+
+    assert caught.value is error
+    assert camera._picam.switch_mode_and_capture_request.call_count == 1
+    assert camera.restart_required is False
+    assert camera.is_busy() is False
+    camera._configure_focus.assert_called_once_with(camera_mode="photo")
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_array_releases_request_even_if_processing_fails(recovery_camera, fail):
+    camera = recovery_camera
+    request = camera._picam.switch_mode_and_capture_request.return_value
+    request.make_array.return_value = "array"
+    request.get_metadata.return_value = {"frame": 1}
+    if fail:
+        error = OSError(errno.ENOMEM, "Cannot allocate memory")
+        request.make_array.side_effect = error
+        with pytest.raises(OSError) as caught:
+            camera._capture_array(camera.rgb_config)
+        assert caught.value is error
+        assert camera.restart_required is True
+    else:
+        assert camera._capture_array(camera.rgb_config) == ("array", {"frame": 1})
+        assert camera._configure_focus.call_args.kwargs == {"camera_mode": "preview"}
+    request.release.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_oom_skips_capture_session_hardware_cleanup(recovery_camera):
+    camera = recovery_camera
+    error = OSError(errno.ENOMEM, "Cannot allocate memory")
+    camera._picam.capture_request.side_effect = error
+
+    with pytest.raises(OSError) as caught:
+        async with camera.capture_session("rgb_array"):
+            camera._capture_session_config = {"active": True}
+            await camera.photo_async("rgb_array")
+
+    assert caught.value is error
+    camera._picam.switch_mode.assert_not_called()
+    camera._configure_focus.assert_called_once_with(camera_mode="photo")
+    assert camera._capture_session_active is False
+    assert camera._capture_session_config is None
+    assert camera.restart_required is True
+
+
+def test_successful_restart_clears_oom_only_after_configuration(recovery_camera, monkeypatch):
+    camera = recovery_camera
+    camera._record_camera_error(OSError(errno.ENOMEM, "Cannot allocate memory"))
+    old_picam = camera._picam
+
+    def configure_focus(**kwargs):
+        assert camera.restart_required is True
+
+    camera._configure_focus.side_effect = configure_focus
+    camera.restart_camera()
+
+    old_picam.cancel_all_and_flush.assert_called_once_with()
+    old_picam.close.assert_called_once_with()
+    camera._picam.start.assert_called_once_with()
+    camera._apply_settings_to_hardware.assert_called_once_with(camera.camera.settings)
+    assert camera.get_status()["restart_required"] is False
+    assert camera.get_status()["last_error"] is None
+    capture = Mock(return_value="photo")
+    monkeypatch.setattr(camera, "capture_jpeg", capture)
+    assert camera.photo() == "photo"
+    capture.assert_called_once_with()
+
+
+@pytest.mark.parametrize("stage", ["close", "start", "settings", "focus"])
+def test_failed_restart_preserves_oom_state(recovery_camera, stage):
+    camera = recovery_camera
+    error = OSError(errno.ENOMEM, "Cannot allocate memory")
+    camera._record_camera_error(error)
+    failing_step = {
+        "close": camera._picam.close,
+        "start": camera._create_picamera.return_value.start,
+        "settings": camera._apply_settings_to_hardware,
+        "focus": camera._configure_focus,
+    }[stage]
+    failing_step.side_effect = RuntimeError("Restart failed")
+
+    with pytest.raises(RuntimeError, match="Restart failed"):
+        camera.restart_camera()
+
+    assert camera.restart_required is True
+    assert camera.get_status()["last_error"] == str(error)

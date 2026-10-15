@@ -1,9 +1,12 @@
 """Verify settings serialization and camera lock nesting without camera hardware."""
 
 import asyncio
+import errno
 import threading
 from concurrent.futures import Future, TimeoutError
 from importlib import import_module
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
@@ -317,3 +320,128 @@ def test_photo_waits_until_snapshot_capture_finishes(camera, monkeypatch):
         assert snapshot.result(timeout=2) == b"snapshot-jpeg"
         if photo is not None:
             assert photo.result(timeout=2) == b"photo"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("version", ["v0_8", "v0_9", "next"])
+@pytest.mark.parametrize("error", [
+    OSError(errno.ENOMEM, "Cannot allocate memory"),
+    RuntimeError("Failed to start camera: Cannot allocate memory"),
+])
+async def test_oom_is_visible_in_device_status_and_blocks_further_camera_calls(camera, monkeypatch, version, error):
+    from openscan_firmware.controllers import device
+    from openscan_firmware.controllers.services.device_events import DeviceEventPublisher
+
+    cameras_router = import_module(f"openscan_firmware.routers.{version}.cameras")
+    device_router = import_module(f"openscan_firmware.routers.{version}.device")
+    monkeypatch.setitem(camera_module._camera_registry, "cam0", camera)
+    monkeypatch.setattr(cameras_router, "get_camera_controller", lambda name: camera)
+    monkeypatch.setattr(device, "get_all_camera_controllers", lambda: {"cam0": camera})
+    for getter in ("get_all_motor_controllers", "get_all_light_controllers", "get_all_trigger_controllers"):
+        monkeypatch.setattr(device, getter, lambda: {})
+    monkeypatch.setattr(device, "_scanner_device", SimpleNamespace(
+        name="Test scanner", model="mini", shield="greenshield", idle_timeout=0,
+        motors_timeout=0, scan_radius_mm=1, startup_mode="startup_enabled",
+        calibrate_mode="calibrate_manual", _idle=False, _initialized=True,
+    ))
+
+    def fail_capture():
+        camera._set_busy(True)
+        raise error
+
+    capture = Mock(side_effect=fail_capture)
+    preview = Mock(side_effect=AssertionError("Must not access camera after OOM"))
+    monkeypatch.setattr(camera, "capture_jpeg", capture)
+    monkeypatch.setattr(camera, "preview", preview)
+    app = FastAPI()
+    app.include_router(cameras_router.router)
+    app.include_router(device_router.router)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        response = await client.get("/cameras/cam0/photo")
+        expected_status = 503 if isinstance(error, RuntimeError) and version != "v0_8" else 500
+        assert response.status_code == expected_status
+        assert str(error) in response.text
+
+        camera_response = await client.get("/cameras/cam0")
+        device_response = await client.get("/device/info")
+        assert camera_response.status_code == device_response.status_code == 200
+        status = camera_response.json()
+        assert status["busy"] is False
+        assert status["restart_required"] is True
+        assert status["last_error"] == str(error)
+        assert device_response.json()["cameras"]["cam0"] == status
+
+        photo_response = await client.get("/cameras/cam0/photo")
+        preview_response = await client.get("/cameras/cam0/preview", params={"mode": "snapshot"})
+        settings_response = await client.patch("/cameras/cam0/settings", json={"contrast": 2})
+        assert photo_response.status_code == (500 if version == "v0_8" else 503)
+        assert preview_response.status_code == 503
+        assert settings_response.status_code == 422
+        for response in (photo_response, preview_response, settings_response):
+            assert "Camera restart required" in response.text
+
+    capture.assert_called_once_with()
+    preview.assert_not_called()
+    assert camera.applied == []
+    assert camera.get_status()["last_error"] == str(error)
+
+    hub = SimpleNamespace(broadcast_json=AsyncMock())
+    publisher = DeviceEventPublisher(hub_getter=lambda: hub, status_provider=device.get_device_info)
+    await publisher.publish_status()
+    namespace, event = hub.broadcast_json.call_args.args
+    assert namespace == "device"
+    assert event["device"]["cameras"]["cam0"]["restart_required"] is True
+    assert event["device"]["cameras"]["cam0"]["last_error"] == str(error)
+
+
+@pytest.mark.parametrize("error", [OSError(errno.EIO, "I/O failure"), RuntimeError("Unrelated camera error")])
+def test_non_memory_errors_do_not_request_restart(camera, monkeypatch, error):
+    capture = Mock(side_effect=error)
+    monkeypatch.setattr(camera, "capture_jpeg", capture)
+
+    with pytest.raises(type(error)) as caught:
+        camera.photo()
+
+    assert caught.value is error
+    assert camera.get_status()["restart_required"] is False
+    assert camera.get_status()["last_error"] is None
+
+
+def test_status_broadcast_failure_does_not_hide_camera_oom(camera, monkeypatch):
+    error = OSError(errno.ENOMEM, "Cannot allocate memory")
+    monkeypatch.setattr(camera, "capture_jpeg", Mock(side_effect=error))
+    monkeypatch.setattr(camera_module, "schedule_device_status_broadcast", Mock(side_effect=RuntimeError("WebSocket failed")))
+
+    with pytest.raises(OSError) as caught:
+        camera.photo()
+
+    assert caught.value is error
+    assert camera.get_status()["restart_required"] is True
+
+
+@pytest.mark.parametrize("operation", ["preview_snapshot", "preview_stream", "settings"])
+@pytest.mark.parametrize("error", [
+    OSError(errno.ENOMEM, "Cannot allocate memory"),
+    RuntimeError("Failed to start camera: Cannot allocate memory"),
+])
+def test_preview_and_settings_record_oom(camera, monkeypatch, operation, error):
+    hardware_call = Mock(side_effect=error)
+    if operation == "settings":
+        monkeypatch.setattr(camera, "_apply_settings_to_hardware", hardware_call)
+        invoke = lambda: camera.settings.update(contrast=2)
+    else:
+        monkeypatch.setattr(camera, "preview", hardware_call)
+        invoke = camera.preview_snapshot if operation == "preview_snapshot" else camera._preview_non_blocking
+
+    with pytest.raises(type(error)) as caught:
+        invoke()
+    assert caught.value is error
+    assert camera.get_status()["restart_required"] is True
+    assert camera.get_status()["last_error"] == str(error)
+
+    with pytest.raises(RuntimeError, match="Camera restart required"):
+        invoke()
+    assert hardware_call.call_count == 1

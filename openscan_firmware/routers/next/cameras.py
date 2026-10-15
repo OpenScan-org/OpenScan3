@@ -208,6 +208,8 @@ class CameraStatusResponse(BaseModel):
     name: str
     type: CameraType
     busy: bool
+    restart_required: bool = False
+    last_error: str | None = None
     settings: CameraSettings
 
 

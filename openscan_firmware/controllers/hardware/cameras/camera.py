@@ -8,6 +8,7 @@ Currently supporting only picamera2.
 
 import abc
 import asyncio
+import errno
 import logging
 import threading
 from contextlib import asynccontextmanager
@@ -76,13 +77,45 @@ class CameraController(StatefulHardware):
         self._hw_lock = threading.RLock()
         self.settings = Settings(camera.settings, on_change=self._on_settings_change, lock=self._hw_lock)
         self._busy = False
+        self._restart_error: Optional[str] = None
 
     def get_status(self):
         """Get camera status"""
+        restart_error = self._restart_error
         return {"name": self.camera.name,
                 "type": self.camera.type,
                 "busy": self._busy,
+                "restart_required": restart_error is not None,
+                "last_error": restart_error,
                 "settings": self.settings.model}
+
+    @property
+    def restart_required(self) -> bool:
+        return self._restart_error is not None
+
+    def _set_restart_error(self, error: Optional[str]) -> None:
+        if self._restart_error == error:
+            return
+        self._restart_error = error
+        try:
+            schedule_device_status_broadcast([
+                f"cameras.{self.camera.name}.restart_required",
+                f"cameras.{self.camera.name}.last_error",
+            ])
+        except Exception:
+            # Status delivery must not replace the original camera exception.
+            logger.exception("Failed to publish camera restart status.")
+
+    def _record_camera_error(self, error: Exception) -> None:
+        if (
+            isinstance(error, OSError) and error.errno == errno.ENOMEM
+            or isinstance(error, RuntimeError) and "Cannot allocate memory" in str(error)
+        ):
+            self._set_restart_error(str(error))
+
+    def _require_camera_ready(self) -> None:
+        if self.restart_required:
+            raise RuntimeError(f"Camera restart required: {self._restart_error}")
 
     def get_config(self) -> CameraSettings:
         return self.settings.model
@@ -91,7 +124,12 @@ class CameraController(StatefulHardware):
         self.camera.settings = settings
         # Serialize settings updates with preview/photo hardware operations.
         with self._hw_lock:
-            self._apply_settings_to_hardware(settings)
+            self._require_camera_ready()
+            try:
+                self._apply_settings_to_hardware(settings)
+            except (OSError, RuntimeError) as exc:
+                self._record_camera_error(exc)
+                raise
         schedule_device_status_broadcast([f"cameras.{self.camera.name}.settings"])
 
     def _apply_settings_to_hardware(self, settings: CameraSettings):
@@ -135,6 +173,7 @@ class CameraController(StatefulHardware):
             "yuv_array": self.capture_yuv_array,
         }
         with self._hw_lock:
+            self._require_camera_ready()
             try:
                 return handler[image_format]()
             except KeyError:
@@ -145,7 +184,8 @@ class CameraController(StatefulHardware):
                     self.camera.name,
                 )
                 raise RuntimeError("Photo capture was cancelled because the camera is restarting.") from exc
-            except RuntimeError:
+            except (OSError, RuntimeError) as exc:
+                self._record_camera_error(exc)
                 logger.exception(
                     "Camera '%s' photo capture failed for image format '%s'.",
                     self.camera.name,
@@ -175,7 +215,15 @@ class CameraController(StatefulHardware):
     def preview_snapshot(self) -> IO[bytes]:
         """Capture one preview frame, waiting for the hardware lock."""
         with self._hw_lock:
-            return self.preview()
+            self._require_camera_ready()
+            try:
+                return self.preview()
+            except (OSError, RuntimeError) as exc:
+                self._record_camera_error(exc)
+                logger.exception("Camera '%s' preview failed.", self.camera.name)
+                raise
+            finally:
+                self._set_busy(False)
 
     async def preview_async(self) -> Optional[IO[bytes]]:
         """Capture a preview without blocking the event loop.
@@ -191,7 +239,7 @@ class CameraController(StatefulHardware):
         if not self._hw_lock.acquire(blocking=False):
             return None
         try:
-            return self.preview()
+            return self.preview_snapshot()
         finally:
             self._hw_lock.release()
 
