@@ -1,3 +1,12 @@
+openscan3-firmware (0.13.2) unstable; urgency=medium
+
+  * Extend Picamera2 autofocus and add Mini IMX519-specific tuning.
+  * Apply manual camera controls consistently across Picamera2 capture modes.
+  * Fix still captures ignoring updated manual controls after preview.
+  * Cancel preview before restarting Picamera2 to avoid OOM-related lockups.
+
+ -- OpenScan3 Contributors <info@openscan.eu>  Thu, 15 Oct 2026 00:00:00 +0200
+
 openscan3-firmware (0.13.0) unstable; urgency=medium
 
   * Add task dependency chaining across the supported task APIs.

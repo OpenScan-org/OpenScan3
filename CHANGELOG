@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.13.2 - 2026-10-15
+
 ### Added
 
 - Autofocus is no longer clamped to 12 and uses the full range up to 15.
@@ -22,9 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Restarting Picamera2 now cancels preview before closing
-  and recreating the camera instance. This should fix the device becoming unresponsive
-  after Out-Of-Memory errors during capture.
+- Restarting Picamera2 now cancels preview before closing and recreating the
+  camera instance, preserving scanner-specific autofocus tuning and preventing
+  devices from becoming unresponsive after Out-Of-Memory errors during capture.
 - Fixed Picamera2 still captures ignoring updated shutter and other manual
   image controls after switching from preview, especially when cropping was
   enabled. RGB and YUV analysis captures remain uncropped.
