@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.13.2 - 2026-10-15
+
+### Added
+
+- Autofocus is no longer clamped to 12 and uses the full range up to 15.
+- Added scanner-specific autofocus tuning for the OpenScan Mini with IMX519:
+  macro autofocus uses the measured `11.0–15.0` dpt range with a turntable
+  fallback at `11.9`.
+
+### Changed
+
+- Picamera2 manual camera controls are now consolidated and applied
+  consistently to preview, still, JPEG, DNG, RGB, and YUV captures. Settings
+  changes also rebuild the capture configurations.
+
+### Fixed
+
+- Restarting Picamera2 now cancels preview before closing and recreating the
+  camera instance, preserving scanner-specific autofocus tuning and preventing
+  devices from becoming unresponsive after Out-Of-Memory errors during capture.
+- Fixed Picamera2 still captures ignoring updated shutter and other manual
+  image controls after switching from preview, especially when cropping was
+  enabled. RGB and YUV analysis captures remain uncropped.
+
 ## 0.13.0 - 2026-09-15
 
 ### Added

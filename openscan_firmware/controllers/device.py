@@ -637,6 +637,7 @@ async def _initialize_with_config(config: dict | ScannerDeviceConfig, detect_cam
     availability = get_available_camera_types()
     for name, camera in camera_objects.items():
         try:
+            camera.scanner_model = config_dict.get("model")
             if not availability.get(camera.type, False):
                 logger.warning(
                     "Skipping controller init for %s (%s): dependency not available.",

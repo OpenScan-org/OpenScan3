@@ -166,21 +166,27 @@ class Picamera2Controller(CameraController):
         "imx519": IMX519Strategy(),
         "arducam_64mp": HawkeyeStrategy()
     }
+    _tuning_files = {
+        "imx519": "imx519.json",
+        "arducam_64mp": "arducam_64mp.json",
+    }
+    _macro_focus_ranges = {
+        # Measured on the OpenScan Mini with the IMX519: the turntable is at
+        # approximately 11.9 dpt, while useful objects extend towards 15 dpt.
+        ("mini", "imx519"): {
+            "min": 11.0,
+            "max": 15.0,
+            "default": 12.0,
+            "fallback": 11.9,
+            "timeout": 8.0,
+        },
+    }
 
     def __init__(self, camera: Camera):
         super().__init__(camera)
-        self._picam = Picamera2()
+        self._picam = self._create_picamera()
         self._strategy = self._strategies.get(self.camera.name, IMX519Strategy())
         self._is_closing = False
-
-        self.control_mapping = {
-            # 'shutter': 'ExposureTime',
-            'saturation': 'Saturation',
-            'contrast': 'Contrast',
-            'gain': 'AnalogueGain',
-            # 'awbg_red|blue': 'ColourGains', # ColourGains is a tuple of (red gain, blue gain)
-            # 'crop_x|y': 'ScalerCrop' # ScalerCrop is a tuple of (x_offset, y_offset, width, height)
-        }
 
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
@@ -189,24 +195,96 @@ class Picamera2Controller(CameraController):
         self._apply_settings_to_hardware(self.camera.settings)
         self._configure_focus(camera_mode="preview")
 
+    def _create_picamera(self) -> Picamera2:
+        """Create Picamera2 with the camera's tuned autofocus range."""
+        focus_range = self._macro_focus_ranges.get((self.camera.scanner_model, self.camera.name))
+        if focus_range is None:
+            logger.info(
+                "No OpenScan autofocus profile configured for scanner=%s camera=%s; "
+                "using the vendor tuning unchanged.",
+                self.camera.scanner_model,
+                self.camera.name,
+            )
+            return Picamera2()
+
+        tuning_file = self._tuning_files.get(self.camera.name)
+
+        if tuning_file is None:
+            logger.info("No Picamera2 tuning file configured for %s; using libcamera defaults.", self.camera.name)
+            return Picamera2()
+
+        try:
+            tuning = Picamera2.load_tuning_file(tuning_file)
+            af = Picamera2.find_tuning_algo(tuning, "rpi.af")
+            ranges = af["ranges"]
+            if "macro" not in ranges:
+                raise KeyError("rpi.af.ranges.macro")
+            ranges["macro"].update(focus_range)
+        except (KeyError, RuntimeError, StopIteration, TypeError) as exc:
+            logger.warning(
+                "Could not load Picamera2 tuning file '%s'; using libcamera defaults: %s",
+                tuning_file,
+                exc,
+            )
+            return Picamera2()
+
+        logger.info(
+            "Loaded Picamera2 tuning '%s' with macro focus range %.1f-%.1f dpt.",
+            tuning_file,
+            focus_range["min"],
+            focus_range["max"],
+        )
+        return Picamera2(tuning=tuning)
+
+    def _autofocus_or_fallback(self) -> bool:
+        """Run profiled autofocus with a bounded fallback.
+
+        Cameras without an OpenScan focus profile keep Picamera2's normal
+        autofocus behaviour.
+        """
+        focus_profile = self._macro_focus_ranges.get((self.camera.scanner_model, self.camera.name))
+        if focus_profile is None:
+            return self._picam.autofocus_cycle()
+
+        try:
+            success = self._picam.autofocus_cycle(wait=focus_profile["timeout"])
+        except TimeoutError:
+            # The Picamera2 job would otherwise remain queued after its wait
+            # timed out. Clear it before switching the lens to manual mode.
+            self._picam.cancel_all_and_flush()
+            logger.warning(
+                "Autofocus timed out after %.1f seconds; using fallback LensPosition %.1f.",
+                focus_profile["timeout"],
+                focus_profile["fallback"],
+            )
+            success = False
+
+        if success:
+            return True
+
+        logger.warning(
+            "Autofocus failed; using fallback LensPosition %.1f.",
+            focus_profile["fallback"],
+        )
+        self._picam.set_controls({
+            "AfMode": controls.AfModeEnum.Manual,
+            "LensPosition": focus_profile["fallback"],
+        })
+        return False
+
     def _apply_settings_to_hardware(self, settings: CameraSettings):
         """This method is call on every change of settings."""
         self._set_busy(True)
         
-        # apply all settings
-        for setting, value in settings.__dict__.items():
-            if setting in self.control_mapping:
-                self._picam.set_controls({self.control_mapping[setting]: value})
+        # Apply the same manual controls to the live preview that are used by
+        # still captures. The still configuration supplies its own default
+        # frame-duration range.
+        manual_controls = self._manual_camera_controls(settings)
+        if manual_controls:
+            self._picam.set_controls(manual_controls)
 
-        # apply shutter
-        if settings.shutter is not None:
-            self._picam.set_controls({'ExposureTime': int(settings.shutter * 1000)})
-
-        # handle ColourGains (AWB gains) separately
-        red_gain = getattr(settings, 'awbg_red')
-        blue_gain = getattr(settings, 'awbg_blue')
-        if red_gain is not None and blue_gain is not None:
-            self._picam.set_controls({'ColourGains': (red_gain, blue_gain)})
+        # Rebuild the capture configurations so still captures use the new settings.
+        self._configure_resolutions()
 
         self._configure_focus(camera_mode="preview")  
 
@@ -214,25 +292,66 @@ class Picamera2Controller(CameraController):
         logger.debug(f"Applied settings to hardware: {settings.model_dump_json()}")
 
 
-    def _configure_resolutions(self, additional_settings=None):
-        """Create preview and photo configurations."""
+    @staticmethod
+    def _manual_camera_controls(settings):
+        """Build the manual camera controls from the current settings."""
+        controls = {}
+
+        setting_mapping = {
+            "saturation": "Saturation",
+            "contrast": "Contrast",
+            "gain": "AnalogueGain",
+        }
+        for setting_name, control_name in setting_mapping.items():
+            value = getattr(settings, setting_name)
+            if value is not None:
+                controls[control_name] = value
+
+        if settings.shutter is not None:
+            controls["ExposureTime"] = int(settings.shutter * 1000)
+
+        if settings.awbg_red is not None and settings.awbg_blue is not None:
+            controls["ColourGains"] = (settings.awbg_red, settings.awbg_blue)
+
+        return controls
+
+    def _still_capture_controls(self):
+        """Return controls that must be applied consistently to still captures."""
+        still_settings = self._photogrammetry_settings.copy()
+        manual_controls = self._manual_camera_controls(self.settings)
+        still_settings.update(manual_controls)
+        return still_settings
+
+    def _configure_resolutions(self, crop_rect=None):
+        """Create all camera configurations.
+
+        Preview uses the fixed photogrammetry controls. Still captures additionally
+        use the current manual exposure, gain, colour, saturation and contrast
+        settings. JPEG and DNG may supply ``crop_rect``; RGB and YUV deliberately
+        remain uncropped for image analysis.
+        """
         logger.debug("Configuring resolutions...")
         photogrammetry_settings = {"AeEnable": False,  # Disable auto exposure
                                    "NoiseReductionMode": 0,  # Disable noise reduction
                                    "AwbEnable": False  # Disable automatic white balance
                                    }
 
-        if additional_settings is not None:
-            photogrammetry_settings.update(additional_settings)
-
         self._photogrammetry_settings = photogrammetry_settings.copy()
-        self.preview_config = self._strategy.create_preview_config(self._picam, self.settings.preview_resolution, photogrammetry_settings)
-        self.photo_config = self._strategy.create_photo_config(self._picam, self.settings.photo_resolution, photogrammetry_settings)
-        self.raw_config = self._strategy.create_raw_config(self._picam, self.settings.photo_resolution, photogrammetry_settings)
-        self.yuv_config = self._strategy.create_yuv_config(self._picam, photogrammetry_settings)
-        self.rgb_config = self._strategy.create_rgb_config(self._picam, photogrammetry_settings)
+        still_settings = self._still_capture_controls()
 
-        logger.debug(f"Configured resolutions with {photogrammetry_settings}.")
+        still_resolution = self.settings.photo_resolution
+        if crop_rect is not None:
+            _, _, crop_width, crop_height = crop_rect
+            still_resolution = (crop_width, crop_height)
+            still_settings["ScalerCrop"] = crop_rect
+
+        self.preview_config = self._strategy.create_preview_config(self._picam, self.settings.preview_resolution, photogrammetry_settings)
+        self.photo_config = self._strategy.create_photo_config(self._picam, still_resolution, still_settings)
+        self.raw_config = self._strategy.create_raw_config(self._picam, still_resolution, still_settings)
+        self.yuv_config = self._strategy.create_yuv_config(self._picam, self._still_capture_controls())
+        self.rgb_config = self._strategy.create_rgb_config(self._picam, self._still_capture_controls())
+
+        logger.debug(f"Configured resolutions with preview controls {photogrammetry_settings} and still controls {still_settings}.")
 
 
     def _configure_cropping(self):
@@ -250,7 +369,10 @@ class Picamera2Controller(CameraController):
         return y_start, y_end, x_start, x_end
 
     def _configure_cropping_for_scalercrop(self):
-        """Configure cropping of the image based on settings. This is used for the photo and raw configurations."""
+        """Configure JPEG/DNG cropping and rebuild the shared camera configurations.
+
+        RGB and YUV configurations intentionally remain uncropped for analysis.
+        """
         full_x, full_y = self._picam.camera_properties["PixelArraySize"]
 
         crop_x = self.settings.crop_width / 100
@@ -269,15 +391,10 @@ class Picamera2Controller(CameraController):
         x_start = (full_x - width) // 2
         y_start = (full_y - height) // 2
 
-        update_controls = {
-            **getattr(self, "_photogrammetry_settings", {}),
-            "ScalerCrop": (x_start, y_start, width, height),
-        }
-        logger.debug("Updated ScalerCrop: ", update_controls)
-        self.photo_config = self._strategy.create_photo_config(self._picam, (width, height), update_controls)
-        self.raw_config = self._strategy.create_raw_config(self._picam, (width, height), update_controls)
+        crop_rect = (x_start, y_start, width, height)
+        self._configure_resolutions(crop_rect=crop_rect)
 
-        return (x_start, y_start, width, height)
+        return crop_rect
 
 
     def _configure_focus(self, camera_mode: str = None):
@@ -311,12 +428,14 @@ class Picamera2Controller(CameraController):
                 # Configure continuous auto focus mode
                 self._picam.set_controls({
                         "AfMode": controls.AfModeEnum.Continuous,
+                        "AfRange": controls.AfRangeEnum.Macro,
                         #"AfSpeed": controls.AfSpeedEnum.Fast
                     })
             elif camera_mode == "photo":
                 # Configure auto focus mode
                 self._picam.set_controls({
                         "AfMode": controls.AfModeEnum.Auto,
+                        "AfRange": controls.AfRangeEnum.Macro,
                         #"AfSpeed": controls.AfSpeedEnum.Fast
                     })
             logger.info(f"Auto focus enabled with AFWindow: {af_window}")
@@ -411,18 +530,34 @@ class Picamera2Controller(CameraController):
 
     def restart_camera(self):
         """Restart the camera and reconfigure resolution."""
-        self._picam.stop()
-        self._set_busy(False)
-        self._configure_resolutions()
-        self._picam.configure(self.preview_config)
-        self._picam.start()
+        # A photo request may be waiting on a Picamera2 job (for example an
+        # autofocus cycle). Cancel and flush those jobs before closing the
+        # camera so the waiting photo call can unwind.
+        try:
+            self._picam.cancel_all_and_flush()
+        except Exception:
+            logger.exception("Failed to cancel pending Picamera2 jobs before restart.")
+
+        # Wait for an in-flight photo/preview call to unwind before replacing
+        # the Picamera2 instance. The cancellation above wakes a photo waiting
+        # on a Picamera2 job; this lock waits for that caller to leave.
+        with self._hw_lock:
+            self._picam.stop()
+            self._picam.close()
+            self._picam = self._create_picamera()
+            self._configure_resolutions()
+            self._picam.configure(self.preview_config)
+            self._picam.start()
+            self._apply_settings_to_hardware(self.camera.settings)
+            self._configure_focus(camera_mode="preview")
+            self._set_busy(False)
         logger.info(f"Picamera2 restarted.")
 
     def _capture_array(self, config):
         self._set_busy(True)
         self._configure_focus(camera_mode="photo")
         if self.settings.AF:
-            self._picam.autofocus_cycle()
+            self._autofocus_or_fallback()
 
         last_exc = None
         try:
@@ -505,7 +640,7 @@ class Picamera2Controller(CameraController):
         self._configure_focus(camera_mode="photo")
         self._configure_cropping_for_scalercrop()
         if self.settings.AF:
-            self._picam.autofocus_cycle()
+            self._autofocus_or_fallback()
 
         self._picam.options["quality"] = self.settings.jpeg_quality
 
@@ -546,7 +681,7 @@ class Picamera2Controller(CameraController):
         self._configure_focus(camera_mode="photo")
         self._picam.set_controls({"ScalerCrop": self._configure_cropping_for_scalercrop()})
         if self.settings.AF:
-            self._picam.autofocus_cycle()
+            self._autofocus_or_fallback()
 
         dng_data = io.BytesIO()
         camera_metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
