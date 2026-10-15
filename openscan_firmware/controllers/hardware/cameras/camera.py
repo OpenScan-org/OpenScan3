@@ -72,10 +72,10 @@ class CameraController(StatefulHardware):
     """
     def __init__(self, camera: Camera):
         self.camera = camera
-        # Create settings with callback for hardware updates
-        self.settings = Settings(camera.settings, on_change=self._on_settings_change)
+        # Share one reentrant lock across model changes and hardware operations.
+        self._hw_lock = threading.RLock()
+        self.settings = Settings(camera.settings, on_change=self._on_settings_change, lock=self._hw_lock)
         self._busy = False
-        self._hw_lock = threading.Lock()
 
     def get_status(self):
         """Get camera status"""
