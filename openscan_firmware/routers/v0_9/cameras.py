@@ -237,10 +237,8 @@ async def get_preview(
     controller = get_camera_controller(camera_name)
 
     if mode == "snapshot":
-        if controller.is_busy():
-            raise HTTPException(status_code=409, detail="Camera is busy. If this is a bug, please restart the camera.")
         try:
-            frame = await asyncio.to_thread(controller.preview)
+            frame = await asyncio.to_thread(controller.preview_snapshot)
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return Response(content=frame, media_type="image/jpeg")

@@ -172,6 +172,11 @@ class CameraController(StatefulHardware):
         """
         yield self
 
+    def preview_snapshot(self) -> IO[bytes]:
+        """Capture one preview frame, waiting for the hardware lock."""
+        with self._hw_lock:
+            return self.preview()
+
     async def preview_async(self) -> Optional[IO[bytes]]:
         """Capture a preview without blocking the event loop.
 

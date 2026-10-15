@@ -1,9 +1,14 @@
 """Verify settings serialization and camera lock nesting without camera hardware."""
 
+import asyncio
 import threading
 from concurrent.futures import Future, TimeoutError
+from importlib import import_module
 
+import httpx
 import pytest
+import pytest_asyncio
+from fastapi import FastAPI
 
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.controllers.hardware.cameras import camera as camera_module
@@ -172,3 +177,143 @@ def test_settings_callback_can_supply_a_missing_setting():
     assert settings.AF is False
     assert settings.manual_focus == 1
     assert applied == [None, 1]
+
+
+@pytest_asyncio.fixture(params=["v0_8", "v0_9", "next"])
+async def snapshot_api(request, camera, monkeypatch):
+    module = import_module(f"openscan_firmware.routers.{request.param}.cameras")
+    monkeypatch.setattr(module, "get_camera_controller", lambda name: camera)
+    app = FastAPI()
+    app.include_router(module.router)
+
+    @app.get("/health")
+    async def health():
+        return camera.get_status()
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        yield client, camera
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["photo", "settings"])
+async def test_snapshot_waits_for_camera_and_keeps_api_responsive(snapshot_api, monkeypatch, operation):
+    client, camera = snapshot_api
+    loop = asyncio.get_running_loop()
+    entered = asyncio.Event()
+    snapshot_started = asyncio.Event()
+    release = threading.Event()
+    finished = threading.Event()
+    preview_called = threading.Event()
+    snapshot_threads = []
+
+    def blocking_hardware(*args):
+        camera._set_busy(True)
+        loop.call_soon_threadsafe(entered.set)
+        try:
+            if not release.wait(timeout=5):
+                raise RuntimeError("Test did not release camera operation")
+            finished.set()
+            return b"photo"
+        finally:
+            camera._set_busy(False)
+
+    def preview():
+        assert finished.is_set(), "Snapshot must not overlap with another camera operation"
+        preview_called.set()
+        return b"snapshot-jpeg"
+
+    original_snapshot = camera.preview_snapshot
+
+    def snapshot():
+        snapshot_threads.append(threading.get_ident())
+        loop.call_soon_threadsafe(snapshot_started.set)
+        return original_snapshot()
+
+    monkeypatch.setattr(camera, "preview", preview)
+    monkeypatch.setattr(camera, "preview_snapshot", snapshot)
+    if operation == "photo":
+        monkeypatch.setattr(camera, "capture_jpeg", blocking_hardware)
+        worker = _in_thread(camera.photo)
+    else:
+        monkeypatch.setattr(camera, "_apply_settings_to_hardware", blocking_hardware)
+        worker = _in_thread(lambda: camera.settings.update(contrast=2))
+
+    pending = None
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        # Streams still skip a frame instead of waiting for the occupied lock.
+        assert await asyncio.wait_for(camera.preview_async(), timeout=1) is None
+        pending = asyncio.create_task(client.get("/cameras/cam0/preview", params={"mode": "snapshot"}))
+        await asyncio.wait_for(snapshot_started.wait(), timeout=2)
+        response = await asyncio.wait_for(client.get("/health"), timeout=1)
+        assert response.status_code == 200
+        assert response.json()["busy"] is True
+        assert not pending.done()
+        assert not preview_called.is_set()
+        assert len(snapshot_threads) == 1
+        assert snapshot_threads[0] != threading.get_ident()
+    finally:
+        release.set()
+        worker.result(timeout=2)
+        if pending is not None:
+            response = await asyncio.wait_for(pending, timeout=2)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.content == b"snapshot-jpeg"
+    assert preview_called.is_set()
+
+
+@pytest.mark.asyncio
+async def test_snapshot_error_returns_503_and_releases_camera_lock(snapshot_api, monkeypatch):
+    client, camera = snapshot_api
+
+    def fail():
+        raise RuntimeError("Camera is unavailable")
+
+    monkeypatch.setattr(camera, "preview", fail)
+    response = await client.get("/cameras/cam0/preview", params={"mode": "snapshot"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Camera is unavailable"
+    # A different thread must be able to take the lock after the snapshot failed.
+    assert _in_thread(camera.photo).result(timeout=2) == b"photo"
+
+    monkeypatch.setattr(camera, "preview", lambda: b"snapshot-jpeg")
+    response = await client.get("/cameras/cam0/preview", params={"mode": "snapshot"})
+    assert response.status_code == 200
+    assert response.content == b"snapshot-jpeg"
+
+
+def test_photo_waits_until_snapshot_capture_finishes(camera, monkeypatch):
+    entered = threading.Event()
+    release = threading.Event()
+    photo_called = threading.Event()
+
+    def preview():
+        entered.set()
+        if not release.wait(timeout=5):
+            raise RuntimeError("Test did not release snapshot capture")
+        return b"snapshot-jpeg"
+
+    def capture():
+        photo_called.set()
+        return b"photo"
+
+    monkeypatch.setattr(camera, "preview", preview)
+    monkeypatch.setattr(camera, "capture_jpeg", capture)
+    snapshot = _in_thread(camera.preview_snapshot)
+    photo = None
+    try:
+        assert entered.wait(timeout=2)
+        photo = _in_thread(camera.photo)
+        with pytest.raises(TimeoutError):
+            photo.result(timeout=0.1)
+        assert not photo_called.is_set()
+    finally:
+        release.set()
+        assert snapshot.result(timeout=2) == b"snapshot-jpeg"
+        if photo is not None:
+            assert photo.result(timeout=2) == b"photo"
