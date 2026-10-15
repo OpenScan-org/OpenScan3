@@ -285,7 +285,7 @@ class ScanTask(BaseTask):
             camera_controller.settings.AF,
             camera_controller.settings.manual_focus,
         )
-        camera_controller.settings.AF = False
+        await asyncio.to_thread(setattr, camera_controller.settings, "AF", False)
         logger.debug("Saved focus settings and disabled Autofocus")
 
         # Use focus positions from scan settings
@@ -400,7 +400,7 @@ class ScanTask(BaseTask):
         if os.path.exists(thumbnail_path):
             return
 
-        preview_bytes = camera_controller.preview()
+        preview_bytes = await asyncio.to_thread(camera_controller.preview)
         orientation_flag = int(camera_controller.settings.orientation_flag or 1)
 
         await asyncio.to_thread(
@@ -490,7 +490,7 @@ class ScanTask(BaseTask):
                         total_focus_stacks,
                         focus,
                     )
-                    self._ctx.camera_controller.settings.manual_focus = focus
+                    await asyncio.to_thread(setattr, self._ctx.camera_controller.settings, "manual_focus", focus)
 
                     photo_data = await self._ctx.camera_controller.photo_async(
                         self._ctx.scan.settings.image_format
@@ -536,7 +536,7 @@ class ScanTask(BaseTask):
                 previous_settings = self._ctx.focus_context["previous_settings"]
                 if previous_settings:
                     logger.debug("Restoring previous focus settings")
-                    self._ctx.camera_controller.settings.AF = previous_settings[0]
-                    self._ctx.camera_controller.settings.manual_focus = previous_settings[1]
+                    await asyncio.to_thread(setattr, self._ctx.camera_controller.settings, "AF", previous_settings[0])
+                    await asyncio.to_thread(setattr, self._ctx.camera_controller.settings, "manual_focus", previous_settings[1])
         except Exception as e:
             logger.error("Error during cleanup: %s", e, exc_info=True)
