@@ -1,12 +1,14 @@
 import os
 import re
 import gc
+import logging
 from pathlib import Path
 from collections import defaultdict
 from typing import Optional
 
 import numpy as np
 import cv2
+import piexif
 
 try:
     from turbojpeg import TurboJPEG
@@ -33,6 +35,25 @@ def save_image(path: str, img: np.ndarray, quality: int = DEFAULT_JPEG_QUALITY):
             f.write(turbo_jpeg.encode(img, quality=quality))
     else:
         cv2.imwrite(path, img, [cv2.IMWRITE_JPEG_QUALITY, quality])
+
+
+def copy_exif(source_path: str, destination_path: str) -> None:
+    """Copy source EXIF data to a JPEG that was rewritten by the stacker."""
+    try:
+        exif_data = piexif.load(source_path)
+        # The embedded thumbnail belongs to the source image, not the new stack.
+        exif_data["1st"] = {}
+        exif_data["thumbnail"] = None
+        exif_bytes = piexif.dump(exif_data)
+        if exif_bytes:
+            piexif.insert(exif_bytes, destination_path)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Could not copy EXIF data from %s to %s",
+            source_path,
+            destination_path,
+            exc_info=True,
+        )
 
 
 def resize_to_gray(img: np.ndarray, scale: float) -> np.ndarray:
@@ -127,6 +148,11 @@ class FocusStacker:
         self.downscale = downscale
         self.jpeg_quality = jpeg_quality or DEFAULT_JPEG_QUALITY
 
+    @staticmethod
+    def copy_exif_data(source_path: str, destination_path: str) -> None:
+        """Copy EXIF data between image files without interpreting its fields."""
+        copy_exif(source_path, destination_path)
+
     def calibrate_from_directory(self, directory: str, num_batches: int = 1) -> list[np.ndarray]:
         """Calibrate from batches in a directory.
 
@@ -218,6 +244,7 @@ class FocusStacker:
         if n == 1:
             img = load_image(image_paths[0])
             save_image(output_path, img, self.jpeg_quality)
+            self.copy_exif_data(image_paths[0], output_path)
             return
 
         transforms = transforms or self.transforms
@@ -252,6 +279,7 @@ class FocusStacker:
                 gc.collect()
 
         save_image(output_path, result, self.jpeg_quality)
+        self.copy_exif_data(image_paths[ref_idx], output_path)
 
     def stack_directory(self, directory: str, output_dir: Optional[str] = None) -> list[str]:
         """Stack all batches in a directory.
