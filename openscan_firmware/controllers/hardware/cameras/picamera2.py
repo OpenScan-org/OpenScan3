@@ -746,9 +746,9 @@ class Picamera2Controller(CameraController):
                                                                     #delay=5,
                                                                     format='jpeg',
                                                                     exif_data=exif_data)
-            jpeg_data = self._enrich_jpeg_exif(jpeg_data, cam_metadata)
             self._configure_focus(camera_mode="preview")
 
+        jpeg_data = self._enrich_jpeg_exif(jpeg_data, cam_metadata)
         logger.debug(f"Captured jpeg with metadata: {cam_metadata}")
 
         self._set_busy(False)
