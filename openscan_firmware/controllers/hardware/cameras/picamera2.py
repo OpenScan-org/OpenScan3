@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 class CameraStrategy:
     """Base strategy class for camera-specific configurations and processing"""
 
+    exif_make: str | None = None
+    exif_model: str | None = None
+
     def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         raise NotImplementedError
 
@@ -51,6 +54,9 @@ class CameraStrategy:
 
 class IMX519Strategy(CameraStrategy):
     """Strategy class for camera-specific configurations and processing for the Arducam IMX519 camera with 16MP."""
+    exif_make = "RaspberryPi"
+    exif_model = "RP_imx519"
+
     def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         if preview_resolution is None:
             return picam.create_preview_configuration(
@@ -106,6 +112,9 @@ class IMX519Strategy(CameraStrategy):
 
 class HawkeyeStrategy(CameraStrategy):
     """Strategy class for camera-specific configurations and processing for the Arducam Hawkeye camera with 64MP."""
+    exif_make = "RaspberryPi"
+    exif_model = "RP_arducam-64mp"
+
     def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         return picam.create_preview_configuration(
             main={"size": (2312, 1736)},
@@ -644,11 +653,22 @@ class Picamera2Controller(CameraController):
 
         self._picam.options["quality"] = self.settings.jpeg_quality
 
+        # Only apply a strategy's EXIF identity when this camera has an explicit
+        # strategy. Unknown cameras use the fallback strategy for capture setup,
+        # but must not be mislabeled as an IMX519 in the image metadata.
+        camera_strategy = self._strategies.get(self.camera.name)
+        if camera_strategy and camera_strategy.exif_make and camera_strategy.exif_model:
+            exif_camera_fields = {
+                piexif.ImageIFD.Make: camera_strategy.exif_make,
+                piexif.ImageIFD.Model: camera_strategy.exif_model,
+            }
+        else:
+            exif_camera_fields = {piexif.ImageIFD.Model: self.camera.name}
+
         exif_data = {
             "0th": {
                 piexif.ImageIFD.Orientation: self.settings.orientation_flag,
-                # piexif.ImageIFD.Make: "Raspberry Pi",
-                piexif.ImageIFD.Model: self.camera.name,
+                **exif_camera_fields,
                 piexif.ImageIFD.Software: "OpenScan3 (Picamera2)",
             }
         }
@@ -663,6 +683,8 @@ class Picamera2Controller(CameraController):
                                                             format='jpeg',
                                                             exif_data=exif_data)
 
+        jpeg_data = self._enrich_jpeg_exif(jpeg_data, cam_metadata)
+
         self._configure_focus(camera_mode="preview")
 
         logger.debug(f"Captured jpeg with metadata: {cam_metadata}")
@@ -670,6 +692,38 @@ class Picamera2Controller(CameraController):
         self._set_busy(False)
 
         return self._create_artifact(jpeg_data, "jpeg", cam_metadata)
+
+    @staticmethod
+    def _enrich_jpeg_exif(jpeg_data: BytesIO, camera_metadata: dict) -> BytesIO:
+        """Copy capture values with clear EXIF equivalents into the JPEG."""
+        exif_updates = {}
+
+        exposure_time_us = camera_metadata.get("ExposureTime")
+        if exposure_time_us is not None and exposure_time_us > 0:
+            # Picamera2 reports ExposureTime in microseconds; EXIF stores seconds.
+            exif_updates[piexif.ExifIFD.ExposureTime] = (int(exposure_time_us), 1_000_000)
+
+        analogue_gain = camera_metadata.get("AnalogueGain")
+        digital_gain = camera_metadata.get("DigitalGain")
+        if analogue_gain is not None and digital_gain is not None:
+            iso = int(analogue_gain * digital_gain * 100)
+            if iso > 0:
+                exif_updates[piexif.ExifIFD.ISOSpeedRatings] = iso
+
+        if not exif_updates:
+            return jpeg_data
+
+        try:
+            jpeg_bytes = jpeg_data.getvalue()
+            exif_dict = piexif.load(jpeg_bytes)
+            exif_dict["Exif"].update(exif_updates)
+            enriched_jpeg = BytesIO()
+            piexif.insert(piexif.dump(exif_dict), jpeg_bytes, enriched_jpeg)
+            jpeg_data = enriched_jpeg
+            return jpeg_data
+        except Exception:
+            logger.warning("Could not add Picamera2 capture metadata to JPEG EXIF", exc_info=True)
+            return jpeg_data
 
 
     def capture_dng(self) -> PhotoData:
