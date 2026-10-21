@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Picamera2 JPEGs now include the AliceVision Meshroom camera identities for known
+  IMX519 and Arducam 64MP cameras, along with exposure time and ISO.
+- Focus-stacked JPEGs now retain EXIF metadata from the middle focus image.
+
 ## 0.13.2 - 2026-10-15
 
 ### Added
