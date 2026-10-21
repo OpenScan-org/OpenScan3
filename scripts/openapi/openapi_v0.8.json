@@ -4300,6 +4300,17 @@
             "type": "string",
             "title": "Path"
           },
+          "scanner_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scanner Model"
+          },
           "settings": {
             "$ref": "#/components/schemas/CameraSettings"
           }
@@ -4585,6 +4596,22 @@
           "busy": {
             "type": "boolean",
             "title": "Busy"
+          },
+          "restart_required": {
+            "type": "boolean",
+            "title": "Restart Required",
+            "default": false
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
           },
           "settings": {
             "$ref": "#/components/schemas/CameraSettings"
@@ -5433,7 +5460,8 @@
           "theta",
           "fi"
         ],
-        "title": "PolarPoint3D"
+        "title": "PolarPoint3D",
+        "description": "PolarPoint3D represents a point in spherical coordinates\ntheta: polar angle (0\u00b0 to 180\u00b0), where:\n    - 0\u00b0 is the North Pole\n    - 90\u00b0 is the Equator\n    - 180\u00b0 is the South Pole\nfi: azimuthal angle (0\u00b0 to 360\u00b0), rotation around z-axis\nr: radius, default is 1 for unit sphere"
       },
       "Project": {
         "properties": {
