@@ -63,8 +63,8 @@ class _SnapshotBusyController:
     def is_busy(self) -> bool:
         return True
 
-    def preview(self):
-        raise AssertionError("preview() must not be called when controller is busy")
+    def preview_snapshot(self):
+        return b"snapshot-jpeg"
 
 
 class _SlowPhotoConcurrentController:
@@ -394,7 +394,7 @@ async def test_preview_stream_allows_parallel_photo_requests(
 
 
 @pytest.mark.asyncio
-async def test_preview_snapshot_returns_409_when_busy(monkeypatch, cameras_client, cameras_router_path):
+async def test_preview_snapshot_uses_locked_capture_despite_busy_flag(monkeypatch, cameras_client, cameras_router_path):
     module_path = cameras_router_path("cameras")
     controller = _SnapshotBusyController()
     monkeypatch.setattr(f"{module_path}.get_camera_controller", lambda _name: controller)
@@ -404,8 +404,9 @@ async def test_preview_snapshot_returns_409_when_busy(monkeypatch, cameras_clien
         params={"mode": "snapshot"},
     )
 
-    assert response.status_code == 409
-    assert "Camera is busy" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.content == b"snapshot-jpeg"
+    assert response.headers["content-type"] == "image/jpeg"
 
 
 @pytest.mark.asyncio

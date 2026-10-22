@@ -5,9 +5,11 @@ This module provides a CameraController class for controlling the picamera2 came
 
 """
 
+import asyncio
 import io
 import logging
 import time
+from contextlib import asynccontextmanager
 from importlib.metadata import metadata
 from io import BytesIO
 
@@ -196,6 +198,9 @@ class Picamera2Controller(CameraController):
         self._picam = self._create_picamera()
         self._strategy = self._strategies.get(self.camera.name, IMX519Strategy())
         self._is_closing = False
+        self._capture_session_active = False
+        self._capture_session_config = None
+        self._capture_session_image_format = None
 
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
@@ -483,6 +488,7 @@ class Picamera2Controller(CameraController):
         Returns:
             tuple: A tuple containing the red and blue gains.
         """
+        self._require_camera_ready()
         self._set_busy(True)
         logger.info("Will configure automatic white balance for color correction...")
         logger.debug(
@@ -551,50 +557,101 @@ class Picamera2Controller(CameraController):
         # the Picamera2 instance. The cancellation above wakes a photo waiting
         # on a Picamera2 job; this lock waits for that caller to leave.
         with self._hw_lock:
-            self._picam.stop()
-            self._picam.close()
-            self._picam = self._create_picamera()
-            self._configure_resolutions()
-            self._picam.configure(self.preview_config)
-            self._picam.start()
-            self._apply_settings_to_hardware(self.camera.settings)
-            self._configure_focus(camera_mode="preview")
+            try:
+                self._picam.stop()
+                self._picam.close()
+                self._picam = self._create_picamera()
+                self._configure_resolutions()
+                self._picam.configure(self.preview_config)
+                self._picam.start()
+                self._apply_settings_to_hardware(self.camera.settings)
+                self._configure_focus(camera_mode="preview")
+            except (OSError, RuntimeError) as exc:
+                self._record_camera_error(exc)
+                raise
+            self._set_restart_error(None)
             self._set_busy(False)
         logger.info(f"Picamera2 restarted.")
 
-    def _capture_array(self, config):
-        self._set_busy(True)
-        self._configure_focus(camera_mode="photo")
-        if self.settings.AF:
-            self._autofocus_or_fallback()
+    @asynccontextmanager
+    async def capture_session(self, image_format: str = "jpeg"):
+        """Keep the requested capture configuration active for a capture sequence.
 
-        last_exc = None
+        The mode switch is deliberately lazy. This lets JPEG/DNG capture setup
+        apply its crop before the first switch and avoids switching at all when
+        a session is opened but no photo is taken.
+        """
+        if self._capture_session_active:
+            raise RuntimeError("Picamera2 capture sessions cannot be nested")
+
+        self._capture_session_active = True
+        self._capture_session_image_format = image_format
         try:
-            for attempt in range(1, 4):
-                try:
-                    req = self._picam.switch_mode_and_capture_request(config, wait=True)
-                    try:
-                        array = req.make_array("main")
-                        cam_metadata = req.get_metadata()
-                    finally:
-                        req.release()
-                    logger.debug(f"Captured array with metadata: {cam_metadata}")
-                    return array, cam_metadata
-                except Exception as e:
-                    last_exc = e
-                    logger.warning(f"_capture_array attempt {attempt}/3 failed: {e}")
-                    if attempt < 3:
-                        # Exponential backoff to give the system time to free/recover memory
-                        backoff = [1, 2, 4][attempt - 1]
-                        time.sleep(backoff)
-                        continue
-                    break
-        except:
-            # All attempts failed; re-raise the last exception for upstream handling
-            raise last_exc
+            yield self
         finally:
-            # Always switch back to preview focus and clear busy flag
-            self._configure_focus(camera_mode="preview")
+            try:
+                if self._capture_session_config is not None and not self.restart_required:
+                    await asyncio.to_thread(self._end_capture_session)
+            finally:
+                self._set_busy(False)
+                self._capture_session_active = False
+                self._capture_session_config = None
+                self._capture_session_image_format = None
+
+    def _ensure_capture_session_mode(self, config):
+        """Switch into the capture mode once for the current session."""
+        if self._capture_session_config is not None:
+            return
+
+        self._picam.switch_mode(config, wait=True)
+        self._capture_session_config = config
+        logger.debug(
+            "Capture session switched to %s configuration.",
+            self._capture_session_image_format,
+        )
+
+    def _end_capture_session(self):
+        """Return from the persistent capture mode to the preview mode."""
+        with self._hw_lock:
+            if self.restart_required:
+                return
+            try:
+                self._picam.switch_mode(self.preview_config, wait=True)
+                self._configure_focus(camera_mode="preview")
+            except (OSError, RuntimeError) as exc:
+                self._record_camera_error(exc)
+                raise
+        logger.debug("Capture session returned to preview configuration.")
+
+    def _capture_array(self, config):
+        self._require_camera_ready()
+        self._set_busy(True)
+        try:
+            self._configure_focus(camera_mode="photo")
+            if self.settings.AF:
+                self._autofocus_or_fallback()
+
+            if self._capture_session_active:
+                self._ensure_capture_session_mode(config)
+                req = self._picam.capture_request(wait=True)
+            else:
+                req = self._picam.switch_mode_and_capture_request(config, wait=True)
+            try:
+                array = req.make_array("main")
+                cam_metadata = req.get_metadata()
+            finally:
+                req.release()
+
+            # Restore focus only after success; a failed camera may hang here.
+            if not self._capture_session_active:
+                self._configure_focus(camera_mode="preview")
+            logger.debug(f"Captured array with metadata: {cam_metadata}")
+            return array, cam_metadata
+        except (OSError, RuntimeError) as exc:
+            self._record_camera_error(exc)
+            logger.exception("Array capture failed.")
+            raise
+        finally:
             self._set_busy(False)
 
 
@@ -677,16 +734,21 @@ class Picamera2Controller(CameraController):
             exif_data.update(optional_exif_data)
 
         jpeg_data = io.BytesIO()
-        cam_metadata = self._picam.switch_mode_and_capture_file(self.photo_config,
-                                                            jpeg_data,
-                                                            #delay=5,
-                                                            format='jpeg',
-                                                            exif_data=exif_data)
+        if self._capture_session_active:
+            self._ensure_capture_session_mode(self.photo_config)
+            cam_metadata = self._picam.capture_file(jpeg_data,
+                                                    format='jpeg',
+                                                    exif_data=exif_data,
+                                                    wait=True)
+        else:
+            cam_metadata = self._picam.switch_mode_and_capture_file(self.photo_config,
+                                                                    jpeg_data,
+                                                                    #delay=5,
+                                                                    format='jpeg',
+                                                                    exif_data=exif_data)
+            self._configure_focus(camera_mode="preview")
 
         jpeg_data = self._enrich_jpeg_exif(jpeg_data, cam_metadata)
-
-        self._configure_focus(camera_mode="preview")
-
         logger.debug(f"Captured jpeg with metadata: {cam_metadata}")
 
         self._set_busy(False)
@@ -738,11 +800,14 @@ class Picamera2Controller(CameraController):
             self._autofocus_or_fallback()
 
         dng_data = io.BytesIO()
-        camera_metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
-                                                            dng_data,
-                                                            name='raw')
-
-        self._configure_focus(camera_mode="preview")
+        if self._capture_session_active:
+            self._ensure_capture_session_mode(self.raw_config)
+            camera_metadata = self._picam.capture_file(dng_data, name='raw', wait=True)
+        else:
+            camera_metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
+                                                                       dng_data,
+                                                                       name='raw')
+            self._configure_focus(camera_mode="preview")
 
         logger.debug(f"Captured dng with metadata: {camera_metadata}")
 
@@ -788,6 +853,7 @@ class Picamera2Controller(CameraController):
         Returns:
             IO[bytes]: A file-like object containing the JPEG image.
         """
+        self._require_camera_ready()
         if self._picam is None or self._is_closing:
             raise RuntimeError("Picamera2 controller is not available")
 
