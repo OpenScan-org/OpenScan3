@@ -37,7 +37,7 @@ dependencies = [
   "gpiozero==2.0.1",
   "python-json-logger==3.3.0",
   "pydantic==2.11.3",
-  "requests==2.32.4",
+  "requests==2.34.2",
   "typing-extensions==4.14.1",
   "anyio==4.10.0",
   "piexif==1.1.3",
