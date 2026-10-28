@@ -109,11 +109,17 @@ def test_configure_focus_sets_preview_autofocus_window(monkeypatch):
     ]
 
 
-def test_configure_focus_uses_default_af_window_when_none_is_set(monkeypatch):
+@pytest.mark.parametrize("camera_properties", [
+    {"PixelArraySize": (200, 100)},
+    {"PixelArrayReadableArea": (48, 40, 200, 100)},
+    {"PixelArraySize": (200, 100), "PixelArrayReadableArea": (48, 40, 300, 150)},
+], ids=["legacy", "readable-area", "legacy-preferred"])
+def test_configure_focus_uses_default_af_window_when_none_is_set(monkeypatch, camera_properties):
     module = _import_picamera2_module(monkeypatch)
     controller = object.__new__(module.Picamera2Controller)
     controller.settings = CameraSettings(AF=True, AF_window=None)
     controller._picam = _FakePicam()
+    controller._picam.camera_properties = camera_properties
 
     controller._configure_focus(camera_mode="photo")
 
@@ -186,7 +192,11 @@ def test_capture_session_captures_without_switching_back(monkeypatch):
     assert controller._picam.switch_mode_calls == [(controller.rgb_config, True)]
 
 
-def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropped(monkeypatch):
+@pytest.mark.parametrize("camera_properties", [
+    {"PixelArraySize": (200, 100)},
+    {"PixelArrayReadableArea": (48, 40, 200, 100)},
+], ids=["legacy", "readable-area"])
+def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropped(monkeypatch, camera_properties):
     module = _import_picamera2_module(monkeypatch)
 
     class _FakeStrategy:
@@ -232,6 +242,7 @@ def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropp
     )
     controller.camera = types.SimpleNamespace(settings=controller.settings)
     controller._picam = _FakePicam()
+    controller._picam.camera_properties = camera_properties
     controller._strategy = strategy
     controller._photogrammetry_settings = {
         "AeEnable": False,

@@ -368,9 +368,18 @@ class Picamera2Controller(CameraController):
         logger.debug(f"Configured resolutions with preview controls {photogrammetry_settings} and still controls {still_settings}.")
 
 
+    def _pixel_array_size(self):
+        """Return readable sensor dimensions across libcamera property versions."""
+        properties = self._picam.camera_properties
+        if "PixelArraySize" in properties:
+            return properties["PixelArraySize"]
+
+        _, _, width, height = properties["PixelArrayReadableArea"]
+        return width, height
+
     def _configure_cropping(self):
         """Deprecated! Configure cropping of the image based on settings."""
-        full_x, full_y = self._picam.camera_properties['PixelArraySize']
+        full_x, full_y = self._pixel_array_size()
         # because of rotation, height is x and width is y
         crop_x = self.settings.crop_height / 100
         crop_y = self.settings.crop_width / 100
@@ -387,7 +396,7 @@ class Picamera2Controller(CameraController):
 
         RGB and YUV configurations intentionally remain uncropped for analysis.
         """
-        full_x, full_y = self._picam.camera_properties["PixelArraySize"]
+        full_x, full_y = self._pixel_array_size()
 
         crop_x = self.settings.crop_width / 100
         crop_y = self.settings.crop_height / 100
@@ -418,7 +427,7 @@ class Picamera2Controller(CameraController):
             camera_mode (str, optional): Whether to configure focus for "preview" or "photo" mode. Defaults to None.
         """
         if self.settings.AF:
-            full_x, full_y = self._picam.camera_properties['PixelArraySize']
+            full_x, full_y = self._pixel_array_size()
 
             if self.settings.AF_window is not None:
                 x, y, w, h = self.settings.AF_window
