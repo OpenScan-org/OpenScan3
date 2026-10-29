@@ -276,7 +276,7 @@
         "tags": [
           "cameras"
         ],
-        "summary": "Get Photo Payload",
+        "summary": "Next Get Photo Payload",
         "operationId": "get_photo_payload",
         "parameters": [
           {
@@ -447,6 +447,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AutoCalibrateAwbResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cameras/{camera_name}/exposure-calibration": {
+      "post": {
+        "tags": [
+          "cameras"
+        ],
+        "summary": "Run automatic exposure calibration and lock exposure with analogue gain at 1.0.",
+        "description": "Calibrate and persist exposure using the camera controller when supported.",
+        "operationId": "auto_calibrate_exposure",
+        "parameters": [
+          {
+            "name": "camera_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Camera Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoCalibrateExposureRequest",
+                "default": {
+                  "warmup_frames": 12,
+                  "stable_frames": 4,
+                  "timeout_s": 4.0,
+                  "use_photo_config": false,
+                  "relative_tolerance": 0.01
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoCalibrateExposureResponse"
                 }
               }
             }
@@ -5367,6 +5429,48 @@
           }
         }
       }
+    },
+    "/scan-analysis": {
+      "post": {
+        "tags": [
+          "scan_analysis"
+        ],
+        "summary": "Start Scan Analysis",
+        "description": "Start a scan setup analysis task.",
+        "operationId": "start_scan_analysis",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanAnalysisTaskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5422,6 +5526,73 @@
           "blue_gain"
         ],
         "title": "AutoCalibrateAwbResponse"
+      },
+      "AutoCalibrateExposureRequest": {
+        "properties": {
+          "warmup_frames": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Warmup Frames",
+            "default": 12
+          },
+          "stable_frames": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Stable Frames",
+            "default": 4
+          },
+          "timeout_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Timeout S",
+            "default": 4.0
+          },
+          "tolerance_us": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance Us",
+            "description": "Absolute exposure stability tolerance in microseconds; overrides relative tolerance."
+          },
+          "use_photo_config": {
+            "type": "boolean",
+            "title": "Use Photo Config",
+            "description": "Temporarily calibrate in the current still configuration instead of preview mode.",
+            "default": false
+          },
+          "relative_tolerance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Relative Tolerance",
+            "default": 0.01
+          }
+        },
+        "type": "object",
+        "title": "AutoCalibrateExposureRequest"
+      },
+      "AutoCalibrateExposureResponse": {
+        "properties": {
+          "shutter_ms": {
+            "type": "number",
+            "title": "Shutter Ms"
+          },
+          "analogue_gain": {
+            "type": "number",
+            "title": "Analogue Gain"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shutter_ms",
+          "analogue_gain"
+        ],
+        "title": "AutoCalibrateExposureResponse"
       },
       "AvailableConfigResponse": {
         "properties": {
@@ -5840,6 +6011,28 @@
         "type": "object",
         "title": "CameraSettings"
       },
+      "CameraSettingsResult": {
+        "properties": {
+          "previous": {
+            "$ref": "#/components/schemas/CameraSettings"
+          },
+          "recommended": {
+            "$ref": "#/components/schemas/CameraSettings"
+          },
+          "applied": {
+            "type": "boolean",
+            "title": "Applied"
+          }
+        },
+        "type": "object",
+        "required": [
+          "previous",
+          "recommended",
+          "applied"
+        ],
+        "title": "CameraSettingsResult",
+        "description": "Camera settings before and after scan analysis."
+      },
       "CameraStatusResponse": {
         "properties": {
           "name": {
@@ -6105,6 +6298,144 @@
         ],
         "title": "CloudStatusResponse",
         "description": "Aggregated view of the cloud backend status."
+      },
+      "CropRecommendation": {
+        "properties": {
+          "coordinate_system": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "oriented_full_analysis_frame"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinate System",
+            "description": "Coordinate system used by bbox and rect."
+          },
+          "frame_size": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Size",
+            "description": "Width and height of the full oriented analysis frame."
+          },
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox",
+            "description": "Detected object bounding box as x, y, width, height."
+          },
+          "bbox_normalized": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox Normalized",
+            "description": "Detected object bounding box relative to the full analysis frame."
+          },
+          "rect": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rect",
+            "description": "Centered crop rectangle as x, y, width, height."
+          },
+          "rect_normalized": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rect Normalized",
+            "description": "Centered crop rectangle relative to the full analysis frame."
+          },
+          "crop_width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Width",
+            "description": "Percentage of image width that can be cropped."
+          },
+          "crop_height": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Height",
+            "description": "Percentage of image height that can be cropped."
+          },
+          "support_exclusion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Exclusion",
+            "description": "Geometry based exclusion of a lower turntable support."
+          }
+        },
+        "type": "object",
+        "required": [
+          "bbox",
+          "rect",
+          "crop_width",
+          "crop_height"
+        ],
+        "title": "CropRecommendation",
+        "description": "Recommended crop values for the detected object extent."
       },
       "DeleteResponse": {
         "properties": {
@@ -6912,6 +7243,27 @@
         ],
         "title": "MotorStatusResponse"
       },
+      "NormalizedCrop": {
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array",
+        "maxItems": 4,
+        "minItems": 4,
+        "title": "NormalizedCrop",
+        "description": "Crop rectangle as normalized ``x, y, width, height`` values.\n\nA root model keeps the existing compact JSON representation as an array\nwhile moving validation out of the task implementation."
+      },
       "OpenScanUpdatePackage": {
         "properties": {
           "id": {
@@ -7159,6 +7511,55 @@
         "title": "PolarPoint3D",
         "description": "PolarPoint3D represents a point in spherical coordinates\ntheta: polar angle (0\u00b0 to 180\u00b0), where:\n    - 0\u00b0 is the North Pole\n    - 90\u00b0 is the Equator\n    - 180\u00b0 is the South Pole\nfi: azimuthal angle (0\u00b0 to 360\u00b0), rotation around z-axis\nr: radius, default is 1 for unit sphere"
       },
+      "PositionAnalysis": {
+        "properties": {
+          "vertical_imbalance": {
+            "type": "number",
+            "title": "Vertical Imbalance",
+            "description": "Relative imbalance between the upper and lower image areas."
+          },
+          "horizontal_imbalance": {
+            "type": "number",
+            "title": "Horizontal Imbalance",
+            "description": "Relative imbalance between the left and right image areas."
+          },
+          "vertical_assessment": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Vertical Assessment",
+            "description": "Qualitative guidance for vertical alignment and holder setup."
+          },
+          "horizontal_assessment": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Horizontal Assessment",
+            "description": "Qualitative guidance for horizontal object centering."
+          },
+          "overall_status": {
+            "type": "string",
+            "enum": [
+              "good",
+              "warning"
+            ],
+            "title": "Overall Status",
+            "description": "Overall qualitative assessment of object placement."
+          }
+        },
+        "type": "object",
+        "required": [
+          "vertical_imbalance",
+          "horizontal_imbalance",
+          "vertical_assessment",
+          "horizontal_assessment",
+          "overall_status"
+        ],
+        "title": "PositionAnalysis",
+        "description": "Indicators for uneven object placement in the image."
+      },
       "Project": {
         "properties": {
           "name": {
@@ -7375,6 +7776,255 @@
         ],
         "title": "Scan",
         "description": "Represents a single scan session within a project."
+      },
+      "ScanAnalysisRequest": {
+        "properties": {
+          "camera_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Camera Name",
+            "description": "Name of the camera used for the analysis capture."
+          },
+          "depends_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depends On",
+            "description": "Optional task ID that must complete successfully before this task runs."
+          },
+          "debug_images": {
+            "type": "boolean",
+            "title": "Debug Images",
+            "description": "Include compact ROI debug images in the result.",
+            "default": false
+          },
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NormalizedCrop"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional normalized x, y, width, height crop in the oriented full analysis frame."
+          }
+        },
+        "type": "object",
+        "required": [
+          "camera_name"
+        ],
+        "title": "ScanAnalysisRequest",
+        "description": "Parameters for a scan setup analysis capture."
+      },
+      "ScanAnalysisResult": {
+        "properties": {
+          "analysis_type": {
+            "type": "string",
+            "const": "scan_analysis",
+            "title": "Analysis Type"
+          },
+          "crop_recommendation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CropRecommendation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position_analysis": {
+            "$ref": "#/components/schemas/PositionAnalysis"
+          },
+          "camera_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CameraSettingsResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Previous and recommended camera settings. The recommended settings are active after a successful analysis and the previous settings can be used for reset."
+          },
+          "sift_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SiftAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SIFT feature matching metrics from a small turntable rotation."
+          },
+          "focus_analysis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus Analysis",
+            "description": "Regional ISP focus measurements and a preliminary autofocus or focus-stacking assessment."
+          },
+          "sift_benchmark": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SiftBenchmark"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Temporary paths to unscaled SIFT benchmark frames."
+          },
+          "debug_images": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debug Images",
+            "description": "Optional diagnostic images requested with debug_images."
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysis_type",
+          "position_analysis"
+        ],
+        "title": "ScanAnalysisResult",
+        "description": "Public result of the scan setup analysis."
+      },
+      "ScanAnalysisTaskResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "task_type": {
+            "type": "string",
+            "title": "Task Type"
+          },
+          "is_exclusive": {
+            "type": "boolean",
+            "title": "Is Exclusive",
+            "description": "Whether this task is exclusive and should not run concurrently",
+            "default": false
+          },
+          "is_blocking": {
+            "type": "boolean",
+            "title": "Is Blocking",
+            "description": "Whether this task is blocking and should run in a separate thread",
+            "default": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/TaskProgress"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanAnalysisResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "depends_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depends On",
+            "description": "Task ID that must complete successfully before this task may run."
+          },
+          "run_args": {
+            "items": {},
+            "type": "array",
+            "title": "Run Args",
+            "description": "Positional arguments the task was started with."
+          },
+          "run_kwargs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Run Kwargs",
+            "description": "Keyword arguments the task was started with."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "task_type"
+        ],
+        "title": "ScanAnalysisTaskResponse",
+        "description": "Task envelope with the typed scan analysis result."
       },
       "ScanCreateRequest": {
         "properties": {
@@ -7735,6 +8385,361 @@
           "startup_enabled"
         ],
         "title": "ScannerStartupMode"
+      },
+      "SiftAnalysis": {
+        "properties": {
+          "turntable_angle": {
+            "type": "number",
+            "title": "Turntable Angle"
+          },
+          "feature_count": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Feature Count"
+          },
+          "tentative_match_count": {
+            "type": "integer",
+            "title": "Tentative Match Count"
+          },
+          "mutual_match_count": {
+            "type": "integer",
+            "title": "Mutual Match Count"
+          },
+          "matchable_feature_count": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Matchable Feature Count"
+          },
+          "matchable_feature_ratio": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Matchable Feature Ratio"
+          },
+          "unmatched_feature_count": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Unmatched Feature Count"
+          },
+          "geometric_inlier_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geometric Inlier Count"
+          },
+          "geometric_outlier_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geometric Outlier Count"
+          },
+          "geometric_inlier_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geometric Inlier Ratio"
+          },
+          "spatial_distribution": {
+            "$ref": "#/components/schemas/SiftSpatialDistribution"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SiftQuality"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "turntable_angle",
+          "feature_count",
+          "tentative_match_count",
+          "mutual_match_count",
+          "matchable_feature_count",
+          "matchable_feature_ratio",
+          "unmatched_feature_count",
+          "geometric_inlier_count",
+          "geometric_outlier_count",
+          "geometric_inlier_ratio",
+          "spatial_distribution"
+        ],
+        "title": "SiftAnalysis",
+        "description": "Feature and match quality metrics for the SIFT comparison pair."
+      },
+      "SiftBenchmark": {
+        "properties": {
+          "first_image": {
+            "type": "string",
+            "title": "First Image"
+          },
+          "second_image": {
+            "type": "string",
+            "title": "Second Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_image",
+          "second_image"
+        ],
+        "title": "SiftBenchmark",
+        "description": "Paths to the unscaled RGB frames used for SIFT benchmarking."
+      },
+      "SiftGridImageMetrics": {
+        "properties": {
+          "feature_counts": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Feature Counts"
+          },
+          "matchable_feature_counts": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Matchable Feature Counts"
+          },
+          "geometric_inlier_counts": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geometric Inlier Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature_counts",
+          "matchable_feature_counts",
+          "geometric_inlier_counts"
+        ],
+        "title": "SiftGridImageMetrics",
+        "description": "Per-cell SIFT metrics for one image in the comparison pair."
+      },
+      "SiftGridSize": {
+        "properties": {
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "columns": {
+            "type": "integer",
+            "title": "Columns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rows",
+          "columns"
+        ],
+        "title": "SiftGridSize",
+        "description": "Dimensions of the spatial SIFT analysis grid."
+      },
+      "SiftQuality": {
+        "properties": {
+          "overall_status": {
+            "type": "string",
+            "enum": [
+              "good",
+              "warning",
+              "poor"
+            ],
+            "title": "Overall Status"
+          },
+          "feature_quality": {
+            "type": "string",
+            "enum": [
+              "good",
+              "warning",
+              "poor"
+            ],
+            "title": "Feature Quality"
+          },
+          "spatial_coverage": {
+            "type": "string",
+            "enum": [
+              "good",
+              "warning",
+              "poor"
+            ],
+            "title": "Spatial Coverage"
+          },
+          "matching_quality": {
+            "type": "string",
+            "enum": [
+              "good",
+              "warning",
+              "poor"
+            ],
+            "title": "Matching Quality"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "thresholds": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Thresholds"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/SiftQualityWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall_status",
+          "feature_quality",
+          "spatial_coverage",
+          "matching_quality",
+          "metrics",
+          "thresholds",
+          "warnings"
+        ],
+        "title": "SiftQuality",
+        "description": "Initial heuristic quality assessment for the SIFT comparison."
+      },
+      "SiftQualityWarning": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "error"
+            ],
+            "title": "Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "images": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "first",
+                    "second"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Images"
+          },
+          "cells": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "title": "SiftQualityWarning",
+        "description": "Structured warning from the qualitative SIFT assessment."
+      },
+      "SiftSpatialDistribution": {
+        "properties": {
+          "grid_size": {
+            "$ref": "#/components/schemas/SiftGridSize"
+          },
+          "first": {
+            "$ref": "#/components/schemas/SiftGridImageMetrics"
+          },
+          "second": {
+            "$ref": "#/components/schemas/SiftGridImageMetrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grid_size",
+          "first",
+          "second"
+        ],
+        "title": "SiftSpatialDistribution",
+        "description": "Spatial distribution of SIFT features and matches in both images."
       },
       "SoftwareInfoResponse": {
         "properties": {

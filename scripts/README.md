@@ -29,3 +29,50 @@ The script has no CLI switches. Behavior is driven by the firmware code:
 - The `next` alias is always generated to reflect the bleeding-edge router.
 
 If you need to add knobs (e.g., output path, specific versions), extend the script and document the new options here.
+
+## `collect_benchy_socket_analysis.py`
+
+Collects scan-analysis reports for the Benchy on the 3 cm, 5 cm, 7 cm, and 10 cm
+turntable sockets. It waits for ENTER between sockets and switches the ringlight
+off while the socket is being changed.
+
+```sh
+python scripts/collect_benchy_socket_analysis.py
+```
+
+The default device URL is `http://openscan3-imx519/api`. Camera and light names
+are discovered through the API when omitted. Override them with
+`--camera-name` and `--light-name` if needed. Use `--base-url` and
+`--output-dir` to choose the device and where complete task responses are written.
+Each position captures autofocus plus fixed focus values `10`, `12`, and `15` by
+default. Use `--focus-values` to change the fixed series, `--no-autofocus` to
+skip autofocus, or `--no-debug-images` to skip the small inspection images.
+
+## `analyze_benchy_raw_series.py`
+
+Analyzes the stored original RGB arrays without contacting the scanner. It
+selects the newest complete socket run by default and writes one ROI mask per
+focus series, a consensus mask, a cleaned object mask, and `summary.json` to
+`debug/benchy-raw-series/`.
+
+```sh
+python scripts/analyze_benchy_raw_series.py
+```
+
+Use `--run 20261006-184514` to select a specific run.
+
+## `collect_benchy_raw_series.py`
+
+Captures one serial Benchy series through the camera photo endpoint and stores
+each original RGB array as `.npy`, with its API metadata in a neighboring JSON
+file. The camera settings and turntable position are restored when the script
+finishes.
+
+```sh
+python scripts/collect_benchy_raw_series.py
+```
+
+The script waits for ENTER between the 3 cm, 5 cm, 7 cm, and 10 cm sockets.
+It starts at turntable angle `90` and captures autofocus plus fixed focus values
+`10`, `12`, and `15` at offsets `0`, `120`, and `-120`. Use
+`--socket-height-cm 5` to capture one socket only.

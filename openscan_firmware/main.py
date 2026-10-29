@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 import uvicorn
 from fastapi import FastAPI
@@ -57,6 +58,7 @@ from openscan_firmware.routers.next import (
     develop as develop_next,
     cloud as cloud_next,
     focus_stacking as focus_stacking_next,
+    scan_analysis as scan_analysis_next,
 )
 from openscan_firmware.controllers import device as device_controller
 
@@ -212,6 +214,7 @@ next_ROUTERS = [
     cloud_next.router,
     websocket_router.router,
     focus_stacking_next.router,
+    scan_analysis_next.router,
 ]
 
 v0_9_ROUTERS = [
@@ -273,7 +276,7 @@ def make_version_app(version: str) -> FastAPI:
 
 
 def _use_route_names_as_operation_ids(app: FastAPI) -> None:
-    """Assign each APIRoute's operation_id to its route name.
+    """Assign operation IDs from route names without internal version prefixes.
 
     This helps with OpenAPI documentation generation and prevents names like 'deleteProjectProjectsProjectNameDelete'.
 
@@ -288,6 +291,8 @@ def _use_route_names_as_operation_ids(app: FastAPI) -> None:
         base_name = route.name or getattr(route.endpoint, "__name__", None)
         if not base_name:
             continue
+
+        base_name = re.sub(r"^(?:v\d+(?:_\d+)*|next)_", "", base_name)
 
         count = seen.get(base_name, 0)
         seen[base_name] = count + 1
