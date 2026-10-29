@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added `POST /next/cameras/{camera_name}/exposure-calibration` to automatically
+  calibrate and lock exposure with analogue gain fixed at 1.0. Supports optional
+  calibration parameters and calibration in the still configuration, and returns
+  the locked shutter time in milliseconds and analogue gain.
+
 ### Fixed
 
 - Picamera2 cameras now initialize on newer libcamera stacks that replace

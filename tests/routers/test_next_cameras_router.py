@@ -797,3 +797,70 @@ async def test_payload_cache_byte_limit_evicts_old_entries(
     second_payload_response = await cameras_client.get(payload_2)
     assert first_payload_response.status_code == 404
     assert second_payload_response.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("params", [None, {
+    "warmup_frames": 3, "stable_frames": 2, "timeout_s": 6.0,
+    "tolerance_us": 100, "use_photo_config": True, "relative_tolerance": 0.02,
+}])
+async def test_exposure_calibration(cameras_client, monkeypatch, params):
+    from unittest.mock import Mock
+
+    router = import_module(_next_router_module_path("cameras"))
+    controller = Mock()
+    controller.is_busy.return_value = False
+    controller.calibrate_exposure_and_lock.return_value = (12.5, 1.0)
+    monkeypatch.setattr(router, "get_camera_controller", lambda name: controller)
+
+    kwargs = {} if params is None else {"json": params}
+    response = await cameras_client.post("/next/cameras/cam0/exposure-calibration", **kwargs)
+
+    assert response.status_code == 200
+    assert response.json() == {"shutter_ms": 12.5, "analogue_gain": 1.0}
+    expected = params or {
+        "warmup_frames": 12, "stable_frames": 4, "timeout_s": 4.0,
+        "tolerance_us": None, "use_photo_config": False, "relative_tolerance": 0.01,
+    }
+    controller.calibrate_exposure_and_lock.assert_called_once_with(**expected)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scenario,status", [("busy", 409), ("unsupported", 501), ("failed", 500)])
+async def test_exposure_calibration_errors(cameras_client, monkeypatch, scenario, status):
+    from unittest.mock import Mock
+
+    router = import_module(_next_router_module_path("cameras"))
+    controller = Mock()
+    controller.is_busy.return_value = scenario == "busy"
+    if scenario == "unsupported":
+        controller.calibrate_exposure_and_lock = None
+    else:
+        controller.calibrate_exposure_and_lock.side_effect = RuntimeError("Exposure did not stabilize.")
+    monkeypatch.setattr(router, "get_camera_controller", lambda name: controller)
+
+    response = await cameras_client.post("/next/cameras/cam0/exposure-calibration")
+
+    assert response.status_code == status
+    if scenario == "busy":
+        controller.calibrate_exposure_and_lock.assert_not_called()
+    if scenario == "failed":
+        assert response.json()["detail"] == "Exposure did not stabilize."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("params", [
+    {"warmup_frames": -1}, {"stable_frames": 0}, {"timeout_s": 0},
+    {"tolerance_us": 0}, {"relative_tolerance": 0},
+])
+async def test_exposure_calibration_invalid_parameters(cameras_client, monkeypatch, params):
+    from unittest.mock import Mock
+
+    router = import_module(_next_router_module_path("cameras"))
+    get_controller = Mock()
+    monkeypatch.setattr(router, "get_camera_controller", get_controller)
+
+    response = await cameras_client.post("/next/cameras/cam0/exposure-calibration", json=params)
+
+    assert response.status_code == 422
+    get_controller.assert_not_called()
