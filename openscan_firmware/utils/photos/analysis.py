@@ -11,6 +11,7 @@ from PIL import Image
 
 from openscan_firmware.models.camera import CameraMetadata, PhotoData
 from openscan_firmware.models.paths import PolarPoint3D
+from openscan_firmware.utils.photos.focus_options import build_stacking_options
 
 
 @dataclass
@@ -120,270 +121,85 @@ def analyze_focus_series(
     frame_reports: list[dict[str, Any]],
     *,
     crop_recommendation: dict[str, Any] | None = None,
-    autofocus_quality_ratio: float = 0.9,
-    distinct_focus_delta: float = 0.5,
-    min_focus_plane_weight: float = 0.5,
-) -> dict[str, Any]:
-    """Summarize regional ISP focus measurements from a focus sweep.
+) -> dict[str, Any] | None:
+    """Return crop-weighted regional focus profiles without quality policy.
 
-    The Raspberry Pi ISP supplies a focus value for each cell of its focus
-    statistics grid.  This report keeps every measurement and adds small
-    heuristics that help decide whether a single autofocus result is likely
-    sufficient or whether focus stacking deserves consideration.  The
-    heuristic is intentionally conservative because the default sweep has
-    only a few focus samples.
+    Each region is normalized against its best positive measured ISP focus
+    value, including AF. Missing/invalid values and all-zero profiles are null.
+    Values indicate relative measurements, not absolute image sharpness.
     """
-    measurements: list[dict[str, Any]] = []
-    orientation_flag = _focus_orientation_flag(frame_reports)
-    focus_geometry = _focus_crop_geometry(
-        crop_recommendation,
-        orientation_flag=orientation_flag,
+    geometry = _focus_crop_geometry(
+        crop_recommendation, orientation_flag=_focus_orientation_flag(frame_reports),
     )
-    for report in frame_reports:
-        raw_metadata = report.get("camera_metadata", {}).get("raw_metadata", {})
-        extended_debug = raw_metadata.get("extended_debug", {})
-        focus = extended_debug.get("focus")
-        if not focus or not focus.get("regions"):
-            continue
-        measurements.append(
-            {
-                "index": report.get("index"),
-                "capture_index": report.get("capture_index"),
-                "turntable_offset": report.get("turntable_offset"),
-                "turntable_angle": report.get("turntable_angle"),
-                "focus_mode": report.get("focus_mode"),
-                "requested_focus": report.get("requested_focus"),
-                "actual_lens_position": report.get("actual_lens_position"),
-                "focus_fom": report.get("focus_fom"),
-                "source": focus.get("source"),
-                "coordinate_system": focus.get("coordinate_system"),
-                "grid_size": focus.get("grid_size"),
-                "extended_debug": {
-                    "schema_version": extended_debug.get("schema_version"),
-                    "stats_output_enabled": extended_debug.get("stats_output_enabled"),
-                    "sources": [
-                        {
-                            key: source.get(key)
-                            for key in (
-                                "metadata_key",
-                                "blob_size",
-                                "parser_supported",
-                                "version",
-                                "declared_size",
-                                "error",
-                            )
-                            if key in source
-                        }
-                        for source in extended_debug.get("sources", [])
-                    ],
-                    "errors": extended_debug.get("errors", []),
-                },
-                "regions": [
-                    _focus_region_report(region, focus_geometry)
-                    for region in focus["regions"]
-                ],
-            }
-        )
-
-    positions: list[dict[str, Any]] = []
-    for offset in _ordered_focus_offsets(measurements):
-        position_measurements = [
-            item for item in measurements
-            if item.get("turntable_offset") == offset
-        ]
-        manual = [item for item in position_measurements if item.get("focus_mode") == "manual"]
-        autofocus = next(
-            (item for item in position_measurements if item.get("focus_mode") == "autofocus"),
-            None,
-        )
-        positions.append(
-            _analyze_focus_position(
-                offset,
-                autofocus,
-                manual,
-                autofocus_quality_ratio=autofocus_quality_ratio,
-                distinct_focus_delta=distinct_focus_delta,
-                min_focus_plane_weight=min_focus_plane_weight,
-            )
-        )
-
-    if not measurements:
-        return {
-            "status": "unavailable",
-            "reason": "No decoded ISP focus statistics were present in the captures.",
-            "measurements": [],
-            "positions": [],
-        }
-
-    stacking_positions = [
-        position for position in positions
-        if position.get("recommendation") == "stacking_candidate"
-    ]
-    autofocus_positions = [
-        position for position in positions
-        if position.get("recommendation") == "autofocus_sufficient"
-    ]
-    if stacking_positions:
-        status = "stacking_candidate"
-    elif positions and len(autofocus_positions) == len(positions):
-        status = "autofocus_sufficient"
-    else:
-        status = "more_data_needed"
-
-    return {
-        "status": status,
-        "heuristic": {
-            "autofocus_quality_ratio": autofocus_quality_ratio,
-            "distinct_focus_delta": distinct_focus_delta,
-            "min_focus_plane_weight": min_focus_plane_weight,
-            "sampling": "coarse_focus_sweep",
-            "crop_geometry": focus_geometry,
-        },
-        "measurements": measurements,
-        "positions": positions,
-    }
-
-
-def _ordered_focus_offsets(measurements: list[dict[str, Any]]) -> list[float]:
-    """Return turntable offsets in their first observed order."""
-    offsets: list[float] = []
-    for measurement in measurements:
-        value = measurement.get("turntable_offset")
-        if value is None:
-            continue
-        value = float(value)
-        if value not in offsets:
-            offsets.append(value)
-    return offsets
-
-
-def _analyze_focus_position(
-    offset: float,
-    autofocus: dict[str, Any] | None,
-    manual: list[dict[str, Any]],
-    *,
-    autofocus_quality_ratio: float,
-    distinct_focus_delta: float,
-    min_focus_plane_weight: float,
-) -> dict[str, Any]:
-    """Analyze one turntable position while preserving the regional values."""
-    result: dict[str, Any] = {
-        "turntable_offset": offset,
-        "autofocus": autofocus,
-        "manual": manual,
-        "manual_sample_count": len(manual),
-        "best_focus_by_region": [],
-        "best_focus_value_by_region": [],
-        "focus_span": None,
-        "autofocus_coverage": None,
-        "focus_weight_by_setting": {},
-        "effective_region_weight": 0.0,
-        "recommendation": "insufficient_data",
-    }
-    if not manual:
-        return result
-
-    region_values: dict[int, list[tuple[float, float, float]]] = {}
-    for measurement in manual:
-        requested_focus = measurement.get("requested_focus")
-        if requested_focus is None:
-            continue
-        for region in measurement.get("regions", []):
-            focus_value = region.get("focus_value")
-            index = region.get("index")
-            if focus_value is None or index is None:
+    offsets = list(dict.fromkeys(
+        float(report["turntable_offset"])
+        for report in frame_reports if report.get("turntable_offset") is not None
+    ))
+    focus_keys = list(dict.fromkeys(
+        _focus_setting_key(float(report["requested_focus"]))
+        for report in frame_reports
+        if report.get("focus_mode") == "manual" and report.get("requested_focus") is not None
+    ))
+    positions = []
+    for offset in offsets:
+        regions: dict[str, dict[str, Any]] = {}
+        autofocus_position = None
+        for report in frame_reports:
+            if report.get("turntable_offset") != offset:
                 continue
-            region_weight = max(0.0, float(region.get("crop_overlap_weight", 1.0)))
-            if region_weight <= 0:
+            mode = report.get("focus_mode")
+            if mode not in ("autofocus", "manual"):
                 continue
-            region_values.setdefault(int(index), []).append(
-                (float(requested_focus), float(focus_value), region_weight)
-            )
-
-    winners: list[dict[str, Any]] = []
-    winner_focuses: list[float] = []
-    for index in sorted(region_values):
-        samples = region_values[index]
-        best_focus, best_value, region_weight = max(samples, key=lambda item: item[1])
-        winners.append(
-            {
-                "index": index,
-                "best_focus": best_focus,
-                "focus_value": best_value,
-                "crop_overlap_weight": round(region_weight, 6),
-                "samples": [
-                    {
-                        "requested_focus": focus,
-                        "focus_value": value,
-                        "crop_overlap_weight": round(weight, 6),
-                    }
-                    for focus, value, weight in samples
-                ],
-            }
-        )
-        winner_focuses.append(best_focus)
-
-    result["best_focus_by_region"] = winners
-    result["best_focus_value_by_region"] = winner_focuses
-    if winner_focuses:
-        result["focus_span"] = {
-            "min": min(winner_focuses),
-            "max": max(winner_focuses),
-            "range": max(winner_focuses) - min(winner_focuses),
-        }
-        focus_weight_by_setting: dict[str, float] = {}
-        for winner in winners:
-            key = _focus_setting_key(winner["best_focus"])
-            focus_weight_by_setting[key] = (
-                focus_weight_by_setting.get(key, 0.0)
-                + winner["crop_overlap_weight"]
-            )
-        total_weight = sum(focus_weight_by_setting.values())
-        result["focus_weight_by_setting"] = {
-            key: round(value / total_weight, 6) if total_weight else 0.0
-            for key, value in focus_weight_by_setting.items()
-        }
-        result["effective_region_weight"] = round(total_weight, 6)
-
-    if autofocus is not None and winners:
-        autofocus_values = {
-            int(region["index"]): float(region["focus_value"])
-            for region in autofocus.get("regions", [])
-            if region.get("index") is not None and region.get("focus_value") is not None
-        }
-        covered = 0
-        compared = 0
-        for winner in winners:
-            autofocus_value = autofocus_values.get(winner["index"])
-            if autofocus_value is None:
+            if mode == "autofocus":
+                measured_position = report.get("actual_lens_position")
+                if measured_position is not None and np.isfinite(float(measured_position)):
+                    autofocus_position = float(measured_position)
+            requested = report.get("requested_focus")
+            if mode == "manual" and requested is None:
                 continue
-            compared += 1
-            if winner["focus_value"] <= 0 or autofocus_value >= winner["focus_value"] * autofocus_quality_ratio:
-                covered += 1
-        result["autofocus_coverage"] = covered / compared if compared else None
+            focus = report.get("camera_metadata", {}).get("raw_metadata", {}).get(
+                "extended_debug", {}
+            ).get("focus") or {}
+            for cell in focus.get("regions", []):
+                if cell.get("index") is None:
+                    continue
+                cell = _focus_region_report(cell, geometry)
+                weight = cell["crop_overlap_weight"]
+                if weight <= 0:
+                    continue
+                region = regions.setdefault(str(cell["index"]), {
+                    "weight": weight,
+                    "autofocus": None,
+                    "manual": dict.fromkeys(focus_keys),
+                })
+                value = cell.get("focus_value")
+                value = float(value) if value is not None else None
+                if value is not None and (not np.isfinite(value) or value < 0):
+                    value = None
+                if mode == "autofocus":
+                    region["autofocus"] = value
+                else:
+                    region["manual"][_focus_setting_key(float(requested))] = value
 
-    weighted_focuses = [
-        float(key)
-        for key, weight in result["focus_weight_by_setting"].items()
-        if weight >= min_focus_plane_weight
-    ]
-    distinct_focuses = _distinct_values(weighted_focuses, distinct_focus_delta)
-    if len(distinct_focuses) > 1 and result["focus_span"]["range"] >= distinct_focus_delta:
-        result["recommendation"] = "stacking_candidate"
-    elif result["autofocus_coverage"] is not None and result["autofocus_coverage"] >= 0.8:
-        result["recommendation"] = "autofocus_sufficient"
-    else:
-        result["recommendation"] = "more_data_needed"
-    return result
+        total_weight = sum(region["weight"] for region in regions.values())
+        for region in regions.values():
+            region["weight"] /= total_weight
+            values = [region["autofocus"], *region["manual"].values()]
+            best = max((value for value in values if value is not None), default=0.0)
 
+            def relative(value: float | None) -> float | None:
+                return value / best if value is not None and best > 0 else None
 
-def _distinct_values(values: list[float], delta: float) -> list[float]:
-    """Group nearby focus settings so sensor noise does not create planes."""
-    distinct: list[float] = []
-    for value in sorted(values):
-        if not distinct or value - distinct[-1] >= delta:
-            distinct.append(value)
-    return distinct
+            region["autofocus"] = relative(region["autofocus"])
+            region["manual"] = {key: relative(value) for key, value in region["manual"].items()}
+        positions.append({
+            "turntable_offset": offset,
+            "autofocus_position": autofocus_position,
+            "regions": regions,
+        })
+    if not any(position["regions"] for position in positions):
+        return None
+    return {"positions": positions, "stacking_options": build_stacking_options(positions)}
 
 
 def _focus_setting_key(value: float) -> str:

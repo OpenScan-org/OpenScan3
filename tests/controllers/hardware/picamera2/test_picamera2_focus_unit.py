@@ -241,6 +241,7 @@ def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropp
         awbg_blue=1.5,
     )
     controller.camera = types.SimpleNamespace(settings=controller.settings)
+    controller._extended_debug_enabled = False
     controller._picam = _FakePicam()
     controller._picam.camera_properties = camera_properties
     controller._strategy = strategy
@@ -424,3 +425,53 @@ def test_failed_restart_preserves_oom_state(recovery_camera, stage):
 
     assert camera.restart_required is True
     assert camera.get_status()["last_error"] == str(error)
+
+
+@pytest.mark.parametrize("af_result", [True, False, "timeout"])
+@pytest.mark.parametrize("allow_fallback", [True, False])
+@pytest.mark.parametrize("image_format", ["jpeg", "dng", "rgb_array", "yuv_array"])
+def test_capture_can_disable_af_fallback(recovery_camera, af_result, allow_fallback, image_format):
+    camera = recovery_camera
+    camera.camera.name = "imx519"
+    camera.camera.scanner_model = "mini"
+    if af_result == "timeout":
+        camera._picam.autofocus_cycle.side_effect = TimeoutError()
+    else:
+        camera._picam.autofocus_cycle.return_value = af_result
+    hook = {"jpeg": "capture_jpeg", "dng": "capture_dng",
+            "rgb_array": "capture_rgb_array", "yuv_array": "capture_yuv_array"}[image_format]
+    setattr(camera, hook, camera._autofocus_or_fallback)
+
+    result = camera.photo(image_format, allow_af_fallback=allow_fallback)
+
+    assert result is (af_result is True)
+    camera._picam.autofocus_cycle.assert_called_once_with(wait=8.0)
+    if af_result is not True and allow_fallback:
+        camera._picam.set_controls.assert_called_once_with({"AfMode": "manual", "LensPosition": 11.9})
+    else:
+        camera._picam.set_controls.assert_not_called()
+    assert camera._picam.cancel_all_and_flush.call_count == (af_result == "timeout")
+    assert camera._allow_af_fallback is True
+
+
+def test_capture_restores_af_fallback_policy_after_error(recovery_camera):
+    camera = recovery_camera
+
+    def fail():
+        assert camera._allow_af_fallback is False
+        raise RuntimeError("Capture failed")
+
+    camera.capture_rgb_array = fail
+    with pytest.raises(RuntimeError, match="Capture failed"):
+        camera.photo("rgb_array", allow_af_fallback=False)
+
+    assert camera._allow_af_fallback is True
+
+
+@pytest.mark.asyncio
+async def test_async_capture_forwards_af_fallback_policy(recovery_camera):
+    camera = recovery_camera
+    camera.capture_rgb_array = lambda: camera._allow_af_fallback
+
+    assert await camera.photo_async("rgb_array", allow_af_fallback=False) is False
+    assert await camera.photo_async("rgb_array") is True

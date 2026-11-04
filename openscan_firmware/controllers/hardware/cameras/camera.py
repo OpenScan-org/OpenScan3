@@ -71,6 +71,9 @@ class CameraController(StatefulHardware):
 
     This class provides a generic interface for camera controllers.
     """
+    # Capture-local policy, set and restored while holding the hardware lock.
+    _allow_af_fallback = True
+
     def __init__(self, camera: Camera):
         self.camera = camera
         # Share one reentrant lock across model changes and hardware operations.
@@ -148,7 +151,7 @@ class CameraController(StatefulHardware):
         self._busy = busy
         notify_busy_change("cameras", self.camera.name)
 
-    def photo(self, image_format: str = "jpeg") -> PhotoData:
+    def photo(self, image_format: str = "jpeg", *, allow_af_fallback: bool = True) -> PhotoData:
         """Capture a single photo with high resolution.
 
         Acquires the hardware lock so a concurrent preview frame is never
@@ -161,6 +164,8 @@ class CameraController(StatefulHardware):
 
         Args:
             image_format (str, optional): Image format. Defaults to "jpeg".
+            allow_af_fallback: Allow supported backends to use a fixed focus
+                after autofocus fails. Does not change persisted settings.
 
         Returns:
             PhotoData: Captured photo data model.
@@ -174,6 +179,8 @@ class CameraController(StatefulHardware):
         }
         with self._hw_lock:
             self._require_camera_ready()
+            previous_af_fallback = self._allow_af_fallback
+            self._allow_af_fallback = allow_af_fallback
             try:
                 return handler[image_format]()
             except KeyError:
@@ -193,14 +200,15 @@ class CameraController(StatefulHardware):
                 )
                 raise
             finally:
+                self._allow_af_fallback = previous_af_fallback
                 # Capture implementations set this flag while talking to the
                 # hardware. An exception or a cancelled Picamera2 job must
                 # not leave the API reporting the camera as busy forever.
                 self._set_busy(False)
 
-    async def photo_async(self, image_format: str = "jpeg") -> PhotoData:
+    async def photo_async(self, image_format: str = "jpeg", *, allow_af_fallback: bool = True) -> PhotoData:
         """Capture a photo without blocking the asyncio event loop."""
-        return await asyncio.to_thread(self.photo, image_format)
+        return await asyncio.to_thread(self.photo, image_format, allow_af_fallback=allow_af_fallback)
 
     @asynccontextmanager
     async def capture_session(self, image_format: str = "jpeg"):

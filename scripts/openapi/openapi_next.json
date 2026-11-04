@@ -7003,6 +7003,108 @@
         "title": "FirmwareSettings",
         "description": "Global firmware behaviour toggles.\n\nAttributes:\n    qr_wifi_scan_enabled: When True the firmware automatically starts the\n        QR WiFi scan task on startup if no usable network connection is\n        detected.\n    enable_cloud: When True the firmware enables cloud-facing features and\n        UX affordances.\n    camera_preview_enabled: When False the system is expected to operate\n        without a live camera preview workflow, for example on trigger-only\n        DSLR setups."
       },
+      "FocusAnalysisResult": {
+        "properties": {
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/FocusPositionResult"
+            },
+            "type": "array",
+            "title": "Positions"
+          },
+          "stacking_options": {
+            "items": {
+              "$ref": "#/components/schemas/StackingOption"
+            },
+            "type": "array",
+            "title": "Stacking Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "positions",
+          "stacking_options"
+        ],
+        "title": "FocusAnalysisResult"
+      },
+      "FocusPositionResult": {
+        "properties": {
+          "turntable_offset": {
+            "type": "number",
+            "title": "Turntable Offset"
+          },
+          "autofocus_position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autofocus Position",
+            "description": "Measured LensPosition of the autofocus capture in diopters; null if unavailable."
+          },
+          "regions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FocusRegionResult"
+            },
+            "type": "object",
+            "title": "Regions",
+            "description": "Crop-overlapping ISP regions keyed by region index."
+          }
+        },
+        "type": "object",
+        "required": [
+          "turntable_offset",
+          "autofocus_position",
+          "regions"
+        ],
+        "title": "FocusPositionResult"
+      },
+      "FocusRegionResult": {
+        "properties": {
+          "weight": {
+            "type": "number",
+            "title": "Weight",
+            "description": "Region crop-overlap weight, normalized per position."
+          },
+          "autofocus": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autofocus",
+            "description": "AF ISP focus value relative to the region's best measurement; not absolute sharpness."
+          },
+          "manual": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Manual",
+            "description": "Relative ISP focus values keyed by requested lens position in diopters. Missing or unnormalizable values are null."
+          }
+        },
+        "type": "object",
+        "required": [
+          "weight",
+          "autofocus",
+          "manual"
+        ],
+        "title": "FocusRegionResult"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -7867,15 +7969,13 @@
           "focus_analysis": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/FocusAnalysisResult"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Focus Analysis",
-            "description": "Regional ISP focus measurements and a preliminary autofocus or focus-stacking assessment."
+            "description": "Crop-weighted regional ISP focus profiles normalized to the best measurement per region, including AF. Null if statistics are unavailable."
           },
           "sift_benchmark": {
             "anyOf": [
@@ -8813,6 +8913,67 @@
         ],
         "title": "SoftwareInfoResponse",
         "description": "Information block served by /next/openscan."
+      },
+      "StackingOption": {
+        "properties": {
+          "focus_range": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Focus Range"
+          },
+          "focus_stacks": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "Focus Stacks"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage",
+            "description": "Mean crop-weighted relative ISP sharpness over sampled views; not a thresholded area percentage."
+          },
+          "worst_coverage": {
+            "type": "number",
+            "title": "Worst Coverage",
+            "description": "Lowest sampled-view crop-weighted relative sharpness score."
+          },
+          "gain": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain",
+            "description": "Mean score minus mean AF score; null when AF measurements are incomplete."
+          },
+          "estimated": {
+            "type": "boolean",
+            "title": "Estimated",
+            "description": "True if any selected focus value requires interpolation at any sampled region/view."
+          }
+        },
+        "type": "object",
+        "required": [
+          "focus_range",
+          "focus_stacks",
+          "coverage",
+          "worst_coverage",
+          "gain",
+          "estimated"
+        ],
+        "title": "StackingOption"
       },
       "StackingTaskStatus": {
         "properties": {

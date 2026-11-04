@@ -156,7 +156,10 @@ async def test_scan_analysis_task_captures_rgb_frames_and_restores_position(monk
 
     assert len(progress) == 5
     assert camera.photo_async.await_count == 4
-    assert all(call.kwargs == {"image_format": "rgb_array"} for call in camera.photo_async.await_args_list)
+    assert all(
+        call.kwargs == {"image_format": "rgb_array", "allow_af_fallback": False}
+        for call in camera.photo_async.await_args_list
+    )
     result = task._task_model.result
     assert result["crop_recommendation"] is None
     assert result["position_analysis"]["vertical_imbalance"] == 0.0

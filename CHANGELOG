@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Scan analysis now suggests practical fixed-focus stacks with 2–10 evenly
+  spaced levels, estimated mean and worst-view coverage, and gain over AF.
+  Focus ranges use 0.1 diopter steps; redundant higher-cost options are omitted.
 - Added `POST /next/cameras/{camera_name}/exposure-calibration` to automatically
   calibrate and lock exposure with analogue gain fixed at 1.0. Supports optional
   calibration parameters and calibration in the still configuration, and returns
@@ -16,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Focus analysis now returns compact crop-weighted region dictionaries with AF
+  and manual ISP focus values normalized per region, plus the measured AF lens
+  position per turntable position. Frontends can compare
+  focus-stack combinations without fixed backend quality thresholds.
+- Scan analysis captures now disable the fixed-focus autofocus fallback so a
+  failed autofocus attempt does not silently substitute the turntable focus.
 - Picamera2 cameras now initialize on newer libcamera stacks that replace
   `PixelArraySize` with `PixelArrayReadableArea`, while retaining support for
   older stacks.

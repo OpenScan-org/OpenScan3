@@ -37,6 +37,8 @@ def test_start_scan_analysis_uses_minimal_json_request_body(monkeypatch):
     start_service.assert_awaited_once_with(
         camera_name="camera0",
         depends_on="task-prerequisite",
+        debug_images=False,
+        crop=None,
     )
 
 
@@ -53,4 +55,6 @@ def test_start_scan_analysis_uses_defaults(monkeypatch):
     start_service.assert_awaited_once_with(
         camera_name="camera0",
         depends_on=None,
+        debug_images=False,
+        crop=None,
     )

@@ -572,7 +572,7 @@ class ScanAnalysisTask(BaseTask):
                 focus=requested_focus,
             )
 
-        photo = await context.camera.photo_async(image_format="rgb_array")
+        photo = await context.camera.photo_async(image_format="rgb_array", allow_af_fallback=False)
         try:
             if raw_image_path is not None:
                 if not isinstance(photo.data, np.ndarray):

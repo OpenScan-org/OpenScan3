@@ -258,7 +258,8 @@ class Picamera2Controller(CameraController):
         """Run profiled autofocus with a bounded fallback.
 
         Cameras without an OpenScan focus profile keep Picamera2's normal
-        autofocus behaviour.
+        autofocus behaviour. Captures may disable the fixed-focus fallback
+        through the capture-local policy without changing the AF search range.
         """
         focus_profile = self._macro_focus_ranges.get((self.camera.scanner_model, self.camera.name))
         if focus_profile is None:
@@ -271,14 +272,17 @@ class Picamera2Controller(CameraController):
             # timed out. Clear it before switching the lens to manual mode.
             self._picam.cancel_all_and_flush()
             logger.warning(
-                "Autofocus timed out after %.1f seconds; using fallback LensPosition %.1f.",
+                "Autofocus timed out after %.1f seconds.",
                 focus_profile["timeout"],
-                focus_profile["fallback"],
             )
             success = False
 
         if success:
             return True
+
+        if not self._allow_af_fallback:
+            logger.warning("Autofocus failed; focus fallback is disabled for this capture.")
+            return False
 
         logger.warning(
             "Autofocus failed; using fallback LensPosition %.1f.",

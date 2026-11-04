@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from openscan_firmware.config.camera import CameraSettings
 from openscan_firmware.controllers.services import scan_analysis as scan_analysis_service
-from openscan_firmware.models.scan_analysis import NormalizedCrop
+from openscan_firmware.models.scan_analysis import FocusAnalysisResult, NormalizedCrop
 from openscan_firmware.models.task import Task
 
 
@@ -191,11 +191,11 @@ class ScanAnalysisResult(BaseModel):
         default=None,
         description="SIFT feature matching metrics from a small turntable rotation.",
     )
-    focus_analysis: dict[str, Any] | None = Field(
+    focus_analysis: FocusAnalysisResult | None = Field(
         default=None,
         description=(
-            "Regional ISP focus measurements and a preliminary autofocus or "
-            "focus-stacking assessment."
+            "Crop-weighted regional ISP focus profiles normalized to the best "
+            "measurement per region, including AF. Null if statistics are unavailable."
         ),
     )
     sift_benchmark: SiftBenchmark | None = Field(
