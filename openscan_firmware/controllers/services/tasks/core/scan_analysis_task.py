@@ -46,7 +46,7 @@ class ScanAnalysisContext:
     camera: Any
     camera_settings: Any
     motors: Any
-    original_position: PolarPoint3D
+    analysis_position: PolarPoint3D
     settle_time_s: float
     calibrate_awb: Any
     calibrate_exposure: Any
@@ -162,7 +162,7 @@ class ScanAnalysisTask(BaseTask):
             camera=camera,
             camera_settings=camera_settings,
             motors=motors,
-            original_position=original_position,
+            analysis_position=PolarPoint3D(theta=90.0, fi=original_position.fi, r=1.0),
             settle_time_s=settle_time_s,
             calibrate_awb=calibrate_awb,
             calibrate_exposure=calibrate_exposure,
@@ -186,6 +186,9 @@ class ScanAnalysisTask(BaseTask):
         task_succeeded = False
 
         try:
+            await motors.move_to_point(context.analysis_position)
+            if settle_time_s:
+                await asyncio.sleep(settle_time_s)
             async for progress in self._prepare_analysis_camera(
                 context=context,
                 measurements=measurements,
@@ -361,7 +364,7 @@ class ScanAnalysisTask(BaseTask):
         await self.wait_for_pause()
         if self.is_cancelled():
             return
-        await context.motors.move_to_point(context.original_position)
+        await context.motors.move_to_point(context.analysis_position)
         if context.settle_time_s:
             await asyncio.sleep(context.settle_time_s)
 
@@ -379,7 +382,7 @@ class ScanAnalysisTask(BaseTask):
 
         first_sift_frame, _ = await self._capture_frame(
             context=context,
-            position=context.original_position,
+            position=context.analysis_position,
             index=-1,
             capture_index=0,
             offset=0.0,
@@ -414,8 +417,8 @@ class ScanAnalysisTask(BaseTask):
                 )
 
         sift_position = PolarPoint3D(
-            theta=context.original_position.theta,
-            fi=context.original_position.fi + sift_turntable_angle,
+            theta=context.analysis_position.theta,
+            fi=context.analysis_position.fi + sift_turntable_angle,
             r=1.0,
         )
         await context.motors.move_to_point(sift_position)
@@ -468,8 +471,8 @@ class ScanAnalysisTask(BaseTask):
                 return
 
             position = PolarPoint3D(
-                theta=context.original_position.theta,
-                fi=context.original_position.fi + float(offset),
+                theta=context.analysis_position.theta,
+                fi=context.analysis_position.fi + float(offset),
                 r=1.0,
             )
             await context.motors.move_to_point(position)

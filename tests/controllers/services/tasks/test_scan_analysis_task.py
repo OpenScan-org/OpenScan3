@@ -104,6 +104,7 @@ async def test_scan_analysis_task_captures_rgb_frames_and_restores_position(monk
     raw_refs_alive_during_capture = []
 
     async def capture_photo(**kwargs):
+        assert move_to_point.await_args.args[0].theta == 90.0
         raw_refs_alive_during_capture.append([ref() is not None for ref in raw_refs])
         image = np.zeros((240, 320, 3), dtype=np.uint8)
         raw_refs.append(weakref.ref(image))
@@ -126,7 +127,7 @@ async def test_scan_analysis_task_captures_rgb_frames_and_restores_position(monk
         photo_async=AsyncMock(side_effect=capture_photo),
         settings=camera_settings,
     )
-    rotor = SimpleNamespace(model=SimpleNamespace(angle=90.0))
+    rotor = SimpleNamespace(model=SimpleNamespace(angle=45.0))
     turntable = SimpleNamespace(model=SimpleNamespace(angle=30.0))
     move_to_point = AsyncMock()
 
@@ -168,7 +169,9 @@ async def test_scan_analysis_task_captures_rgb_frames_and_restores_position(monk
     assert raw_refs_alive_during_capture[0] == []
     assert all(not any(alive) for alive in raw_refs_alive_during_capture)
     assert all(ref() is None for ref in raw_refs)
-    assert move_to_point.await_args_list[-1].args[0].theta == 90.0
+    assert move_to_point.await_args_list[0].args[0] == PolarPoint3D(theta=90, fi=30, r=1)
+    assert all(call.args[0].theta == 90 for call in move_to_point.await_args_list[:-1])
+    assert move_to_point.await_args_list[-1].args[0].theta == 45.0
     assert move_to_point.await_args_list[-1].args[0].fi == 30.0
 
 
@@ -240,3 +243,35 @@ async def test_scan_analysis_task_captures_focus_series_and_restores_camera_sett
     assert result["debug_images"]["object_mask_base64"]
     assert settings.update.call_count == 8
     settings.replace.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["move", "calibration"])
+async def test_analysis_sets_rotor_before_calibration_and_restores_on_failure(monkeypatch, failure):
+    original = PolarPoint3D(theta=45, fi=30, r=1)
+    analysis = PolarPoint3D(theta=90, fi=30, r=1)
+    move = AsyncMock(side_effect=[RuntimeError("Setup failed"), None] if failure == "move" else None)
+
+    def calibrate_awb():
+        assert move.await_args.args[0] == analysis
+        raise RuntimeError("Setup failed")
+
+    camera = SimpleNamespace(
+        calibrate_awb_and_lock=MagicMock(side_effect=calibrate_awb),
+        calibrate_exposure_and_lock=MagicMock(),
+        photo_async=AsyncMock(),
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller", lambda name: camera,
+    )
+    monkeypatch.setattr(
+        "openscan_firmware.controllers.hardware.motors.get_motor_controller",
+        lambda name: SimpleNamespace(model=SimpleNamespace(angle=45 if name == "rotor" else 30)),
+    )
+    monkeypatch.setattr("openscan_firmware.controllers.hardware.motors.move_to_point", move)
+    task = ScanAnalysisTask(Task(name="scan_analysis_task", task_type="scan_analysis_task"))
+    with pytest.raises(RuntimeError, match="Setup failed"):
+        [update async for update in task.run("camera0", settle_time_s=0)]
+    assert [call.args[0] for call in move.await_args_list] == [analysis, original]
+    assert camera.calibrate_awb_and_lock.call_count == (failure == "calibration")
+    camera.photo_async.assert_not_awaited()
