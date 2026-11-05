@@ -475,3 +475,91 @@ async def test_async_capture_forwards_af_fallback_policy(recovery_camera):
 
     assert await camera.photo_async("rgb_array", allow_af_fallback=False) is False
     assert await camera.photo_async("rgb_array") is True
+
+
+@pytest.mark.parametrize("operation", ["awb", "exposure", "debug"])
+@pytest.mark.parametrize("fail", [False, True])
+def test_calibration_and_debug_serialize_with_photo(recovery_camera, operation, fail):
+    import threading
+    from concurrent.futures import Future, TimeoutError as FutureTimeoutError
+
+    camera = recovery_camera
+    controls = sys.modules["libcamera"].controls
+    controls.ExposureTimeModeEnum = types.SimpleNamespace(Auto=0, Manual=1)
+    controls.AnalogueGainModeEnum = types.SimpleNamespace(Manual=1)
+    controls.AeMeteringModeEnum = types.SimpleNamespace(Spot=0)
+    controls.AeConstraintModeEnum = types.SimpleNamespace(Highlight=0)
+    controls.AeExposureModeEnum = types.SimpleNamespace(Normal=0)
+    camera._picam.capture_metadata.return_value = {
+        "ExposureTime": 10000, "AnalogueGain": 1.0, "DigitalGain": 1.0,
+        "ColourGains": (1.5, 2.0),
+    }
+    camera._picam.camera_controls = {"StatsOutputEnable": True}
+    camera._extended_debug_enabled = False
+    camera.photo_config = {"name": "photo"}
+    camera._configure_cropping_for_scalercrop = Mock()
+    entered, release, captured, attempted = (threading.Event() for _ in range(4))
+
+    def block(*args, **kwargs):
+        entered.set()
+        if not release.wait(timeout=3):
+            raise RuntimeError("Test did not release calibration")
+        if fail:
+            raise RuntimeError("Calibration failed")
+
+    if operation == "debug":
+        camera._configure_resolutions.side_effect = block
+        calibrate = lambda: camera.set_extended_debug_enabled(True)
+    else:
+        camera._picam.drop_frames.side_effect = block
+        if operation == "awb":
+            calibrate = lambda: camera.calibrate_awb_and_lock(warmup_frames=0, stable_frames=1)
+        else:
+            calibrate = lambda: camera.calibrate_exposure_and_lock(
+                warmup_frames=0, stable_frames=1, use_photo_config=True,
+            )
+
+    def capture():
+        attempted.set()
+        return camera.photo()
+
+    def photo():
+        captured.set()
+        return b"jpeg"
+
+    camera.capture_jpeg = photo
+
+    def launch(function):
+        future = Future()
+
+        def run():
+            try:
+                future.set_result(function())
+            except BaseException as exc:
+                future.set_exception(exc)
+
+        threading.Thread(target=run, daemon=True).start()
+        return future
+
+    calibration = launch(calibrate)
+    pending_photo = None
+    try:
+        assert entered.wait(timeout=2)
+        pending_photo = launch(capture)
+        assert attempted.wait(timeout=2)
+        with pytest.raises(FutureTimeoutError):
+            pending_photo.result(timeout=0.1)
+        assert not captured.is_set()
+    finally:
+        release.set()
+        if fail:
+            with pytest.raises(RuntimeError, match="Calibration failed"):
+                calibration.result(timeout=2)
+        else:
+            calibration.result(timeout=2)
+        if pending_photo is not None:
+            assert pending_photo.result(timeout=2) == b"jpeg"
+
+    assert camera.is_busy() is False
+    if operation == "exposure":
+        camera._picam.switch_mode.assert_any_call(camera.preview_config, wait=True)
