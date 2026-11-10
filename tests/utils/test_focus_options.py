@@ -85,3 +85,32 @@ def test_every_retained_option_improves_mean_or_worst_over_cheaper_options():
         for cheaper in options[:index]:
             assert (option["coverage"] > cheaper["coverage"] + 0.001
                     or option["worst_coverage"] > cheaper["worst_coverage"] + 0.001)
+
+
+def test_minimum_spacing_is_applied_before_selecting_each_stack_range():
+    # Each region peaks at a different setting; seven genuinely separated
+    # planes remain useful, while dense extra planes must not be proposed.
+    focuses = [10 + 0.6 * i for i in range(7)]
+    position = {
+        'turntable_offset': 0, 'autofocus_position': None,
+        'regions': {
+            str(i): {'weight': 1/7, 'autofocus': 0.2,
+                     'manual': {str(round(focus,1)): float(i == j) for j,focus in enumerate(focuses)}}
+            for i in range(7)
+        },
+    }
+    options = build_stacking_options([position])
+    seven = next(option for option in options if option['focus_stacks'] == 7)
+    assert seven['focus_range'] == [10.0, 13.6]
+    assert seven['coverage'] == 1.0
+    for option in options:
+        settings = ScanSetting(focus_range=option['focus_range'],focus_stacks=option['focus_stacks'])
+        assert all(b-a >= 0.5-1e-9 for a,b in zip(settings.focus_positions,settings.focus_positions[1:]))
+
+
+def test_narrow_focus_interval_cannot_generate_dense_stacks():
+    position = _position(af=0.5)
+    position['regions']['0']['manual'] = {'11.9':1.0,'12.4':0.2}
+    position['regions']['1']['manual'] = {'11.9':0.2,'12.4':1.0}
+    options = build_stacking_options([position])
+    assert [option['focus_stacks'] for option in options] == [2]

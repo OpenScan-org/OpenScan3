@@ -143,7 +143,7 @@ SiftQualityStatus = Literal["bad", "okay", "good", "great", "insufficient_data"]
 class SiftQuality(BaseModel):
     """Initial heuristic quality assessment for the SIFT comparison."""
 
-    overall_status: SiftQualityStatus = Field(description="Worst core assessment: density, geometrically usable sample fraction, and geometric consistency. Crop coverage is diagnostic and excluded.")
+    overall_status: SiftQualityStatus = Field(description="Worst core assessment: density, geometrically usable sample fraction, and geometric consistency. Spatial crop coverage is rated separately.")
     feature_quality: SiftQualityStatus
     spatial_coverage: SiftQualityStatus = Field(description="Distribution of geometrically verified selected features within the rectangular crop, including background. Insufficient data suppresses positive ratings.")
     matching_quality: SiftQualityStatus = Field(description="Geometrically verified fraction of each strongest-feature sample; requires at least 150 features per image and 50 mutual pairs.")

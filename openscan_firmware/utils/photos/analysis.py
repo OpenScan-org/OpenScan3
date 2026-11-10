@@ -665,7 +665,7 @@ def _add_sift_quality(
     result: dict[str, Any],
     thresholds: SiftQualityThresholds,
 ) -> dict[str, Any]:
-    """Rate normalized evidence; crop coverage is diagnostic, not an object mask."""
+    """Rate core evidence and spatial crop coverage separately."""
     names = ("first", "second")
     counts = result["feature_count"]
     distribution = result["spatial_distribution"]

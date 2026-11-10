@@ -5,6 +5,8 @@ from typing import Any
 
 import numpy as np
 
+MIN_FOCUS_STEP = 0.5
+
 
 def build_stacking_options(positions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Search executable, evenly spaced stacks on a 0.1 dpt endpoint grid.
@@ -13,7 +15,8 @@ def build_stacking_options(positions: list[dict[str, Any]]) -> list[dict[str, An
     Views have equal weight; regions retain their crop weights. Keep one best
     mean-score range per stack count, then discard options dominated in both
     mean and worst-view score by AF or a cheaper stack. Differences <= 0.001
-    are treated as negligible for this coarse setup heuristic.
+    are treated as negligible for this coarse setup heuristic. Adjacent focus
+    planes must be at least 0.5 diopters apart.
     """
     if not positions or any(not position["regions"] for position in positions):
         return []
@@ -49,7 +52,7 @@ def build_stacking_options(positions: list[dict[str, Any]]) -> list[dict[str, An
     left, right = np.triu_indices(len(grid), 1)
     starts, ends = grid[left], grid[right]
     # Avoid extremely narrow stacks created by noise around one focus point.
-    keep = ends - starts >= 0.5 - 1e-9
+    keep = ends - starts >= MIN_FOCUS_STEP - 1e-9
     starts, ends = starts[keep], ends[keep]
     if not len(starts):
         return []
@@ -59,14 +62,18 @@ def build_stacking_options(positions: list[dict[str, Any]]) -> list[dict[str, An
     options = []
     epsilon = 0.001
     for count in range(2, 11):
-        focuses = starts[:, None] + (ends - starts)[:, None] * np.linspace(0, 1, count)
-        scores = np.zeros((len(starts), len(positions)))
+        valid = ends - starts >= MIN_FOCUS_STEP * (count - 1) - 1e-9
+        candidate_starts, candidate_ends = starts[valid], ends[valid]
+        if not len(candidate_starts):
+            break
+        focuses = candidate_starts[:, None] + (candidate_ends - candidate_starts)[:, None] * np.linspace(0, 1, count)
+        scores = np.zeros((len(candidate_starts), len(positions)))
         for view, weight, xs, ys in curves:
             values = np.interp(focuses.ravel(), xs, ys).reshape(focuses.shape)
             scores[:, view] += weight * values.max(axis=1)
         means, worst = scores.mean(axis=1), scores.min(axis=1)
         # Stable tie breaking: worst view, then narrower range, then lower start.
-        best = int(np.lexsort((starts, ends - starts, -worst, -means))[0])
+        best = int(np.lexsort((candidate_starts, candidate_ends - candidate_starts, -worst, -means))[0])
         mean, minimum = float(means[best]), float(worst[best])
         if any(old_mean >= mean - epsilon and old_worst >= minimum - epsilon
                for old_mean, old_worst in frontier):
@@ -77,7 +84,7 @@ def build_stacking_options(positions: list[dict[str, Any]]) -> list[dict[str, An
             for _, _, xs, _ in curves for focus in selected
         )
         options.append({
-            "focus_range": [float(starts[best]), float(ends[best])],
+            "focus_range": [float(candidate_starts[best]), float(candidate_ends[best])],
             "focus_stacks": count,
             "coverage": round(mean, 6),
             "worst_coverage": round(minimum, 6),

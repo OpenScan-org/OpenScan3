@@ -8710,7 +8710,7 @@
               "insufficient_data"
             ],
             "title": "Overall Status",
-            "description": "Worst core assessment: density, geometrically usable sample fraction, and geometric consistency. Crop coverage is diagnostic and excluded."
+            "description": "Worst core assessment: density, geometrically usable sample fraction, and geometric consistency. Spatial crop coverage is rated separately."
           },
           "feature_quality": {
             "type": "string",
