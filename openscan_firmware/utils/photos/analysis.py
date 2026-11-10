@@ -37,22 +37,19 @@ class _CroppingRoiMask:
 class SiftQualityThresholds:
     """Initial heuristics for the qualitative SIFT report."""
 
-    min_feature_count: int = 300
-    critical_feature_count: int = 150
-    min_mutual_match_count: int = 100
-    critical_mutual_match_count: int = 50
-    min_matchable_feature_ratio: float = 0.20
-    critical_matchable_feature_ratio: float = 0.10
-    min_geometric_inlier_ratio: float = 0.70
-    critical_geometric_inlier_ratio: float = 0.50
+    min_analysis_features: int = 150
+    min_geometry_matches: int = 50
+    bad_feature_density: float = 300
+    good_feature_density: float = 1500
+    great_feature_density: float = 5000
+    bad_geometric_feature_ratio: float = 0.15
+    good_geometric_feature_ratio: float = 0.30
+    great_geometric_feature_ratio: float = 0.55
+    bad_inlier_ratio: float = 0.50
+    good_inlier_ratio: float = 0.75
+    great_inlier_ratio: float = 0.95
     min_feature_per_cell: int = 5
-    min_matchable_feature_per_cell: int = 2
-    min_feature_coverage: float = 0.50
-    critical_feature_coverage: float = 0.25
-    min_matchable_coverage: float = 0.50
-    critical_matchable_coverage: float = 0.25
-    min_balance_ratio: float = 0.75
-    critical_balance_ratio: float = 0.50
+    min_inliers_per_cell: int = 2
 
 
 _CROPPING_ROI_TAIL_WIDTH_RATIO = 0.4
@@ -308,20 +305,26 @@ def prepare_analysis_frame(
     photo: PhotoData,
     position: PolarPoint3D,
     index: int,
-    max_dimension: int = 640,
+    max_dimension: int | None = 640,
+    crop: tuple[float, float, float, float] | None = None,
 ) -> AnalysisFrame:
-    """Create a small analysis frame without retaining the raw array."""
+    """Orient and optionally crop before resizing; None preserves native pixels.
+
+    The returned image owns its pixels so the full camera array can be freed.
+    """
     image = photo.data
     if not isinstance(image, np.ndarray) or image.ndim != 3 or image.shape[2] != 3:
         raise ValueError("Analysis frames require an RGB NumPy array.")
-    if max_dimension < 1:
+    if max_dimension is not None and max_dimension < 1:
         raise ValueError("max_dimension must be positive.")
 
     orientation_flag = photo.camera_metadata.camera_settings.orientation_flag or 1
     image = apply_orientation(image, orientation_flag)
+    if crop is not None:
+        image = crop_normalized_image(image, crop)
 
     height, width = image.shape[:2]
-    scale = min(1.0, max_dimension / max(height, width))
+    scale = min(1.0, max_dimension / max(height, width)) if max_dimension is not None else 1.0
     if scale == 1.0:
         analysis_image = image.copy()
     else:
@@ -419,8 +422,11 @@ def analyze_sift_pair(
 ) -> dict[str, Any]:
     """Measure SIFT features, mutual matches, and geometric outliers.
 
-    Features are matched in both directions with Lowe's ratio test. A match is
-    counted as matchable only when it survives both directions. RANSAC uses a
+    All detected features contribute to counts and spatial distribution.
+    Matching checks up to 1000 strongest, grid-balanced features per image
+    against the full opposite descriptor pool, with full-pool reverse checks.
+    Per-image matchability counts/ratios refer only to that selected sample.
+    Pair counts are deduplicated unions of both image samples. RANSAC uses a
     fundamental matrix because the turntable changes the object's view and a
     single homography would incorrectly reject valid non-planar matches.
     """
@@ -442,15 +448,22 @@ def analyze_sift_pair(
 
     first_count = len(first_keypoints)
     second_count = len(second_keypoints)
+    first_sample = _strongest_grid_features(first_keypoints, first_gray.shape, grid_rows, grid_columns)
+    second_sample = _strongest_grid_features(second_keypoints, second_gray.shape, grid_rows, grid_columns)
+    first_selected, second_selected = set(first_sample), set(second_sample)
     result: dict[str, Any] = {
         "feature_count": {"first": first_count, "second": second_count},
+        "feature_density": {
+            "first": first_count / (first_gray.shape[0] * first_gray.shape[1] / 1e6),
+            "second": second_count / (second_gray.shape[0] * second_gray.shape[1] / 1e6),
+        },
         "tentative_match_count": 0,
         "mutual_match_count": 0,
         "matchable_feature_count": {"first": 0, "second": 0},
         "matchable_feature_ratio": {"first": 0.0, "second": 0.0},
         "unmatched_feature_count": {
-            "first": first_count,
-            "second": second_count,
+            "first": len(first_sample),
+            "second": len(second_sample),
         },
         "geometric_inlier_count": None,
         "geometric_outlier_count": None,
@@ -486,41 +499,30 @@ def analyze_sift_pair(
         return _add_sift_quality(result, quality_thresholds)
 
     matcher = cv2.BFMatcher(cv2.NORM_L2)
-    forward_matches = _ratio_matches(
-        matcher.knnMatch(first_descriptors, second_descriptors, k=2),
-        ratio_threshold,
+    forward, forward_tentative = _sample_mutual_matches(
+        matcher, first_descriptors, second_descriptors, first_sample, ratio_threshold,
     )
-    backward_matches = _ratio_matches(
-        matcher.knnMatch(second_descriptors, first_descriptors, k=2),
-        ratio_threshold,
+    backward, backward_tentative = _sample_mutual_matches(
+        matcher, second_descriptors, first_descriptors, second_sample, ratio_threshold,
     )
-    backward_pairs = {
-        (match.trainIdx, match.queryIdx)
-        for match in backward_matches
-    }
-    mutual_matches = [
-        match
-        for match in forward_matches
-        if (match.queryIdx, match.trainIdx) in backward_pairs
-    ]
-
-    first_matchable = len({match.queryIdx for match in mutual_matches})
-    second_matchable = len({match.trainIdx for match in mutual_matches})
+    mutual_matches = sorted(set(forward) | {(second, first) for first, second in backward})
+    first_matchable = len({first for first, _ in mutual_matches} & first_selected)
+    second_matchable = len({second for _, second in mutual_matches} & second_selected)
     result.update(
         {
-            "tentative_match_count": len(forward_matches),
+            "tentative_match_count": len(set(forward_tentative) | {(second, first) for first, second in backward_tentative}),
             "mutual_match_count": len(mutual_matches),
             "matchable_feature_count": {
                 "first": first_matchable,
                 "second": second_matchable,
             },
             "matchable_feature_ratio": {
-                "first": first_matchable / first_count if first_count else 0.0,
-                "second": second_matchable / second_count if second_count else 0.0,
+                "first": first_matchable / len(first_sample) if first_sample else 0.0,
+                "second": second_matchable / len(second_sample) if second_sample else 0.0,
             },
             "unmatched_feature_count": {
-                "first": first_count - first_matchable,
-                "second": second_count - second_matchable,
+                "first": len(first_sample) - first_matchable,
+                "second": len(second_sample) - second_matchable,
             },
         }
     )
@@ -529,24 +531,24 @@ def analyze_sift_pair(
         first_gray.shape,
         grid_rows,
         grid_columns,
-        indices={match.queryIdx for match in mutual_matches},
+        indices={match[0] for match in mutual_matches} & first_selected,
     )
     result["spatial_distribution"]["second"]["matchable_feature_counts"] = _grid_counts(
         second_keypoints,
         second_gray.shape,
         grid_rows,
         grid_columns,
-        indices={match.trainIdx for match in mutual_matches},
+        indices={match[1] for match in mutual_matches} & second_selected,
     )
 
     if len(mutual_matches) < 8:
         return _add_sift_quality(result, quality_thresholds)
 
     first_points = np.float32([
-        first_keypoints[match.queryIdx].pt for match in mutual_matches
+        first_keypoints[match[0]].pt for match in mutual_matches
     ])
     second_points = np.float32([
-        second_keypoints[match.trainIdx].pt for match in mutual_matches
+        second_keypoints[match[1]].pt for match in mutual_matches
     ])
     try:
         _, inlier_mask = cv2.findFundamentalMat(
@@ -576,10 +578,10 @@ def analyze_sift_pair(
         grid_rows,
         grid_columns,
         indices={
-            match.queryIdx
+            match[0]
             for match, is_inlier in zip(mutual_matches, inlier_mask)
             if is_inlier
-        },
+        } & first_selected,
     )
     result["spatial_distribution"]["second"]["geometric_inlier_counts"] = _grid_counts(
         second_keypoints,
@@ -587,12 +589,48 @@ def analyze_sift_pair(
         grid_rows,
         grid_columns,
         indices={
-            match.trainIdx
+            match[1]
             for match, is_inlier in zip(mutual_matches, inlier_mask)
             if is_inlier
-        },
+        } & second_selected,
     )
     return _add_sift_quality(result, quality_thresholds)
+
+
+def _strongest_grid_features(keypoints, shape, rows, columns, budget=1000):
+    """Round-robin strongest responses per cell; redistribute unused slots."""
+    height, width = shape[:2]
+    cells = [[] for _ in range(rows * columns)]
+    for index, keypoint in enumerate(keypoints):
+        col = max(0, min(columns - 1, int(keypoint.pt[0] * columns / width)))
+        row = max(0, min(rows - 1, int(keypoint.pt[1] * rows / height)))
+        cells[row * columns + col].append(index)
+    for cell in cells:
+        cell.sort(key=lambda index: (-keypoints[index].response, index))
+    selected = []
+    rank = 0
+    while len(selected) < min(budget, len(keypoints)):
+        for cell in cells:
+            if rank < len(cell):
+                selected.append(cell[rank])
+                if len(selected) == budget:
+                    break
+        rank += 1
+    return selected
+
+
+def _sample_mutual_matches(matcher, source, target, selected, ratio_threshold):
+    """Sample queries against the full target, then verify against full source."""
+    if not selected:
+        return [], []
+    forward = _ratio_matches(matcher.knnMatch(source[selected], target, k=2), ratio_threshold)
+    target_indices = sorted({match.trainIdx for match in forward})
+    if not target_indices:
+        return [], []
+    backward = _ratio_matches(matcher.knnMatch(target[target_indices], source, k=2), ratio_threshold)
+    reverse_pairs = {(match.trainIdx, target_indices[match.queryIdx]) for match in backward}
+    pairs = [(selected[match.queryIdx], match.trainIdx) for match in forward]
+    return [pair for pair in pairs if pair in reverse_pairs], pairs
 
 
 def _empty_grid(rows: int, columns: int) -> list[list[int]]:
@@ -627,245 +665,120 @@ def _add_sift_quality(
     result: dict[str, Any],
     thresholds: SiftQualityThresholds,
 ) -> dict[str, Any]:
-    """Add qualitative SIFT statuses and warnings to a raw measurement report."""
+    """Rate normalized evidence; crop coverage is diagnostic, not an object mask."""
+    names = ("first", "second")
+    counts = result["feature_count"]
     distribution = result["spatial_distribution"]
-    grid_metrics = {
-        image_name: distribution[image_name]
-        for image_name in ("first", "second")
+    enough_features = all(counts[name] >= thresholds.min_analysis_features for name in names)
+    enough_matches = result["mutual_match_count"] >= thresholds.min_geometry_matches
+    geometry_available = result["geometric_inlier_ratio"] is not None and all(
+        distribution[name]["geometric_inlier_counts"] is not None for name in names
+    )
+    supported = enough_features and enough_matches and geometry_available
+    feature_status = {
+        name: _quality_band(result["feature_density"][name],
+                            thresholds.bad_feature_density,
+                            thresholds.good_feature_density,
+                            thresholds.great_feature_density)
+        for name in names
     }
+    feature_quality = _worst_status(list(feature_status.values()))
+    if not enough_features:
+        feature_quality = "bad"
+
+    geometric_ratios = {
+        name: (
+            sum(map(sum, distribution[name]["geometric_inlier_counts"])) / min(counts[name], 1000)
+            if distribution[name]["geometric_inlier_counts"] is not None and counts[name] else None
+        ) for name in names
+    }
+    matching_quality = (
+        _worst_status([
+            _quality_band(geometric_ratios[name], thresholds.bad_geometric_feature_ratio,
+                          thresholds.good_geometric_feature_ratio, thresholds.great_geometric_feature_ratio)
+            for name in names
+        ]) if supported else "insufficient_data"
+    )
+    geometry_quality = (
+        _quality_band(result["geometric_inlier_ratio"], thresholds.bad_inlier_ratio,
+                      thresholds.good_inlier_ratio, thresholds.great_inlier_ratio)
+        if supported else "insufficient_data"
+    )
     feature_coverage = {
-        image_name: _grid_coverage(
-            metrics["feature_counts"],
-            thresholds.min_feature_per_cell,
-        )
-        for image_name, metrics in grid_metrics.items()
+        name: _grid_coverage(distribution[name]["feature_counts"], thresholds.min_feature_per_cell)
+        for name in names
     }
-    matchable_coverage = {
-        image_name: _grid_coverage(
-            metrics["matchable_feature_counts"],
-            thresholds.min_matchable_feature_per_cell,
-        )
-        for image_name, metrics in grid_metrics.items()
-    }
-    low_feature_cells = {
-        image_name: _grid_cells_below(
-            metrics["feature_counts"],
-            thresholds.min_feature_per_cell,
-        )
-        for image_name, metrics in grid_metrics.items()
-    }
-    low_matchable_cells = {
-        image_name: _grid_cells_below(
-            metrics["matchable_feature_counts"],
-            thresholds.min_matchable_feature_per_cell,
-        )
-        for image_name, metrics in grid_metrics.items()
+    geometric_coverage = {
+        name: (
+            _grid_coverage(distribution[name]["geometric_inlier_counts"], thresholds.min_inliers_per_cell)
+            if distribution[name]["geometric_inlier_counts"] is not None else None
+        ) for name in names
     }
     feature_coverage_status = {
-        image_name: _lower_status(
-            feature_coverage[image_name],
-            thresholds.min_feature_coverage,
-            thresholds.critical_feature_coverage,
-        )
-        for image_name in ("first", "second")
+        name: (_quality_band(feature_coverage[name], 0.25, 0.5, 0.75)
+               if counts[name] >= thresholds.min_analysis_features else "insufficient_data")
+        for name in names
     }
-    matchable_coverage_status = {
-        image_name: _lower_status(
-            matchable_coverage[image_name],
-            thresholds.min_matchable_coverage,
-            thresholds.critical_matchable_coverage,
-        )
-        for image_name in ("first", "second")
+    geometric_coverage_status = {
+        name: (_quality_band(geometric_coverage[name], 0.25, 0.5, 0.75)
+               if supported else "insufficient_data")
+        for name in names
     }
-
-    feature_counts = result["feature_count"]
-    matchable_ratios = result["matchable_feature_ratio"]
-    feature_balance = _balance_ratio(feature_counts["first"], feature_counts["second"])
-    matchable_balance = _balance_ratio(
-        matchable_ratios["first"],
-        matchable_ratios["second"],
-    )
-    feature_quality = _worst_status(
-        [
-            _lower_status(
-                feature_counts[image_name],
-                thresholds.min_feature_count,
-                thresholds.critical_feature_count,
-            )
-            for image_name in ("first", "second")
-        ]
-        + [_balance_status(feature_balance, thresholds)]
-    )
-    spatial_quality = _worst_status(
-        list(feature_coverage_status.values())
-        + list(matchable_coverage_status.values())
-    )
-
-    matching_statuses = [
-        _lower_status(
-            result["mutual_match_count"],
-            thresholds.min_mutual_match_count,
-            thresholds.critical_mutual_match_count,
-        ),
-        *(
-            _lower_status(
-                matchable_ratios[image_name],
-                thresholds.min_matchable_feature_ratio,
-                thresholds.critical_matchable_feature_ratio,
-            )
-            for image_name in ("first", "second")
-        ),
-        _balance_status(matchable_balance, thresholds),
-    ]
-    inlier_ratio = result["geometric_inlier_ratio"]
-    matching_statuses.append(
-        "warning"
-        if inlier_ratio is None and result["mutual_match_count"] >= 8
-        else _lower_status(
-            inlier_ratio,
-            thresholds.min_geometric_inlier_ratio,
-            thresholds.critical_geometric_inlier_ratio,
-        )
-    )
-    matching_quality = _worst_status(matching_statuses)
-
-    warnings: list[dict[str, Any]] = []
-    for image_name in ("first", "second"):
-        if feature_counts[image_name] < thresholds.min_feature_count:
-            status = _lower_status(
-                feature_counts[image_name],
-                thresholds.min_feature_count,
-                thresholds.critical_feature_count,
-            )
-            warnings.append(
-                _sift_warning(
-                    "LOW_FEATURE_COUNT",
-                    status,
-                    f"{image_name} contains too few SIFT features.",
-                    images=[image_name],
-                )
-            )
-        if matchable_ratios[image_name] < thresholds.min_matchable_feature_ratio:
-            status = _lower_status(
-                matchable_ratios[image_name],
-                thresholds.min_matchable_feature_ratio,
-                thresholds.critical_matchable_feature_ratio,
-            )
-            warnings.append(
-                _sift_warning(
-                    "LOW_MATCHABLE_FEATURE_RATIO",
-                    status,
-                    f"{image_name} has too few features that match the other image.",
-                    images=[image_name],
-                )
-            )
-        if (
-            feature_coverage_status[image_name] != "good"
-            and low_feature_cells[image_name]
-        ):
-            coverage_status = feature_coverage_status[image_name]
-            warnings.append(
-                _sift_warning(
-                    "LOW_FEATURE_COVERAGE",
-                    coverage_status,
-                    f"{image_name} has weak spatial feature coverage.",
-                    images=[image_name],
-                    cells=low_feature_cells[image_name],
-                )
-            )
-        if (
-            matchable_coverage_status[image_name] != "good"
-            and low_matchable_cells[image_name]
-        ):
-            coverage_status = matchable_coverage_status[image_name]
-            warnings.append(
-                _sift_warning(
-                    "LOW_MATCHABLE_COVERAGE",
-                    coverage_status,
-                    f"{image_name} has weak spatial coverage of matchable features.",
-                    images=[image_name],
-                    cells=low_matchable_cells[image_name],
-                )
-            )
-
-    if result["mutual_match_count"] < thresholds.min_mutual_match_count:
-        status = _lower_status(
-            result["mutual_match_count"],
-            thresholds.min_mutual_match_count,
-            thresholds.critical_mutual_match_count,
-        )
-        warnings.append(
-            _sift_warning(
-                "LOW_MUTUAL_MATCH_COUNT",
-                status,
-                "Too few mutually consistent feature matches were found.",
-            )
-        )
-    if feature_balance < thresholds.min_balance_ratio:
-        warnings.append(
-            _sift_warning(
-                "UNBALANCED_FEATURE_COUNTS",
-                _balance_status(feature_balance, thresholds),
-                "The two images contain substantially different numbers of features.",
-            )
-        )
-    if matchable_balance < thresholds.min_balance_ratio:
-        warnings.append(
-            _sift_warning(
-                "UNBALANCED_MATCHABLE_RATIOS",
-                _balance_status(matchable_balance, thresholds),
-                "The matchable feature ratios differ substantially between images.",
-            )
-        )
-    if inlier_ratio is None:
-        if result["mutual_match_count"] >= 8:
-            warnings.append(
-                _sift_warning(
-                    "GEOMETRY_NOT_AVAILABLE",
-                    "warning",
-                    "Geometric consistency could not be calculated.",
-                )
-            )
-    elif inlier_ratio < thresholds.min_geometric_inlier_ratio:
-        warnings.append(
-            _sift_warning(
-                "LOW_GEOMETRIC_INLIER_RATIO",
-                _lower_status(
-                    inlier_ratio,
-                    thresholds.min_geometric_inlier_ratio,
-                    thresholds.critical_geometric_inlier_ratio,
+    warnings = []
+    for name in names:
+        if counts[name] < thresholds.min_analysis_features:
+            warnings.append(_sift_warning(
+                "INSUFFICIENT_FEATURES", "bad",
+                f"{name} has too few features for a supported matching/geometry assessment.", images=[name],
+            ))
+        if feature_status[name] in ("bad", "okay"):
+            warnings.append(_sift_warning(
+                "LOW_FEATURE_DENSITY", feature_status[name],
+                f"{name} has low feature density per megapixel.", images=[name],
+            ))
+        if supported and geometric_coverage_status[name] in ("bad", "okay"):
+            warnings.append(_sift_warning(
+                "LOW_CROP_COVERAGE", geometric_coverage_status[name],
+                f"{name} has limited geometrically confirmed coverage of the crop; background may contribute.",
+                images=[name], cells=_grid_cells_below(
+                    distribution[name]["geometric_inlier_counts"], thresholds.min_inliers_per_cell,
                 ),
-                "Too many mutual matches are geometrically inconsistent.",
-            )
-        )
-
-    quality = {
-        "overall_status": _worst_status(
-            [feature_quality, spatial_quality, matching_quality]
-        ),
+            ))
+    if not enough_matches:
+        warnings.append(_sift_warning(
+            "INSUFFICIENT_MATCHES", "okay",
+            "Too few mutual matches for a supported geometry assessment.",
+        ))
+    elif not geometry_available:
+        warnings.append(_sift_warning(
+            "GEOMETRY_NOT_AVAILABLE", "okay", "Geometric verification is unavailable.",
+        ))
+    if matching_quality in ("bad", "okay"):
+        warnings.append(_sift_warning(
+            "LOW_GEOMETRIC_FEATURE_RATIO", matching_quality,
+            "Too few selected strong features survive matching and geometric verification.",
+        ))
+    if geometry_quality in ("bad", "okay"):
+        warnings.append(_sift_warning(
+            "LOW_GEOMETRIC_INLIER_RATIO", geometry_quality,
+            "Too many mutually matched pairs are geometrically inconsistent.",
+        ))
+    result["quality"] = {
+        "overall_status": _worst_status([feature_quality, matching_quality, geometry_quality]),
         "feature_quality": feature_quality,
-        "spatial_coverage": spatial_quality,
         "matching_quality": matching_quality,
+        "geometry_quality": geometry_quality,
+        "spatial_coverage": _worst_status(list(geometric_coverage_status.values())),
         "metrics": {
+            "geometric_feature_ratio": geometric_ratios,
             "feature_coverage": feature_coverage,
             "feature_coverage_status": feature_coverage_status,
-            "matchable_coverage": matchable_coverage,
-            "matchable_coverage_status": matchable_coverage_status,
-            "low_feature_cell_count": {
-                image_name: len(cells)
-                for image_name, cells in low_feature_cells.items()
-            },
-            "low_matchable_cell_count": {
-                image_name: len(cells)
-                for image_name, cells in low_matchable_cells.items()
-            },
-            "feature_count_balance": feature_balance,
-            "matchable_ratio_balance": matchable_balance,
+            "geometric_coverage": geometric_coverage,
+            "geometric_coverage_status": geometric_coverage_status,
         },
         "thresholds": asdict(thresholds),
         "warnings": warnings,
     }
-    result["quality"] = quality
     return result
 
 
@@ -893,38 +806,27 @@ def _grid_cells_below(grid: list[list[int]], minimum: int) -> list[list[int]]:
     ]
 
 
-def _balance_ratio(first: float, second: float) -> float:
-    """Return the smaller value divided by the larger value."""
-    maximum = max(first, second)
-    return min(first, second) / maximum if maximum else 1.0
-
-
-def _lower_status(
-    value: float | int | None,
-    good_threshold: float,
-    critical_threshold: float,
-) -> str:
-    """Classify a metric where larger values are better."""
-    if value is None or value < critical_threshold:
-        return "poor"
+def _quality_band(value, bad_threshold, good_threshold, great_threshold) -> str:
+    """Classify normalized evidence with inclusive lower category bounds."""
+    if value is None:
+        return "insufficient_data"
+    if value < bad_threshold:
+        return "bad"
     if value < good_threshold:
-        return "warning"
-    return "good"
-
-
-def _balance_status(value: float, thresholds: SiftQualityThresholds) -> str:
-    """Classify the balance between the two images."""
-    return _lower_status(
-        value,
-        thresholds.min_balance_ratio,
-        thresholds.critical_balance_ratio,
-    )
+        return "okay"
+    if value < great_threshold:
+        return "good"
+    return "great"
 
 
 def _worst_status(statuses: list[str]) -> str:
-    """Return the worst quality status from a list."""
-    ranking = {"good": 0, "warning": 1, "poor": 2}
-    return max(statuses, key=lambda status: ranking[status]) if statuses else "poor"
+    """A known bad result remains bad; unsupported evidence cannot be good."""
+    if "bad" in statuses:
+        return "bad"
+    if not statuses or "insufficient_data" in statuses:
+        return "insufficient_data"
+    ranking = {"great": 0, "good": 1, "okay": 2}
+    return max(statuses, key=lambda status: ranking[status])
 
 
 def _sift_warning(
@@ -938,7 +840,7 @@ def _sift_warning(
     """Build one structured SIFT quality warning."""
     return {
         "code": code,
-        "severity": "error" if status == "poor" else "warning",
+        "severity": "error" if status == "bad" else "warning",
         "message": message,
         "images": images,
         "cells": cells,

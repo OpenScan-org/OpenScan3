@@ -23,7 +23,6 @@ from openscan_firmware.utils.photos.analysis import (
     analyze_sift_pair,
     analyze_cropping_roi,
     analyze_focus_series,
-    crop_normalized_image,
     prepare_analysis_frame,
 )
 
@@ -31,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TURNTABLE_OFFSETS = (0.0, 120.0, -120.0)
 DEFAULT_FOCUS_VALUES = (10.0, 12.0, 15.0)
+SIFT_MAX_DIMENSION = 1280
 DEFAULT_SIFT_GRID_ROWS = 4
 DEFAULT_SIFT_GRID_COLUMNS = 4
 ANALYSIS_EXPOSURE_WARMUP_FRAMES = 12
@@ -96,7 +96,6 @@ class ScanAnalysisTask(BaseTask):
         debug_images: bool = False,
         sift_turntable_angle: float = 5.0,
         sift_benchmark: bool = False,
-        sift_max_dimension: int = 960,
         sift_grid_rows: int = DEFAULT_SIFT_GRID_ROWS,
         sift_grid_columns: int = DEFAULT_SIFT_GRID_COLUMNS,
     ) -> AsyncGenerator[TaskProgress, None]:
@@ -111,8 +110,6 @@ class ScanAnalysisTask(BaseTask):
         focus_values = [float(value) for value in focus_values]
         if not 0 < sift_turntable_angle <= 45:
             raise ValueError("sift_turntable_angle must be greater than 0 and at most 45 degrees.")
-        if sift_max_dimension not in (640, 960, 1280):
-            raise ValueError("sift_max_dimension must be one of 640, 960, or 1280.")
         if sift_grid_rows <= 0 or sift_grid_columns <= 0:
             raise ValueError("sift_grid_rows and sift_grid_columns must be positive.")
 
@@ -216,7 +213,6 @@ class ScanAnalysisTask(BaseTask):
                 async for progress in self._capture_sift_probe(
                     context=context,
                     sift_turntable_angle=sift_turntable_angle,
-                    sift_max_dimension=sift_max_dimension,
                     sift_grid_rows=sift_grid_rows,
                     sift_grid_columns=sift_grid_columns,
                     sift_benchmark=sift_benchmark,
@@ -354,7 +350,6 @@ class ScanAnalysisTask(BaseTask):
         self,
         context: ScanAnalysisContext,
         sift_turntable_angle: float,
-        sift_max_dimension: int,
         sift_grid_rows: int,
         sift_grid_columns: int,
         sift_benchmark: bool,
@@ -388,10 +383,11 @@ class ScanAnalysisTask(BaseTask):
             offset=0.0,
             focus_mode=sift_focus_mode,
             requested_focus=sift_focus,
-            analysis_max_dimension=sift_max_dimension,
+            analysis_max_dimension=SIFT_MAX_DIMENSION,
+            analysis_crop=context.crop,
             raw_image_path=first_sift_path,
         )
-        first_sift_image = _prepare_task_sift_image(first_sift_frame, context.crop)
+        first_sift_image = first_sift_frame.analysis_image
         sift_progress_start = (
             context.initial_calibration_steps
             + context.total_captures
@@ -433,17 +429,19 @@ class ScanAnalysisTask(BaseTask):
             offset=sift_turntable_angle,
             focus_mode=sift_focus_mode,
             requested_focus=sift_focus,
-            analysis_max_dimension=sift_max_dimension,
+            analysis_max_dimension=SIFT_MAX_DIMENSION,
+            analysis_crop=context.crop,
             raw_image_path=second_sift_path,
         )
-        second_sift_image = _prepare_task_sift_image(second_sift_frame, context.crop)
+        second_sift_image = second_sift_frame.analysis_image
         yield TaskProgress(
             current=sift_progress_start + 2,
             total=context.total_work,
             message="Captured second SIFT comparison frame.",
         )
 
-        sift_analysis = analyze_sift_pair(
+        sift_analysis = await asyncio.to_thread(
+            analyze_sift_pair,
             first_sift_image,
             second_sift_image,
             grid_rows=sift_grid_rows,
@@ -562,7 +560,8 @@ class ScanAnalysisTask(BaseTask):
         offset: float,
         focus_mode: str,
         requested_focus: float | None,
-        analysis_max_dimension: int = 640,
+        analysis_max_dimension: int | None = 640,
+        analysis_crop: NormalizedCrop | None = None,
         raw_image_path: Path | None = None,
     ) -> tuple[AnalysisFrame, dict[str, Any]]:
         """Apply one focus setting, capture a frame, and build its report."""
@@ -586,6 +585,7 @@ class ScanAnalysisTask(BaseTask):
                 position,
                 index,
                 max_dimension=analysis_max_dimension,
+                crop=analysis_crop.as_tuple if analysis_crop is not None else None,
             )
             metadata = frame.camera_metadata.model_dump(mode="json")
             raw_metadata = metadata.get("raw_metadata", {})
@@ -656,16 +656,6 @@ def _sift_focus_plan(camera_settings: Any) -> tuple[str, float | None]:
     if manual_focus is None:
         raise ValueError("Manual focus is required for the SIFT comparison.")
     return "manual", float(manual_focus)
-
-
-def _prepare_task_sift_image(
-    frame: AnalysisFrame,
-    crop: NormalizedCrop | None,
-) -> np.ndarray:
-    """Prepare a SIFT image using the explicit task crop when provided."""
-    if crop is None:
-        return frame.analysis_image
-    return crop_normalized_image(frame.analysis_image, crop.as_tuple)
 
 
 async def _restore_camera_settings(settings: Any, original_settings: Any) -> None:

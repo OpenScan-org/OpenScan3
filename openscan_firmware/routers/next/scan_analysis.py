@@ -114,9 +114,9 @@ class SiftGridSize(BaseModel):
 class SiftGridImageMetrics(BaseModel):
     """Per-cell SIFT metrics for one image in the comparison pair."""
 
-    feature_counts: list[list[int]]
-    matchable_feature_counts: list[list[int]]
-    geometric_inlier_counts: list[list[int]] | None
+    feature_counts: list[list[int]] = Field(description="All detected features per cell in the analysis crop (maximum 1280 pixels on its longest side).")
+    matchable_feature_counts: list[list[int]] = Field(description="Mutually matched selected features per cell; the sample contains up to 1000 strongest grid-balanced features per image.")
+    geometric_inlier_counts: list[list[int]] | None = Field(description="Selected features per cell surviving geometric verification.")
 
 
 class SiftSpatialDistribution(BaseModel):
@@ -137,13 +137,17 @@ class SiftQualityWarning(BaseModel):
     cells: list[list[int]] | None = None
 
 
+SiftQualityStatus = Literal["bad", "okay", "good", "great", "insufficient_data"]
+
+
 class SiftQuality(BaseModel):
     """Initial heuristic quality assessment for the SIFT comparison."""
 
-    overall_status: Literal["good", "warning", "poor"]
-    feature_quality: Literal["good", "warning", "poor"]
-    spatial_coverage: Literal["good", "warning", "poor"]
-    matching_quality: Literal["good", "warning", "poor"]
+    overall_status: SiftQualityStatus = Field(description="Worst core assessment: density, geometrically usable sample fraction, and geometric consistency. Crop coverage is diagnostic and excluded.")
+    feature_quality: SiftQualityStatus
+    spatial_coverage: SiftQualityStatus = Field(description="Distribution of geometrically verified selected features within the rectangular crop, including background. Insufficient data suppresses positive ratings.")
+    matching_quality: SiftQualityStatus = Field(description="Geometrically verified fraction of each strongest-feature sample; requires at least 150 features per image and 50 mutual pairs.")
+    geometry_quality: SiftQualityStatus = Field(description="Geometric inlier-ratio assessment; insufficient_data when the evidence or geometric model is unavailable.")
     metrics: dict[str, Any]
     thresholds: dict[str, int | float]
     warnings: list[SiftQualityWarning]
@@ -153,13 +157,14 @@ class SiftAnalysis(BaseModel):
     """Feature and match quality metrics for the SIFT comparison pair."""
 
     turntable_angle: float
-    feature_count: dict[str, int]
-    tentative_match_count: int
-    mutual_match_count: int
-    matchable_feature_count: dict[str, int]
-    matchable_feature_ratio: dict[str, float]
-    unmatched_feature_count: dict[str, int]
-    geometric_inlier_count: int | None
+    feature_count: dict[str, int] = Field(description="All SIFT features detected after cropping and limiting the longest side to 1280 pixels.")
+    feature_density: dict[str, float] = Field(description="Detected features per megapixel of the actual analysis crop, after limiting resolution. No foreground/background segmentation is applied.")
+    tentative_match_count: int = Field(description="Unique ratio-test candidate pairs from the two strongest-per-cell samples; searched against full descriptor pools.")
+    mutual_match_count: int = Field(description="Unique sampled candidate pairs passing ratio tests in both directions.")
+    matchable_feature_count: dict[str, int] = Field(description="Mutually matched features among each image's selected sample of min(feature_count, 1000).")
+    matchable_feature_ratio: dict[str, float] = Field(description="Matched fraction of each image's strongest grid-balanced sample, not of all detected features.")
+    unmatched_feature_count: dict[str, int] = Field(description="Unmatched selected features; untested features are excluded.")
+    geometric_inlier_count: int | None = Field(description="Unique sampled mutual pairs surviving geometric verification.")
     geometric_outlier_count: int | None
     geometric_inlier_ratio: float | None
     spatial_distribution: SiftSpatialDistribution

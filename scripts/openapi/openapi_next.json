@@ -8497,36 +8497,50 @@
               "type": "integer"
             },
             "type": "object",
-            "title": "Feature Count"
+            "title": "Feature Count",
+            "description": "All SIFT features detected after cropping and limiting the longest side to 1280 pixels."
+          },
+          "feature_density": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Feature Density",
+            "description": "Detected features per megapixel of the actual analysis crop, after limiting resolution. No foreground/background segmentation is applied."
           },
           "tentative_match_count": {
             "type": "integer",
-            "title": "Tentative Match Count"
+            "title": "Tentative Match Count",
+            "description": "Unique ratio-test candidate pairs from the two strongest-per-cell samples; searched against full descriptor pools."
           },
           "mutual_match_count": {
             "type": "integer",
-            "title": "Mutual Match Count"
+            "title": "Mutual Match Count",
+            "description": "Unique sampled candidate pairs passing ratio tests in both directions."
           },
           "matchable_feature_count": {
             "additionalProperties": {
               "type": "integer"
             },
             "type": "object",
-            "title": "Matchable Feature Count"
+            "title": "Matchable Feature Count",
+            "description": "Mutually matched features among each image's selected sample of min(feature_count, 1000)."
           },
           "matchable_feature_ratio": {
             "additionalProperties": {
               "type": "number"
             },
             "type": "object",
-            "title": "Matchable Feature Ratio"
+            "title": "Matchable Feature Ratio",
+            "description": "Matched fraction of each image's strongest grid-balanced sample, not of all detected features."
           },
           "unmatched_feature_count": {
             "additionalProperties": {
               "type": "integer"
             },
             "type": "object",
-            "title": "Unmatched Feature Count"
+            "title": "Unmatched Feature Count",
+            "description": "Unmatched selected features; untested features are excluded."
           },
           "geometric_inlier_count": {
             "anyOf": [
@@ -8537,7 +8551,8 @@
                 "type": "null"
               }
             ],
-            "title": "Geometric Inlier Count"
+            "title": "Geometric Inlier Count",
+            "description": "Unique sampled mutual pairs surviving geometric verification."
           },
           "geometric_outlier_count": {
             "anyOf": [
@@ -8579,6 +8594,7 @@
         "required": [
           "turntable_angle",
           "feature_count",
+          "feature_density",
           "tentative_match_count",
           "mutual_match_count",
           "matchable_feature_count",
@@ -8621,7 +8637,8 @@
               "type": "array"
             },
             "type": "array",
-            "title": "Feature Counts"
+            "title": "Feature Counts",
+            "description": "All detected features per cell in the analysis crop (maximum 1280 pixels on its longest side)."
           },
           "matchable_feature_counts": {
             "items": {
@@ -8631,7 +8648,8 @@
               "type": "array"
             },
             "type": "array",
-            "title": "Matchable Feature Counts"
+            "title": "Matchable Feature Counts",
+            "description": "Mutually matched selected features per cell; the sample contains up to 1000 strongest grid-balanced features per image."
           },
           "geometric_inlier_counts": {
             "anyOf": [
@@ -8648,7 +8666,8 @@
                 "type": "null"
               }
             ],
-            "title": "Geometric Inlier Counts"
+            "title": "Geometric Inlier Counts",
+            "description": "Selected features per cell surviving geometric verification."
           }
         },
         "type": "object",
@@ -8684,38 +8703,61 @@
           "overall_status": {
             "type": "string",
             "enum": [
+              "bad",
+              "okay",
               "good",
-              "warning",
-              "poor"
+              "great",
+              "insufficient_data"
             ],
-            "title": "Overall Status"
+            "title": "Overall Status",
+            "description": "Worst core assessment: density, geometrically usable sample fraction, and geometric consistency. Crop coverage is diagnostic and excluded."
           },
           "feature_quality": {
             "type": "string",
             "enum": [
+              "bad",
+              "okay",
               "good",
-              "warning",
-              "poor"
+              "great",
+              "insufficient_data"
             ],
             "title": "Feature Quality"
           },
           "spatial_coverage": {
             "type": "string",
             "enum": [
+              "bad",
+              "okay",
               "good",
-              "warning",
-              "poor"
+              "great",
+              "insufficient_data"
             ],
-            "title": "Spatial Coverage"
+            "title": "Spatial Coverage",
+            "description": "Distribution of geometrically verified selected features within the rectangular crop, including background. Insufficient data suppresses positive ratings."
           },
           "matching_quality": {
             "type": "string",
             "enum": [
+              "bad",
+              "okay",
               "good",
-              "warning",
-              "poor"
+              "great",
+              "insufficient_data"
             ],
-            "title": "Matching Quality"
+            "title": "Matching Quality",
+            "description": "Geometrically verified fraction of each strongest-feature sample; requires at least 150 features per image and 50 mutual pairs."
+          },
+          "geometry_quality": {
+            "type": "string",
+            "enum": [
+              "bad",
+              "okay",
+              "good",
+              "great",
+              "insufficient_data"
+            ],
+            "title": "Geometry Quality",
+            "description": "Geometric inlier-ratio assessment; insufficient_data when the evidence or geometric model is unavailable."
           },
           "metrics": {
             "additionalProperties": true,
@@ -8750,6 +8792,7 @@
           "feature_quality",
           "spatial_coverage",
           "matching_quality",
+          "geometry_quality",
           "metrics",
           "thresholds",
           "warnings"

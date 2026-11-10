@@ -275,3 +275,71 @@ async def test_analysis_sets_rotor_before_calibration_and_restores_on_failure(mo
     assert [call.args[0] for call in move.await_args_list] == [analysis, original]
     assert camera.calibrate_awb_and_lock.call_count == (failure == "calibration")
     camera.photo_async.assert_not_awaited()
+
+
+def test_analysis_frame_can_crop_oriented_native_image_without_resizing():
+    from openscan_firmware.utils.photos.analysis import apply_orientation, crop_normalized_image
+    image = np.arange(120 * 160 * 3, dtype=np.uint8).reshape(120, 160, 3)
+    photo = PhotoData(data=image, format='rgb_array', camera_metadata=CameraMetadata(
+        camera_name='camera0', camera_settings=CameraSettings(orientation_flag=8), raw_metadata={},
+    ))
+    crop = (0.25, 0.25, 0.5, 0.5)
+    frame = prepare_analysis_frame(photo, PolarPoint3D(theta=90, fi=0, r=1), 0,
+                                   max_dimension=None, crop=crop)
+    expected = crop_normalized_image(apply_orientation(image, 8), crop)
+    np.testing.assert_array_equal(frame.analysis_image, expected)
+    assert frame.analysis_image.shape == (80, 60, 3)
+    assert not np.shares_memory(frame.analysis_image, image)
+
+
+@pytest.mark.asyncio
+async def test_sift_capture_scales_after_crop(monkeypatch):
+    from openscan_firmware.models.scan_analysis import NormalizedCrop
+    image = np.zeros((120, 160, 3), dtype=np.uint8)
+    image[30:90, 40:120] = 200
+    photo = PhotoData(data=image, format='rgb_array', camera_metadata=CameraMetadata(
+        camera_name='camera0', camera_settings=CameraSettings(orientation_flag=1), raw_metadata={},
+    ))
+    context = SimpleNamespace(camera=SimpleNamespace(photo_async=AsyncMock(return_value=photo)),
+                              camera_settings=SimpleNamespace(update=MagicMock()))
+    task = ScanAnalysisTask(Task(name='scan_analysis_task', task_type='scan_analysis_task'))
+    frame, _ = await task._capture_frame(
+        context=context, position=PolarPoint3D(theta=90, fi=0, r=1), index=-1,
+        capture_index=0, offset=0, focus_mode='manual', requested_focus=12,
+        analysis_max_dimension=40, analysis_crop=NormalizedCrop((0.25, 0.25, 0.5, 0.5)),
+    )
+    assert frame.analysis_image.shape == (30, 40, 3)
+    assert np.all(frame.analysis_image == 200)
+
+
+@pytest.mark.asyncio
+async def test_sift_probe_limits_crop_and_runs_matching_off_event_loop(monkeypatch):
+    import threading
+    from importlib import import_module
+    from openscan_firmware.models.scan_analysis import NormalizedCrop
+    module = import_module('openscan_firmware.controllers.services.tasks.core.scan_analysis_task')
+    main_thread = threading.get_ident()
+    def analyze(first, second, **kwargs):
+        assert threading.get_ident() != main_thread
+        return {'feature_count': {'first': 10, 'second': 10}}
+    monkeypatch.setattr(module, 'analyze_sift_pair', analyze)
+    task = ScanAnalysisTask(Task(name='scan_analysis_task', task_type='scan_analysis_task'))
+    frame = SimpleNamespace(analysis_image=np.zeros((10,10,3),dtype=np.uint8))
+    task._capture_frame = AsyncMock(return_value=(frame, {}))
+    crop = NormalizedCrop((0.1,0.1,0.8,0.8))
+    context = SimpleNamespace(
+        motors=SimpleNamespace(move_to_point=AsyncMock()),
+        analysis_position=PolarPoint3D(theta=90,fi=0,r=1), settle_time_s=0,
+        camera_settings=SimpleNamespace(model=CameraSettings(AF=False,manual_focus=12)),
+        crop=crop, initial_calibration_steps=1,total_captures=12,
+        per_position_calibration_steps=1,position_count=3,total_work=20,
+    )
+    result={}
+    [update async for update in task._capture_sift_probe(
+        context=context,sift_turntable_angle=5,sift_grid_rows=4,sift_grid_columns=4,
+        sift_benchmark=False,result=result,
+    )]
+    assert result['analysis']['turntable_angle'] == 5
+    for call in task._capture_frame.await_args_list:
+        assert call.kwargs['analysis_max_dimension'] == 1280
+        assert call.kwargs['analysis_crop'] is crop
