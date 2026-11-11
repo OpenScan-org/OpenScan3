@@ -14,6 +14,7 @@ from openscan_firmware.controllers.services.tasks.core.focus_stacking_task impor
     FocusStackingTask,
 )
 from openscan_firmware.controllers.services.tasks.core.qr_scan_task import QrScanTask
+from openscan_firmware.controllers.services.tasks.core.scan_analysis_task import ScanAnalysisTask
 from openscan_firmware.controllers.services.tasks.core.scan_task import ScanTask
 
 
@@ -26,4 +27,5 @@ BUILTIN_TASKS: tuple[type[BaseTask], ...] = (
     CloudUploadTask,
     CloudDownloadTask,
     QrScanTask,
+    ScanAnalysisTask,
 )

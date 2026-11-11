@@ -222,7 +222,7 @@
         "tags": [
           "cameras"
         ],
-        "summary": "Get Photo Payload",
+        "summary": "V0 9 Get Photo Payload",
         "operationId": "get_photo_payload",
         "parameters": [
           {

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added Scan Wizard analysis for camera calibration, object positioning, focus
+  stacking suggestions, and feature matching quality.
+
 ### Fixed
 
 - Picamera2 cameras now initialize on newer libcamera stacks that replace

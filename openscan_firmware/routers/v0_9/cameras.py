@@ -302,7 +302,7 @@ async def get_photo(
     )
     payload_url = str(
         request.url_for(
-            "get_photo_payload",
+            "v0_9_get_photo_payload",
             camera_name=camera_name,
             payload_id=payload_id,
         )
@@ -318,7 +318,7 @@ async def get_photo(
     )
 
 
-@router.get("/{camera_name}/photo/payload/{payload_id}", name="get_photo_payload")
+@router.get("/{camera_name}/photo/payload/{payload_id}", name="v0_9_get_photo_payload")
 async def get_photo_payload(camera_name: str, payload_id: str):
     payload = _get_cached_photo_payload(camera_name=camera_name, payload_id=payload_id)
     return Response(

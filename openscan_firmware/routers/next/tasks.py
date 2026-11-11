@@ -19,6 +19,7 @@ _DOMAIN_TASK_ENDPOINTS = {
         "POST /projects/{project_name}/scans/{scan_index}/focus-stacking/start"
     ),
     "cloud_upload_task": "POST /projects/{project_name}/upload",
+    "scan_analysis_task": "POST /scan-analysis",
 }
 
 

@@ -22,6 +22,9 @@ ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
 from openscan_firmware.controllers.hardware.cameras.camera import CameraController
+from openscan_firmware.controllers.hardware.cameras.picamera2_stats import (
+    decode_extended_debug_metadata,
+)
 from openscan_firmware.models.camera import Camera, CameraMetadata, PhotoData
 from openscan_firmware.config.camera import CameraSettings
 
@@ -201,6 +204,7 @@ class Picamera2Controller(CameraController):
         self._capture_session_active = False
         self._capture_session_config = None
         self._capture_session_image_format = None
+        self._extended_debug_enabled = False
 
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
@@ -254,7 +258,8 @@ class Picamera2Controller(CameraController):
         """Run profiled autofocus with a bounded fallback.
 
         Cameras without an OpenScan focus profile keep Picamera2's normal
-        autofocus behaviour.
+        autofocus behaviour. Captures may disable the fixed-focus fallback
+        through the capture-local policy without changing the AF search range.
         """
         focus_profile = self._macro_focus_ranges.get((self.camera.scanner_model, self.camera.name))
         if focus_profile is None:
@@ -267,14 +272,17 @@ class Picamera2Controller(CameraController):
             # timed out. Clear it before switching the lens to manual mode.
             self._picam.cancel_all_and_flush()
             logger.warning(
-                "Autofocus timed out after %.1f seconds; using fallback LensPosition %.1f.",
+                "Autofocus timed out after %.1f seconds.",
                 focus_profile["timeout"],
-                focus_profile["fallback"],
             )
             success = False
 
         if success:
             return True
+
+        if not self._allow_af_fallback:
+            logger.warning("Autofocus failed; focus fallback is disabled for this capture.")
+            return False
 
         logger.warning(
             "Autofocus failed; using fallback LensPosition %.1f.",
@@ -336,6 +344,43 @@ class Picamera2Controller(CameraController):
         still_settings.update(manual_controls)
         return still_settings
 
+    def extended_debug_status(self) -> dict[str, Any]:
+        """Return support and activation state for extended ISP diagnostics."""
+        supported = "StatsOutputEnable" in self._picam.camera_controls
+        return {
+            "supported": supported,
+            "enabled": self._extended_debug_enabled,
+            "vendor_statistics": (
+                ["Bcm2835StatsOutput", "PispStatsOutput"] if supported else []
+            ),
+        }
+
+    def set_extended_debug_enabled(self, enabled: bool = True) -> bool:
+        """Enable ISP statistics for future captures.
+
+        The setting is deliberately kept on the controller rather than in
+        ``CameraSettings``.  It is diagnostic capture state and may grow to
+        include more vendor statistics without becoming part of the user's
+        persistent camera setup.
+        """
+        with self._hw_lock:
+            supported = "StatsOutputEnable" in self._picam.camera_controls
+            if enabled and not supported:
+                logger.warning("Extended camera debug is not supported by this camera.")
+                self._extended_debug_enabled = False
+                return False
+
+            self._extended_debug_enabled = bool(enabled)
+            self._configure_resolutions()
+            try:
+                self._picam.set_controls({"StatsOutputEnable": bool(enabled)})
+            except Exception:
+                self._extended_debug_enabled = False
+                logger.exception("Could not apply StatsOutputEnable=%s", enabled)
+                return False
+            logger.info("Extended camera debug enabled=%s", enabled)
+            return True
+
     def _configure_resolutions(self, crop_rect=None):
         """Create all camera configurations.
 
@@ -349,6 +394,8 @@ class Picamera2Controller(CameraController):
                                    "NoiseReductionMode": 0,  # Disable noise reduction
                                    "AwbEnable": False  # Disable automatic white balance
                                    }
+        if self._extended_debug_enabled:
+            photogrammetry_settings["StatsOutputEnable"] = True
 
         self._photogrammetry_settings = photogrammetry_settings.copy()
         still_settings = self._still_capture_controls()
@@ -497,60 +544,253 @@ class Picamera2Controller(CameraController):
         Returns:
             tuple: A tuple containing the red and blue gains.
         """
-        self._require_camera_ready()
-        self._set_busy(True)
-        logger.info("Will configure automatic white balance for color correction...")
-        logger.debug(
-            f"Warmup frames: {warmup_frames}, Stable frames: {stable_frames}, Epsilon: {eps}, Timeout: {timeout_s}")
-        logger.debug(f"Current camera metadata: {self._picam.capture_metadata()}")
+        with self._hw_lock:
+            self._require_camera_ready()
+            self._set_busy(True)
+            try:
+                logger.info("Will configure automatic white balance for color correction...")
+                logger.debug(
+                    f"Warmup frames: {warmup_frames}, Stable frames: {stable_frames}, Epsilon: {eps}, Timeout: {timeout_s}")
+                logger.debug(f"Current camera metadata: {self._picam.capture_metadata()}")
 
-        self._picam.set_controls({"AwbEnable": True})
+                self._picam.set_controls({"AwbEnable": True})
 
-        metadata = self._picam.capture_metadata()
-        current_controls = {c: metadata[c] for c in ["ExposureTime", "ColourGains"]}
-        logger.info(f"Current Exposure {current_controls['ExposureTime']}, ColourGains {current_controls['ColourGains']}")
+                metadata = self._picam.capture_metadata()
+                current_controls = {c: metadata[c] for c in ["ExposureTime", "ColourGains"]}
+                logger.info(f"Current Exposure {current_controls['ExposureTime']}, ColourGains {current_controls['ColourGains']}")
 
-        self._picam.drop_frames(warmup_frames, wait=True)
+                self._picam.drop_frames(warmup_frames, wait=True)
 
-        last = None
-        steady = 0
-        best_gains = None
-        t0 = time.monotonic()
+                last = None
+                steady = 0
+                best_gains = None
+                t0 = time.monotonic()
 
-        while time.monotonic() - t0 < timeout_s:
-            md = self._picam.capture_metadata()
-            gains = md.get("ColourGains")
-            if not gains:
-                continue
+                while time.monotonic() - t0 < timeout_s:
+                    md = self._picam.capture_metadata()
+                    gains = md.get("ColourGains")
+                    if not gains:
+                        continue
 
-            if last is not None:
-                dr = abs(gains[0] - last[0])
-                db = abs(gains[1] - last[1])
-                if dr < eps and db < eps:
-                    steady += 1
-                else:
-                    steady = 0
-            last = gains
-            best_gains = gains
+                    if last is not None:
+                        dr = abs(gains[0] - last[0])
+                        db = abs(gains[1] - last[1])
+                        if dr < eps and db < eps:
+                            steady += 1
+                        else:
+                            steady = 0
+                    last = gains
+                    best_gains = gains
 
-            if steady >= stable_frames:
-                break
+                    if steady >= stable_frames:
+                        break
 
-        if best_gains is None:
-            logger.error("Could not determine gains from metadata.")
-            raise RuntimeError("Could not determine gains from metadata.")
+                if best_gains is None:
+                    logger.error("Could not determine gains from metadata.")
+                    raise RuntimeError("Could not determine gains from metadata.")
 
-        # Disable AWB and persist gains via the settings wrapper so downstream code stays in sync
-        locked_gains = (float(best_gains[0]), float(best_gains[1]))
-        self._picam.set_controls({
-            "AwbEnable": False,
-        })
-        self.settings.update(awbg_red=locked_gains[0], awbg_blue=locked_gains[1])
-        logger.info(f"AWB locked with gains: {best_gains}")
+                # Disable AWB and persist gains via the settings wrapper so downstream code stays in sync
+                locked_gains = (float(best_gains[0]), float(best_gains[1]))
+                self._picam.set_controls({
+                    "AwbEnable": False,
+                })
+                self.settings.update(awbg_red=locked_gains[0], awbg_blue=locked_gains[1])
+                logger.info(f"AWB locked with gains: {best_gains}")
 
-        self._set_busy(False)
+                return locked_gains
+            finally:
+                self._set_busy(False)
 
-        return locked_gains
+    def calibrate_exposure_and_lock(
+            self,
+            warmup_frames: int = 12,
+            stable_frames: int = 4,
+            timeout_s: float = 4.0,
+            tolerance_us: int | None = None,
+            use_photo_config: bool = False,
+            relative_tolerance: float = 0.01,
+    ) -> tuple[float, float]:
+        """Determine exposure with analogue gain fixed at 1.0 and lock it.
+
+        By default, calibration runs in the currently active preview mode. If
+        ``use_photo_config`` is true, the camera temporarily switches to the
+        current still configuration, calibrates there, and switches back to
+        preview before returning.
+
+        Returns:
+            Tuple of ``(shutter_ms, analogue_gain)``.
+        """
+        with self._hw_lock:
+            if relative_tolerance <= 0:
+                raise ValueError("relative_tolerance must be positive.")
+            if tolerance_us is not None and tolerance_us <= 0:
+                raise ValueError("tolerance_us must be positive when provided.")
+
+            self._set_busy(True)
+            previous_controls = self._manual_camera_controls(self.settings)
+            mode_switched = False
+            locked = False
+            logger.info(
+                "Exposure calibration started: warmup_frames=%d stable_frames=%d "
+                "timeout_s=%.2f relative_tolerance=%.4f use_photo_config=%s",
+                warmup_frames,
+                stable_frames,
+                timeout_s,
+                relative_tolerance,
+                use_photo_config,
+            )
+
+            try:
+                if use_photo_config:
+                    # Keep the temporary still mode aligned with the configured
+                    # JPEG/DNG crop before starting the calibration.
+                    self._configure_cropping_for_scalercrop()
+                    self._picam.switch_mode(self.photo_config, wait=True)
+                    mode_switched = True
+
+                # Let AE determine the exposure time, but keep analogue gain at
+                # unity explicitly. Setting AnalogueGain alongside AeEnable is
+                # not sufficient on newer libcamera versions: AeEnable puts both
+                # exposure time and gain into auto mode unless the individual
+                # modes are supplied in the same request.
+                self._picam.set_controls({
+                    "AeEnable": True,
+                    "ExposureTimeMode": controls.ExposureTimeModeEnum.Auto,
+                    "AnalogueGainMode": controls.AnalogueGainModeEnum.Manual,
+                    "AeMeteringMode": controls.AeMeteringModeEnum.Spot,
+                    "AeConstraintMode": controls.AeConstraintModeEnum.Highlight,
+                    "AeExposureMode": controls.AeExposureModeEnum.Normal,
+                    "ExposureValue": -0.5,
+                    "ExposureTime": 0,
+                    "AnalogueGain": 1.0,
+                })
+                self._picam.drop_frames(warmup_frames, wait=True)
+                logger.info("Exposure calibration warmup completed.")
+
+                last_exposure_us = None
+                steady = 0
+                best_result = None
+                start = time.monotonic()
+                sample_count = 0
+                last_logged_exposure_us = None
+
+                while time.monotonic() - start < timeout_s:
+                    metadata = self._picam.capture_metadata()
+                    exposure_us = metadata.get("ExposureTime")
+                    analogue_gain = metadata.get("AnalogueGain")
+                    digital_gain = float(metadata.get("DigitalGain", 1.0))
+
+                    if exposure_us is None or analogue_gain is None:
+                        continue
+
+                    sample_count += 1
+                    exposure_us = int(exposure_us)
+                    analogue_gain = float(analogue_gain)
+                    exposure_tolerance_us = (
+                        tolerance_us
+                        if tolerance_us is not None
+                        else max(1, int(exposure_us * relative_tolerance))
+                    )
+
+                    if exposure_us != last_logged_exposure_us:
+                        logger.info(
+                            "Exposure AE sample: sample=%d exposure_us=%d "
+                            "delta_us=%s tolerance_us=%d steady=%d "
+                            "analogue_gain=%.4f digital_gain=%.4f ae_state=%s "
+                            "frame_duration_us=%s lux=%s",
+                            sample_count,
+                            exposure_us,
+                            (
+                                abs(exposure_us - last_exposure_us)
+                                if last_exposure_us is not None
+                                else None
+                            ),
+                            exposure_tolerance_us,
+                            steady,
+                            analogue_gain,
+                            metadata.get("DigitalGain", 1.0),
+                            metadata.get("AeState"),
+                            metadata.get("FrameDuration"),
+                            metadata.get("Lux"),
+                        )
+                        last_logged_exposure_us = exposure_us
+
+                    if (
+                        last_exposure_us is not None
+                        and abs(exposure_us - last_exposure_us) <= exposure_tolerance_us
+                    ):
+                        steady += 1
+                    else:
+                        steady = 0
+
+                    last_exposure_us = exposure_us
+                    best_result = (exposure_us, analogue_gain, digital_gain)
+
+                    if steady >= stable_frames:
+                        break
+
+                if best_result is None or steady < stable_frames:
+                    logger.warning(
+                        "Exposure calibration timed out: samples=%d last_exposure_us=%s "
+                        "steady=%d required=%d",
+                        sample_count,
+                        last_exposure_us,
+                        steady,
+                        stable_frames,
+                    )
+                    raise RuntimeError("Exposure did not stabilize.")
+
+                exposure_us, analogue_gain, digital_gain = best_result
+                if digital_gain > 1.05:
+                    raise RuntimeError(
+                        "Exposure requires digital gain while analogue gain is fixed at 1.0."
+                    )
+
+                if abs(analogue_gain - 1.0) > 0.05:
+                    raise RuntimeError(
+                        f"Analogue gain did not remain at 1.0 (measured {analogue_gain:.3f})."
+                    )
+
+                # Lock the values in hardware before persisting them in settings.
+                self._picam.set_controls({
+                    "AeEnable": False,
+                    "ExposureTimeMode": controls.ExposureTimeModeEnum.Manual,
+                    "AnalogueGainMode": controls.AnalogueGainModeEnum.Manual,
+                    "ExposureTime": exposure_us,
+                    "AnalogueGain": 1.0,
+                })
+
+                shutter_ms = exposure_us / 1000.0
+                self.settings.update(shutter=shutter_ms, gain=1.0)
+                # Settings callbacks also update the busy state. Keep the
+                # calibration operation marked busy until mode restoration ends.
+                self._set_busy(True)
+                locked = True
+
+                logger.info(
+                    "Exposure locked: %.3f ms, analogue gain 1.0",
+                    shutter_ms,
+                )
+                return shutter_ms, 1.0
+
+            finally:
+                controls_after_mode_switch = (
+                    self._manual_camera_controls(self.settings)
+                    if locked
+                    else previous_controls
+                )
+                if not mode_switched and not locked:
+                    restore_controls = {"AeEnable": False}
+                    restore_controls.update(controls_after_mode_switch)
+                    self._picam.set_controls(restore_controls)
+
+                try:
+                    if mode_switched:
+                        self._picam.switch_mode(self.preview_config, wait=True)
+                        if controls_after_mode_switch:
+                            self._picam.set_controls(controls_after_mode_switch)
+                finally:
+                    self._set_busy(False)
 
     def restart_camera(self):
         """Restart the camera and reconfigure resolution."""
@@ -832,9 +1072,18 @@ class Picamera2Controller(CameraController):
 
         Returns:
             CameraMetadata: The prepared metadata."""
+        safe_metadata = dict(raw_metadata or {})
+        extended_debug = decode_extended_debug_metadata(safe_metadata)
+        for key in ("Bcm2835StatsOutput", "PispStatsOutput"):
+            # The binary vendor value is not JSON serializable and is replaced
+            # by the normalized extended_debug representation below.
+            safe_metadata.pop(key, None)
+        if extended_debug is not None:
+            safe_metadata["extended_debug"] = extended_debug
+
         camera_metadata = CameraMetadata(camera_name=self.camera.name,
                                          camera_settings=self.settings.model,
-                                         raw_metadata=raw_metadata)
+                                         raw_metadata=safe_metadata)
         return camera_metadata
 
     def _create_artifact(self, data, data_format, camera_metadata) -> PhotoData:

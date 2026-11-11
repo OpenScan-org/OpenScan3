@@ -139,6 +139,7 @@ def test_create_task_dependency_is_optional(
             "POST /projects/{project_name}/scans/{scan_index}/focus-stacking/start",
         ),
         ("cloud_upload_task", "POST /projects/{project_name}/upload"),
+        ("scan_analysis_task", "POST /scan-analysis"),
     ],
 )
 def test_domain_tasks_must_use_project_specific_endpoints(
