@@ -4,7 +4,7 @@ import logging
 import time
 from dataclasses import dataclass
 from threading import Lock
-from typing import Literal, Optional
+from typing import Callable, Literal, Optional
 from urllib.parse import quote, urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -31,6 +31,44 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+
+# Retain worker tasks until calibration finishes, even if the HTTP request ends.
+_exposure_calibrations: dict[str, asyncio.Task[tuple[float, float]]] = {}
+_awb_calibrations: dict[str, asyncio.Task[tuple[float, float]]] = {}
+
+
+async def _run_calibration(
+    camera_name: str,
+    calibrate_fn: Callable[..., tuple[float, float]],
+    params: dict,
+    pending_tasks: dict[str, asyncio.Task[tuple[float, float]]],
+    label: str,
+) -> tuple[float, float]:
+    pending = pending_tasks.get(camera_name)
+    if pending is not None and not pending.done():
+        raise HTTPException(
+            status_code=409,
+            detail=f"{label} calibration is already pending or running for this camera.",
+        )
+
+    # No await between checking and registering: requests on this event loop
+    # cannot both claim the same camera. Hardware contention is handled by the
+    # controller's lock, including a currently running preview frame.
+    calibration = asyncio.create_task(asyncio.to_thread(calibrate_fn, **params))
+    pending_tasks[camera_name] = calibration
+
+    def release(completed: asyncio.Task) -> None:
+        if pending_tasks.get(camera_name) is completed:
+            pending_tasks.pop(camera_name)
+        # Retrieve exceptions even when the client stopped waiting.
+        if not completed.cancelled():
+            error = completed.exception()
+            if error is not None:
+                logger.warning("%s calibration failed for camera '%s': %s", label, camera_name, error)
+
+    calibration.add_done_callback(release)
+    return await asyncio.shield(calibration)
+
 
 PhotoFormat = Literal["jpeg", "raw", "dng", "rgb_array", "yuv_array"]
 _PAYLOAD_TTL_SECONDS = 90
@@ -469,13 +507,10 @@ async def auto_calibrate_awb(
         AutoCalibrateAwbResponse: Locked gains after the calibration.
 
     Raises:
-        HTTPException: When the controller is busy, unsupported, or calibration fails.
+        HTTPException: When calibration is already pending, unsupported, or fails.
     """
 
     controller = get_camera_controller(camera_name)
-
-    if controller.is_busy():
-        raise HTTPException(status_code=409, detail="Camera is busy. Retry once it is idle.")
 
     calibrate_fn = getattr(controller, "calibrate_awb_and_lock", None)
     if not callable(calibrate_fn):
@@ -485,7 +520,9 @@ async def auto_calibrate_awb(
         )
 
     try:
-        red_gain, blue_gain = await asyncio.to_thread(calibrate_fn, **params.model_dump())
+        red_gain, blue_gain = await _run_calibration(
+            camera_name, calibrate_fn, params.model_dump(), _awb_calibrations, "White balance",
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -503,9 +540,6 @@ async def auto_calibrate_exposure(
     """Calibrate and persist exposure using the camera controller when supported."""
     controller = get_camera_controller(camera_name)
 
-    if controller.is_busy():
-        raise HTTPException(status_code=409, detail="Camera is busy. Retry once it is idle.")
-
     calibrate_fn = getattr(controller, "calibrate_exposure_and_lock", None)
     if not callable(calibrate_fn):
         raise HTTPException(
@@ -514,7 +548,9 @@ async def auto_calibrate_exposure(
         )
 
     try:
-        shutter_ms, analogue_gain = await asyncio.to_thread(calibrate_fn, **params.model_dump())
+        shutter_ms, analogue_gain = await _run_calibration(
+            camera_name, calibrate_fn, params.model_dump(), _exposure_calibrations, "Exposure",
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

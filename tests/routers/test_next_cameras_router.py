@@ -804,12 +804,13 @@ async def test_payload_cache_byte_limit_evicts_old_entries(
     "warmup_frames": 3, "stable_frames": 2, "timeout_s": 6.0,
     "tolerance_us": 100, "use_photo_config": True, "relative_tolerance": 0.02,
 }])
-async def test_exposure_calibration(cameras_client, monkeypatch, params):
+@pytest.mark.parametrize("busy", [False, True])
+async def test_exposure_calibration(cameras_client, monkeypatch, params, busy):
     from unittest.mock import Mock
 
     router = import_module(_next_router_module_path("cameras"))
     controller = Mock()
-    controller.is_busy.return_value = False
+    controller.is_busy.return_value = busy
     controller.calibrate_exposure_and_lock.return_value = (12.5, 1.0)
     monkeypatch.setattr(router, "get_camera_controller", lambda name: controller)
 
@@ -826,7 +827,7 @@ async def test_exposure_calibration(cameras_client, monkeypatch, params):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("scenario,status", [("busy", 409), ("unsupported", 501), ("failed", 500)])
+@pytest.mark.parametrize("scenario,status", [("unsupported", 501), ("failed", 500)])
 async def test_exposure_calibration_errors(cameras_client, monkeypatch, scenario, status):
     from unittest.mock import Mock
 
@@ -842,8 +843,6 @@ async def test_exposure_calibration_errors(cameras_client, monkeypatch, scenario
     response = await cameras_client.post("/next/cameras/cam0/exposure-calibration")
 
     assert response.status_code == status
-    if scenario == "busy":
-        controller.calibrate_exposure_and_lock.assert_not_called()
     if scenario == "failed":
         assert response.json()["detail"] == "Exposure did not stabilize."
 
@@ -864,3 +863,125 @@ async def test_exposure_calibration_invalid_parameters(cameras_client, monkeypat
 
     assert response.status_code == 422
     get_controller.assert_not_called()
+
+
+@pytest_asyncio.fixture(params=["exposure", "awb"])
+async def blocked_calibration(monkeypatch, request):
+    import threading
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    router = import_module(_next_router_module_path("cameras"))
+    kind = request.param
+    method = "calibrate_exposure_and_lock" if kind == "exposure" else "calibrate_awb_and_lock"
+    registry = router._exposure_calibrations if kind == "exposure" else router._awb_calibrations
+    loop = asyncio.get_running_loop()
+    started = asyncio.Event()
+    release = threading.Event()
+    state = SimpleNamespace(fail=False)
+
+    def calibrate(**kwargs):
+        loop.call_soon_threadsafe(started.set)
+        if not release.wait(timeout=5):
+            raise RuntimeError("Test did not release exposure calibration")
+        if state.fail:
+            raise RuntimeError("Calibration failed after disconnect")
+        return 12.5, 1.0
+
+    controller = Mock()
+    getattr(controller, method).side_effect = calibrate
+    other = Mock()
+    getattr(other, method).return_value = (20.0, 1.0)
+    monkeypatch.setattr(router, "get_camera_controller", lambda name: controller if name == "cam0" else other)
+    try:
+        yield SimpleNamespace(router=router, controller=controller, method=method, kind=kind, registry=registry, started=started, release=release, state=state)
+    finally:
+        release.set()
+        tasks = list(registry.values())
+        if tasks:
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=2)
+
+
+@pytest.mark.asyncio
+async def test_calibration_rejects_duplicate_but_allows_other_camera(cameras_client, blocked_calibration):
+    pending = asyncio.create_task(cameras_client.post(f"/next/cameras/cam0/{blocked_calibration.kind}-calibration"))
+    try:
+        await asyncio.wait_for(blocked_calibration.started.wait(), timeout=2)
+        duplicate = await cameras_client.post(f"/next/cameras/cam0/{blocked_calibration.kind}-calibration")
+        assert duplicate.status_code == 409
+        label = "Exposure" if blocked_calibration.kind == "exposure" else "White balance"
+        assert duplicate.json()["detail"] == f"{label} calibration is already pending or running for this camera."
+        getattr(blocked_calibration.controller, blocked_calibration.method).assert_called_once()
+        other = await cameras_client.post(f"/next/cameras/cam1/{blocked_calibration.kind}-calibration")
+        assert other.status_code == 200
+    finally:
+        blocked_calibration.release.set()
+        assert (await asyncio.wait_for(pending, timeout=2)).status_code == 200
+
+    again = await cameras_client.post(f"/next/cameras/cam0/{blocked_calibration.kind}-calibration")
+    assert again.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fail", [False, True])
+async def test_calibration_disconnect_keeps_camera_claim_until_worker_finishes(cameras_client, blocked_calibration, fail):
+    blocked_calibration.state.fail = fail
+    pending = asyncio.create_task(cameras_client.post(f"/next/cameras/cam0/{blocked_calibration.kind}-calibration"))
+    await asyncio.wait_for(blocked_calibration.started.wait(), timeout=2)
+    pending.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await pending
+
+    worker = blocked_calibration.registry["cam0"]
+    assert not worker.done()
+    duplicate = await cameras_client.post(f"/next/cameras/cam0/{blocked_calibration.kind}-calibration")
+    assert duplicate.status_code == 409
+    getattr(blocked_calibration.controller, blocked_calibration.method).assert_called_once()
+
+    blocked_calibration.release.set()
+
+    async def wait_for_release():
+        while "cam0" in blocked_calibration.registry:
+            await asyncio.sleep(0.01)
+
+    await asyncio.wait_for(wait_for_release(), timeout=2)
+    blocked_calibration.state.fail = False
+    again = await cameras_client.post(f"/next/cameras/cam0/{blocked_calibration.kind}-calibration")
+    assert again.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("busy", [False, True])
+@pytest.mark.parametrize("params", [None, {"warmup_frames": 3, "stable_frames": 2, "eps": 0.02, "timeout_s": 5.0}])
+async def test_awb_calibration_accepts_preview_busy(cameras_client, monkeypatch, busy, params):
+    from unittest.mock import Mock
+    router = import_module(_next_router_module_path("cameras"))
+    controller = Mock()
+    controller.is_busy.return_value = busy
+    controller.calibrate_awb_and_lock.return_value = (1.5, 2.0)
+    monkeypatch.setattr(router, "get_camera_controller", lambda name: controller)
+    kwargs = {} if params is None else {"json": params}
+    response = await cameras_client.post("/next/cameras/cam0/awb-calibration", **kwargs)
+    assert response.status_code == 200
+    assert response.json() == {"red_gain": 1.5, "blue_gain": 2.0}
+    controller.calibrate_awb_and_lock.assert_called_once_with(**(params or {
+        "warmup_frames": 12, "stable_frames": 4, "eps": 0.01, "timeout_s": 2.0,
+    }))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unsupported", [False, True])
+async def test_awb_errors_allow_later_calibration(cameras_client, monkeypatch, unsupported):
+    from unittest.mock import Mock
+    router = import_module(_next_router_module_path("cameras"))
+    controller = Mock()
+    calibrate = Mock(side_effect=RuntimeError("AWB failed"))
+    controller.calibrate_awb_and_lock = None if unsupported else calibrate
+    monkeypatch.setattr(router, "get_camera_controller", lambda name: controller)
+    response = await cameras_client.post("/next/cameras/cam0/awb-calibration")
+    assert response.status_code == (501 if unsupported else 500)
+    assert "cam0" not in router._awb_calibrations
+    calibrate.side_effect = None
+    calibrate.return_value = (1.5, 2.0)
+    controller.calibrate_awb_and_lock = calibrate
+    assert (await cameras_client.post("/next/cameras/cam0/awb-calibration")).status_code == 200
