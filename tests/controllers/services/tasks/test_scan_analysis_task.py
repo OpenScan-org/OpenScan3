@@ -343,3 +343,48 @@ async def test_sift_probe_limits_crop_and_runs_matching_off_event_loop(monkeypat
     for call in task._capture_frame.await_args_list:
         assert call.kwargs['analysis_max_dimension'] == 1280
         assert call.kwargs['analysis_crop'] is crop
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('sift_fails', [False, True])
+async def test_applied_settings_match_final_camera_state_after_sift(monkeypatch, sift_fails):
+    from importlib import import_module
+    from openscan_firmware.controllers.settings import Settings
+    from openscan_firmware.routers.next.scan_analysis import CameraSettingsResult
+    module=import_module('openscan_firmware.controllers.services.tasks.core.scan_analysis_task')
+    previous=CameraSettings(AF=True,manual_focus=12,shutter=10)
+    settings=Settings(previous.model_copy(deep=True))
+    capture_modes=[]
+    async def photo(**kwargs):
+        capture_modes.append(settings.AF)
+        return PhotoData(data=np.zeros((80,100,3),dtype=np.uint8),format='rgb_array',
+                         camera_metadata=CameraMetadata(camera_name='camera0',
+                             camera_settings=settings.model.model_copy(deep=True),
+                             raw_metadata={'LensPosition':11.6}))
+    camera=SimpleNamespace(settings=settings,photo_async=AsyncMock(side_effect=photo),
+        calibrate_awb_and_lock=lambda: settings.update(awbg_red=1.5,awbg_blue=1.8),
+        calibrate_exposure_and_lock=lambda **kwargs: settings.update(shutter=20,gain=1.0))
+    def sift(*args,**kwargs):
+        if sift_fails:raise RuntimeError('SIFT failed')
+        return {}
+    monkeypatch.setattr(module,'analyze_sift_pair',sift)
+    monkeypatch.setattr('openscan_firmware.controllers.hardware.cameras.camera.get_camera_controller',lambda name:camera)
+    monkeypatch.setattr('openscan_firmware.controllers.hardware.motors.get_motor_controller',
+                        lambda name:SimpleNamespace(model=SimpleNamespace(angle=90)))
+    monkeypatch.setattr('openscan_firmware.controllers.hardware.motors.move_to_point',AsyncMock())
+    task=ScanAnalysisTask(Task(name='scan_analysis_task',task_type='scan_analysis_task'))
+    if sift_fails:
+        with pytest.raises(RuntimeError,match='SIFT failed'):
+            [p async for p in task.run('camera0',turntable_offsets=[0,120],focus_values=[12],settle_time_s=0)]
+        assert settings.model == previous
+        assert task._task_model.result is None
+    else:
+        [p async for p in task.run('camera0',turntable_offsets=[0,120],focus_values=[12],settle_time_s=0)]
+        result=task._task_model.result['camera_settings']
+        assert set(result) == {'previous','applied'}
+        assert result['previous'] == previous.model_dump(mode='json')
+        assert result['applied'] == settings.model.model_dump(mode='json')
+        assert CameraSettingsResult.model_validate(result).applied.AF is True
+        assert settings.manual_focus == 12
+        assert settings.shutter == 20
+    assert capture_modes == [True,False,True,False,True,False]

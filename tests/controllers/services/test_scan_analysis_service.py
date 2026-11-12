@@ -28,5 +28,7 @@ async def test_start_scan_analysis_delegates_to_task_manager(monkeypatch):
         "scan_analysis_task",
         camera_name="camera0",
         depends_on="task-prerequisite",
+        debug_images=False,
+        crop=None,
     )
     assert task.id == "task-123"
