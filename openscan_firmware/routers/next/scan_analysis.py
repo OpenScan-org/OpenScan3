@@ -100,8 +100,7 @@ class CameraSettingsResult(BaseModel):
     """Camera settings before and after scan analysis."""
 
     previous: CameraSettings
-    recommended: CameraSettings
-    applied: bool
+    applied: CameraSettings = Field(description="Settings active after successful analysis, including restoration of temporary SIFT focus changes.")
 
 
 class SiftGridSize(BaseModel):
@@ -187,9 +186,8 @@ class ScanAnalysisResult(BaseModel):
     camera_settings: CameraSettingsResult | None = Field(
         default=None,
         description=(
-            "Previous and recommended camera settings. The recommended settings "
-            "are active after a successful analysis and the previous settings can "
-            "be used for reset."
+            "Camera settings before analysis and applied after successful completion. "
+            "The previous settings can be used for reset."
         ),
     )
     sift_analysis: SiftAnalysis | None = Field(

@@ -25,7 +25,7 @@ def build_scan_analysis_result(
     if previous_camera_settings is not None or initial_camera_settings is not None:
         base_settings = initial_camera_settings or previous_camera_settings
         assert base_settings is not None
-        recommended_settings = base_settings.model_copy(deep=True)
+        final_settings = base_settings.model_copy(deep=True)
         setting_updates: dict[str, Any] = {}
 
         position_shutters = [
@@ -42,13 +42,12 @@ def build_scan_analysis_result(
         # owns the explicit crop and the task only recommends camera exposure.
 
         if setting_updates:
-            recommended_settings = recommended_settings.model_copy(update=setting_updates)
+            final_settings = final_settings.model_copy(update=setting_updates)
         result["camera_settings"] = {
             "previous": (
                 previous_camera_settings or base_settings
             ).model_dump(mode="json"),
-            "recommended": recommended_settings.model_dump(mode="json"),
-            "applied": False,
+            "applied": final_settings.model_dump(mode="json"),
         }
     if sift_analysis is not None:
         result["sift_analysis"] = sift_analysis

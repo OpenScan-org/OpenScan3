@@ -412,7 +412,7 @@
           "cameras"
         ],
         "summary": "Run automatic white balance calibration and lock the gains.",
-        "description": "Expose the camera controller's automatic white balance calibration if available.\n\nArgs:\n    camera_name: Target camera identifier.\n    params: Optional tuning parameters forwarded to the controller implementation.\n\nReturns:\n    AutoCalibrateAwbResponse: Locked gains after the calibration.\n\nRaises:\n    HTTPException: When the controller is busy, unsupported, or calibration fails.",
+        "description": "Expose the camera controller's automatic white balance calibration if available.\n\nArgs:\n    camera_name: Target camera identifier.\n    params: Optional tuning parameters forwarded to the controller implementation.\n\nReturns:\n    AutoCalibrateAwbResponse: Locked gains after the calibration.\n\nRaises:\n    HTTPException: When calibration is already pending, unsupported, or fails.",
         "operationId": "auto_calibrate_awb",
         "parameters": [
           {
@@ -6016,18 +6016,14 @@
           "previous": {
             "$ref": "#/components/schemas/CameraSettings"
           },
-          "recommended": {
-            "$ref": "#/components/schemas/CameraSettings"
-          },
           "applied": {
-            "type": "boolean",
-            "title": "Applied"
+            "$ref": "#/components/schemas/CameraSettings",
+            "description": "Settings active after successful analysis, including restoration of temporary SIFT focus changes."
           }
         },
         "type": "object",
         "required": [
           "previous",
-          "recommended",
           "applied"
         ],
         "title": "CameraSettingsResult",
@@ -7953,7 +7949,7 @@
                 "type": "null"
               }
             ],
-            "description": "Previous and recommended camera settings. The recommended settings are active after a successful analysis and the previous settings can be used for reset."
+            "description": "Camera settings before analysis and applied after successful completion. The previous settings can be used for reset."
           },
           "sift_analysis": {
             "anyOf": [

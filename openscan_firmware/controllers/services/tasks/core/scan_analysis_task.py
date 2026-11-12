@@ -205,7 +205,7 @@ class ScanAnalysisTask(BaseTask):
                 return
 
             result = self._build_analysis_result(context, measurements)
-            await self._apply_recommended_settings(camera_settings, result)
+            await self._apply_analysis_settings(camera_settings, result)
 
             if context.calibration_available:
                 await _set_extended_debug(context.set_extended_debug, True)
@@ -228,6 +228,12 @@ class ScanAnalysisTask(BaseTask):
             if self.is_cancelled():
                 return
 
+            if context.calibration_available:
+                # SIFT temporarily freezes AF to compare both views. Restore
+                # the final settings before publishing the applied snapshot.
+                await self._apply_analysis_settings(camera_settings, result)
+            if camera_settings is not None and "camera_settings" in result:
+                result["camera_settings"]["applied"] = camera_settings.model.model_dump(mode="json")
             self._task_model.result = result
             task_succeeded = True
             yield TaskProgress(
@@ -312,19 +318,18 @@ class ScanAnalysisTask(BaseTask):
             focus_analysis=focus_analysis,
         )
 
-    async def _apply_recommended_settings(
+    async def _apply_analysis_settings(
         self,
         camera_settings: Any,
         result: dict[str, Any],
     ) -> None:
-        """Keep the recommended settings active after a successful run."""
+        """Apply the final analysis settings, including the intended focus mode."""
         if camera_settings is None or "camera_settings" not in result:
             return
-        recommended_settings = CameraSettings.model_validate(
-            result["camera_settings"]["recommended"]
+        final_settings = CameraSettings.model_validate(
+            result["camera_settings"]["applied"]
         )
-        await asyncio.to_thread(camera_settings.replace, recommended_settings)
-        result["camera_settings"]["applied"] = True
+        await asyncio.to_thread(camera_settings.replace, final_settings)
 
     async def _calibrate_initial_camera(
         self,
