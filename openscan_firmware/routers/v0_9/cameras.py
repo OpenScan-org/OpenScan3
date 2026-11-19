@@ -156,6 +156,8 @@ class CameraStatusResponse(BaseModel):
     name: str
     type: CameraType
     busy: bool
+    restart_required: bool = False
+    last_error: str | None = None
     settings: CameraSettings
 
 
@@ -237,10 +239,8 @@ async def get_preview(
     controller = get_camera_controller(camera_name)
 
     if mode == "snapshot":
-        if controller.is_busy():
-            raise HTTPException(status_code=409, detail="Camera is busy. If this is a bug, please restart the camera.")
         try:
-            frame = controller.preview()
+            frame = await asyncio.to_thread(controller.preview_snapshot)
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return Response(content=frame, media_type="image/jpeg")
@@ -302,7 +302,7 @@ async def get_photo(
     )
     payload_url = str(
         request.url_for(
-            "get_photo_payload",
+            "v0_9_get_photo_payload",
             camera_name=camera_name,
             payload_id=payload_id,
         )
@@ -318,7 +318,7 @@ async def get_photo(
     )
 
 
-@router.get("/{camera_name}/photo/payload/{payload_id}", name="get_photo_payload")
+@router.get("/{camera_name}/photo/payload/{payload_id}", name="v0_9_get_photo_payload")
 async def get_photo_payload(camera_name: str, payload_id: str):
     payload = _get_cached_photo_payload(camera_name=camera_name, payload_id=payload_id)
     return Response(
@@ -338,7 +338,7 @@ async def restart_camera(camera_name: str):
         Response: A response containing the status code
     """
     controller = get_camera_controller(camera_name)
-    controller.restart_camera()
+    await asyncio.to_thread(controller.restart_camera)
     return Response(status_code=200)
 
 
@@ -377,7 +377,7 @@ async def auto_calibrate_awb(
         )
 
     try:
-        red_gain, blue_gain = calibrate_fn(**params.model_dump())
+        red_gain, blue_gain = await asyncio.to_thread(calibrate_fn, **params.model_dump())
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

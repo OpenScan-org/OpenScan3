@@ -1,8 +1,14 @@
 import importlib
+import errno
 import sys
 import types
+from unittest.mock import Mock
+
+import pytest
 
 from openscan_firmware.config.camera import CameraSettings
+from openscan_firmware.controllers.hardware.cameras import camera as camera_module
+from openscan_firmware.models.camera import Camera, CameraType
 
 
 def _import_picamera2_module(monkeypatch):
@@ -57,6 +63,32 @@ class _FakePicam:
         return {"LensPosition": self._lens_position}
 
 
+class _FakeRequest:
+    def make_array(self, _name):
+        return "array"
+
+    def get_metadata(self):
+        return {"SensorTimestamp": 1}
+
+    def release(self):
+        pass
+
+
+class _SessionFakePicam(_FakePicam):
+    def __init__(self):
+        super().__init__()
+        self.switch_mode_calls = []
+        self.capture_request_calls = 0
+
+    def switch_mode(self, config, wait=True):
+        self.switch_mode_calls.append((config, wait))
+        return True
+
+    def capture_request(self, wait=True):
+        self.capture_request_calls += 1
+        return _FakeRequest()
+
+
 def test_configure_focus_sets_preview_autofocus_window(monkeypatch):
     module = _import_picamera2_module(monkeypatch)
     controller = object.__new__(module.Picamera2Controller)
@@ -77,11 +109,17 @@ def test_configure_focus_sets_preview_autofocus_window(monkeypatch):
     ]
 
 
-def test_configure_focus_uses_default_af_window_when_none_is_set(monkeypatch):
+@pytest.mark.parametrize("camera_properties", [
+    {"PixelArraySize": (200, 100)},
+    {"PixelArrayReadableArea": (48, 40, 200, 100)},
+    {"PixelArraySize": (200, 100), "PixelArrayReadableArea": (48, 40, 300, 150)},
+], ids=["legacy", "readable-area", "legacy-preferred"])
+def test_configure_focus_uses_default_af_window_when_none_is_set(monkeypatch, camera_properties):
     module = _import_picamera2_module(monkeypatch)
     controller = object.__new__(module.Picamera2Controller)
     controller.settings = CameraSettings(AF=True, AF_window=None)
     controller._picam = _FakePicam()
+    controller._picam.camera_properties = camera_properties
 
     controller._configure_focus(camera_mode="photo")
 
@@ -133,7 +171,32 @@ def test_manual_camera_controls_are_shared_by_preview_and_still_capture(monkeypa
     }
 
 
-def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropped(monkeypatch):
+def test_capture_session_captures_without_switching_back(monkeypatch):
+    module = _import_picamera2_module(monkeypatch)
+    controller = object.__new__(module.Picamera2Controller)
+    controller.settings = CameraSettings(AF=False, manual_focus=1.0)
+    controller.camera = types.SimpleNamespace(name="test_camera")
+    controller._picam = _SessionFakePicam()
+    controller._busy = False
+    controller._restart_error = None
+    controller._capture_session_active = True
+    controller._capture_session_config = None
+    controller._capture_session_image_format = "rgb_array"
+    controller.rgb_config = {"name": "rgb"}
+
+    array, metadata = controller._capture_array(controller.rgb_config)
+
+    assert array == "array"
+    assert metadata == {"SensorTimestamp": 1}
+    assert controller._picam.capture_request_calls == 1
+    assert controller._picam.switch_mode_calls == [(controller.rgb_config, True)]
+
+
+@pytest.mark.parametrize("camera_properties", [
+    {"PixelArraySize": (200, 100)},
+    {"PixelArrayReadableArea": (48, 40, 200, 100)},
+], ids=["legacy", "readable-area"])
+def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropped(monkeypatch, camera_properties):
     module = _import_picamera2_module(monkeypatch)
 
     class _FakeStrategy:
@@ -178,7 +241,9 @@ def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropp
         awbg_blue=1.5,
     )
     controller.camera = types.SimpleNamespace(settings=controller.settings)
+    controller._extended_debug_enabled = False
     controller._picam = _FakePicam()
+    controller._picam.camera_properties = camera_properties
     controller._strategy = strategy
     controller._photogrammetry_settings = {
         "AeEnable": False,
@@ -214,3 +279,287 @@ def test_configure_cropping_preserves_still_controls_and_leaves_analysis_uncropp
         key: value for key, value in expected_still_controls.items() if key != "ScalerCrop"
     }
     assert strategy.rgb_controls == strategy.yuv_controls
+
+
+@pytest.fixture
+def recovery_camera(monkeypatch):
+    module = _import_picamera2_module(monkeypatch)
+    controller = object.__new__(module.Picamera2Controller)
+    monkeypatch.setattr(camera_module, "notify_busy_change", lambda *args: None)
+    monkeypatch.setattr(camera_module, "schedule_device_status_broadcast", lambda *args: None)
+    camera_module.CameraController.__init__(controller, Camera(
+        name="test_camera", type=CameraType.PICAMERA2, path="mock",
+        settings=CameraSettings(AF=False, manual_focus=1),
+    ))
+    controller._picam = Mock()
+    controller._create_picamera = Mock(return_value=Mock())
+    controller._configure_focus = Mock()
+    controller._configure_resolutions = Mock()
+    controller._apply_settings_to_hardware = Mock()
+    controller._capture_session_active = False
+    controller._capture_session_config = None
+    controller._capture_session_image_format = None
+    controller.rgb_config = {"name": "rgb"}
+    controller.yuv_config = {"name": "yuv"}
+    controller.preview_config = {"name": "preview"}
+    return controller
+
+
+@pytest.mark.parametrize("error", [
+    OSError(errno.ENOMEM, "Cannot allocate memory"),
+    RuntimeError("Failed to start camera: Cannot allocate memory"),
+])
+@pytest.mark.parametrize("image_format", ["rgb_array", "yuv_array"])
+@pytest.mark.parametrize("session", [False, True])
+def test_array_oom_propagates_once_without_focus_cleanup(recovery_camera, error, image_format, session, caplog):
+    camera = recovery_camera
+    camera._capture_session_active = session
+    camera._capture_session_config = {"active": True} if session else None
+    capture = camera._picam.capture_request if session else camera._picam.switch_mode_and_capture_request
+    capture.side_effect = error
+
+    with pytest.raises(type(error)) as caught:
+        camera.photo(image_format)
+
+    assert caught.value is error
+    assert capture.call_count == 1
+    camera._configure_focus.assert_called_once_with(camera_mode="photo")
+    camera._picam.switch_mode.assert_not_called()
+    assert camera.is_busy() is False
+    assert camera.get_status()["restart_required"] is True
+    assert camera.get_status()["last_error"] == str(error)
+    assert any(record.exc_info and record.exc_info[1] is error for record in caplog.records)
+
+
+@pytest.mark.parametrize("error", [OSError(errno.EIO, "I/O failure"), RuntimeError("Unrelated capture error")])
+def test_array_other_errors_are_not_retried_or_classified_as_oom(recovery_camera, error):
+    camera = recovery_camera
+    camera._picam.switch_mode_and_capture_request.side_effect = error
+
+    with pytest.raises(type(error)) as caught:
+        camera._capture_array(camera.rgb_config)
+
+    assert caught.value is error
+    assert camera._picam.switch_mode_and_capture_request.call_count == 1
+    assert camera.restart_required is False
+    assert camera.is_busy() is False
+    camera._configure_focus.assert_called_once_with(camera_mode="photo")
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_array_releases_request_even_if_processing_fails(recovery_camera, fail):
+    camera = recovery_camera
+    request = camera._picam.switch_mode_and_capture_request.return_value
+    request.make_array.return_value = "array"
+    request.get_metadata.return_value = {"frame": 1}
+    if fail:
+        error = OSError(errno.ENOMEM, "Cannot allocate memory")
+        request.make_array.side_effect = error
+        with pytest.raises(OSError) as caught:
+            camera._capture_array(camera.rgb_config)
+        assert caught.value is error
+        assert camera.restart_required is True
+    else:
+        assert camera._capture_array(camera.rgb_config) == ("array", {"frame": 1})
+        assert camera._configure_focus.call_args.kwargs == {"camera_mode": "preview"}
+    request.release.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_oom_skips_capture_session_hardware_cleanup(recovery_camera):
+    camera = recovery_camera
+    error = OSError(errno.ENOMEM, "Cannot allocate memory")
+    camera._picam.capture_request.side_effect = error
+
+    with pytest.raises(OSError) as caught:
+        async with camera.capture_session("rgb_array"):
+            camera._capture_session_config = {"active": True}
+            await camera.photo_async("rgb_array")
+
+    assert caught.value is error
+    camera._picam.switch_mode.assert_not_called()
+    camera._configure_focus.assert_called_once_with(camera_mode="photo")
+    assert camera._capture_session_active is False
+    assert camera._capture_session_config is None
+    assert camera.restart_required is True
+
+
+def test_successful_restart_clears_oom_only_after_configuration(recovery_camera, monkeypatch):
+    camera = recovery_camera
+    camera._record_camera_error(OSError(errno.ENOMEM, "Cannot allocate memory"))
+    old_picam = camera._picam
+
+    def configure_focus(**kwargs):
+        assert camera.restart_required is True
+
+    camera._configure_focus.side_effect = configure_focus
+    camera.restart_camera()
+
+    old_picam.cancel_all_and_flush.assert_called_once_with()
+    old_picam.close.assert_called_once_with()
+    camera._picam.start.assert_called_once_with()
+    camera._apply_settings_to_hardware.assert_called_once_with(camera.camera.settings)
+    assert camera.get_status()["restart_required"] is False
+    assert camera.get_status()["last_error"] is None
+    capture = Mock(return_value="photo")
+    monkeypatch.setattr(camera, "capture_jpeg", capture)
+    assert camera.photo() == "photo"
+    capture.assert_called_once_with()
+
+
+@pytest.mark.parametrize("stage", ["close", "start", "settings", "focus"])
+def test_failed_restart_preserves_oom_state(recovery_camera, stage):
+    camera = recovery_camera
+    error = OSError(errno.ENOMEM, "Cannot allocate memory")
+    camera._record_camera_error(error)
+    failing_step = {
+        "close": camera._picam.close,
+        "start": camera._create_picamera.return_value.start,
+        "settings": camera._apply_settings_to_hardware,
+        "focus": camera._configure_focus,
+    }[stage]
+    failing_step.side_effect = RuntimeError("Restart failed")
+
+    with pytest.raises(RuntimeError, match="Restart failed"):
+        camera.restart_camera()
+
+    assert camera.restart_required is True
+    assert camera.get_status()["last_error"] == str(error)
+
+
+@pytest.mark.parametrize("af_result", [True, False, "timeout"])
+@pytest.mark.parametrize("allow_fallback", [True, False])
+@pytest.mark.parametrize("image_format", ["jpeg", "dng", "rgb_array", "yuv_array"])
+def test_capture_can_disable_af_fallback(recovery_camera, af_result, allow_fallback, image_format):
+    camera = recovery_camera
+    camera.camera.name = "imx519"
+    camera.camera.scanner_model = "mini"
+    if af_result == "timeout":
+        camera._picam.autofocus_cycle.side_effect = TimeoutError()
+    else:
+        camera._picam.autofocus_cycle.return_value = af_result
+    hook = {"jpeg": "capture_jpeg", "dng": "capture_dng",
+            "rgb_array": "capture_rgb_array", "yuv_array": "capture_yuv_array"}[image_format]
+    setattr(camera, hook, camera._autofocus_or_fallback)
+
+    result = camera.photo(image_format, allow_af_fallback=allow_fallback)
+
+    assert result is (af_result is True)
+    camera._picam.autofocus_cycle.assert_called_once_with(wait=8.0)
+    if af_result is not True and allow_fallback:
+        camera._picam.set_controls.assert_called_once_with({"AfMode": "manual", "LensPosition": 11.9})
+    else:
+        camera._picam.set_controls.assert_not_called()
+    assert camera._picam.cancel_all_and_flush.call_count == (af_result == "timeout")
+    assert camera._allow_af_fallback is True
+
+
+def test_capture_restores_af_fallback_policy_after_error(recovery_camera):
+    camera = recovery_camera
+
+    def fail():
+        assert camera._allow_af_fallback is False
+        raise RuntimeError("Capture failed")
+
+    camera.capture_rgb_array = fail
+    with pytest.raises(RuntimeError, match="Capture failed"):
+        camera.photo("rgb_array", allow_af_fallback=False)
+
+    assert camera._allow_af_fallback is True
+
+
+@pytest.mark.asyncio
+async def test_async_capture_forwards_af_fallback_policy(recovery_camera):
+    camera = recovery_camera
+    camera.capture_rgb_array = lambda: camera._allow_af_fallback
+
+    assert await camera.photo_async("rgb_array", allow_af_fallback=False) is False
+    assert await camera.photo_async("rgb_array") is True
+
+
+@pytest.mark.parametrize("operation", ["awb", "exposure", "debug"])
+@pytest.mark.parametrize("fail", [False, True])
+def test_calibration_and_debug_serialize_with_photo(recovery_camera, operation, fail):
+    import threading
+    from concurrent.futures import Future, TimeoutError as FutureTimeoutError
+
+    camera = recovery_camera
+    controls = sys.modules["libcamera"].controls
+    controls.ExposureTimeModeEnum = types.SimpleNamespace(Auto=0, Manual=1)
+    controls.AnalogueGainModeEnum = types.SimpleNamespace(Manual=1)
+    controls.AeMeteringModeEnum = types.SimpleNamespace(Spot=0)
+    controls.AeConstraintModeEnum = types.SimpleNamespace(Highlight=0)
+    controls.AeExposureModeEnum = types.SimpleNamespace(Normal=0)
+    camera._picam.capture_metadata.return_value = {
+        "ExposureTime": 10000, "AnalogueGain": 1.0, "DigitalGain": 1.0,
+        "ColourGains": (1.5, 2.0),
+    }
+    camera._picam.camera_controls = {"StatsOutputEnable": True}
+    camera._extended_debug_enabled = False
+    camera.photo_config = {"name": "photo"}
+    camera._configure_cropping_for_scalercrop = Mock()
+    entered, release, captured, attempted = (threading.Event() for _ in range(4))
+
+    def block(*args, **kwargs):
+        entered.set()
+        if not release.wait(timeout=3):
+            raise RuntimeError("Test did not release calibration")
+        if fail:
+            raise RuntimeError("Calibration failed")
+
+    if operation == "debug":
+        camera._configure_resolutions.side_effect = block
+        calibrate = lambda: camera.set_extended_debug_enabled(True)
+    else:
+        camera._picam.drop_frames.side_effect = block
+        if operation == "awb":
+            calibrate = lambda: camera.calibrate_awb_and_lock(warmup_frames=0, stable_frames=1)
+        else:
+            calibrate = lambda: camera.calibrate_exposure_and_lock(
+                warmup_frames=0, stable_frames=1, use_photo_config=True,
+            )
+
+    def capture():
+        attempted.set()
+        return camera.photo()
+
+    def photo():
+        captured.set()
+        return b"jpeg"
+
+    camera.capture_jpeg = photo
+
+    def launch(function):
+        future = Future()
+
+        def run():
+            try:
+                future.set_result(function())
+            except BaseException as exc:
+                future.set_exception(exc)
+
+        threading.Thread(target=run, daemon=True).start()
+        return future
+
+    calibration = launch(calibrate)
+    pending_photo = None
+    try:
+        assert entered.wait(timeout=2)
+        pending_photo = launch(capture)
+        assert attempted.wait(timeout=2)
+        with pytest.raises(FutureTimeoutError):
+            pending_photo.result(timeout=0.1)
+        assert not captured.is_set()
+    finally:
+        release.set()
+        if fail:
+            with pytest.raises(RuntimeError, match="Calibration failed"):
+                calibration.result(timeout=2)
+        else:
+            calibration.result(timeout=2)
+        if pending_photo is not None:
+            assert pending_photo.result(timeout=2) == b"jpeg"
+
+    assert camera.is_busy() is False
+    if operation == "exposure":
+        camera._picam.switch_mode.assert_any_call(camera.preview_config, wait=True)

@@ -5,7 +5,36 @@ All notable user-facing changes to OpenScan3 firmware are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.14.0 - 2026-11-19
+
+### Added
+
+- Added Scan Wizard analysis for camera calibration, object positioning,
+  exposure, focus regions, focus-stacking suggestions, and feature-matching
+  quality.
+
+### Changed
+
+- Picamera2 capture sessions now persist across photo sequences, reducing setup
+  overhead. Camera operations run off the main event loop and are coordinated
+  with thread-safe settings locks.
+- Picamera2 is now provided by the system packages instead of the Python
+  project dependencies.
+- Camera status now exposes restart requirements and the most recent camera
+  error; the `PolarPoint3D` API schema also includes the updated point fields.
+
+### Fixed
+
+- Picamera2 cameras now initialize on newer libcamera stacks that replace
+  `PixelArraySize` with `PixelArrayReadableArea`, while retaining support for
+  older stacks.
+- Picamera2 JPEGs now include the AliceVision Meshroom camera identities for known
+  IMX519 and Arducam 64MP cameras, along with exposure time and ISO.
+- Focus-stacked JPEGs now retain EXIF metadata from the middle focus image.
+- Camera memory errors now appear in device status and require a camera restart;
+  failed RGB/YUV captures are no longer retried.
+- Exposure calibration and white-balance operations wait for a busy camera
+  instead of failing immediately.
 
 ## 0.13.2 - 2026-10-15
 

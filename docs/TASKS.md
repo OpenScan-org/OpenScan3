@@ -13,7 +13,7 @@ This document explains how background tasks work in OpenScan3, how they are disc
 
 - Core (production) tasks: `openscan_firmware/controllers/services/tasks/core/`
   - `scan_task.py`: Exclusive async task (generator style) responsible for the scan workflow.
-  - `crop_task.py`: Blocking non-exclusive task for simple crop detection.
+  - `scan_analysis_task.py`: Exclusive async task that captures RGB frames and reports compact multi-view change geometry for scan setup analysis.
 - Example tasks: `openscan_firmware/controllers/services/tasks/examples/`
   - `demo_examples.py`: Contains multiple demo tasks such as `hello_world_progress_task`, `hello_world_blocking_task`, `exclusive_demo_task`, `failing_task`.
 - Community tasks: `openscan_firmware/tasks/community/`

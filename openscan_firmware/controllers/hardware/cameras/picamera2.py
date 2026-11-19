@@ -5,9 +5,11 @@ This module provides a CameraController class for controlling the picamera2 came
 
 """
 
+import asyncio
 import io
 import logging
 import time
+from contextlib import asynccontextmanager
 from importlib.metadata import metadata
 from io import BytesIO
 
@@ -20,6 +22,9 @@ ColorSpace.Jpeg = ColorSpace.Sycc
 from picamera2 import Picamera2
 
 from openscan_firmware.controllers.hardware.cameras.camera import CameraController
+from openscan_firmware.controllers.hardware.cameras.picamera2_stats import (
+    decode_extended_debug_metadata,
+)
 from openscan_firmware.models.camera import Camera, CameraMetadata, PhotoData
 from openscan_firmware.config.camera import CameraSettings
 
@@ -27,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 class CameraStrategy:
     """Base strategy class for camera-specific configurations and processing"""
+
+    exif_make: str | None = None
+    exif_model: str | None = None
 
     def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         raise NotImplementedError
@@ -51,6 +59,9 @@ class CameraStrategy:
 
 class IMX519Strategy(CameraStrategy):
     """Strategy class for camera-specific configurations and processing for the Arducam IMX519 camera with 16MP."""
+    exif_make = "RaspberryPi"
+    exif_model = "RP_imx519"
+
     def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         if preview_resolution is None:
             return picam.create_preview_configuration(
@@ -106,6 +117,9 @@ class IMX519Strategy(CameraStrategy):
 
 class HawkeyeStrategy(CameraStrategy):
     """Strategy class for camera-specific configurations and processing for the Arducam Hawkeye camera with 64MP."""
+    exif_make = "RaspberryPi"
+    exif_model = "RP_arducam-64mp"
+
     def create_preview_config(self, picam: Picamera2, preview_resolution=None, additional_settings=None):
         return picam.create_preview_configuration(
             main={"size": (2312, 1736)},
@@ -187,6 +201,10 @@ class Picamera2Controller(CameraController):
         self._picam = self._create_picamera()
         self._strategy = self._strategies.get(self.camera.name, IMX519Strategy())
         self._is_closing = False
+        self._capture_session_active = False
+        self._capture_session_config = None
+        self._capture_session_image_format = None
+        self._extended_debug_enabled = False
 
         self._configure_resolutions()
         self._picam.configure(self.preview_config)
@@ -240,7 +258,8 @@ class Picamera2Controller(CameraController):
         """Run profiled autofocus with a bounded fallback.
 
         Cameras without an OpenScan focus profile keep Picamera2's normal
-        autofocus behaviour.
+        autofocus behaviour. Captures may disable the fixed-focus fallback
+        through the capture-local policy without changing the AF search range.
         """
         focus_profile = self._macro_focus_ranges.get((self.camera.scanner_model, self.camera.name))
         if focus_profile is None:
@@ -253,14 +272,17 @@ class Picamera2Controller(CameraController):
             # timed out. Clear it before switching the lens to manual mode.
             self._picam.cancel_all_and_flush()
             logger.warning(
-                "Autofocus timed out after %.1f seconds; using fallback LensPosition %.1f.",
+                "Autofocus timed out after %.1f seconds.",
                 focus_profile["timeout"],
-                focus_profile["fallback"],
             )
             success = False
 
         if success:
             return True
+
+        if not self._allow_af_fallback:
+            logger.warning("Autofocus failed; focus fallback is disabled for this capture.")
+            return False
 
         logger.warning(
             "Autofocus failed; using fallback LensPosition %.1f.",
@@ -322,6 +344,43 @@ class Picamera2Controller(CameraController):
         still_settings.update(manual_controls)
         return still_settings
 
+    def extended_debug_status(self) -> dict[str, Any]:
+        """Return support and activation state for extended ISP diagnostics."""
+        supported = "StatsOutputEnable" in self._picam.camera_controls
+        return {
+            "supported": supported,
+            "enabled": self._extended_debug_enabled,
+            "vendor_statistics": (
+                ["Bcm2835StatsOutput", "PispStatsOutput"] if supported else []
+            ),
+        }
+
+    def set_extended_debug_enabled(self, enabled: bool = True) -> bool:
+        """Enable ISP statistics for future captures.
+
+        The setting is deliberately kept on the controller rather than in
+        ``CameraSettings``.  It is diagnostic capture state and may grow to
+        include more vendor statistics without becoming part of the user's
+        persistent camera setup.
+        """
+        with self._hw_lock:
+            supported = "StatsOutputEnable" in self._picam.camera_controls
+            if enabled and not supported:
+                logger.warning("Extended camera debug is not supported by this camera.")
+                self._extended_debug_enabled = False
+                return False
+
+            self._extended_debug_enabled = bool(enabled)
+            self._configure_resolutions()
+            try:
+                self._picam.set_controls({"StatsOutputEnable": bool(enabled)})
+            except Exception:
+                self._extended_debug_enabled = False
+                logger.exception("Could not apply StatsOutputEnable=%s", enabled)
+                return False
+            logger.info("Extended camera debug enabled=%s", enabled)
+            return True
+
     def _configure_resolutions(self, crop_rect=None):
         """Create all camera configurations.
 
@@ -335,6 +394,8 @@ class Picamera2Controller(CameraController):
                                    "NoiseReductionMode": 0,  # Disable noise reduction
                                    "AwbEnable": False  # Disable automatic white balance
                                    }
+        if self._extended_debug_enabled:
+            photogrammetry_settings["StatsOutputEnable"] = True
 
         self._photogrammetry_settings = photogrammetry_settings.copy()
         still_settings = self._still_capture_controls()
@@ -354,9 +415,18 @@ class Picamera2Controller(CameraController):
         logger.debug(f"Configured resolutions with preview controls {photogrammetry_settings} and still controls {still_settings}.")
 
 
+    def _pixel_array_size(self):
+        """Return readable sensor dimensions across libcamera property versions."""
+        properties = self._picam.camera_properties
+        if "PixelArraySize" in properties:
+            return properties["PixelArraySize"]
+
+        _, _, width, height = properties["PixelArrayReadableArea"]
+        return width, height
+
     def _configure_cropping(self):
         """Deprecated! Configure cropping of the image based on settings."""
-        full_x, full_y = self._picam.camera_properties['PixelArraySize']
+        full_x, full_y = self._pixel_array_size()
         # because of rotation, height is x and width is y
         crop_x = self.settings.crop_height / 100
         crop_y = self.settings.crop_width / 100
@@ -373,7 +443,7 @@ class Picamera2Controller(CameraController):
 
         RGB and YUV configurations intentionally remain uncropped for analysis.
         """
-        full_x, full_y = self._picam.camera_properties["PixelArraySize"]
+        full_x, full_y = self._pixel_array_size()
 
         crop_x = self.settings.crop_width / 100
         crop_y = self.settings.crop_height / 100
@@ -404,7 +474,7 @@ class Picamera2Controller(CameraController):
             camera_mode (str, optional): Whether to configure focus for "preview" or "photo" mode. Defaults to None.
         """
         if self.settings.AF:
-            full_x, full_y = self._picam.camera_properties['PixelArraySize']
+            full_x, full_y = self._pixel_array_size()
 
             if self.settings.AF_window is not None:
                 x, y, w, h = self.settings.AF_window
@@ -474,59 +544,253 @@ class Picamera2Controller(CameraController):
         Returns:
             tuple: A tuple containing the red and blue gains.
         """
-        self._set_busy(True)
-        logger.info("Will configure automatic white balance for color correction...")
-        logger.debug(
-            f"Warmup frames: {warmup_frames}, Stable frames: {stable_frames}, Epsilon: {eps}, Timeout: {timeout_s}")
-        logger.debug(f"Current camera metadata: {self._picam.capture_metadata()}")
+        with self._hw_lock:
+            self._require_camera_ready()
+            self._set_busy(True)
+            try:
+                logger.info("Will configure automatic white balance for color correction...")
+                logger.debug(
+                    f"Warmup frames: {warmup_frames}, Stable frames: {stable_frames}, Epsilon: {eps}, Timeout: {timeout_s}")
+                logger.debug(f"Current camera metadata: {self._picam.capture_metadata()}")
 
-        self._picam.set_controls({"AwbEnable": True})
+                self._picam.set_controls({"AwbEnable": True})
 
-        metadata = self._picam.capture_metadata()
-        current_controls = {c: metadata[c] for c in ["ExposureTime", "ColourGains"]}
-        logger.info(f"Current Exposure {current_controls['ExposureTime']}, ColourGains {current_controls['ColourGains']}")
+                metadata = self._picam.capture_metadata()
+                current_controls = {c: metadata[c] for c in ["ExposureTime", "ColourGains"]}
+                logger.info(f"Current Exposure {current_controls['ExposureTime']}, ColourGains {current_controls['ColourGains']}")
 
-        self._picam.drop_frames(warmup_frames, wait=True)
+                self._picam.drop_frames(warmup_frames, wait=True)
 
-        last = None
-        steady = 0
-        best_gains = None
-        t0 = time.monotonic()
+                last = None
+                steady = 0
+                best_gains = None
+                t0 = time.monotonic()
 
-        while time.monotonic() - t0 < timeout_s:
-            md = self._picam.capture_metadata()
-            gains = md.get("ColourGains")
-            if not gains:
-                continue
+                while time.monotonic() - t0 < timeout_s:
+                    md = self._picam.capture_metadata()
+                    gains = md.get("ColourGains")
+                    if not gains:
+                        continue
 
-            if last is not None:
-                dr = abs(gains[0] - last[0])
-                db = abs(gains[1] - last[1])
-                if dr < eps and db < eps:
-                    steady += 1
-                else:
-                    steady = 0
-            last = gains
-            best_gains = gains
+                    if last is not None:
+                        dr = abs(gains[0] - last[0])
+                        db = abs(gains[1] - last[1])
+                        if dr < eps and db < eps:
+                            steady += 1
+                        else:
+                            steady = 0
+                    last = gains
+                    best_gains = gains
 
-            if steady >= stable_frames:
-                break
+                    if steady >= stable_frames:
+                        break
 
-        if best_gains is None:
-            logger.error("Could not determine gains from metadata.")
-            raise RuntimeError("Could not determine gains from metadata.")
+                if best_gains is None:
+                    logger.error("Could not determine gains from metadata.")
+                    raise RuntimeError("Could not determine gains from metadata.")
 
-        # Disable AWB and persist gains via the settings wrapper so downstream code stays in sync
-        locked_gains = (float(best_gains[0]), float(best_gains[1]))
-        self._picam.set_controls({
-            "AwbEnable": False,
-        })
-        self.settings.update(awbg_red=locked_gains[0], awbg_blue=locked_gains[1])
-        logger.info(f"AWB locked with gains: {best_gains}")
+                # Disable AWB and persist gains via the settings wrapper so downstream code stays in sync
+                locked_gains = (float(best_gains[0]), float(best_gains[1]))
+                self._picam.set_controls({
+                    "AwbEnable": False,
+                })
+                self.settings.update(awbg_red=locked_gains[0], awbg_blue=locked_gains[1])
+                logger.info(f"AWB locked with gains: {best_gains}")
 
-        self._set_busy(False)
+                return locked_gains
+            finally:
+                self._set_busy(False)
 
-        return locked_gains
+    def calibrate_exposure_and_lock(
+            self,
+            warmup_frames: int = 12,
+            stable_frames: int = 4,
+            timeout_s: float = 4.0,
+            tolerance_us: int | None = None,
+            use_photo_config: bool = False,
+            relative_tolerance: float = 0.01,
+    ) -> tuple[float, float]:
+        """Determine exposure with analogue gain fixed at 1.0 and lock it.
+
+        By default, calibration runs in the currently active preview mode. If
+        ``use_photo_config`` is true, the camera temporarily switches to the
+        current still configuration, calibrates there, and switches back to
+        preview before returning.
+
+        Returns:
+            Tuple of ``(shutter_ms, analogue_gain)``.
+        """
+        with self._hw_lock:
+            if relative_tolerance <= 0:
+                raise ValueError("relative_tolerance must be positive.")
+            if tolerance_us is not None and tolerance_us <= 0:
+                raise ValueError("tolerance_us must be positive when provided.")
+
+            self._set_busy(True)
+            previous_controls = self._manual_camera_controls(self.settings)
+            mode_switched = False
+            locked = False
+            logger.info(
+                "Exposure calibration started: warmup_frames=%d stable_frames=%d "
+                "timeout_s=%.2f relative_tolerance=%.4f use_photo_config=%s",
+                warmup_frames,
+                stable_frames,
+                timeout_s,
+                relative_tolerance,
+                use_photo_config,
+            )
+
+            try:
+                if use_photo_config:
+                    # Keep the temporary still mode aligned with the configured
+                    # JPEG/DNG crop before starting the calibration.
+                    self._configure_cropping_for_scalercrop()
+                    self._picam.switch_mode(self.photo_config, wait=True)
+                    mode_switched = True
+
+                # Let AE determine the exposure time, but keep analogue gain at
+                # unity explicitly. Setting AnalogueGain alongside AeEnable is
+                # not sufficient on newer libcamera versions: AeEnable puts both
+                # exposure time and gain into auto mode unless the individual
+                # modes are supplied in the same request.
+                self._picam.set_controls({
+                    "AeEnable": True,
+                    "ExposureTimeMode": controls.ExposureTimeModeEnum.Auto,
+                    "AnalogueGainMode": controls.AnalogueGainModeEnum.Manual,
+                    "AeMeteringMode": controls.AeMeteringModeEnum.Spot,
+                    "AeConstraintMode": controls.AeConstraintModeEnum.Highlight,
+                    "AeExposureMode": controls.AeExposureModeEnum.Normal,
+                    "ExposureValue": -0.5,
+                    "ExposureTime": 0,
+                    "AnalogueGain": 1.0,
+                })
+                self._picam.drop_frames(warmup_frames, wait=True)
+                logger.info("Exposure calibration warmup completed.")
+
+                last_exposure_us = None
+                steady = 0
+                best_result = None
+                start = time.monotonic()
+                sample_count = 0
+                last_logged_exposure_us = None
+
+                while time.monotonic() - start < timeout_s:
+                    metadata = self._picam.capture_metadata()
+                    exposure_us = metadata.get("ExposureTime")
+                    analogue_gain = metadata.get("AnalogueGain")
+                    digital_gain = float(metadata.get("DigitalGain", 1.0))
+
+                    if exposure_us is None or analogue_gain is None:
+                        continue
+
+                    sample_count += 1
+                    exposure_us = int(exposure_us)
+                    analogue_gain = float(analogue_gain)
+                    exposure_tolerance_us = (
+                        tolerance_us
+                        if tolerance_us is not None
+                        else max(1, int(exposure_us * relative_tolerance))
+                    )
+
+                    if exposure_us != last_logged_exposure_us:
+                        logger.info(
+                            "Exposure AE sample: sample=%d exposure_us=%d "
+                            "delta_us=%s tolerance_us=%d steady=%d "
+                            "analogue_gain=%.4f digital_gain=%.4f ae_state=%s "
+                            "frame_duration_us=%s lux=%s",
+                            sample_count,
+                            exposure_us,
+                            (
+                                abs(exposure_us - last_exposure_us)
+                                if last_exposure_us is not None
+                                else None
+                            ),
+                            exposure_tolerance_us,
+                            steady,
+                            analogue_gain,
+                            metadata.get("DigitalGain", 1.0),
+                            metadata.get("AeState"),
+                            metadata.get("FrameDuration"),
+                            metadata.get("Lux"),
+                        )
+                        last_logged_exposure_us = exposure_us
+
+                    if (
+                        last_exposure_us is not None
+                        and abs(exposure_us - last_exposure_us) <= exposure_tolerance_us
+                    ):
+                        steady += 1
+                    else:
+                        steady = 0
+
+                    last_exposure_us = exposure_us
+                    best_result = (exposure_us, analogue_gain, digital_gain)
+
+                    if steady >= stable_frames:
+                        break
+
+                if best_result is None or steady < stable_frames:
+                    logger.warning(
+                        "Exposure calibration timed out: samples=%d last_exposure_us=%s "
+                        "steady=%d required=%d",
+                        sample_count,
+                        last_exposure_us,
+                        steady,
+                        stable_frames,
+                    )
+                    raise RuntimeError("Exposure did not stabilize.")
+
+                exposure_us, analogue_gain, digital_gain = best_result
+                if digital_gain > 1.05:
+                    raise RuntimeError(
+                        "Exposure requires digital gain while analogue gain is fixed at 1.0."
+                    )
+
+                if abs(analogue_gain - 1.0) > 0.05:
+                    raise RuntimeError(
+                        f"Analogue gain did not remain at 1.0 (measured {analogue_gain:.3f})."
+                    )
+
+                # Lock the values in hardware before persisting them in settings.
+                self._picam.set_controls({
+                    "AeEnable": False,
+                    "ExposureTimeMode": controls.ExposureTimeModeEnum.Manual,
+                    "AnalogueGainMode": controls.AnalogueGainModeEnum.Manual,
+                    "ExposureTime": exposure_us,
+                    "AnalogueGain": 1.0,
+                })
+
+                shutter_ms = exposure_us / 1000.0
+                self.settings.update(shutter=shutter_ms, gain=1.0)
+                # Settings callbacks also update the busy state. Keep the
+                # calibration operation marked busy until mode restoration ends.
+                self._set_busy(True)
+                locked = True
+
+                logger.info(
+                    "Exposure locked: %.3f ms, analogue gain 1.0",
+                    shutter_ms,
+                )
+                return shutter_ms, 1.0
+
+            finally:
+                controls_after_mode_switch = (
+                    self._manual_camera_controls(self.settings)
+                    if locked
+                    else previous_controls
+                )
+                if not mode_switched and not locked:
+                    restore_controls = {"AeEnable": False}
+                    restore_controls.update(controls_after_mode_switch)
+                    self._picam.set_controls(restore_controls)
+
+                try:
+                    if mode_switched:
+                        self._picam.switch_mode(self.preview_config, wait=True)
+                        if controls_after_mode_switch:
+                            self._picam.set_controls(controls_after_mode_switch)
+                finally:
+                    self._set_busy(False)
 
     def restart_camera(self):
         """Restart the camera and reconfigure resolution."""
@@ -542,50 +806,101 @@ class Picamera2Controller(CameraController):
         # the Picamera2 instance. The cancellation above wakes a photo waiting
         # on a Picamera2 job; this lock waits for that caller to leave.
         with self._hw_lock:
-            self._picam.stop()
-            self._picam.close()
-            self._picam = self._create_picamera()
-            self._configure_resolutions()
-            self._picam.configure(self.preview_config)
-            self._picam.start()
-            self._apply_settings_to_hardware(self.camera.settings)
-            self._configure_focus(camera_mode="preview")
+            try:
+                self._picam.stop()
+                self._picam.close()
+                self._picam = self._create_picamera()
+                self._configure_resolutions()
+                self._picam.configure(self.preview_config)
+                self._picam.start()
+                self._apply_settings_to_hardware(self.camera.settings)
+                self._configure_focus(camera_mode="preview")
+            except (OSError, RuntimeError) as exc:
+                self._record_camera_error(exc)
+                raise
+            self._set_restart_error(None)
             self._set_busy(False)
         logger.info(f"Picamera2 restarted.")
 
-    def _capture_array(self, config):
-        self._set_busy(True)
-        self._configure_focus(camera_mode="photo")
-        if self.settings.AF:
-            self._autofocus_or_fallback()
+    @asynccontextmanager
+    async def capture_session(self, image_format: str = "jpeg"):
+        """Keep the requested capture configuration active for a capture sequence.
 
-        last_exc = None
+        The mode switch is deliberately lazy. This lets JPEG/DNG capture setup
+        apply its crop before the first switch and avoids switching at all when
+        a session is opened but no photo is taken.
+        """
+        if self._capture_session_active:
+            raise RuntimeError("Picamera2 capture sessions cannot be nested")
+
+        self._capture_session_active = True
+        self._capture_session_image_format = image_format
         try:
-            for attempt in range(1, 4):
-                try:
-                    req = self._picam.switch_mode_and_capture_request(config, wait=True)
-                    try:
-                        array = req.make_array("main")
-                        cam_metadata = req.get_metadata()
-                    finally:
-                        req.release()
-                    logger.debug(f"Captured array with metadata: {cam_metadata}")
-                    return array, cam_metadata
-                except Exception as e:
-                    last_exc = e
-                    logger.warning(f"_capture_array attempt {attempt}/3 failed: {e}")
-                    if attempt < 3:
-                        # Exponential backoff to give the system time to free/recover memory
-                        backoff = [1, 2, 4][attempt - 1]
-                        time.sleep(backoff)
-                        continue
-                    break
-        except:
-            # All attempts failed; re-raise the last exception for upstream handling
-            raise last_exc
+            yield self
         finally:
-            # Always switch back to preview focus and clear busy flag
-            self._configure_focus(camera_mode="preview")
+            try:
+                if self._capture_session_config is not None and not self.restart_required:
+                    await asyncio.to_thread(self._end_capture_session)
+            finally:
+                self._set_busy(False)
+                self._capture_session_active = False
+                self._capture_session_config = None
+                self._capture_session_image_format = None
+
+    def _ensure_capture_session_mode(self, config):
+        """Switch into the capture mode once for the current session."""
+        if self._capture_session_config is not None:
+            return
+
+        self._picam.switch_mode(config, wait=True)
+        self._capture_session_config = config
+        logger.debug(
+            "Capture session switched to %s configuration.",
+            self._capture_session_image_format,
+        )
+
+    def _end_capture_session(self):
+        """Return from the persistent capture mode to the preview mode."""
+        with self._hw_lock:
+            if self.restart_required:
+                return
+            try:
+                self._picam.switch_mode(self.preview_config, wait=True)
+                self._configure_focus(camera_mode="preview")
+            except (OSError, RuntimeError) as exc:
+                self._record_camera_error(exc)
+                raise
+        logger.debug("Capture session returned to preview configuration.")
+
+    def _capture_array(self, config):
+        self._require_camera_ready()
+        self._set_busy(True)
+        try:
+            self._configure_focus(camera_mode="photo")
+            if self.settings.AF:
+                self._autofocus_or_fallback()
+
+            if self._capture_session_active:
+                self._ensure_capture_session_mode(config)
+                req = self._picam.capture_request(wait=True)
+            else:
+                req = self._picam.switch_mode_and_capture_request(config, wait=True)
+            try:
+                array = req.make_array("main")
+                cam_metadata = req.get_metadata()
+            finally:
+                req.release()
+
+            # Restore focus only after success; a failed camera may hang here.
+            if not self._capture_session_active:
+                self._configure_focus(camera_mode="preview")
+            logger.debug(f"Captured array with metadata: {cam_metadata}")
+            return array, cam_metadata
+        except (OSError, RuntimeError) as exc:
+            self._record_camera_error(exc)
+            logger.exception("Array capture failed.")
+            raise
+        finally:
             self._set_busy(False)
 
 
@@ -644,11 +959,22 @@ class Picamera2Controller(CameraController):
 
         self._picam.options["quality"] = self.settings.jpeg_quality
 
+        # Only apply a strategy's EXIF identity when this camera has an explicit
+        # strategy. Unknown cameras use the fallback strategy for capture setup,
+        # but must not be mislabeled as an IMX519 in the image metadata.
+        camera_strategy = self._strategies.get(self.camera.name)
+        if camera_strategy and camera_strategy.exif_make and camera_strategy.exif_model:
+            exif_camera_fields = {
+                piexif.ImageIFD.Make: camera_strategy.exif_make,
+                piexif.ImageIFD.Model: camera_strategy.exif_model,
+            }
+        else:
+            exif_camera_fields = {piexif.ImageIFD.Model: self.camera.name}
+
         exif_data = {
             "0th": {
                 piexif.ImageIFD.Orientation: self.settings.orientation_flag,
-                # piexif.ImageIFD.Make: "Raspberry Pi",
-                piexif.ImageIFD.Model: self.camera.name,
+                **exif_camera_fields,
                 piexif.ImageIFD.Software: "OpenScan3 (Picamera2)",
             }
         }
@@ -657,19 +983,58 @@ class Picamera2Controller(CameraController):
             exif_data.update(optional_exif_data)
 
         jpeg_data = io.BytesIO()
-        cam_metadata = self._picam.switch_mode_and_capture_file(self.photo_config,
-                                                            jpeg_data,
-                                                            #delay=5,
-                                                            format='jpeg',
-                                                            exif_data=exif_data)
+        if self._capture_session_active:
+            self._ensure_capture_session_mode(self.photo_config)
+            cam_metadata = self._picam.capture_file(jpeg_data,
+                                                    format='jpeg',
+                                                    exif_data=exif_data,
+                                                    wait=True)
+        else:
+            cam_metadata = self._picam.switch_mode_and_capture_file(self.photo_config,
+                                                                    jpeg_data,
+                                                                    #delay=5,
+                                                                    format='jpeg',
+                                                                    exif_data=exif_data)
+            self._configure_focus(camera_mode="preview")
 
-        self._configure_focus(camera_mode="preview")
-
+        jpeg_data = self._enrich_jpeg_exif(jpeg_data, cam_metadata)
         logger.debug(f"Captured jpeg with metadata: {cam_metadata}")
 
         self._set_busy(False)
 
         return self._create_artifact(jpeg_data, "jpeg", cam_metadata)
+
+    @staticmethod
+    def _enrich_jpeg_exif(jpeg_data: BytesIO, camera_metadata: dict) -> BytesIO:
+        """Copy capture values with clear EXIF equivalents into the JPEG."""
+        exif_updates = {}
+
+        exposure_time_us = camera_metadata.get("ExposureTime")
+        if exposure_time_us is not None and exposure_time_us > 0:
+            # Picamera2 reports ExposureTime in microseconds; EXIF stores seconds.
+            exif_updates[piexif.ExifIFD.ExposureTime] = (int(exposure_time_us), 1_000_000)
+
+        analogue_gain = camera_metadata.get("AnalogueGain")
+        digital_gain = camera_metadata.get("DigitalGain")
+        if analogue_gain is not None and digital_gain is not None:
+            iso = int(analogue_gain * digital_gain * 100)
+            if iso > 0:
+                exif_updates[piexif.ExifIFD.ISOSpeedRatings] = iso
+
+        if not exif_updates:
+            return jpeg_data
+
+        try:
+            jpeg_bytes = jpeg_data.getvalue()
+            exif_dict = piexif.load(jpeg_bytes)
+            exif_dict["Exif"].update(exif_updates)
+            enriched_jpeg = BytesIO()
+            piexif.insert(piexif.dump(exif_dict), jpeg_bytes, enriched_jpeg)
+            jpeg_data = enriched_jpeg
+            return jpeg_data
+        except Exception:
+            logger.warning("Could not add Picamera2 capture metadata to JPEG EXIF", exc_info=True)
+            return jpeg_data
 
 
     def capture_dng(self) -> PhotoData:
@@ -684,11 +1049,14 @@ class Picamera2Controller(CameraController):
             self._autofocus_or_fallback()
 
         dng_data = io.BytesIO()
-        camera_metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
-                                                            dng_data,
-                                                            name='raw')
-
-        self._configure_focus(camera_mode="preview")
+        if self._capture_session_active:
+            self._ensure_capture_session_mode(self.raw_config)
+            camera_metadata = self._picam.capture_file(dng_data, name='raw', wait=True)
+        else:
+            camera_metadata = self._picam.switch_mode_and_capture_file(self.raw_config,
+                                                                       dng_data,
+                                                                       name='raw')
+            self._configure_focus(camera_mode="preview")
 
         logger.debug(f"Captured dng with metadata: {camera_metadata}")
 
@@ -704,9 +1072,18 @@ class Picamera2Controller(CameraController):
 
         Returns:
             CameraMetadata: The prepared metadata."""
+        safe_metadata = dict(raw_metadata or {})
+        extended_debug = decode_extended_debug_metadata(safe_metadata)
+        for key in ("Bcm2835StatsOutput", "PispStatsOutput"):
+            # The binary vendor value is not JSON serializable and is replaced
+            # by the normalized extended_debug representation below.
+            safe_metadata.pop(key, None)
+        if extended_debug is not None:
+            safe_metadata["extended_debug"] = extended_debug
+
         camera_metadata = CameraMetadata(camera_name=self.camera.name,
                                          camera_settings=self.settings.model,
-                                         raw_metadata=raw_metadata)
+                                         raw_metadata=safe_metadata)
         return camera_metadata
 
     def _create_artifact(self, data, data_format, camera_metadata) -> PhotoData:
@@ -734,6 +1111,7 @@ class Picamera2Controller(CameraController):
         Returns:
             IO[bytes]: A file-like object containing the JPEG image.
         """
+        self._require_camera_ready()
         if self._picam is None or self._is_closing:
             raise RuntimeError("Picamera2 controller is not available")
 

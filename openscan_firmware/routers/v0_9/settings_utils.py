@@ -1,3 +1,5 @@
+import asyncio
+
 from typing import Any, Callable, Dict, Type, TypeVar
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
@@ -42,7 +44,7 @@ def create_settings_endpoints(
         """Replace all settings for a specific resource"""
         controller = get_controller(name)
         try:
-            controller.settings.replace(settings)
+            await asyncio.to_thread(controller.settings.replace, settings)
             return controller.settings.model
         except Exception as e:
             raise HTTPException(status_code=422, detail=str(e))
@@ -68,7 +70,7 @@ def create_settings_endpoints(
         """
         controller = get_controller(name)
         try:
-            controller.settings.update(**settings)
+            await asyncio.to_thread(controller.settings.update, **settings)
             return controller.settings.model
         except Exception as e:
             raise HTTPException(status_code=422, detail=str(e))

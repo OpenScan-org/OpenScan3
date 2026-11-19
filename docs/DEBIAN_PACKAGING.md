@@ -15,7 +15,9 @@ dpkg-buildpackage -us -uc -b
 
 The build reads the firmware version from `pyproject.toml`, builds a wheel for
 the local `openscan-firmware` package, and asks `pip wheel` to build or download
-wheels for the runtime dependencies declared in `pyproject.toml`.
+wheels for the Python runtime dependencies declared in `pyproject.toml`.
+Picamera2 is managed separately as a system package and is not included in the
+Python wheelhouse.
 
 Build-time network access may be required for this milestone because the
 wheelhouse is assembled during the Debian package build. Package installation on
@@ -31,11 +33,11 @@ python3-pip
 python3-venv
 ```
 
-Some runtime dependencies include native or Raspberry Pi specific packages, such
-as `picamera2`, `gphoto2`, `rpi.gpio`, and `zxing-cpp`. Building the wheelhouse
-can fail if compatible wheels, headers, or native build tools are unavailable for
-the build architecture. `libcap-dev` is required to build the `python-prctl`
-wheel pulled in by `picamera2`.
+Some wheelhouse dependencies are native or Raspberry Pi specific, such as
+`gphoto2`, `rpi.gpio`, and `zxing-cpp`. Building the wheelhouse can fail if
+compatible wheels, headers, or native build tools are unavailable for the build
+architecture. Picamera2 and its libcamera bindings must be provided by the
+target system's APT packages.
 
 ## Installed Layout
 
@@ -160,17 +162,17 @@ environment with `pip install -U`; package installation owns the venv contents.
 
 ## Known Limitations
 
-This milestone does not split dependencies between APT-managed and venv-managed
-Python packages. `pyproject.toml` remains the source of truth for runtime Python
-dependencies.
+`pyproject.toml` is the source of truth for Python dependencies installed in the
+firmware virtual environment. Picamera2 and its libcamera bindings are managed
+separately by the target system and are available to the virtual environment
+because it is created with `--system-site-packages`.
 
 The venv still uses `--system-site-packages` for compatibility with the current
 Raspberry Pi image.
 
-On a bare Raspberry Pi OS Lite image, importing `picamera2` also requires system
-bindings such as `python3-libcamera` and `python3-kms++` to be installed. The
-current pi-gen image may already provide these; this first milestone does not
-model those runtime system dependencies completely.
+The firmware Debian package does not install Picamera2 or its system bindings.
+The target Raspberry Pi OS image must provide Picamera2 and the required
+libcamera bindings (such as `python3-libcamera` and `python3-kms++`) through APT.
 
 Older release pruning is intentionally not implemented yet. Keeping only the
 current and previous releases should wait until release-retention policy is

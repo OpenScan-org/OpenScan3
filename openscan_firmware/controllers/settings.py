@@ -4,6 +4,7 @@ Settings module with callback-enabled attribute access for hardware components.
 Provides direct attribute access to settings while allowing callbacks when settings change.
 """
 import logging
+from threading import RLock
 from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, get_type_hints
 
 from pydantic import BaseModel
@@ -30,17 +31,19 @@ class Settings(Generic[T]):
         settings.update(shutter=20000, contrast=1.2)
     """
     
-    def __init__(self, settings: T, on_change: Optional[Callable[[T], None]] = None):
+    def __init__(self, settings: T, on_change: Optional[Callable[[T], None]] = None, *, lock=None):
         """
         Initialize settings with a callback.
         
         Args:
             settings: The initial settings object (must be a Pydantic BaseModel)
             on_change: Function to call when settings change
+            lock: Optional shared reentrant lock for settings writes and callbacks
             settings_file: Optional JSON file to load/save settings
             settings_dir: Directory for settings files, default is "settings"
             autosave: If True, automatically save to file on every change of settings
         """
+        self._lock = lock if lock is not None else RLock()
         self._settings = settings
         self._on_change = on_change
         logger.debug(f"Initialized '{settings.__class__.__name__}': {settings}")
@@ -57,20 +60,19 @@ class Settings(Generic[T]):
             super().__setattr__(name, value)
             return
 
-        logger.debug(f"Trying to set '{name}' to '{value}'")
+        with self._lock:
+            logger.debug(f"Trying to set '{name}' to '{value}'")
 
+            # Update the setting
+            settings_dict = self._settings.model_dump()
+            settings_dict[name] = value
+            new_settings = self._settings.__class__(**settings_dict)
+            logger.debug(f"Set '{name}' to '{value}'")
 
-        # Update the setting
-        settings_dict = self._settings.model_dump()
-        settings_dict[name] = value
-        new_settings = self._settings.__class__(**settings_dict)
-        logger.debug(f"Set '{name}' to '{value}'")
-
-        
-        # Set the new settings and trigger callback
-        self._settings = new_settings
-        if self._on_change:
-            self._on_change(self._settings)
+            # Set the new settings and trigger callback
+            self._settings = new_settings
+            if self._on_change:
+                self._on_change(self._settings)
     
     def update(self, **kwargs) -> bool:
         """
@@ -83,19 +85,20 @@ class Settings(Generic[T]):
         if not kwargs:
             return False
 
-        logger.debug(f"Trying to update old settings: {self._settings} with new settings: {kwargs}")
+        with self._lock:
+            logger.debug(f"Trying to update old settings: {self._settings} with new settings: {kwargs}")
 
-        # Create updated settings object
-        settings_dict = self._settings.model_dump()
-        settings_dict.update({k: v for k, v in kwargs.items() if v is not None})
-        new_settings = self._settings.__class__(**settings_dict)
+            # Create updated settings object
+            settings_dict = self._settings.model_dump()
+            settings_dict.update({k: v for k, v in kwargs.items() if v is not None})
+            new_settings = self._settings.__class__(**settings_dict)
 
-        logger.debug(f"Updating settings: {kwargs}")
+            logger.debug(f"Updating settings: {kwargs}")
 
-        # Set the new settings and trigger callback
-        self._settings = new_settings
-        if self._on_change:
-            self._on_change(self._settings)
+            # Set the new settings and trigger callback
+            self._settings = new_settings
+            if self._on_change:
+                self._on_change(self._settings)
 
         return True
     
@@ -106,15 +109,16 @@ class Settings(Generic[T]):
         Args:
             new_settings: New settings object (must be the same type as initial settings)
         """
-        logger.debug(f"Trying to replace old settings: {self._settings} with new settings: {new_settings}")
-        if not isinstance(new_settings, self._settings.__class__):
-            logger.error(f"Expected {self._settings.__class__.__name__}, got {type(new_settings).__name__}")
-            raise TypeError(f"Expected {self._settings.__class__.__name__}, got {type(new_settings).__name__}")
+        with self._lock:
+            logger.debug(f"Trying to replace old settings: {self._settings} with new settings: {new_settings}")
+            if not isinstance(new_settings, self._settings.__class__):
+                logger.error(f"Expected {self._settings.__class__.__name__}, got {type(new_settings).__name__}")
+                raise TypeError(f"Expected {self._settings.__class__.__name__}, got {type(new_settings).__name__}")
 
-        logger.debug(f"Replacing settings with: {new_settings}")
-        self._settings = new_settings
-        if self._on_change:
-            self._on_change(self._settings)
+            logger.debug(f"Replacing settings with: {new_settings}")
+            self._settings = new_settings
+            if self._on_change:
+                self._on_change(self._settings)
 
     @property
     def model(self) -> T:

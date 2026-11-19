@@ -1,3 +1,15 @@
+openscan3-firmware (0.14.0) unstable; urgency=medium
+
+  * Add Scan Wizard camera, positioning, exposure, focus, and feature-matching
+    analysis.
+  * Improve Picamera2 capture performance and coordinate camera operations
+    safely; use the system Picamera2 package.
+  * Report camera restart requirements and errors through the API.
+  * Fix camera startup on libcamera versions without PixelArraySize and preserve
+    EXIF data in focus-stacked images.
+
+ -- OpenScan3 Contributors <info@openscan.eu>  Thu, 19 Nov 2026 00:00:00 +0100
+
 openscan3-firmware (0.13.2) unstable; urgency=medium
 
   * Extend Picamera2 autofocus and add Mini IMX519-specific tuning.
